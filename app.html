@@ -2923,11 +2923,10 @@ function _doRunAnalysis() {
 
   // ── ANALİZ SONRASI BAYKUŞ YORUM KARTI ────────────────────────
   // Baykuş analiz sonrası görünür olsun ama otomatik konuşmasın
+  // Baykuş analiz sonrası yorum
   const _ab2 = document.getElementById('avatarBtn');
   if (_ab2) _ab2.style.display = 'flex';
   setTimeout(() => {
-    const _ab2x = document.getElementById('avatarBtn');
-    if (_ab2x) _ab2x.style.display = 'none';
     setTimeout(() => {
       const en2 = state.lang === 'en';
       const renkKart = toplam >= 76 ? '#f5a623' : toplam >= 60 ? '#fbbf24' : '#f87171';
@@ -7552,37 +7551,63 @@ const DEMO_FIRMA = {
   tip: 'pazarlama',
   refYear: 2024,
   period: '12',
+  // 2024 verileri — aktif=pasif=125,616,659
   data: {
-    // AKTİF
-    hazirDegerler: 3739916,
-    ticAlacaklar: 20059617,
-    digerAlacaklar: 4138654,
-    stoklar: 18314342,
-    digerDonen: 0,
-    maddiDuranVar: 79364130,
-    digerDuranVar: 0,
-    // PASİF
-    kvMaliBorclar: 11838966,
-    kvTicBorclar: 30802701,
-    kvDigBorclar: 29504755,   // Bilanço denklemi için diğer KV yükümlülükler
-    uvMaliBorclar: 29493093,
-    uvDigBorclar: 0,
+    hazirDegerler:   3739916,
+    ticAlacaklar:   20059617,
+    digerAlacaklar:  4138654,
+    stoklar:        18314342,
+    digerDonen:            0,
+    maddiDuranVar:  79364130,
+    digerDuranVar:         0,
+    kvMaliBorclar:  11838966,
+    kvTicBorclar:   30802701,
+    kvDigBorclar:   29504755,
+    uvMaliBorclar:  29493093,
+    uvDigBorclar:          0,
     odenmisSermaye: 23775525,
-    donemNetKar: 201619,
-    // GELİR TABLOSU
-    brutSatis: 185714124,
-    satMaliyet: 159545040,
-    faalGider: 13842403,
+    donemNetKar:      201619,
+    brutSatis:     185714124,
+    satMaliyet:    159545040,
+    faalGider:      13842403,
     finansmanGider: 15069403,
-    // HESAPLANANLAR
-    donenVarlik: 3739916+20059617+4138654+18314342,
-    duranVarlik: 79364130,
-    kvYKToplam: 11838966+30802701+29504755,
-    uvYKToplam: 29493093,
-    ozKaynak: 23775525+201619,
-    netSatis: 185714124,
-    aktifToplam: 3739916+20059617+4138654+18314342+79364130,
-    pasifToplam: (11838966+30802701+29504755)+29493093+(23775525+201619),
+    donenVarlik:  3739916+20059617+4138654+18314342,
+    duranVarlik:  79364130,
+    kvYKToplam:   11838966+30802701+29504755,
+    uvYKToplam:   29493093,
+    ozKaynak:     23775525+201619,
+    netSatis:     185714124,
+    aktifToplam:  3739916+20059617+4138654+18314342+79364130,
+    pasifToplam:  (11838966+30802701+29504755)+29493093+(23775525+201619),
+  },
+  // 2023 verileri — önceki yıl (yatay analiz için)
+  data2023: {
+    hazirDegerler:   2980000,
+    ticAlacaklar:   17500000,
+    digerAlacaklar:  3200000,
+    stoklar:        15800000,
+    digerDonen:            0,
+    maddiDuranVar:  72000000,
+    digerDuranVar:         0,
+    kvMaliBorclar:  10500000,
+    kvTicBorclar:   26000000,
+    kvDigBorclar:   24380000,
+    uvMaliBorclar:  27000000,
+    uvDigBorclar:          0,
+    odenmisSermaye: 23775525,
+    donemNetKar:     -175525,
+    brutSatis:     162000000,
+    satMaliyet:    140000000,
+    faalGider:      12800000,
+    finansmanGider: 10200000,
+    donenVarlik:  2980000+17500000+3200000+15800000,
+    duranVarlik:  72000000,
+    kvYKToplam:   10500000+26000000+24380000,
+    uvYKToplam:   27000000,
+    ozKaynak:     23775525+(-175525),
+    netSatis:     162000000,
+    aktifToplam:  2980000+17500000+3200000+15800000+72000000,
+    pasifToplam:  (10500000+26000000+24380000)+27000000+(23775525+(-175525)),
   }
 };
 
@@ -7619,9 +7644,10 @@ function demoBaslat() {
   if (refYearEl) refYearEl.value = DEMO_FIRMA.refYear;
   state.refYear = DEMO_FIRMA.refYear;
 
-  // Verileri state'e yükle
+  // Verileri state'e yükle — 2 yıl (yatay analiz için)
   if (!state.yearData) state.yearData = {};
   state.yearData[DEMO_FIRMA.refYear] = {...DEMO_FIRMA.data};
+  state.yearData[DEMO_FIRMA.refYear - 1] = {...DEMO_FIRMA.data2023};
 
   // Dönem butonunu aktif et
   document.querySelectorAll('.btn-period').forEach(b => {
@@ -7634,12 +7660,14 @@ function demoBaslat() {
   // Firma & Mali Veriler sekmesini göster — kullanıcı verileri görsün
   showTab('tab-bilgi', document.getElementById('tab-btn-bilgi'));
 
-  // Demo modunda Baykuş sunum metnini sırayla otomatik okusun
-  // Baykuş chatini aç ve sesli anlatım başlat
+  // Demo modunda Baykuş butonu görünür + chat otomatik açık
+  const _demoAb = document.getElementById('avatarBtn');
+  if (_demoAb) _demoAb.style.display = 'flex';
+  const _demoAm = document.getElementById('avatarModal');
+  if (_demoAm) _demoAm.style.display = 'block';
+
+  // Baykuş demo anlatımı — sesli, sıralı
   setTimeout(() => {
-    // Önce chatı aç
-    const m = document.getElementById('avatarModal');
-    if (m) m.style.display = 'block';
 
     // Sunum mesajları — OB_SLIDES içeriğiyle uyumlu, sesli okunacak
     const _demoMesajlar = [
@@ -7667,7 +7695,7 @@ function demoBaslat() {
       +'&#x1F528; Taahhüt — hakediş/nakit odaklı',
 
       '&#x2696;&#xFE0F; <b>Subjektif Faktörler</b><br><br>'
-      +'Kredi notunun <b>%30'unu</b> subjektif kriterler oluşturur.<br><br>'
+      +'Kredi notunun <b>%30&#39;unu</b> subjektif kriterler oluşturur.<br><br>'
       +'Analiz öncesi <b>Subjektif Faktörler</b> sekmesine gidin.<br>'
       +'4 soruyu cevaplayın: kredi geçmişi, limit doluluk, faaliyet süresi, muhasebe sistemi.<br><br>'
       +'Doldurmadan geçerseniz sistem otomatik <b>20.60/30</b> puan atar.',
