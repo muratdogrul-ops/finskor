@@ -1521,20 +1521,8 @@ function calcObjScore(r, firmType) {
   // Taahhüt: ciro = netSatis + hakediş(cari) - hakediş(önceki) formülüyle hesaplanır
   const _c11 = r.reelSatisBuy > 150 ? 0 : r.reelSatisBuy > 110 ? 1 : r.reelSatisBuy > 70 ? 4 : r.reelSatisBuy > 20 ? 5 : r.reelSatisBuy > 4 ? 4 : r.reelSatisBuy > 0 ? 1 : 0; s += _c11;
 
-  (function() {
-    const txt = 'PUAN KIRILIMI (Toplam='+s+')\n\n①Cari='+_c1+'/12  ['+r.cariOran.toFixed(3)+']\n②Likidite='+_c2+'/6  ['+r.likOran.toFixed(3)+']\n③Borç/ÖK='+_c3+'/12  ['+r.borcOzKay.toFixed(3)+']\n④NetKarMarj='+_c4+'/6  [%'+r.netKarMarj.toFixed(2)+']\n⑤ReelFaalKar='+_c5+'/5  [%'+r.reelFaalKarBuy.toFixed(1)+', prev='+r.prevFaalKar.toFixed(0)+']\n⑥FaalKarKarş='+_c6+'/5  [prevFaalKar='+r.prevFaalKar.toFixed(0)+']\n⑦KVBanka/Sat='+_c7+'/10  [%'+r.kvBankaB_Sat.toFixed(1)+']\n⑧KVBorç/Sat='+_c8+'/6  [%'+r.kvBorcSat.toFixed(1)+']\n⑨İhracat/Sat='+_c9+'/3  [%'+r.ihracatSatis.toFixed(1)+']\n⑩Banka/Aktif='+_c10+'/5  [%'+r.bnkBorcAkt.toFixed(1)+']\n⑪ReelSatBüy='+_c11+'/5  [%'+r.reelSatisBuy.toFixed(1)+']';
-    window._lastKirilim = txt;  // Avatar asistan için
-    const ov = document.createElement('div');
-    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center';
-    ov.innerHTML='<div style="background:#1a2235;border-radius:10px;padding:24px;width:420px;max-width:90vw">'
-      +'<div style="font-weight:700;color:#f5a623;margin-bottom:12px">🔢 Puan Kırılımı</div>'
-      +'<textarea id="_dbgTa" readonly style="width:100%;height:260px;background:#0d1117;color:#e2e8f0;border:1px solid #334155;border-radius:6px;padding:10px;font-family:monospace;font-size:12px;resize:none">'+txt+'</textarea>'
-      +'<div style="display:flex;gap:8px;margin-top:12px">'
-      +'<button onclick="document.getElementById(\'_dbgTa\').select();document.execCommand(\'copy\');this.textContent=\'✅ Kopyalandı\'" style="flex:1;background:#f5a623;color:#000;border:none;border-radius:6px;padding:8px;cursor:pointer;font-weight:700">📋 Kopyala</button>'
-      +'<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="flex:1;background:#334155;color:#e2e8f0;border:none;border-radius:6px;padding:8px;cursor:pointer">Kapat</button>'
-      +'</div></div>';
-    document.body.appendChild(ov);
-  })();
+  // Puan kırılımı Baykuş asistan için kaydet (popup gösterme)
+  window._lastKirilim = 'PUAN KIRILIMI (Toplam='+s+')\n\n①Cari='+_c1+'/12  ['+r.cariOran.toFixed(3)+']\n②Likidite='+_c2+'/6  ['+r.likOran.toFixed(3)+']\n③Borç/ÖK='+_c3+'/12  ['+r.borcOzKay.toFixed(3)+']\n④NetKarMarj='+_c4+'/6  [%'+r.netKarMarj.toFixed(2)+']\n⑤ReelFaalKar='+_c5+'/5  [%'+r.reelFaalKarBuy.toFixed(1)+', prev='+r.prevFaalKar.toFixed(0)+']\n⑥FaalKarKarş='+_c6+'/5  [prevFaalKar='+r.prevFaalKar.toFixed(0)+']\n⑦KVBanka/Sat='+_c7+'/10  [%'+r.kvBankaB_Sat.toFixed(1)+']\n⑧KVBorç/Sat='+_c8+'/6  [%'+r.kvBorcSat.toFixed(1)+']\n⑨İhracat/Sat='+_c9+'/3  [%'+r.ihracatSatis.toFixed(1)+']\n⑩Banka/Aktif='+_c10+'/5  [%'+r.bnkBorcAkt.toFixed(1)+']\n⑪ReelSatBüy='+_c11+'/5  [%'+r.reelSatisBuy.toFixed(1)+']';
 
   return s;
   // Toplam maks: 12+6+12+6+5+5+10+6+3+5+5 = 75 (Pazarlama ve Üretim/Taahhüt, eşikler farklı)
@@ -1651,11 +1639,11 @@ function loginSuccess(userData) {
   }
 
   init();
-  // OB her girişte göster — _obShown'u sıfırla
-  window._obShown = false;
-  localStorage.removeItem('kas_ob_shown');
+  // OB popup kapalı
+  window._obShown = true;
+  localStorage.setItem('kas_ob_shown','1');
 
-  if (!window._obShown) {
+  if (false) {
     setTimeout(obOpen, 600);
   } else {
     const ab = document.getElementById('avatarBtn');
