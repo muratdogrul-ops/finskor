@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FinSkor — Yönetici Paneli</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg: #0d0d0d;
+  --bg2: #141414;
+  --bg3: #1a1a1a;
+  --border: rgba(255,255,255,0.07);
+  --gold: #f5a623;
+  --gold2: #f7c948;
+  --text: #e8e8e8;
+  --text-muted: #888;
+  --danger: #f03e3e;
+  --success: #51cf66;
+  --accent: #4dabf7;
+  --radius: 10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; }
+
+/* ── LOGIN ── */
+#loginScreen {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at 30% 20%, rgba(245,166,35,0.06) 0%, transparent 60%),
+              radial-gradient(ellipse at 70% 80%, rgba(77,171,247,0.04) 0%, transparent 60%), var(--bg);
+}
+.login-box {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 16px; padding: 48px 40px; width: 360px;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+  position: relative; overflow: hidden;
+}
+.login-box::before { content:''; position:absolute; top:0;left:0;right:0;height:3px; background:linear-gradient(90deg,var(--gold),var(--gold2),transparent); }
+.login-logo { font-size:32px; font-weight:800; background:linear-gradient(135deg,var(--gold),var(--gold2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:4px; }
+.login-sub { font-size:11px; color:var(--text-muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:32px; }
+.login-label { font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-muted); font-weight:600; margin-bottom:8px; }
+.login-input { width:100%; background:var(--bg3); border:1px solid var(--border); border-radius:8px; padding:12px 14px; color:var(--text); font-size:14px; margin-bottom:16px; outline:none; transition:.2s; }
+.login-input:focus { border-color:var(--gold); box-shadow:0 0 0 3px rgba(245,166,35,0.1); }
+.login-btn { width:100%; background:linear-gradient(135deg,var(--gold),var(--gold2)); border:none; border-radius:8px; padding:13px; color:#0d0d0d; font-size:14px; font-weight:700; cursor:pointer; margin-top:4px; transition:.2s; }
+.login-btn:hover { opacity:.9; transform:translateY(-1px); }
+.login-err { color:var(--danger); font-size:12px; margin-top:10px; display:none; }
+
+/* ── SHELL ── */
+#shell { display:none; min-height:100vh; }
+.sidebar {
+  position:fixed; left:0; top:0; bottom:0; width:220px;
+  background:var(--bg2); border-right:1px solid var(--border);
+  display:flex; flex-direction:column; z-index:100;
+}
+.sidebar-logo { padding:24px 20px 20px; border-bottom:1px solid var(--border); }
+.sidebar-logo .logo-txt { font-size:22px; font-weight:800; background:linear-gradient(135deg,var(--gold),var(--gold2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.sidebar-logo .logo-sub { font-size:9px; color:var(--text-muted); letter-spacing:2px; text-transform:uppercase; margin-top:2px; }
+.sidebar-nav { flex:1; padding:16px 12px; display:flex; flex-direction:column; gap:4px; }
+.nav-item {
+  display:flex; align-items:center; gap:10px; padding:10px 12px;
+  border-radius:8px; cursor:pointer; font-size:13px; font-weight:500;
+  color:var(--text-muted); transition:.15s; border:none; background:none; width:100%; text-align:left;
+}
+.nav-item:hover { background:rgba(255,255,255,0.04); color:var(--text); }
+.nav-item.active { background:rgba(245,166,35,0.1); color:var(--gold); }
+.nav-item .icon { width:18px; text-align:center; font-size:15px; }
+.sidebar-footer { padding:16px 12px; border-top:1px solid var(--border); }
+.logout-btn { display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:8px; cursor:pointer; font-size:13px; color:var(--danger); background:none; border:none; width:100%; transition:.15s; }
+.logout-btn:hover { background:rgba(240,62,62,0.08); }
+
+.main { margin-left:220px; min-height:100vh; padding:28px 32px; }
+.page { display:none; }
+.page.active { display:block; }
+.page-title { font-size:22px; font-weight:700; margin-bottom:6px; }
+.page-sub { font-size:13px; color:var(--text-muted); margin-bottom:28px; }
+
+/* ── KARTLAR ── */
+.stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px; }
+.stat-card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:20px; }
+.stat-label { font-size:11px; color:var(--text-muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:8px; }
+.stat-value { font-size:28px; font-weight:800; color:var(--gold); }
+.stat-sub { font-size:11px; color:var(--text-muted); margin-top:4px; }
+
+/* ── TABLO ── */
+.card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:20px; }
+.card-head { padding:18px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+.card-head-title { font-size:14px; font-weight:600; }
+.card-body { padding:0; }
+.tbl { width:100%; border-collapse:collapse; }
+.tbl th { font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--text-muted); padding:10px 16px; text-align:left; border-bottom:1px solid var(--border); font-weight:600; background:rgba(255,255,255,0.02); }
+.tbl td { padding:12px 16px; font-size:13px; border-bottom:1px solid rgba(255,255,255,0.04); vertical-align:middle; }
+.tbl tr:last-child td { border-bottom:none; }
+.tbl tr:hover td { background:rgba(255,255,255,0.02); }
+.badge { display:inline-flex; align-items:center; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:600; }
+.badge-green { background:rgba(81,207,102,0.12); color:var(--success); }
+.badge-red { background:rgba(240,62,62,0.12); color:var(--danger); }
+.badge-gold { background:rgba(245,166,35,0.12); color:var(--gold); }
+.badge-blue { background:rgba(77,171,247,0.12); color:var(--accent); }
+
+/* ── BUTONLAR ── */
+.btn { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; transition:.15s; border:none; }
+.btn-primary { background:linear-gradient(135deg,var(--gold),var(--gold2)); color:#0d0d0d; }
+.btn-primary:hover { opacity:.9; transform:translateY(-1px); }
+.btn-outline { background:transparent; border:1px solid var(--border); color:var(--text); }
+.btn-outline:hover { border-color:rgba(255,255,255,0.2); background:rgba(255,255,255,0.04); }
+.btn-danger { background:rgba(240,62,62,0.1); border:1px solid rgba(240,62,62,0.2); color:var(--danger); }
+.btn-danger:hover { background:rgba(240,62,62,0.2); }
+.btn-sm { padding:5px 10px; font-size:11px; }
+.btn-icon { padding:6px 8px; }
+
+/* ── MODAL ── */
+.modal-overlay {
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7);
+  z-index:1000; align-items:center; justify-content:center;
+}
+.modal-overlay.open { display:flex; }
+.modal { background:var(--bg2); border:1px solid var(--border); border-radius:14px; padding:32px; width:540px; max-width:95vw; max-height:90vh; overflow-y:auto; position:relative; }
+.modal-title { font-size:18px; font-weight:700; margin-bottom:6px; }
+.modal-sub { font-size:12px; color:var(--text-muted); margin-bottom:24px; }
+.modal-close { position:absolute; top:16px; right:16px; background:none; border:none; color:var(--text-muted); font-size:20px; cursor:pointer; padding:4px 8px; border-radius:6px; }
+.modal-close:hover { background:rgba(255,255,255,0.06); }
+.modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:24px; padding-top:20px; border-top:1px solid var(--border); }
+
+/* ── FORM ── */
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.form-grid.full { grid-template-columns:1fr; }
+.form-group { display:flex; flex-direction:column; gap:6px; }
+.form-group.span2 { grid-column:span 2; }
+.form-label { font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--text-muted); font-weight:600; }
+.form-input, .form-select, .form-textarea {
+  background:var(--bg3); border:1px solid var(--border); border-radius:8px;
+  padding:10px 12px; color:var(--text); font-size:13px; outline:none; transition:.2s; width:100%;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color:var(--gold); box-shadow:0 0 0 3px rgba(245,166,35,0.08); }
+.form-select option { background:var(--bg3); }
+.form-textarea { resize:vertical; min-height:80px; font-family:inherit; }
+
+/* ── SEARCH / FILTER BAR ── */
+.toolbar { display:flex; gap:10px; align-items:center; margin-bottom:20px; flex-wrap:wrap; }
+.search-input { background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:9px 14px; color:var(--text); font-size:13px; outline:none; width:260px; transition:.2s; }
+.search-input:focus { border-color:rgba(255,255,255,0.2); }
+
+/* ── TABS ── */
+.tabs { display:flex; gap:4px; background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:4px; margin-bottom:24px; width:fit-content; }
+.tab { padding:8px 18px; border-radius:7px; font-size:13px; font-weight:500; cursor:pointer; color:var(--text-muted); border:none; background:none; transition:.15s; }
+.tab.active { background:rgba(245,166,35,0.12); color:var(--gold); }
+
+/* ── ÜFE TABLO ── */
+.ufe-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
+.ufe-card { background:var(--bg3); border:1px solid var(--border); border-radius:8px; padding:16px; }
+.ufe-year { font-size:18px; font-weight:700; color:var(--gold); margin-bottom:12px; }
+.ufe-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.ufe-label { font-size:11px; color:var(--text-muted); }
+.ufe-input { width:90px; background:var(--bg2); border:1px solid var(--border); border-radius:6px; padding:5px 8px; color:var(--text); font-size:12px; text-align:right; outline:none; }
+.ufe-input:focus { border-color:var(--gold); }
+
+/* ── LOADING ── */
+.spinner { width:20px; height:20px; border:2px solid rgba(245,166,35,0.2); border-top-color:var(--gold); border-radius:50%; animation:spin .7s linear infinite; display:inline-block; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.loading-row td { text-align:center; padding:32px; color:var(--text-muted); font-size:13px; }
+.empty-state { text-align:center; padding:48px 20px; color:var(--text-muted); }
+.empty-state .empty-icon { font-size:36px; margin-bottom:12px; }
+.empty-state .empty-title { font-size:15px; font-weight:600; color:var(--text); margin-bottom:6px; }
+
+/* ── TOAST ── */
+#toast {
+  position:fixed; bottom:24px; right:24px; padding:12px 20px;
+  border-radius:10px; font-size:13px; font-weight:500; z-index:9999;
+  transition:.3s; transform:translateY(80px); opacity:0;
+  max-width:320px;
+}
+#toast.show { transform:translateY(0); opacity:1; }
+#toast.success { background:#1a2e1a; border:1px solid rgba(81,207,102,0.3); color:var(--success); }
+#toast.error { background:#2e1a1a; border:1px solid rgba(240,62,62,0.3); color:var(--danger); }
+
+/* ── KONTÖR BADGE ── */
+.credits-display { display:flex; align-items:center; gap:6px; }
+.credits-bar-wrap { width:80px; height:6px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden; }
+.credits-bar { height:100%; background:var(--gold); border-radius:3px; transition:.3s; }
+
+/* ── KOD GENERATE ── */
+.code-badge { display:inline-block; background:rgba(245,166,35,0.1); border:1px solid rgba(245,166,35,0.3); color:var(--gold); padding:8px 16px; border-radius:8px; font-size:16px; font-weight:700; letter-spacing:2px; font-family:monospace; }
+
+/* ── RLS uyarı ── */
+.rls-warn { background:rgba(247,201,72,0.08); border:1px solid rgba(247,201,72,0.2); border-radius:8px; padding:12px 16px; font-size:12px; color:var(--gold2); margin-bottom:20px; }
+
+@media (max-width:900px) {
+  .sidebar { width:60px; }
+  .nav-item span, .sidebar-logo .logo-sub, .sidebar-logo .logo-txt, .logout-btn span { display:none; }
+  .main { margin-left:60px; padding:20px 16px; }
+  .stats-row { grid-template-columns:1fr 1fr; }
+  .form-grid { grid-template-columns:1fr; }
+  .form-group.span2 { grid-column:span 1; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">FinSkor</div>
+    <div class="login-sub">Yönetici Paneli</div>
+    <div class="login-label">Kullanıcı Adı</div>
+    <input class="login-input" type="text" id="lUser" placeholder="admin" autocomplete="username" onkeydown="if(event.key==='Enter')adminLogin()">
+    <div class="login-label">Şifre</div>
+    <input class="login-input" type="password" id="lPass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')adminLogin()">
+    <button class="login-btn" onclick="adminLogin()">Giriş Yap</button>
+    <div class="login-err" id="lErr"></div>
+  </div>
+</div>
+
+<!-- ANA SHELL -->
+<div id="shell">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-txt">FinSkor</div>
+      <div class="logo-sub">Admin Paneli</div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" onclick="showPage('dashboard')" id="nav-dashboard"><span class="icon">📊</span><span>Dashboard</span></button>
+      <button class="nav-item" onclick="showPage('customers')" id="nav-customers"><span class="icon">🏢</span><span>Müşteriler</span></button>
+      <button class="nav-item" onclick="showPage('codes')" id="nav-codes"><span class="icon">🔑</span><span>Erişim Kodları</span></button>
+      <button class="nav-item" onclick="showPage('payments')" id="nav-payments"><span class="icon">💳</span><span>Ödemeler</span></button>
+      <button class="nav-item" onclick="showPage('analyses')" id="nav-analyses"><span class="icon">📈</span><span>Analizler</span></button>
+      <button class="nav-item" onclick="showPage('ufe')" id="nav-ufe"><span class="icon">📉</span><span>ÜFE Oranları</span></button>
+      <button class="nav-item" onclick="showPage('maliyil')" id="nav-maliyil"><span class="icon">📆</span><span>Mali Yıl/Dönem</span></button>
+      <button class="nav-item" onclick="showPage('ayarlar')" id="nav-ayarlar"><span class="icon">⚙️</span><span>Ayarlar</span></button>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="adminLogout()">🚪 <span>Çıkış</span></button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-title">Dashboard</div>
+      <div class="page-sub">FinSkor yönetim özeti</div>
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-label">Toplam Müşteri</div><div class="stat-value" id="stat-customers">—</div><div class="stat-sub">kayıtlı firma</div></div>
+        <div class="stat-card"><div class="stat-label">Aktif Kod</div><div class="stat-value" id="stat-codes">—</div><div class="stat-sub">erişim kodu</div></div>
+        <div class="stat-card"><div class="stat-label">Toplam Analiz</div><div class="stat-value" id="stat-analyses">—</div><div class="stat-sub">gerçekleşen</div></div>
+        <div class="stat-card"><div class="stat-label">Toplam Tahsilat</div><div class="stat-value" id="stat-revenue">—</div><div class="stat-sub">₺ TRY</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div class="card">
+          <div class="card-head"><div class="card-head-title">🕐 Son Analizler</div></div>
+          <div class="card-body"><table class="tbl"><thead><tr><th>Firma</th><th>Skor</th><th>Not</th><th>Tarih</th></tr></thead><tbody id="recent-analyses"><tr class="loading-row"><td colspan="4"><span class="spinner"></span></td></tr></tbody></table></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-head-title">💳 Son Ödemeler</div></div>
+          <div class="card-body"><table class="tbl"><thead><tr><th>Müşteri</th><th>Tutar</th><th>Yöntem</th><th>Tarih</th></tr></thead><tbody id="recent-payments"><tr class="loading-row"><td colspan="4"><span class="spinner"></span></td></tr></tbody></table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MÜŞTERİLER -->
+    <div class="page" id="page-customers">
+      <div class="page-title">Müşteriler</div>
+      <div class="page-sub">Müşteri firma yönetimi</div>
+      <div class="toolbar">
+        <input class="search-input" type="text" placeholder="🔍 Firma adı veya vergi no ara..." id="cust-search" oninput="filterCustomers()">
+        <button class="btn btn-primary" onclick="openCustomerModal()">+ Yeni Müşteri</button>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <table class="tbl">
+            <thead><tr><th>Firma Adı</th><th>Yetkili</th><th>Telefon</th><th>E-posta</th><th>Vergi No</th><th>Kayıt</th><th>İşlemler</th></tr></thead>
+            <tbody id="customers-body"><tr class="loading-row"><td colspan="7"><span class="spinner"></span></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ERİŞİM KODLARI -->
+    <div class="page" id="page-codes">
+      <div class="page-title">Erişim Kodları</div>
+      <div class="page-sub">Müşteri erişim kodu ve kontör yönetimi</div>
+      <div class="toolbar">
+        <input class="search-input" type="text" placeholder="🔍 Kod veya firma ara..." id="code-search" oninput="filterCodes()">
+        <button class="btn btn-primary" onclick="openCodeModal()">+ Yeni Kod Oluştur</button>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <table class="tbl">
+            <thead><tr><th>Kod</th><th>Müşteri</th><th>Kontör</th><th>Kullanım</th><th>Durum</th><th>Oluşturulma</th><th>İşlemler</th></tr></thead>
+            <tbody id="codes-body"><tr class="loading-row"><td colspan="7"><span class="spinner"></span></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ÖDEMELER -->
+    <div class="page" id="page-payments">
+      <div class="page-title">Ödemeler</div>
+      <div class="page-sub">Ödeme ve fatura takibi</div>
+      <div class="toolbar">
+        <input class="search-input" type="text" placeholder="🔍 Firma veya fatura ara..." id="pay-search" oninput="filterPayments()">
+        <button class="btn btn-primary" onclick="openPaymentModal()">+ Ödeme Ekle</button>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <table class="tbl">
+            <thead><tr><th>Müşteri</th><th>Tutar</th><th>Yöntem</th><th>Fatura No</th><th>Ödeme Tarihi</th><th>Notlar</th><th>İşlemler</th></tr></thead>
+            <tbody id="payments-body"><tr class="loading-row"><td colspan="7"><span class="spinner"></span></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ANALİZLER -->
+    <div class="page" id="page-analyses">
+      <div class="page-title">Analizler</div>
+      <div class="page-sub">Gerçekleşen tüm analizler</div>
+      <div class="toolbar">
+        <input class="search-input" type="text" placeholder="🔍 Firma ara..." id="ana-search" oninput="filterAnalyses()">
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <table class="tbl">
+            <thead><tr><th>Firma</th><th>Erişim Kodu</th><th>Skor</th><th>Kredi Notu</th><th>Yıl</th><th>Dönem</th><th>Tarih</th></tr></thead>
+            <tbody id="analyses-body"><tr class="loading-row"><td colspan="6"><span class="spinner"></span></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ÜFE ORANLARI -->
+    <div class="page" id="page-ufe">
+      <div class="page-title">ÜFE Oranları</div>
+      <div class="page-sub">Yıl bazlı ÜFE/enflasyon oranı yönetimi — program analizlerde bu verileri kullanır</div>
+      <div class="rls-warn">⚡ Burada kaydettiğiniz ÜFE oranları, müşterilerin programa girdiği verilerde otomatik kullanılır.</div>
+      <div class="ufe-grid" id="ufe-grid">
+        <div style="text-align:center;padding:32px;color:var(--text-muted)"><span class="spinner"></span></div>
+      </div>
+      <div style="margin-top:20px;display:flex;gap:10px">
+        <button class="btn btn-primary" onclick="saveUfeRates()">💾 Kaydet</button>
+        <button class="btn btn-outline" onclick="addUfeYear()">+ Yıl Ekle</button>
+      </div>
+    </div>
+
+    <!-- MALİ YIL/DÖNEM -->
+    <div class="page" id="page-maliyil">
+      <div class="page-title">Mali Yıl ve Dönem Yönetimi</div>
+      <div class="page-sub">Programa analiz için kullanılabilir mali yılları ve dönemleri tanımlayın</div>
+      <div class="rls-warn">⚡ Buraya eklediğiniz yıllar ve dönemler müşteri programındaki Analiz Yılı seçeneklerinde görünür.</div>
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-head"><div class="card-head-title">📆 Aktif Mali Yıllar</div></div>
+        <div class="card-body">
+          <div id="maliyil-list" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px"></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input class="form-input" id="new-maliyil" type="number" placeholder="Örn: 2027" style="width:160px;margin:0">
+            <button class="btn btn-primary" onclick="addMaliYil()">+ Yıl Ekle</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-head-title">📅 Aktif Mali Dönemler</div></div>
+        <div class="card-body">
+          <div style="color:var(--text-muted);font-size:13px;margin-bottom:12px">Analiz için kullanılabilir ay sonu dönemleri (3, 6, 9, 12 ay):</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap" id="donem-list">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="d3" value="3" onchange="saveDonemler()"> <span>3 Aylık (Mart)</span></label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="d6" value="6" onchange="saveDonemler()"> <span>6 Aylık (Haziran)</span></label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="d9" value="9" onchange="saveDonemler()"> <span>9 Aylık (Eylül)</span></label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="d12" value="12" checked onchange="saveDonemler()"> <span>12 Aylık (Aralık)</span></label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AYARLAR -->
+    <div class="page" id="page-ayarlar">
+      <div class="page-title">Ayarlar</div>
+      <div class="page-sub">Yönetici panel ayarları</div>
+      <div class="card" style="max-width:480px">
+        <div class="card-head"><div class="card-head-title">🔐 Panel Şifresi Değiştir</div></div>
+        <div class="card-body">
+          <div class="form-group" style="margin-bottom:14px">
+            <div class="form-label">Mevcut Şifre</div>
+            <input class="form-input" type="password" id="pass-eski" placeholder="Mevcut şifrenizi girin">
+          </div>
+          <div class="form-group" style="margin-bottom:14px">
+            <div class="form-label">Yeni Şifre</div>
+            <input class="form-input" type="password" id="pass-yeni" placeholder="En az 6 karakter">
+          </div>
+          <div class="form-group" style="margin-bottom:20px">
+            <div class="form-label">Yeni Şifre (Tekrar)</div>
+            <input class="form-input" type="password" id="pass-yeni2" placeholder="Yeni şifreyi tekrar girin">
+          </div>
+          <button class="btn btn-primary" onclick="adminSifreDegistir()">🔐 Şifreyi Güncelle</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── MODALLER ── -->
+
+<!-- Müşteri Modal -->
+<div class="modal-overlay" id="modal-customer">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-customer')">✕</button>
+    <div class="modal-title" id="cust-modal-title">Yeni Müşteri</div>
+    <div class="modal-sub">Firma bilgilerini doldurun</div>
+    <input type="hidden" id="cust-id">
+    <div class="form-grid">
+      <div class="form-group span2"><div class="form-label">Firma Adı / Ünvanı *</div><input class="form-input" id="cust-firma" placeholder="ABC Tekstil San. Tic. A.Ş."></div>
+      <div class="form-group"><div class="form-label">Yetkili Kişi</div><input class="form-input" id="cust-yetkili" placeholder="Ad Soyad"></div>
+      <div class="form-group"><div class="form-label">Telefon</div><input class="form-input" id="cust-tel" placeholder="0532 000 00 00"></div>
+      <div class="form-group"><div class="form-label">E-posta</div><input class="form-input" id="cust-email" type="email" placeholder="info@firma.com"></div>
+      <div class="form-group"><div class="form-label">Vergi No</div><input class="form-input" id="cust-vergi" placeholder="1234567890"></div>
+      <div class="form-group span2"><div class="form-label">Notlar</div><textarea class="form-textarea" id="cust-notlar" placeholder="Firma hakkında notlar..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-customer')">İptal</button>
+      <button class="btn btn-primary" onclick="saveCustomer()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- Erişim Kodu Modal -->
+<div class="modal-overlay" id="modal-code">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-code')">✕</button>
+    <div class="modal-title" id="code-modal-title">Erişim Kodu Oluştur</div>
+    <div class="modal-sub">Müşteriye özel erişim kodu ve kontör tanımlayın</div>
+    <input type="hidden" id="code-id">
+    <div class="form-grid">
+      <div class="form-group"><div class="form-label">Müşteri *</div>
+        <select class="form-select" id="code-customer"></select>
+      </div>
+      <div class="form-group"><div class="form-label">Erişim Kodu</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input class="form-input" id="code-value" placeholder="KA-2026-001" style="flex:1">
+          <button class="btn btn-outline btn-sm" onclick="generateCode()">🎲</button>
+        </div>
+      </div>
+      <div class="form-group"><div class="form-label">Kontör Sayısı</div><input class="form-input" id="code-credits" type="number" value="10" min="1" max="9999"></div>
+      <div class="form-group"><div class="form-label">Durum</div>
+        <select class="form-select" id="code-active"><option value="true">✅ Aktif</option><option value="false">❌ Pasif</option></select>
+      </div>
+      <div class="form-group"><div class="form-label">E-posta Girişi (opsiyonel)</div><input class="form-input" id="code-email" type="email" placeholder="musteri@firma.com"></div>
+      <div class="form-group"><div class="form-label">Şifre (opsiyonel)</div><input class="form-input" id="code-pass" type="password" placeholder="En az 6 karakter"></div>
+    </div>
+    <div id="code-preview" style="margin-top:16px;display:none">
+      <div class="form-label" style="margin-bottom:8px">Oluşturulan Kod</div>
+      <div class="code-badge" id="code-preview-val"></div>
+    </div>
+    <div id="code-share-btns" style="display:none;margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-outline" onclick="sendCodeMail()" style="background:rgba(77,171,247,0.1);border-color:#4dabf7;color:#4dabf7">📧 E-posta ile Gönder</button>
+      <button class="btn btn-outline" onclick="sendCodeWhatsApp()" style="background:rgba(81,207,102,0.1);border-color:#51cf66;color:#51cf66">💬 WhatsApp ile Gönder</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-code')">İptal</button>
+      <button class="btn btn-primary" onclick="saveCode()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- Kontör Yükle Modal -->
+<div class="modal-overlay" id="modal-topup">
+  <div class="modal" style="width:360px">
+    <button class="modal-close" onclick="closeModal('modal-topup')">✕</button>
+    <div class="modal-title">Kontör Yükle</div>
+    <div class="modal-sub" id="topup-sub">Kod: —</div>
+    <input type="hidden" id="topup-code-id">
+    <div class="form-group">
+      <div class="form-label">Eklenecek Kontör</div>
+      <input class="form-input" id="topup-amount" type="number" value="10" min="1" max="9999">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-topup')">İptal</button>
+      <button class="btn btn-primary" onclick="doTopup()">Yükle</button>
+    </div>
+  </div>
+</div>
+
+<!-- Ödeme Modal -->
+<div class="modal-overlay" id="modal-payment">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-payment')">✕</button>
+    <div class="modal-title" id="pay-modal-title">Ödeme Ekle</div>
+    <div class="modal-sub">Ödeme bilgilerini girin</div>
+    <input type="hidden" id="pay-id">
+    <div class="form-grid">
+      <div class="form-group span2"><div class="form-label">Müşteri *</div><select class="form-select" id="pay-customer"></select></div>
+      <div class="form-group"><div class="form-label">Tutar (₺) *</div><input class="form-input" id="pay-tutar" type="number" placeholder="0.00" step="0.01"></div>
+      <div class="form-group"><div class="form-label">Ödeme Yöntemi</div>
+        <select class="form-select" id="pay-yontem">
+          <option>Havale / EFT</option><option>Kredi Kartı</option><option>Nakit</option><option>Çek</option><option>Diğer</option>
+        </select>
+      </div>
+      <div class="form-group"><div class="form-label">Ödeme Tarihi *</div><input class="form-input" id="pay-tarih" type="date"></div>
+      <div class="form-group"><div class="form-label">Fatura No</div><input class="form-input" id="pay-fatura" placeholder="FAT-2026-001"></div>
+      <div class="form-group span2"><div class="form-label">Notlar</div><textarea class="form-textarea" id="pay-notlar" placeholder="Ödeme notları..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-payment')">İptal</button>
+      <button class="btn btn-primary" onclick="savePayment()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+// SUPABASE
+// ══════════════════════════════════════════
+const SUPABASE_URL = 'https://clmqfckposcaqjmbrmuq.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsbXFmY2twb3NjYXFqbWJybXVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NjE3MDcsImV4cCI6MjA4ODUzNzcwN30.hbCPb5IMcnNcwUXyDkcUrzFKXPUgJrG1XmLXl_aI8T8';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ══════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════
+const ADMIN_USER = 'admin';
+// Şifre: Kodda sabit + localStorage override (cache temizlense de koddaki kalır)
+// Şifreyi değiştirmek için adminSifreDegistir() fonksiyonu admin.html dosyasını günceller
+const _DEFAULT_PASS = 'Eva159951';  // ← admin şifresi buraya sabit yazılıyor
+
+function getAdminPass() {
+  // localStorage'da override varsa onu kullan, yoksa kodda yazılı sabit şifreyi
+  return localStorage.getItem('finskor_admin_pass') || _DEFAULT_PASS;
+}
+
+function loadAdminPass() {
+  // Eski Supabase entegrasyonu kaldırıldı — şimdi kod tabanlı
+  return Promise.resolve();
+}
+
+function adminLogin() {
+  const u = document.getElementById('lUser').value.trim();
+  const p = document.getElementById('lPass').value;
+  const err = document.getElementById('lErr');
+  if (u === ADMIN_USER && p === getAdminPass()) {
+    sessionStorage.setItem('finskor_admin', '1');
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('shell').style.display = 'block';
+    initAdmin();
+  } else {
+    err.textContent = '❌ Kullanıcı adı veya şifre hatalı';
+    err.style.display = 'block';
+  }
+}
+
+function adminLogout() {
+  sessionStorage.removeItem('finskor_admin');
+  location.reload();
+}
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+window.onload = () => {
+  if (sessionStorage.getItem('finskor_admin') === '1') {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('shell').style.display = 'block';
+    initAdmin();
+  }
+  document.getElementById('lPass').addEventListener('keydown', e => { if(e.key==='Enter') adminLogin(); });
+};
+
+async function initAdmin() {
+  await setupTables();
+  loadDashboard();
+  loadCustomers();
+  loadCodes();
+  loadPayments();
+  loadAnalyses();
+  loadUfe();
+}
+
+// ══════════════════════════════════════════
+// TABLO KURULUMU (Supabase'de yoksa oluştur)
+// ══════════════════════════════════════════
+async function setupTables() {
+  // Sadece kontrol — tablolar Supabase SQL editöründe zaten oluşturulacak
+  // Bu fonksiyon sadece bağlantıyı test eder
+  try {
+    await sb.from('customers').select('id').limit(1);
+  } catch(e) {
+    console.log('customers tablosu yok, SQL kurulumu gerekiyor');
+  }
+}
+
+// ══════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const pg = document.getElementById('page-' + name);
+  if (pg) pg.classList.add('active');
+  const nb = document.getElementById('nav-' + name); if (nb) nb.classList.add('active');
+  if (name === 'customers') loadCustomers();
+  if (name === 'codes') loadCodes();
+  if (name === 'payments') loadPayments();
+  if (name === 'analyses') loadAnalyses();
+  if (name === 'ufe') loadUfe();
+  if (name === 'maliyil') loadMaliYil();
+  if (name === 'ayarlar') loadAyarlar();
+}
+
+// ══════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = type === 'success' ? '✅ ' + msg : '❌ ' + msg;
+  t.className = 'show ' + type;
+  clearTimeout(t._t);
+  t._t = setTimeout(() => { t.className = ''; }, 3000);
+}
+
+// ══════════════════════════════════════════
+// MODAL
+// ══════════════════════════════════════════
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+// Dışa tıklayınca kapat
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if(e.target === o) o.classList.remove('open'); });
+});
+
+// ══════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════
+async function loadDashboard() {
+  try {
+    const [c, a, p, codes] = await Promise.all([
+      sb.from('customers').select('id', {count:'exact'}),
+      sb.from('analyses').select('id', {count:'exact'}),
+      sb.from('payments').select('tutar'),
+      sb.from('access_codes').select('id', {count:'exact'}).eq('active', true)
+    ]);
+    document.getElementById('stat-customers').textContent = c.count ?? '—';
+    document.getElementById('stat-analyses').textContent = a.count ?? '—';
+    document.getElementById('stat-codes').textContent = codes.count ?? '—';
+    const total = (p.data || []).reduce((s, r) => s + (parseFloat(r.tutar) || 0), 0);
+    document.getElementById('stat-revenue').textContent = total > 0 ? total.toLocaleString('tr-TR', {maximumFractionDigits:0}) : '0';
+
+    // Son analizler
+    const ra = await sb.from('analyses').select('firma_adi,skor,kredi_notu,created_at').order('created_at',{ascending:false}).limit(5);
+    const raBody = document.getElementById('recent-analyses');
+    raBody.innerHTML = (ra.data && ra.data.length) ? ra.data.map(r => `
+      <tr><td>${r.firma_adi||'—'}</td><td><strong style="color:var(--gold)">${r.skor??'—'}</strong></td>
+      <td><span class="badge badge-gold">${r.kredi_notu||'—'}</span></td>
+      <td style="color:var(--text-muted);font-size:11px">${fmtDate(r.created_at)}</td></tr>
+    `).join('') : '<tr class="loading-row"><td colspan="4" class="empty-state">Henüz analiz yok</td></tr>';
+
+    // Son ödemeler
+    const rp = await sb.from('payments').select('customers(firma_adi),tutar,odeme_yontemi,odeme_tarihi').order('created_at',{ascending:false}).limit(5);
+    const rpBody = document.getElementById('recent-payments');
+    rpBody.innerHTML = (rp.data && rp.data.length) ? rp.data.map(r => `
+      <tr><td>${r.customers?.firma_adi||'—'}</td>
+      <td><strong>₺${parseFloat(r.tutar||0).toLocaleString('tr-TR')}</strong></td>
+      <td style="color:var(--text-muted)">${r.odeme_yontemi||'—'}</td>
+      <td style="color:var(--text-muted);font-size:11px">${fmtDate(r.odeme_tarihi)}</td></tr>
+    `).join('') : '<tr class="loading-row"><td colspan="4" class="empty-state">Henüz ödeme yok</td></tr>';
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+// ══════════════════════════════════════════
+// MÜŞTERİLER
+// ══════════════════════════════════════════
+let allCustomers = [];
+async function loadCustomers() {
+  const body = document.getElementById('customers-body');
+  try {
+    const { data, error } = await sb.from('customers').select('*').order('created_at', {ascending:false});
+    if (error) throw error;
+    allCustomers = data || [];
+    renderCustomers(allCustomers);
+    fillCustomerDropdowns();
+  } catch(e) {
+    body.innerHTML = `<tr class="loading-row"><td colspan="7" style="color:var(--danger)">⚠️ Tablo bulunamadı — SQL kurulumu yapın</td></tr>`;
+  }
+}
+
+function renderCustomers(list) {
+  const body = document.getElementById('customers-body');
+  if (!list.length) { body.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">🏢</div><div class="empty-title">Henüz müşteri yok</div></div></td></tr>`; return; }
+  body.innerHTML = list.map(c => `
+    <tr>
+      <td><strong>${c.firma_adi||'—'}</strong></td>
+      <td>${c.yetkili_kisi||'—'}</td>
+      <td>${c.telefon||'—'}</td>
+      <td>${c.email||'—'}</td>
+      <td style="font-family:monospace;font-size:12px">${c.vergi_no||'—'}</td>
+      <td style="color:var(--text-muted);font-size:11px">${fmtDate(c.created_at)}</td>
+      <td>
+        <button class="btn btn-outline btn-sm btn-icon" onclick="editCustomer('${c.id}')" title="Düzenle">✏️</button>
+        <button class="btn btn-danger btn-sm btn-icon" onclick="deleteCustomer('${c.id}')" title="Sil">🗑</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterCustomers() {
+  const q = document.getElementById('cust-search').value.toLowerCase();
+  renderCustomers(allCustomers.filter(c => (c.firma_adi||'').toLowerCase().includes(q) || (c.vergi_no||'').includes(q)));
+}
+
+function openCustomerModal(id) {
+  document.getElementById('cust-id').value = '';
+  document.getElementById('cust-modal-title').textContent = 'Yeni Müşteri';
+  ['firma','yetkili','tel','email','vergi','notlar'].forEach(f => document.getElementById('cust-'+f).value = '');
+  openModal('modal-customer');
+}
+
+function editCustomer(id) {
+  const c = allCustomers.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('cust-id').value = c.id;
+  document.getElementById('cust-modal-title').textContent = 'Müşteri Düzenle';
+  document.getElementById('cust-firma').value = c.firma_adi || '';
+  document.getElementById('cust-yetkili').value = c.yetkili_kisi || '';
+  document.getElementById('cust-tel').value = c.telefon || '';
+  document.getElementById('cust-email').value = c.email || '';
+  document.getElementById('cust-vergi').value = c.vergi_no || '';
+  document.getElementById('cust-notlar').value = c.notlar || '';
+  openModal('modal-customer');
+}
+
+async function saveCustomer() {
+  const id = document.getElementById('cust-id').value;
+  const data = {
+    firma_adi: document.getElementById('cust-firma').value.trim(),
+    yetkili_kisi: document.getElementById('cust-yetkili').value.trim(),
+    telefon: document.getElementById('cust-tel').value.trim(),
+    email: document.getElementById('cust-email').value.trim(),
+    vergi_no: document.getElementById('cust-vergi').value.trim(),
+    notlar: document.getElementById('cust-notlar').value.trim()
+  };
+  if (!data.firma_adi) { toast('Firma adı zorunludur', 'error'); return; }
+  try {
+    if (id) {
+      const { error } = await sb.from('customers').update(data).eq('id', id);
+      if (error) throw error;
+      toast('Müşteri güncellendi');
+    } else {
+      const { error } = await sb.from('customers').insert(data);
+      if (error) throw error;
+      toast('Müşteri eklendi');
+    }
+    closeModal('modal-customer');
+    loadCustomers();
+    loadDashboard();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function deleteCustomer(id) {
+  if (!confirm('Bu müşteriyi silmek istediğinizden emin misiniz?')) return;
+  try {
+    const { error } = await sb.from('customers').delete().eq('id', id);
+    if (error) throw error;
+    toast('Müşteri silindi');
+    loadCustomers();
+    loadDashboard();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ══════════════════════════════════════════
+// ERİŞİM KODLARI
+// ══════════════════════════════════════════
+let allCodes = [];
+async function loadCodes() {
+  const body = document.getElementById('codes-body');
+  try {
+    const { data, error } = await sb.from('access_codes').select('*, customers(firma_adi)').order('created_at', {ascending:false});
+    if (error) throw error;
+    allCodes = data || [];
+    renderCodes(allCodes);
+  } catch(e) {
+    body.innerHTML = `<tr class="loading-row"><td colspan="7" style="color:var(--danger)">⚠️ Tablo bulunamadı</td></tr>`;
+  }
+}
+
+function renderCodes(list) {
+  const body = document.getElementById('codes-body');
+  if (!list.length) { body.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">🔑</div><div class="empty-title">Henüz erişim kodu yok</div></div></td></tr>`; return; }
+  body.innerHTML = list.map(c => {
+    const used = c.usage_count || 0;
+    const total = (c.credits || 0) + used;
+    const pct = total > 0 ? Math.min(100, Math.round((c.credits / total) * 100)) : 0;
+    return `
+    <tr>
+      <td><span class="code-badge" style="font-size:13px;padding:4px 10px">${c.code}</span></td>
+      <td>${c.customers?.firma_adi || c.client_name || '—'}</td>
+      <td>
+        <div class="credits-display">
+          <strong style="color:var(--gold)">${c.credits??0}</strong>
+          <div class="credits-bar-wrap"><div class="credits-bar" style="width:${pct}%"></div></div>
+          <span style="font-size:10px;color:var(--text-muted)">${pct}%</span>
+        </div>
+      </td>
+      <td style="color:var(--text-muted)">${used} kullanım</td>
+      <td><span class="badge ${c.active ? 'badge-green' : 'badge-red'}">${c.active ? 'Aktif' : 'Pasif'}</span></td>
+      <td style="color:var(--text-muted);font-size:11px">${fmtDate(c.created_at)}</td>
+      <td style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="btn btn-outline btn-sm" onclick="openTopup('${c.id}','${c.code}','${c.credits??0}')" title="Kontör Yükle">+ Kontör</button>
+        <button class="btn btn-outline btn-sm btn-icon" onclick="toggleCode('${c.id}',${c.active})" title="${c.active?'Pasife Al':'Aktife Al'}">${c.active?'⏸':'▶'}</button>
+        <button class="btn btn-danger btn-sm btn-icon" onclick="deleteCode('${c.id}')" title="Sil">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterCodes() {
+  const q = document.getElementById('code-search').value.toLowerCase();
+  renderCodes(allCodes.filter(c => (c.code||'').toLowerCase().includes(q) || (c.customers?.firma_adi||c.client_name||'').toLowerCase().includes(q)));
+}
+
+function openCodeModal() {
+  document.getElementById('code-id').value = '';
+  document.getElementById('code-modal-title').textContent = 'Erişim Kodu Oluştur';
+  document.getElementById('code-value').value = '';
+  document.getElementById('code-credits').value = '10';
+  document.getElementById('code-active').value = 'true';
+  document.getElementById('code-email').value = '';
+  document.getElementById('code-pass').value = '';
+  document.getElementById('code-preview').style.display = 'none';
+  fillCustomerDropdowns();
+  openModal('modal-code');
+}
+
+function generateCode() {
+  const yr = new Date().getFullYear();
+  const n = String(Math.floor(Math.random() * 999) + 1).padStart(3, '0');
+  const code = `KA-${yr}-${n}`;
+  document.getElementById('code-value').value = code;
+  document.getElementById('code-preview-val').textContent = code;
+  document.getElementById('code-preview').style.display = 'block';
+}
+
+async function saveCode() {
+  const custSel = document.getElementById('code-customer');
+  const custId = custSel.value;
+  const code = document.getElementById('code-value').value.trim().toUpperCase();
+  const credits = parseInt(document.getElementById('code-credits').value) || 10;
+  const active = document.getElementById('code-active').value === 'true';
+  const email = document.getElementById('code-email').value.trim();
+  const pass = document.getElementById('code-pass').value;
+
+  if (!code) { toast('Erişim kodu boş olamaz', 'error'); return; }
+
+  const custName = custSel.options[custSel.selectedIndex]?.text || '';
+
+  const data = {
+    code,
+    customer_id: custId || null,
+    client_name: custName,
+    credits,
+    active,
+    email: email || null,
+    usage_count: 0
+  };
+  if (pass) data.password_hash = btoa(pass); // basit encoding
+
+  try {
+    const { error } = await sb.from('access_codes').insert(data);
+    if (error) throw error;
+    toast('Erişim kodu oluşturuldu: ' + code);
+    closeModal('modal-code');
+    loadCodes();
+    loadDashboard();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function openTopup(id, code, current) {
+  document.getElementById('topup-code-id').value = id;
+  document.getElementById('topup-sub').textContent = `Kod: ${code} — Mevcut: ${current} kontör`;
+  document.getElementById('topup-amount').value = '10';
+  openModal('modal-topup');
+}
+
+async function doTopup() {
+  const id = document.getElementById('topup-code-id').value;
+  const amount = parseInt(document.getElementById('topup-amount').value) || 0;
+  if (amount <= 0) { toast('Geçersiz kontör miktarı', 'error'); return; }
+  try {
+    const { data: cur } = await sb.from('access_codes').select('credits').eq('id', id).single();
+    const newCredits = (cur.credits || 0) + amount;
+    const { error } = await sb.from('access_codes').update({ credits: newCredits }).eq('id', id);
+    if (error) throw error;
+    toast(`${amount} kontör yüklendi`);
+    closeModal('modal-topup');
+    loadCodes();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function toggleCode(id, currentActive) {
+  try {
+    const { error } = await sb.from('access_codes').update({ active: !currentActive }).eq('id', id);
+    if (error) throw error;
+    toast(currentActive ? 'Kod pasife alındı' : 'Kod aktife alındı');
+    loadCodes();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function deleteCode(id) {
+  if (!confirm('Bu erişim kodunu silmek istediğinizden emin misiniz?')) return;
+  try {
+    const { error } = await sb.from('access_codes').delete().eq('id', id);
+    if (error) throw error;
+    toast('Kod silindi');
+    loadCodes();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ══════════════════════════════════════════
+// ÖDEMELER
+// ══════════════════════════════════════════
+let allPayments = [];
+async function loadPayments() {
+  const body = document.getElementById('payments-body');
+  try {
+    const { data, error } = await sb.from('payments').select('*, customers(firma_adi)').order('odeme_tarihi', {ascending:false});
+    if (error) throw error;
+    allPayments = data || [];
+    renderPayments(allPayments);
+  } catch(e) {
+    body.innerHTML = `<tr class="loading-row"><td colspan="7" style="color:var(--danger)">⚠️ Tablo bulunamadı</td></tr>`;
+  }
+}
+
+function renderPayments(list) {
+  const body = document.getElementById('payments-body');
+  if (!list.length) { body.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">Henüz ödeme kaydı yok</div></div></td></tr>`; return; }
+  body.innerHTML = list.map(p => `
+    <tr>
+      <td><strong>${p.customers?.firma_adi||'—'}</strong></td>
+      <td><strong style="color:var(--success)">₺${parseFloat(p.tutar||0).toLocaleString('tr-TR',{minimumFractionDigits:2})}</strong></td>
+      <td><span class="badge badge-blue">${p.odeme_yontemi||'—'}</span></td>
+      <td style="font-family:monospace;font-size:12px">${p.fatura_no||'—'}</td>
+      <td style="color:var(--text-muted)">${fmtDate(p.odeme_tarihi)}</td>
+      <td style="color:var(--text-muted);font-size:12px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.notlar||'—'}</td>
+      <td>
+        <button class="btn btn-outline btn-sm btn-icon" onclick="editPayment('${p.id}')" title="Düzenle">✏️</button>
+        <button class="btn btn-danger btn-sm btn-icon" onclick="deletePayment('${p.id}')" title="Sil">🗑</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterPayments() {
+  const q = document.getElementById('pay-search').value.toLowerCase();
+  renderPayments(allPayments.filter(p => (p.customers?.firma_adi||'').toLowerCase().includes(q) || (p.fatura_no||'').toLowerCase().includes(q)));
+}
+
+function openPaymentModal() {
+  document.getElementById('pay-id').value = '';
+  document.getElementById('pay-modal-title').textContent = 'Ödeme Ekle';
+  document.getElementById('pay-tutar').value = '';
+  document.getElementById('pay-tarih').value = new Date().toISOString().split('T')[0];
+  document.getElementById('pay-fatura').value = '';
+  document.getElementById('pay-notlar').value = '';
+  document.getElementById('pay-yontem').value = 'Havale / EFT';
+  fillCustomerDropdowns();
+  openModal('modal-payment');
+}
+
+function editPayment(id) {
+  const p = allPayments.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('pay-id').value = p.id;
+  document.getElementById('pay-modal-title').textContent = 'Ödeme Düzenle';
+  document.getElementById('pay-customer').value = p.customer_id || '';
+  document.getElementById('pay-tutar').value = p.tutar || '';
+  document.getElementById('pay-tarih').value = p.odeme_tarihi || '';
+  document.getElementById('pay-fatura').value = p.fatura_no || '';
+  document.getElementById('pay-notlar').value = p.notlar || '';
+  document.getElementById('pay-yontem').value = p.odeme_yontemi || 'Havale / EFT';
+  openModal('modal-payment');
+}
+
+async function savePayment() {
+  const id = document.getElementById('pay-id').value;
+  const custId = document.getElementById('pay-customer').value;
+  const tutar = parseFloat(document.getElementById('pay-tutar').value);
+  const tarih = document.getElementById('pay-tarih').value;
+  if (!custId || !tutar || !tarih) { toast('Müşteri, tutar ve tarih zorunludur', 'error'); return; }
+  const data = {
+    customer_id: custId,
+    tutar,
+    odeme_tarihi: tarih,
+    odeme_yontemi: document.getElementById('pay-yontem').value,
+    fatura_no: document.getElementById('pay-fatura').value.trim() || null,
+    notlar: document.getElementById('pay-notlar').value.trim() || null
+  };
+  try {
+    if (id) {
+      const { error } = await sb.from('payments').update(data).eq('id', id);
+      if (error) throw error;
+      toast('Ödeme güncellendi');
+    } else {
+      const { error } = await sb.from('payments').insert(data);
+      if (error) throw error;
+      toast('Ödeme kaydedildi');
+    }
+    closeModal('modal-payment');
+    loadPayments();
+    loadDashboard();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function deletePayment(id) {
+  if (!confirm('Bu ödeme kaydını silmek istediğinizden emin misiniz?')) return;
+  try {
+    const { error } = await sb.from('payments').delete().eq('id', id);
+    if (error) throw error;
+    toast('Ödeme silindi');
+    loadPayments();
+    loadDashboard();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ══════════════════════════════════════════
+// ANALİZLER
+// ══════════════════════════════════════════
+let allAnalyses = [];
+async function loadAnalyses() {
+  const body = document.getElementById('analyses-body');
+  try {
+    const { data, error } = await sb.from('analyses').select('*').order('created_at', {ascending:false});
+    if (error) throw error;
+    allAnalyses = data || [];
+    renderAnalyses(allAnalyses);
+  } catch(e) {
+    body.innerHTML = `<tr class="loading-row"><td colspan="6" style="color:var(--danger)">⚠️ Tablo bulunamadı</td></tr>`;
+  }
+}
+
+function renderAnalyses(list) {
+  const body = document.getElementById('analyses-body');
+  if (!list.length) { body.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📈</div><div class="empty-title">Henüz analiz kaydı yok</div></div></td></tr>`; return; }
+  body.innerHTML = list.map(a => {
+    const notClass = getNotClass(a.kredi_notu);
+    return `
+    <tr>
+      <td><strong>${a.firma_adi||'—'}</strong></td>
+      <td style="font-family:monospace;font-size:12px">${a.access_code||'—'}</td>
+      <td><strong style="color:var(--gold)">${a.skor??'—'}</strong><span style="color:var(--text-muted);font-size:11px">/105</span></td>
+      <td><span class="badge ${notClass}">${a.kredi_notu||'—'}</span></td>
+      <td style="color:var(--text-muted)">${a.analiz_yili||'—'}</td>
+      <td style="color:var(--text-muted)">${a.donem ? a.donem+' ay' : '—'}</td>
+      <td style="color:var(--text-muted);font-size:11px">${fmtDate(a.created_at)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function filterAnalyses() {
+  const q = document.getElementById('ana-search').value.toLowerCase();
+  renderAnalyses(allAnalyses.filter(a => (a.firma_adi||'').toLowerCase().includes(q)));
+}
+
+function getNotClass(not) {
+  if (['AAA','AA','A'].includes(not)) return 'badge-green';
+  if (['BBB','BB'].includes(not)) return 'badge-gold';
+  if (['B','CCC'].includes(not)) return 'badge-blue';
+  return 'badge-red';
+}
+
+// ══════════════════════════════════════════
+// ÜFE ORANLARI
+// ══════════════════════════════════════════
+const DEFAULT_UFE = {
+  2021: { Aralik: 1.3600 },
+  2022: { Aralik: 1.2847 },
+  2023: { Aralik: 0.7637 },
+  2024: { Aralik: 0.4393 },
+  2025: { Aralik: 0.3488 },
+  2026: { Aralik: 0.2500 }
+};
+
+let ufeData = {};
+
+async function loadUfe() {
+  const grid = document.getElementById('ufe-grid');
+  try {
+    const { data } = await sb.from('ufe_rates').select('*').order('yil');
+    if (data && data.length) {
+      data.forEach(r => {
+        if (!ufeData[r.yil]) ufeData[r.yil] = {};
+        ufeData[r.yil][r.donem] = r.oran;
+      });
+    } else {
+      ufeData = JSON.parse(JSON.stringify(DEFAULT_UFE));
+    }
+  } catch(e) {
+    ufeData = JSON.parse(JSON.stringify(DEFAULT_UFE));
+  }
+  renderUfe();
+}
+
+function renderUfe() {
+  const grid = document.getElementById('ufe-grid');
+  grid.innerHTML = Object.keys(ufeData).sort().map(yil => {
+    const donemler = ufeData[yil];
+    return `
+    <div class="ufe-card">
+      <div class="ufe-year">${yil}</div>
+      ${Object.entries(donemler).map(([d, oran]) => `
+        <div class="ufe-row">
+          <span class="ufe-label">${d}</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input class="ufe-input" type="number" step="0.0001" min="0" max="20"
+              value="${oran}" id="ufe_${yil}_${d}" oninput="updateUfePct(${yil},'${d}',this.value)">
+            <span style="font-size:11px;color:var(--gold);width:48px;text-align:right" id="ufe_pct_${yil}_${d}">${(oran*100).toFixed(2)}%</span>
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+  }).join('');
+}
+
+function updateUfePct(yil, donem, val) {
+  const pct = parseFloat(val) * 100;
+  const el = document.getElementById(`ufe_pct_${yil}_${donem}`);
+  if (el) el.textContent = isNaN(pct) ? '—' : pct.toFixed(2) + '%';
+}
+
+function addUfeYear() {
+  const yil = prompt('Yıl girin (örn: 2027):');
+  if (!yil || isNaN(yil)) return;
+  if (ufeData[yil]) { toast('Bu yıl zaten var', 'error'); return; }
+  ufeData[yil] = { Aralik: 0.2000 };
+  renderUfe();
+}
+
+async function saveUfeRates() {
+  try {
+    const rows = [];
+    Object.keys(ufeData).forEach(yil => {
+      Object.keys(ufeData[yil]).forEach(donem => {
+        const inputEl = document.getElementById(`ufe_${yil}_${donem}`);
+        const oran = inputEl ? parseFloat(inputEl.value) : ufeData[yil][donem];
+        rows.push({ yil: parseInt(yil), donem, oran });
+      });
+    });
+    // Upsert
+    const { error } = await sb.from('ufe_rates').upsert(rows, { onConflict: 'yil,donem' });
+    if (error) throw error;
+    toast('ÜFE oranları kaydedildi');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ══════════════════════════════════════════
+// KOD PAYLAŞIM
+// ══════════════════════════════════════════
+function sendCodeMail() {
+  const kod = document.getElementById('code-value').value.trim();
+  const musteri = document.getElementById('code-customer');
+  const firma = musteri.options[musteri.selectedIndex]?.text || 'Sayın Kullanıcı';
+  const email = document.getElementById('code-email').value.trim();
+  const konu = encodeURIComponent('FinSkor Erişim Kodunuz');
+  const mesaj = encodeURIComponent(
+    firma + ' için FinSkor erişim kodunuz:\n\n' +
+    'Erişim Kodu: ' + kod + '\n\n' +
+    'Giriş adresi: https://finskor.tr/app.html\n\n' +
+    'Saygılarımızla,\nFinSkor Ekibi'
+  );
+  const to = email ? encodeURIComponent(email) : '';
+  window.open('mailto:' + to + '?subject=' + konu + '&body=' + mesaj);
+}
+
+function sendCodeWhatsApp() {
+  const kod = document.getElementById('code-value').value.trim();
+  const musteri = document.getElementById('code-customer');
+  const firma = musteri.options[musteri.selectedIndex]?.text || 'Sayın Kullanıcı';
+  const mesaj = encodeURIComponent(
+    '🦉 *FinSkor Erişim Kodunuz*\n\n' +
+    firma + ' için erişim kodunuz:\n\n' +
+    '🔑 *Kod:* ' + kod + '\n\n' +
+    '🌐 Giriş: https://finskor.tr/app.html'
+  );
+  window.open('https://wa.me/?text=' + mesaj);
+}
+
+// ══════════════════════════════════════════
+// MALİ YIL / DÖNEM YÖNETİMİ
+// ══════════════════════════════════════════
+async function loadMaliYil() {
+  try {
+    const { data } = await sb.from('settings').select('value').eq('key', 'mali_yillar').single();
+    const yillar = data?.value ? JSON.parse(data.value) : [2022,2023,2024,2025,2026];
+    renderMaliYillar(yillar);
+  } catch(e) {
+    renderMaliYillar([2022,2023,2024,2025,2026]);
+  }
+  try {
+    const { data } = await sb.from('settings').select('value').eq('key', 'mali_donemler').single();
+    const donemler = data?.value ? JSON.parse(data.value) : [12];
+    [3,6,9,12].forEach(d => {
+      const el = document.getElementById('d'+d);
+      if (el) el.checked = donemler.includes(d);
+    });
+  } catch(e) {}
+}
+
+function renderMaliYillar(yillar) {
+  const el = document.getElementById('maliyil-list');
+  if (!el) return;
+  el.innerHTML = yillar.sort().map(y => `
+    <div style="display:flex;align-items:center;gap:6px;background:rgba(245,166,35,0.1);border:1px solid rgba(245,166,35,0.3);border-radius:8px;padding:8px 14px">
+      <span style="font-weight:700;color:var(--gold)">${y}</span>
+      <button onclick="removeMaliYil(${y})" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;padding:0;line-height:1" title="Kaldır">✕</button>
+    </div>`).join('');
+}
+
+async function addMaliYil() {
+  const val = parseInt(document.getElementById('new-maliyil').value);
+  if (!val || val < 2000 || val > 2099) { toast('Geçerli bir yıl girin (2000-2099)', 'error'); return; }
+  try {
+    const { data } = await sb.from('settings').select('value').eq('key', 'mali_yillar').single();
+    let yillar = data?.value ? JSON.parse(data.value) : [2022,2023,2024,2025,2026];
+    if (yillar.includes(val)) { toast('Bu yıl zaten var', 'error'); return; }
+    yillar.push(val);
+    await sb.from('settings').upsert({ key: 'mali_yillar', value: JSON.stringify(yillar) }, { onConflict: 'key' });
+    toast('Yıl eklendi: ' + val);
+    document.getElementById('new-maliyil').value = '';
+    renderMaliYillar(yillar);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function removeMaliYil(yil) {
+  if (!confirm(yil + " yılını kaldırmak istediğinizden emin misiniz?")) return;
+  try {
+    const { data } = await sb.from('settings').select('value').eq('key', 'mali_yillar').single();
+    let yillar = data?.value ? JSON.parse(data.value) : [];
+    yillar = yillar.filter(y => y !== yil);
+    await sb.from('settings').upsert({ key: 'mali_yillar', value: JSON.stringify(yillar) }, { onConflict: 'key' });
+    toast('Yıl kaldırıldı');
+    renderMaliYillar(yillar);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function saveDonemler() {
+  const secili = [3,6,9,12].filter(d => document.getElementById('d'+d)?.checked);
+  try {
+    await sb.from('settings').upsert({ key: 'mali_donemler', value: JSON.stringify(secili) }, { onConflict: 'key' });
+    toast('Dönemler kaydedildi');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ══════════════════════════════════════════
+// AYARLAR — ŞİFRE DEĞİŞTİR
+// ══════════════════════════════════════════
+function loadAyarlar() {
+  document.getElementById('pass-eski').value = '';
+  document.getElementById('pass-yeni').value = '';
+  document.getElementById('pass-yeni2').value = '';
+}
+
+function adminSifreDegistir() {
+  const eski = document.getElementById('pass-eski').value;
+  const yeni = document.getElementById('pass-yeni').value;
+  const yeni2 = document.getElementById('pass-yeni2').value;
+  if (eski !== getAdminPass()) { toast('Mevcut şifre hatalı', 'error'); return; }
+  if (yeni.length < 6) { toast('Yeni şifre en az 6 karakter olmalı', 'error'); return; }
+  if (yeni !== yeni2) { toast('Yeni şifreler eşleşmiyor', 'error'); return; }
+  // localStorage'a kaydet — tarayıcıya özgü kalıcı depolama
+  localStorage.setItem('finskor_admin_pass', yeni);
+  // NOT: Farklı tarayıcıda veya cache temizlenince şifre sıfırlanır.
+  // Kalıcı değişiklik için site yöneticisinden admin.html içindeki
+  // _DEFAULT_PASS değerini güncellemesini isteyin.
+  toast('Şifre bu tarayıcıda güncellendi ✓ (Kalıcı için ZIP ile kodun güncellenmesi gerekir)');
+  document.getElementById('pass-eski').value = '';
+  document.getElementById('pass-yeni').value = '';
+  document.getElementById('pass-yeni2').value = '';
+}
+
+
+// ══════════════════════════════════════════
+// YARDIMCI
+// ══════════════════════════════════════════
+function fillCustomerDropdowns() {
+  const selects = ['code-customer', 'pay-customer'];
+  selects.forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— Seçin —</option>' +
+      allCustomers.map(c => `<option value="${c.id}">${c.firma_adi}</option>`).join('');
+    if (cur) sel.value = cur;
+  });
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  const dt = new Date(d);
+  return dt.toLocaleDateString('tr-TR', { day:'2-digit', month:'short', year:'numeric' });
+}
+document.addEventListener('DOMContentLoaded', () => { loadAdminPass(); });
+</script>
+</body>
+</html>
