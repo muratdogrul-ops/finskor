@@ -2934,7 +2934,7 @@ function _doRunAnalysis() {
   // Baykuş analiz sonrası görünür olsun ama otomatik konuşmasın
   const _ab2 = document.getElementById('avatarBtn');
   if (_ab2) _ab2.style.display = 'flex';
-  if (false) setTimeout(() => {
+  setTimeout(() => {
     const _ab2x = document.getElementById('avatarBtn');
     if (_ab2x) _ab2x.style.display = 'none';
     setTimeout(() => {
@@ -7573,7 +7573,7 @@ const DEMO_FIRMA = {
     // PASİF
     kvMaliBorclar: 11838966,
     kvTicBorclar: 30802701,
-    kvDigBorclar: 0,
+    kvDigBorclar: 29504755,   // Bilanço denklemi için diğer KV yükümlülükler
     uvMaliBorclar: 29493093,
     uvDigBorclar: 0,
     odenmisSermaye: 23775525,
@@ -7586,12 +7586,12 @@ const DEMO_FIRMA = {
     // HESAPLANANLAR
     donenVarlik: 3739916+20059617+4138654+18314342,
     duranVarlik: 79364130,
-    kvYKToplam: 11838966+30802701,
+    kvYKToplam: 11838966+30802701+29504755,
     uvYKToplam: 29493093,
     ozKaynak: 23775525+201619,
     netSatis: 185714124,
     aktifToplam: 3739916+20059617+4138654+18314342+79364130,
-    pasifToplam: (11838966+30802701)+29493093+(23775525+201619),
+    pasifToplam: (11838966+30802701+29504755)+29493093+(23775525+201619),
   }
 };
 
@@ -7643,10 +7643,29 @@ function demoBaslat() {
   // Firma & Mali Veriler sekmesini göster — kullanıcı verileri görsün
   showTab('tab-bilgi', document.getElementById('tab-btn-bilgi'));
 
-  // Demo bildirim mesajı göster
+  // Baykuş adım adım demo anlatımı
   setTimeout(() => {
-    _demoUyari('🎯 Demo Modu: Çuhadaroğlu Metal A.Ş. verileri yüklendi. "Analiz Et" butonuna basarak kredi skorunu hesaplayın.');
-  }, 800);
+    _avAddMsg('bot',
+      '&#x1F989; Hoş geldiniz! Ben Baykuş, FinSkor kredi analiz asistanınızım.<br><br>'
+      +'Şu an <b>Demo Modu</b>ndasınız. Gerçek bir firma olan <b>Çuhadaroğlu Metal A.Ş.</b> verileri sisteme yüklendi.<br><br>'
+      +'&#x1F4CB; Solda <b>Firma & Mali Veriler</b> sekmesinde bilanço ve gelir tablosunu görebilirsiniz.'
+    );
+  }, 1000);
+
+  setTimeout(() => {
+    _avAddMsg('bot',
+      '&#x1F4CA; Veriler hazır. Şimdi <b>Subjektif Faktörler</b> sekmesine geçin — '
+      +'aktif gecikme durumu, limit doluluk oranı gibi 4 kriteri girin.<br><br>'
+      +'Doldurmadan geçerseniz sistem otomatik <b>20.60/30</b> puan verir.'
+    );
+  }, 5000);
+
+  setTimeout(() => {
+    _avAddMsg('bot',
+      '&#x26A1; Hazır olduğunuzda <b style="color:#f5a623">Analiz Et</b> butonuna basın.<br><br>'
+      +'Sistem 20+ finansal oran hesaplayacak, ÜFE düzeltmesi yapacak ve kredi notunu saniyeler içinde belirleyecek!'
+    );
+  }, 10000);
 
   // 15 dakika geri sayım
   _demoGeriSayimBaslat();
