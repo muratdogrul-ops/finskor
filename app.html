@@ -1639,24 +1639,15 @@ function loginSuccess(userData) {
   }
 
   init();
-  // OB popup kapalı
-  window._obShown = true;
-  localStorage.setItem('kas_ob_shown','1');
 
-  if (false) {
-    setTimeout(obOpen, 600);
-  } else {
-    const ab = document.getElementById('avatarBtn');
-    if (ab) ab.style.display = 'flex';
-    // Onboarding daha önce geçilmiş — baykuş butonu göster ama chat açma
-    setTimeout(() => {
-      const box = document.getElementById('avatarMessages');
-      if (box && !box.children.length) {
-        _avAddMsg('bot', 'Merhaba! &#x1F989;<br><br>Sistem tanıtımı için aşağıdaki konu başlıklarına Analiz Yılından başlayarak teker teker basıp dinleyin lütfen.');
-        avBuildQuickBtns();
-      }
-    }, 400);
-  }
+  // Baykuş butonu her zaman görünür
+  const ab = document.getElementById('avatarBtn');
+  if (ab) ab.style.display = 'flex';
+
+  // Her girişte onboarding sunumu açılsın
+  window._obShown = false;
+  localStorage.removeItem('kas_ob_shown');
+  setTimeout(obOpen, 600);
 }
 
 function showKontorBitti() {
@@ -7643,29 +7634,77 @@ function demoBaslat() {
   // Firma & Mali Veriler sekmesini göster — kullanıcı verileri görsün
   showTab('tab-bilgi', document.getElementById('tab-btn-bilgi'));
 
-  // Baykuş adım adım demo anlatımı
+  // Demo modunda Baykuş sunum metnini sırayla otomatik okusun
+  // Baykuş chatini aç ve sesli anlatım başlat
   setTimeout(() => {
-    _avAddMsg('bot',
+    // Önce chatı aç
+    const m = document.getElementById('avatarModal');
+    if (m) m.style.display = 'block';
+
+    // Sunum mesajları — OB_SLIDES içeriğiyle uyumlu, sesli okunacak
+    const _demoMesajlar = [
       '&#x1F989; Hoş geldiniz! Ben Baykuş, FinSkor kredi analiz asistanınızım.<br><br>'
-      +'Şu an <b>Demo Modu</b>ndasınız. Gerçek bir firma olan <b>Çuhadaroğlu Metal A.Ş.</b> verileri sisteme yüklendi.<br><br>'
-      +'&#x1F4CB; Solda <b>Firma & Mali Veriler</b> sekmesinde bilanço ve gelir tablosunu görebilirsiniz.'
-    );
+      +'<b>FinSkor</b>, bankalardan kredi kullanan KOBİ ve ticari firmaların mali tablolarını analiz eden bir sistemdir.<br><br>'
+      +'Şu an <b>Demo Modu</b>ndasınız. Gerçek bir firma olan <b>Çuhadaroğlu Metal A.Ş.</b> verileri sisteme yüklendi.',
+
+      '&#x1F4C2; <b>Mali Veriler Nasıl Yüklenir?</b><br><br>'
+      +'3 farklı yöntemle mali verileri sisteme aktarabilirsiniz:<br><br>'
+      +'<b>1. Excel Mizan:</b> Muhasebe programından mizan Excel dosyasını yükleyin, hesaplar otomatik eşleşir.<br>'
+      +'<b>2. PDF Beyanname:</b> E-beyanname sisteminden indirilen PDF otomatik okunur.<br>'
+      +'<b>3. Manuel Giriş:</b> Hesap kodu bazında kendiniz girebilirsiniz.',
+
+      '&#x1F4C5; <b>Analiz Yılı Seçimi</b><br><br>'
+      +'Sağ üstten <b>Analiz Yılı</b> seçin (örn: 2024).<br><br>'
+      +'&#x2714; <b>Dikey Analiz:</b> Seçili yılın bilançosu ve oranları hesaplanır.<br>'
+      +'&#x2714; <b>Yatay Analiz:</b> Seçili yıl ile bir önceki yıl karşılaştırılır.<br><br>'
+      +'<span style="color:#f87171">&#x26A0; Analiz yılı ve bir önceki yılın verilerinin girilmesi zorunludur.</span>',
+
+      '&#x1F3AF; <b>Dönem ve Firma Tipi</b><br><br>'
+      +'<b>Dönem:</b> Mali tablonun kapsadığı ay sayısı — Mart, Haziran, Eylül veya Aralık.<br><br>'
+      +'<b>Firma Tipi</b> oranların ağırlıklarını belirler:<br>'
+      +'&#x1F3ED; Üretim — stok/maliyet odaklı<br>'
+      +'&#x1F6D2; Pazarlama — alacak/ciro odaklı<br>'
+      +'&#x1F528; Taahhüt — hakediş/nakit odaklı',
+
+      '&#x2696;&#xFE0F; <b>Subjektif Faktörler</b><br><br>'
+      +'Kredi notunun <b>%30'unu</b> subjektif kriterler oluşturur.<br><br>'
+      +'Analiz öncesi <b>Subjektif Faktörler</b> sekmesine gidin.<br>'
+      +'4 soruyu cevaplayın: kredi geçmişi, limit doluluk, faaliyet süresi, muhasebe sistemi.<br><br>'
+      +'Doldurmadan geçerseniz sistem otomatik <b>20.60/30</b> puan atar.',
+
+      '&#x1F52E; <b>Kredi Not Skalası</b><br><br>'
+      +'FinSkor <b>10 kademeli</b> kredi not skalası kullanır:<br>'
+      +'<span style="color:#22c55e">AAA–A</span> → Düşük risk, teminatsız veya kefaletle çalışılabilir<br>'
+      +'<span style="color:#fbbf24">BBB–BB</span> → Orta risk, standart teminat<br>'
+      +'<span style="color:#f97316">B–CCC</span> → Yüksek risk, güçlü teminat şart<br>'
+      +'<span style="color:#ef4444">CC–D</span> → Kritik risk, kredi önerilmez',
+
+      '&#x1F4C8; <b>FinSkor Otomatik Senaryo</b><br><br>'
+      +'Analiz sonrası <b>Otomatik Senaryo Önerisi</b> ile notunuzu 2 kademe artıracak senaryoyu bulun.<br><br>'
+      +'Sistem dener: Sermaye artışı → KV/UV borç taşıma → Satış büyümesi → Kar marjı artışı.<br><br>'
+      +'Senaryo sonuçları hem ekranda hem PDF raporda görünür.',
+
+      '&#x26A1; Şimdi demo hazır! <b>Çuhadaroğlu Metal A.Ş.</b> verileri yüklü durumda.<br><br>'
+      +'<b>1.</b> Firma & Mali Veriler sekmesinde bilanço verilerini inceleyin.<br>'
+      +'<b>2.</b> Subjektif Faktörler sekmesini doldurun.<br>'
+      +'<b>3.</b> <b style="color:#f5a623">Analiz Et</b> butonuna basın — sistem kredi notunu saniyeler içinde hesaplayacak!'
+    ];
+
+    let _mi = 0;
+    function _demoSonrakiMesaj() {
+      if (_mi >= _demoMesajlar.length) return;
+      _avAddMsg('bot', _demoMesajlar[_mi]);
+      _mi++;
+      // Sonraki mesaj için bekle (ses okuma + okuma süresi)
+      if (_mi < _demoMesajlar.length) {
+        setTimeout(_demoSonrakiMesaj, 8000);
+      } else {
+        // Son mesajdan sonra hızlı erişim butonlarını göster
+        setTimeout(() => avBuildQuickBtns(), 1000);
+      }
+    }
+    _demoSonrakiMesaj();
   }, 1000);
-
-  setTimeout(() => {
-    _avAddMsg('bot',
-      '&#x1F4CA; Veriler hazır. Şimdi <b>Subjektif Faktörler</b> sekmesine geçin — '
-      +'aktif gecikme durumu, limit doluluk oranı gibi 4 kriteri girin.<br><br>'
-      +'Doldurmadan geçerseniz sistem otomatik <b>20.60/30</b> puan verir.'
-    );
-  }, 5000);
-
-  setTimeout(() => {
-    _avAddMsg('bot',
-      '&#x26A1; Hazır olduğunuzda <b style="color:#f5a623">Analiz Et</b> butonuna basın.<br><br>'
-      +'Sistem 20+ finansal oran hesaplayacak, ÜFE düzeltmesi yapacak ve kredi notunu saniyeler içinde belirleyecek!'
-    );
-  }, 10000);
 
   // 15 dakika geri sayım
   _demoGeriSayimBaslat();
