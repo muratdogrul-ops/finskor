@@ -7640,16 +7640,13 @@ function demoBaslat() {
   // Firma tipi göstergesini güncelle
   if (typeof updateFirmTypeDisplay === 'function') updateFirmTypeDisplay();
 
-  // Analiz sekmesini göster ve analizi çalıştır
+  // Firma & Mali Veriler sekmesini göster — kullanıcı verileri görsün
   showTab('tab-bilgi', document.getElementById('tab-btn-bilgi'));
 
-  // 1.5 saniye sonra otomatik analiz
+  // Demo bildirim mesajı göster
   setTimeout(() => {
-    // Doğrudan sonuç sekmesine geç ve analizi çalıştır
-    if (typeof runAnalysis === 'function') {
-      runAnalysis();
-    }
-  }, 1500);
+    _demoUyari('🎯 Demo Modu: Çuhadaroğlu Metal A.Ş. verileri yüklendi. "Analiz Et" butonuna basarak kredi skorunu hesaplayın.');
+  }, 800);
 
   // 15 dakika geri sayım
   _demoGeriSayimBaslat();
