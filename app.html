@@ -2921,66 +2921,13 @@ function _doRunAnalysis() {
   buildTrend(refYear);
   autoSave();  // Analiz sonucu otosave
 
-  // ── ANALİZ SONRASI BAYKUŞ YORUM KARTI ────────────────────────
-  // Baykuş analiz sonrası görünür olsun ama otomatik konuşmasın
-  // Baykuş analiz sonrası yorum
-  const _ab2 = document.getElementById('avatarBtn');
-  if (_ab2) _ab2.style.display = 'flex';
-  setTimeout(() => {
-    setTimeout(() => {
-      const en2 = state.lang === 'en';
-      const renkKart = toplam >= 76 ? '#f5a623' : toplam >= 60 ? '#fbbf24' : '#f87171';
-      const ikon = toplam >= 93 ? '🏆' : toplam >= 76 ? '✅' : toplam >= 60 ? '⚠️' : toplam >= 45 ? '🔶' : '🚫';
+  // ── DEMO: ANALİZ SONUÇ SUNUMU ────────────────────────────
+  if (window._demoMod) {
+    setTimeout(_demoAnalizSunumu, 1500);
+  }
 
-      // Not yorumu - nota göre detaylı açıklama
-      let notYorum = '';
-      if (rating.note === 'AAA') notYorum = 'Üst düzey kredi kalitesi. Teminatsız çalışılabilir.';
-      else if (rating.note === 'AA')  notYorum = 'Çok güçlü finansal yapı. Kefalet karşılığı teminatsız çalışılabilir.';
-      else if (rating.note === 'A')   notYorum = 'Güçlü finansal yapı. Kefalet karşılığı çalışılabilir.';
-      else if (rating.note === 'BBB') notYorum = 'Yeterli finansal yapı. Kefalet veya müşteri çeki karşılığı çalışılabilir.';
-      else if (rating.note === 'BB')  notYorum = 'Orta-yüksek risk. Kefalet + müşteri çeki veya ipotek teminatı gerekir.';
-      else if (rating.note === 'B')   notYorum = 'Yüksek risk. İpotek ve müşteri çeki teminatı şart.';
-      else if (rating.note === 'CCC') notYorum = 'Çok yüksek risk. Yalnızca marjlı ipotek karşılığı çalışılabilir.';
-      else notYorum = 'Kritik risk seviyesi. Çalışma yapılmaz / tasfiye.';
 
-      // Güçlü/zayıf yönler
-      const guclu = [], zayif = [];
-      if (r.cariOran >= 1.4)   guclu.push('Cari oran güçlü (' + r.cariOran.toFixed(2) + ')');
-      else if (r.cariOran < 1.05) zayif.push('Cari oran zayıf (' + r.cariOran.toFixed(2) + ')');
-      if (r.netKarMarj >= 5)   guclu.push('Net kar marjı iyi (%' + r.netKarMarj.toFixed(1) + ')');
-      else if (r.netKarMarj < 0) zayif.push('Net zarar var (%' + r.netKarMarj.toFixed(1) + ')');
-      if (r.borcOzKay <= 1.5)  guclu.push('Düşük kaldıraç (' + r.borcOzKay.toFixed(2) + 'x)');
-      else if (r.borcOzKay > 3) zayif.push('Yüksek kaldıraç (' + r.borcOzKay.toFixed(2) + 'x)');
-      if (r.bnkBorcAkt <= 20)  guclu.push('Banka borç/aktif düşük (%' + r.bnkBorcAkt.toFixed(1) + ')');
-      else if (r.bnkBorcAkt > 30) zayif.push('Banka borç/aktif yüksek (%' + r.bnkBorcAkt.toFixed(1) + ')');
-
-      let detay = '';
-      if (guclu.length) detay += '<span style="color:#4ade80">✓ ' + guclu.join(' &nbsp;·&nbsp; ✓ ') + '</span><br>';
-      if (zayif.length) detay += '<span style="color:#f87171">✗ ' + zayif.join(' &nbsp;·&nbsp; ✗ ') + '</span><br>';
-
-      _avAddMsg('bot',
-        ikon + ' <b style="color:' + renkKart + '">' + firma + ' — ' + rating.note + '</b> '
-        + '(<b>' + toplam.toFixed(1) + '</b>/105)<br>'
-        + '<span style="font-size:11px;color:#94a3b8">Finansal: <b style="color:var(--gold)">' + objPuan + '/75</b> &nbsp;|&nbsp; '
-        + 'Subjektif: <b style="color:var(--accent3)">' + subjPuan.toFixed(1) + '/30</b></span><br>'
-        + '<span style="font-size:11.5px;color:#cbd5e1;line-height:1.6">' + notYorum + '</span><br><br>'
-        + detay
-        + '<span style="font-size:11px;color:#94a3b8">Detaylı rapor → <b>Sonuç</b> sekmesi &nbsp;|&nbsp; Simülasyon → <b>Senaryo</b> sekmesi</span>'
-      );
-      // Analiz sonrası özel hızlı butonlar
-      const qb2 = document.getElementById('avatarQuickBtns');
-      if (qb2) {
-        const postBtns = [en2?'What does the rating mean?':'Rating ne anlama geliyor?',
-                         en2?'How to improve the score?':'Puanı nasıl artırırım?',
-                         en2?'Scenario analysis':'Senaryo analizi'];
-        qb2.innerHTML = postBtns.map(b =>
-          `<button class="av-qbtn" onclick="sendAvatarMsg('${b}')">${b}</button>`
-        ).join('');
-      }
-    }, 350);
-  }, 800);
-
-  // Download butonunu göster
+    // Download butonunu göster
   const dlBtn = document.getElementById('downloadBtn');
   if (dlBtn) dlBtn.style.display = '';
 
@@ -4063,6 +4010,23 @@ function _rsSimule(r, subjPuan, sermaye, kvPct, vade, karMarj, satisDelta) {
   };
 }
 
+// 1. kademe için: sadece sermaye artışı — 27.6M TL sabit
+function _rsEnIyiSermaye(r, subjPuan, hedefEsik) {
+  const SABIT_SERM = 27600000; // 27.6 Milyon TL
+  const sonuc = _rsSimule(r, subjPuan, SABIT_SERM, 0, 48, 0, 0);
+  return { s:SABIT_SERM, k:0, m:0, sat:0, vade:48, puan:sonuc.puan,
+    uvdeKalan:sonuc.uvdeKalan, netKvAzalis:sonuc.netKvAzalis };
+}
+
+// 2. kademe için: sadece satış büyümesi — %15 sabit
+function _rsEnIyiSatis(r, subjPuan, hedefEsik) {
+  const SABIT_SAT = 15; // %15 satış artışı
+  const sonuc = _rsSimule(r, subjPuan, 0, 0, 48, 0, SABIT_SAT);
+  return { s:0, k:0, m:0, sat:SABIT_SAT, vade:48, puan:sonuc.puan,
+    uvdeKalan:0, netKvAzalis:0 };
+}
+
+
 function _rsEnIyi(r, subjPuan, hedefEsik, excludeParams) {
   const baseOz = r.ozKaynak || 0;
   const ozk    = baseOz > 0 ? baseOz : 1000000;
@@ -4173,8 +4137,10 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
       continue;
     }
 
-    // 2. kademe için 1. kademedeki parametreleri dışla (farklı kriter kombinasyonu)
-    const c = _rsEnIyi(r, subjPuan, esik, kademe === 2 ? _k1Params : null);
+    // 1. kademe: sadece sermaye artışı | 2. kademe: sadece satış büyümesi
+    const c = kademe === 1
+      ? _rsEnIyiSermaye(r, subjPuan, esik)
+      : _rsEnIyiSatis(r, subjPuan, esik);
 
     if (!c) {
       html += '<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;'
@@ -6601,7 +6567,7 @@ function showAvatarChat() {
   if (!m) return;
   m.style.display = 'block';
   if (b) b.style.animation = 'none';
-  if (!document.getElementById('avatarMessages').children.length) {
+  if (!document.getElementById('avatarMessages').children.length && !window._demoMod) {
     _avAddMsg('bot',
       'Merhaba! &#x1F989;<br><br>'
       + 'Sistem tanıtımı için aşağıdaki konu başlıklarına Analiz Yılından başlayarak teker teker basıp dinleyin lütfen.'
@@ -6776,6 +6742,7 @@ function avKonuAc(mesaj, elId) {
 
 // Senaryo modal açılınca Baykuş'u aç ve ilk yorumu yap
 function _baykusSenaryoAc() {
+  if (window._demoMod) return; // Demo modunda senaryo Baykuş konuşması yok
   const r = window._lastR;
   if (!r) return;
 
@@ -6964,6 +6931,7 @@ function _baykusSenaryoAc() {
 let _baykusDebTimer = null;
 let _baykusOncekiNot = null;
 function _baykusSenaryoDebounce() {
+  if (window._demoMod) return; // Demo modunda slider Baykuş konuşmasın
   clearTimeout(_baykusDebTimer);
   _baykusDebTimer = setTimeout(() => _baykusSenaryoYorum(), 900);
 }
@@ -7077,7 +7045,7 @@ function _baykusSenaryoYorum() {
     const c8Fark = sen.c8 - base.c8;
     const topFark = c1Fark + c8Fark;
     yorumlar.push(
-      `🔄 <b>%${kvTasima} KV→UV taşıma</b> (${vade} ay) → ${fmtTL(tasinanTutar)} yeniden yapılandırılıyor`
+      `🔄 <b>%${kvTasima} KV→UV taşıma</b> (${vade} ay) → ${fmtTL(tasinanTutar)} uzun vadeye taşınıyor`
       + (topFark !== 0 ? ` (<b style="color:${topFark>0?'#22c55e':'#ef4444'}">${topFark>=0?'+':''}${topFark} puan</b>)` : '')
       + `<br><span style="font-size:10.5px;color:#94a3b8">Yeni cari oran: ${sen.cariOran.toFixed(2)} · Likidite: ${sen.likOran.toFixed(2)}</span>`
       + (kvTasima > 70 ? `<br><span style="font-size:10.5px;color:#f59e0b">⚠ %${kvTasima} oranında UV kredi için banka onayı ve teminat gerekir.</span>` : '')
@@ -7630,26 +7598,21 @@ function demoBaslat() {
   window._demoMod = true;
   window._demoKalan = _demoSure;
 
-  // Giriş ekranını kapat, uygulamayı aç
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
 
-  // Demo banner
   const banner = document.getElementById('demoBanner');
   if (banner) banner.style.display = 'flex';
 
-  // Header demo rozeti
   const logo = document.querySelector('.logo');
   if (logo) logo.innerHTML = 'FinSkor <span style="font-size:10px;background:#f5a623;color:#000;padding:2px 7px;border-radius:20px;font-weight:700;vertical-align:middle;margin-left:6px">DEMO</span>';
 
-  // Demo verilerini yükle — 2024 ana yıl, 2023 önceki yıl
   if (!state.yearData) state.yearData = {};
-  state.yearData[DEMO_FIRMA.refYear] = {...DEMO_FIRMA.data};
-  state.yearData[DEMO_FIRMA.refYear - 1] = {...DEMO_FIRMA.data2023};
+  state.yearData[DEMO_FIRMA.refYear]       = {...DEMO_FIRMA.data};
+  state.yearData[DEMO_FIRMA.refYear - 1]   = {...DEMO_FIRMA.data2023};
   state.firmType = DEMO_FIRMA.tip;
   state.period   = DEMO_FIRMA.period;
   state.refYear  = DEMO_FIRMA.refYear;
-
   const firmaEl = document.getElementById('firmaAdi');
   if (firmaEl) firmaEl.value = DEMO_FIRMA.ad;
   const refYearEl = document.getElementById('refYear');
@@ -7658,38 +7621,135 @@ function demoBaslat() {
     b.classList.toggle('active', b.dataset.val === DEMO_FIRMA.period));
   if (typeof updateFirmTypeDisplay === 'function') updateFirmTypeDisplay();
 
-  // Baykuş butonu görünür + chat açık
   const _ab = document.getElementById('avatarBtn');
   if (_ab) _ab.style.display = 'flex';
   const _am = document.getElementById('avatarModal');
-  if (_am) _am.style.display = 'block';
+  if (_am) _am.style.display = 'none';
 
-  // Firma & Mali Veriler sekmesini aç
   showTab('tab-bilgi', document.getElementById('tab-btn-bilgi'));
   window.scrollTo(0, 0);
 
-  // ── DEMO ANLATIM SİSTEMİ ──────────────────────────────────
-  // Yardımcı: elementi vurgula (sarı çerçeve), 3 sn sonra kaldır
+  // Açılış merhaba mesajı
+  setTimeout(() => {
+    if (!window._demoMod) return;
+    // Sadece sesli "Ben Baykuş, merhaba!" — _avAddMsg çağırma, ses çakışmasın
+    if (window.speechSynthesis) {
+      speechSynthesis.cancel();
+      const utt = new SpeechSynthesisUtterance('Ben Baykuş, merhaba!');
+      const voices = speechSynthesis.getVoices();
+      const trSes = voices.find(v => v.lang.startsWith('tr'));
+      if (trSes) utt.voice = trSes;
+      utt.lang = 'tr-TR'; utt.rate = 1.05;
+      speechSynthesis.speak(utt);
+    }
+  }, 300);
+
+
+
+  // ── EL ANİMASYONU ─────────────────────────────────────────
+  let _elDiv = document.getElementById('_demoEl');
+  if (!_elDiv) {
+    _elDiv = document.createElement('div');
+    _elDiv.id = '_demoEl';
+    _elDiv.style.cssText = 'position:fixed;z-index:99999;pointer-events:none;font-size:28px;transition:all 0.4s cubic-bezier(.4,0,.2,1);display:none;filter:drop-shadow(0 2px 6px rgba(0,0,0,.5));';
+    _elDiv.textContent = '\u{1F446}';
+    document.body.appendChild(_elDiv);
+  }
+
+  function _elGit(el, cb) {
+    if (!el) { if (cb) setTimeout(cb, 300); return; }
+    const r = el.getBoundingClientRect();
+    const x = r.left + r.width/2 - 14;
+    const y = r.top  + r.height/2 - 28;
+    _elDiv.style.display = 'block';
+    _elDiv.style.left = (x+30)+'px'; _elDiv.style.top = (y-20)+'px';
+    setTimeout(() => { _elDiv.style.left=x+'px'; _elDiv.style.top=y+'px'; if(cb) setTimeout(cb,500); }, 50);
+  }
+
+  function _elGizle() { _elDiv.style.display = 'none'; }
+
+  function _elDolas(els, aralik, cb) {
+    let i = 0;
+    function _s() {
+      if (!window._demoMod || i >= els.length) { _elGizle(); if(cb) cb(); return; }
+      _elGit(els[i], () => { i++; setTimeout(_s, aralik); });
+    }
+    _s();
+  }
+
+  function _elCiftTik(el, cb) {
+    _elGit(el, () => {
+      ['0.8','1','0.8','1'].forEach((s,i) => setTimeout(() => _elDiv.style.transform='scale('+s+')', i*150));
+      setTimeout(cb||(() => {}), 700);
+    });
+  }
+
+  function _elSelectAc(sel, cb, scrollToSelected) {
+    _elGit(sel, () => {
+      _elDiv.style.transform = 'scale(0.85)';
+      setTimeout(() => { _elDiv.style.transform = 'scale(1)'; }, 150);
+      const orig = sel.size;
+      const opCount = sel.options.length;
+      sel.size = Math.min(opCount, 6);
+      sel.style.outline = '3px solid #f5a623';
+      // Seçili option'ı görünür yap
+      if (scrollToSelected && sel.selectedIndex >= 0) {
+        setTimeout(() => {
+          // Seçili option'ı vurgula
+          Array.from(sel.options).forEach((opt, i) => {
+            opt.style.background = i === sel.selectedIndex ? 'rgba(245,166,35,0.3)' : '';
+            opt.style.color = i === sel.selectedIndex ? '#f5a623' : '';
+            opt.style.fontWeight = i === sel.selectedIndex ? '700' : '';
+          });
+          // El seçili option'a git
+          sel.scrollTop = sel.selectedIndex * 20;
+        }, 300);
+      }
+      setTimeout(() => {
+        sel.size = orig||1;
+        sel.style.outline='';
+        Array.from(sel.options).forEach(opt => { opt.style.background=''; opt.style.color=''; opt.style.fontWeight=''; });
+        _elGizle();
+        if(cb) cb();
+      }, 2500);
+    });
+  }
+
+  // ── YARDIMCILAR ───────────────────────────────────────────
   function _vurgula(el, sure) {
     if (!el) return;
     el.scrollIntoView({behavior:'smooth', block:'center'});
-    const onceki = {outline: el.style.outline, boxShadow: el.style.boxShadow, transition: el.style.transition};
-    el.style.transition = 'all 0.3s';
-    el.style.outline = '3px solid #f5a623';
-    el.style.boxShadow = '0 0 0 8px rgba(245,166,35,0.2)';
-    setTimeout(() => {
-      el.style.outline   = onceki.outline;
-      el.style.boxShadow = onceki.boxShadow;
-    }, sure || 3000);
+    const os=el.style.outline, obs=el.style.boxShadow;
+    el.style.transition='all 0.3s';
+    el.style.outline='3px solid #f5a623';
+    el.style.boxShadow='0 0 0 8px rgba(245,166,35,.2)';
+    setTimeout(() => { el.style.outline=os; el.style.boxShadow=obs; }, sure||3000);
   }
 
-  // Yardımcı: Baykuş mesajı ekle + sesli oku + bitince callback çağır
-  function _baykusSoy(metin, callback) {
+  // Subjektif seçenek renklendirme
+  function _subjVurgula(sopts_id, idx) {
+    const opts = document.querySelectorAll('#'+sopts_id+' .subj-opt');
+    opts.forEach((d,j) => {
+      if (j === idx) {
+        d.style.background = 'rgba(245,166,35,0.25)';
+        d.style.border = '2px solid #f5a623';
+        d.style.color = '#f5a623';
+        _elGit(d);
+      } else {
+        d.style.background = '';
+        d.style.border = '';
+        d.style.color = '';
+      }
+    });
+  }
+
+  function _bsoy(metin) {
     if (!window._demoMod) return;
+    const am = document.getElementById('avatarModal');
+    if (am) am.style.display = 'none';
     _avAddMsg('bot', metin);
-    if (window.speechSynthesis && window._avSesAcik !== false) {
-      const tmp = document.createElement('div');
-      tmp.innerHTML = metin;
+    if (window.speechSynthesis) {
+      const tmp = document.createElement('div'); tmp.innerHTML = metin;
       const text = tmp.textContent.trim();
       if (text) {
         speechSynthesis.cancel();
@@ -7697,241 +7757,368 @@ function demoBaslat() {
         const voices = speechSynthesis.getVoices();
         const trSes = voices.find(v => v.lang.startsWith('tr'));
         if (trSes) utt.voice = trSes;
-        utt.lang = 'tr-TR';
-        utt.rate = 1.05;
-        let _bitti = false;
-        const _done = () => { if (!_bitti) { _bitti = true; if (callback) setTimeout(callback, 600); } };
-        utt.onend = _done;
-        utt.onerror = _done;
-        // Fallback: kelime sayısı x 380ms, min 4s max 18s
-        setTimeout(_done, Math.min(18000, Math.max(4000, text.split(' ').length * 380)));
+        utt.lang='tr-TR'; utt.rate=1.05;
         speechSynthesis.speak(utt);
-        return;
       }
     }
-    // Ses yoksa 4 saniye bekle
-    if (callback) setTimeout(callback, 4000);
   }
 
-  // ── ADIM AKIŞI ──────────────────────────────────────────────
-  function adim1_analizYili() {
-    if (!window._demoMod) return;
-    const el = document.getElementById('refYear');
-    _vurgula(el, 4000);
-    _baykusSoy(
-      'Sağ üstte <b>Analiz Yılı</b> seçilir. Cari yıl 2024 seçili. ' +
-      'Sistem seçilen yıl ile bir önceki yılı karşılaştırarak hem dikey hem yatay analiz yapar.',
-      adim2_donem
-    );
-  }
+  // ── ADIMLAR (Hesaplanmış sürelerle) ───────────────────────
+  // Her adım başlangıç: bir önceki adımın başlangıcı + konuşma süresi
 
-  function adim2_donem() {
+  // ADIM 1 — Analiz Yılı | başlangıç: 1200ms | süre: 12000ms
+  setTimeout(() => {
     if (!window._demoMod) return;
-    const aktifBtn = document.querySelector('.btn-period.active') || document.querySelector('.btn-period[data-val="12"]');
-    _vurgula(aktifBtn, 4000);
-    _baykusSoy(
-      '<b>Bilanço Dönemi</b>: Mali tablonun kapsadığı süre. ' +
-      'Yıl sonu Aralık seçili. 3, 6 veya 9 aylık ara dönem seçilirse sistem gelir tablosunu otomatik yıllıklaştırır.',
-      adim3_firmaTipi
-    );
-  }
+    const sel = document.getElementById('refYear');
+    if (sel) {
+      sel.scrollIntoView({behavior:'smooth',block:'center'});
+      setTimeout(() => {
+        // Select açılınca seçili option görünsün
+        _elSelectAc(sel, null, true);
+      }, 800);
+    }
+    _bsoy('Sağ üstte <b>Analiz Yılı</b> seçilir. Cari yıl 2024 seçili. Sistem seçilen yıl ile bir önceki yılı karşılaştırarak hem dikey hem yatay analiz yapar.');
+  }, 3000);
 
-  function adim3_firmaTipi() {
+  // ADIM 2 — Bilanço Dönemi | başlangıç: 1200+12000=13200ms | süre: 11000ms
+  setTimeout(() => {
     if (!window._demoMod) return;
-    const el = document.querySelector('.firm-type-btns, [class*="firm-type"], #firmTypeDesc')
-            || document.querySelector('button[onclick*="firmType"], [data-type]');
-    if (el) _vurgula(el, 4000);
-    _baykusSoy(
-      '<b>Firma Tipi</b>: Pazarlama/Hizmet, Üretim veya Taahhüt. ' +
-      'Her tip için oran eşik değerleri farklıdır. Çuhadaroğlu Metal için Üretim seçili.',
-      adim4_veriYukleme
-    );
-  }
+    const donemBtnler = Array.from(document.querySelectorAll('.btn-period'));
+    if (donemBtnler.length) { donemBtnler[0].scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elDolas(donemBtnler,600), 600); }
+    _bsoy('<b>Bilanço Dönemi</b>: Mali tablonun kapsadığı süre. Mart, Haziran, Eylül veya Yıl Sonu Aralık. Ara dönem seçilirse sistem gelir tablosunu otomatik yıllıklaştırır.');
+  }, 15000);
 
-  function adim4_veriYukleme() {
+  // ADIM 3 — Firma Tipi | başlangıç: 13200+11000=24200ms | süre: 12000ms
+  setTimeout(() => {
     if (!window._demoMod) return;
-    window.scrollTo({top: document.body.scrollHeight * 0.4, behavior: 'smooth'});
+    const btnler = Array.from(document.querySelectorAll('button')).filter(b =>
+      b.textContent.includes('Pazarlama') || b.textContent.includes('Üretim') || b.textContent.includes('Taahhüt'));
+    if (btnler.length) { btnler[0].scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elDolas(btnler,700), 600); }
+    _bsoy('<b>Firma Tipi</b>: Pazarlama veya Hizmet, Üretim ya da Taahhüt. Her tip için finansal oran eşikleri farklı hesaplanır. Çuhadaroğlu Metal için Üretim seçili.');
+  }, 26000);
+
+  // ADIM 4 — 2024/2023 zorunluluğu | başlangıç: 24200+12000=36200ms | süre: 13000ms
+  setTimeout(() => {
+    if (!window._demoMod) return;
+    window.scrollTo({top:400, behavior:'smooth'});
     setTimeout(() => {
-      if (!window._demoMod) return;
-      // 2024 ve 2023 yıl kartlarını vurgula
-      const kart2024 = document.getElementById('year-2024');
-      const kart2023 = document.getElementById('year-2023');
-      if (kart2024) _vurgula(kart2024, 6000);
-      if (kart2023) setTimeout(() => { if (kart2023) _vurgula(kart2023, 4000); }, 2000);
+      const k24=document.getElementById('year-2024'), k23=document.getElementById('year-2023');
+      const kartlar=[k24,k23].filter(Boolean);
+      if (kartlar.length) { kartlar[0].scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elDolas(kartlar,1500), 500); }
+    }, 700);
+    _bsoy('<b>Mali veri yükleme</b>: Her yıl için ayrı kart var. Analiz yılı 2024 ile birlikte bir önceki yıl 2023 mutlaka yüklenmelidir. Yatay analiz için ikisi zorunludur.');
+  }, 37000);
 
-      _baykusSoy(
-        '<b>Mali veri yükleme</b>: Her yıl için ayrı kart var. ' +
-        'Analiz yılı 2024 ile birlikte önceki yıl 2023 de mutlaka yüklenmelidir. ' +
-        'Yatay analiz için ikisi zorunludur.',
-        adim4b_yuklemeYontemleri
-      );
-    }, 800);
-  }
-
-  function adim4b_yuklemeYontemleri() {
+  // ADIM 5 — Yükleme yöntemleri | başlangıç: 36200+13000=49200ms | süre: 12000ms
+  setTimeout(() => {
     if (!window._demoMod) return;
-    const uploadBtn = document.querySelector('#year-2024 .upload-btn') || document.querySelector('.upload-btn');
-    if (uploadBtn) _vurgula(uploadBtn, 5000);
-    _baykusSoy(
-      '3 yükleme yöntemi var: <b>Excel mizan</b>, <b>PDF beyanname</b>, <b>PDF mizan</b>. ' +
-      'Aynı yıl kartına hem mizan hem geçici vergi beyannamesi aynı anda yüklenebilir. ' +
-      'Sistem verileri otomatik okur ve eşleştirir.',
-      adim5_subjGecisSunumu
-    );
-  }
+    const up24=document.querySelector('#year-2024 .upload-btn')||document.querySelector('.upload-btn');
+    const up23=document.querySelector('#year-2023 .upload-btn');
+    if (up24) { up24.scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elCiftTik(up24,()=>{ if(up23) setTimeout(()=>_elCiftTik(up23,()=>_elGizle()),1000); }),500); }
+    _bsoy('Üç yükleme yöntemi var: <b>Excel mizan</b>, <b>PDF beyanname</b>, <b>PDF mizan</b>. Aynı yıl kartına hem mizan hem geçici vergi beyannamesi yüklenebilir. Kartı açmak için <b>çift tıklayın</b>.');
+  }, 50000);
 
-  function adim5_subjGecisSunumu() {
+  // ADIM 6 — Subjektif sekme | başlangıç: 49200+12000=61200ms | süre: 7000ms
+  setTimeout(() => {
     if (!window._demoMod) return;
-    window.scrollTo({top: 0, behavior: 'smooth'});
+    window.scrollTo({top:0, behavior:'smooth'});
     setTimeout(() => {
-      if (!window._demoMod) return;
       showTab('tab-subj', document.getElementById('tab-btn-subj'));
-      const subjTab = document.getElementById('tab-btn-subj');
-      if (subjTab) _vurgula(subjTab, 3000);
-      _baykusSoy(
-        'Şimdi <b>Subjektif Faktörler</b> sekmesine geçiyoruz. ' +
-        'Kredi notunun yüzde 30\'unu bu 4 kriter oluşturur.',
-        adim6_subjSecimAnlatimi
-      );
-    }, 600);
-  }
+      const st=document.getElementById('tab-btn-subj'); if(st){ _elGit(st); _vurgula(st,6000); }
+    }, 400);
+    _bsoy('Şimdi <b>Subjektif Faktörler</b> sekmesine geçiyoruz. Bu bölüm toplam 105 puanın 30 puanını oluşturur.');
+  }, 64000);
 
-  function adim6_subjSecimAnlatimi() {
+  // ADIM 7 — Otomatik/Manuel seçim | başlangıç: 61200+7000=68200ms | süre: 10000ms
+  setTimeout(() => {
     if (!window._demoMod) return;
-    const otomBtn = document.querySelector('button[onclick="subjOtomatikSec()"]');
-    const manuelBtn = document.querySelector('button[onclick="subjManuelSec()"]');
-    if (otomBtn) _vurgula(otomBtn, 3000);
-    setTimeout(() => { if (manuelBtn) _vurgula(manuelBtn, 3000); }, 2000);
+    const otom=document.querySelector('button[onclick="subjOtomatikSec()"]');
+    const manuel=document.querySelector('button[onclick="subjManuelSec()"]');
+    setTimeout(()=>_elDolas([otom,manuel].filter(Boolean),1200), 400);
+    _bsoy('İki seçenek var. <b>Otomatik</b>: 20 nokta 60 puan atanır. <b>Manuel</b>: dört soruyu yanıtlarsınız, gerçek puanınız ortaya çıkar.');
+  }, 71000);
 
-    _baykusSoy(
-      'İki seçenek var. <b>Otomatik</b>: sorular atlanır, 20.60 üzerinden 30 puan atanır. ' +
-      '<b>Manuel</b>: 4 soruyu yanıtlarsınız, gerçek puanınız hesaplanır. ' +
-      'Şimdi manuel dolduralım.',
-      adim7_subjManuelBaslat
-    );
-  }
-
-  function adim7_subjManuelBaslat() {
+  // ADIM 8 — Manuel aç + Soru 1 | başlangıç: 68200+10000=78200ms | süre: 16000ms
+  setTimeout(() => {
     if (!window._demoMod) return;
     subjManuelSec();
     setTimeout(() => {
-      if (!window._demoMod) return;
-      window.scrollTo({top: 0, behavior: 'smooth'});
-      // Soru 1 — Kredi Geçmişi
-      const s1Opts = document.querySelectorAll('#sopts_s1 .subj-opt');
-      if (s1Opts[0]) _vurgula(s1Opts[0], 4000);
-      _baykusSoy(
-        '<b>1. Kredi Geçmişi</b>: Son 1 yılda aktif gecikme ya da olumsuzluk var mı? ' +
-        'Çuhadaroğlu Metal için hiçbir olumsuzluk yok. En yüksek puanlı seçenek.',
-        () => adim7b_s1Sec()
-      );
-    }, 600);
-  }
+      window.scrollTo({top:0, behavior:'smooth'});
+      // Soru 1 seçeneği vurgula + el işaret et
+      setTimeout(() => { _subjVurgula('sopts_s1', 0); }, 800);
+      _bsoy('<b>1. Kredi Geçmişi</b>: Son 1 yılda firma adına aktif gecikme, icra ya da olumsuzluk var mı? Hiçbir olumsuz kayıt veya gecikme yoksa olumsuz kayıt veya gecikme yok cevabı işaretlenir.');
+    }, 500);
+  }, 81000);
 
-  function adim7b_s1Sec() {
+  // ADIM 8b — S1 seç + Soru 2 | başlangıç: 78200+16000=94200ms | süre: 16000ms
+  setTimeout(() => {
     if (!window._demoMod) return;
-    // s1: index 0 = "Hayır — hiçbir olumsuzluk yok"
+    // S1 kalıcı seç
     subjSec['s1'] = 0;
-    const s1Opts = document.querySelectorAll('#sopts_s1 .subj-opt');
-    s1Opts.forEach((d, j) => d.classList.toggle('selected', j === 0));
+    document.querySelectorAll('#sopts_s1 .subj-opt').forEach((d,j) => {
+      d.classList.toggle('selected', j===0);
+      d.style.background=''; d.style.border=''; d.style.color='';
+    });
     _checkSubjComplete();
-    setTimeout(() => {
-      if (!window._demoMod) return;
-      // Soru 2 — Limit Kullanımı
-      const s6Opts = document.querySelectorAll('#sopts_s6 .subj-opt');
-      if (s6Opts[0]) { s6Opts[0].scrollIntoView({behavior:'smooth', block:'center'}); _vurgula(s6Opts[0], 4000); }
-      _baykusSoy(
-        '<b>2. Banka Limit Kullanımı</b>: Mevcut kredi kullanımı toplam limitin yüzde kaçı? ' +
-        'Yüzde 50 altında, limit boşluğu bol.',
-        () => adim7c_s6Sec()
-      );
-    }, 1000);
-  }
+    // Soru 2 vurgula
+    const s6el = document.querySelector('#sopts_s6 .subj-opt:nth-child(2)') ||
+                 document.querySelectorAll('#sopts_s6 .subj-opt')[1];
+    if (s6el) { s6el.scrollIntoView({behavior:'smooth',block:'center'}); }
+    setTimeout(() => { _subjVurgula('sopts_s6', 1); }, 800);
+    _bsoy('<b>2. Banka Limit Kullanımı</b>: Mevcut kredi kullanımı toplam limitin yüzde kaçı? Yüzde elli ile altmış beş arası kullanım varsa yüzde elli ile altmış beş arası normal kullanım cevabı seçilir.');
+  }, 94000);
 
-  function adim7c_s6Sec() {
+  // ADIM 8c — S6 seç + Soru 3 | başlangıç: 94200+16000=110200ms | süre: 11000ms
+  setTimeout(() => {
     if (!window._demoMod) return;
-    // s6: index 0 = "%50 altı — limit boşluğu bol"
-    subjSec['s6'] = 0;
-    const s6Opts = document.querySelectorAll('#sopts_s6 .subj-opt');
-    s6Opts.forEach((d, j) => d.classList.toggle('selected', j === 0));
+    subjSec['s6'] = 1;
+    document.querySelectorAll('#sopts_s6 .subj-opt').forEach((d,j) => {
+      d.classList.toggle('selected', j===1);
+      d.style.background=''; d.style.border=''; d.style.color='';
+    });
     _checkSubjComplete();
-    setTimeout(() => {
-      if (!window._demoMod) return;
-      // Soru 3 — Faaliyet Süresi
-      const s12Opts = document.querySelectorAll('#sopts_s12 .subj-opt');
-      if (s12Opts[0]) { s12Opts[0].scrollIntoView({behavior:'smooth', block:'center'}); _vurgula(s12Opts[0], 4000); }
-      _baykusSoy(
-        '<b>3. Faaliyet Süresi</b>: Firmanın kuruluşundan bu yana geçen süre. ' +
-        '10 yıl ve üzeri, en yüksek puan.',
-        () => adim7d_s12Sec()
-      );
-    }, 1000);
-  }
+    const s12el = document.querySelectorAll('#sopts_s12 .subj-opt')[1];
+    if (s12el) { s12el.scrollIntoView({behavior:'smooth',block:'center'}); }
+    setTimeout(() => { _subjVurgula('sopts_s12', 1); }, 800);
+    _bsoy('<b>3. Faaliyet Süresi</b>: Firmanın kuruluşundan bu yana geçen süre. İlgili firma 7 yıl önce kurulduysa 5 ila 10 yıl seçilir.');
+  }, 109000);
 
-  function adim7d_s12Sec() {
+  // ADIM 8d — S12 seç + Soru 4 | başlangıç: 110200+11000=121200ms | süre: 11000ms
+  setTimeout(() => {
     if (!window._demoMod) return;
-    // s12: index 0 = "10 yıl ve üzeri"
-    subjSec['s12'] = 0;
-    const s12Opts = document.querySelectorAll('#sopts_s12 .subj-opt');
-    s12Opts.forEach((d, j) => d.classList.toggle('selected', j === 0));
+    subjSec['s12'] = 1;
+    document.querySelectorAll('#sopts_s12 .subj-opt').forEach((d,j) => {
+      d.classList.toggle('selected', j===1);
+      d.style.background=''; d.style.border=''; d.style.color='';
+    });
     _checkSubjComplete();
-    setTimeout(() => {
-      if (!window._demoMod) return;
-      // Soru 4 — Muhasebe/Denetim
-      const s19Opts = document.querySelectorAll('#sopts_s19 .subj-opt');
-      if (s19Opts[0]) { s19Opts[0].scrollIntoView({behavior:'smooth', block:'center'}); _vurgula(s19Opts[0], 4000); }
-      _baykusSoy(
-        '<b>4. Muhasebe ve Denetim</b>: YMM tasdiki veya bağımsız denetim raporu var mı? ' +
-        'Evet, rapor mevcut.',
-        () => adim7e_s19Sec()
-      );
-    }, 1000);
-  }
+    const s19el = document.querySelectorAll('#sopts_s19 .subj-opt')[1];
+    if (s19el) { s19el.scrollIntoView({behavior:'smooth',block:'center'}); }
+    setTimeout(() => { _subjVurgula('sopts_s19', 1); }, 800);
+    _bsoy('<b>4. Muhasebe ve Denetim</b>: Bağımsız denetim raporu veya YMM tasdiki var mı? YMM veya bağımsız denetim yoksa yok seçilir.');
+  }, 118000);
 
-  function adim7e_s19Sec() {
+  // ADIM 8e — S19 seç + Puan | başlangıç: 121200+11000=132200ms | süre: 11000ms
+  setTimeout(() => {
     if (!window._demoMod) return;
-    // s19: index 0 = "Evet — YMM / Bağımsız denetim raporu var"
-    subjSec['s19'] = 0;
-    const s19Opts = document.querySelectorAll('#sopts_s19 .subj-opt');
-    s19Opts.forEach((d, j) => d.classList.toggle('selected', j === 0));
+    subjSec['s19'] = 1;
+    document.querySelectorAll('#sopts_s19 .subj-opt').forEach((d,j) => {
+      d.classList.toggle('selected', j===1);
+      d.style.background=''; d.style.border=''; d.style.color='';
+    });
     _checkSubjComplete();
+    _elGizle();
     setTimeout(() => {
-      if (!window._demoMod) return;
-      window.scrollTo({top: 0, behavior: 'smooth'});
-      // Subjektif puan göster
-      const puanEl = document.getElementById('subjToplamPuan') || document.getElementById('subjPuanSonuc');
-      if (puanEl) { setTimeout(() => _vurgula(puanEl, 4000), 500); }
-      _baykusSoy(
-        'Dört soru tamamlandı. Subjektif puan: <b>30 üzerinden 30</b>. ' +
-        'Tüm kriterler en iyi seçenekle yanıtlandı. ' +
-        'Şimdi Analiz Et butonuna basıyorum.',
-        adim8_analizEt
-      );
-    }, 1000);
-  }
+      const pb=document.getElementById('subjResultBox');
+      if (pb) { pb.scrollIntoView({behavior:'smooth',block:'center'}); _vurgula(pb, 8000); }
+    }, 800);
+    _bsoy('Dört soru tamamlandı. Subjektif puan hesaplandı. Bu puan toplam 105 puanın 30 puanlık subjektif bölümünden geliyor. Şimdi Analiz Et butonuna basıyorum.');
+  }, 128000);
 
-  function adim8_analizEt() {
+  // ADIM 9 — Analiz Et | başlangıç: 132200+11000=143200ms
+  setTimeout(() => {
     if (!window._demoMod) return;
-    // window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});
-    const analizBtn = document.querySelector('button.analyze-btn, button[onclick="runAnalysis()"]');
-    if (analizBtn) {
-      analizBtn.scrollIntoView({behavior:'smooth', block:'center'});
-      setTimeout(() => _vurgula(analizBtn, 2000), 400);
-    }
-    // Demo burada durur — analizi çalıştırmıyoruz, kullanıcıya bırakıyoruz
-    // (Sonrası için birlikte kurgulayacağız)
+    window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
     setTimeout(() => {
-      if (!window._demoMod) return;
-      if (typeof runAnalysis === 'function') runAnalysis();
-    }, 3000);
-  }
+      const analizBtn = document.querySelector('button.analyze-btn');
+      if (analizBtn) {
+        analizBtn.scrollIntoView({behavior:'smooth', block:'center'});
+        _elGit(analizBtn);
+        _vurgula(analizBtn, 3000);
+        setTimeout(() => { _elGizle(); if(window._demoMod && typeof runAnalysis==='function') runAnalysis(); }, 3000);
+      }
+    }, 600);
+  }, 138000);
 
-  // Demo başlat — 1.2 saniye gecikmeyle
-  setTimeout(adim1_analizYili, 1200);
-
-  // 15 dakika geri sayım
   _demoGeriSayimBaslat();
 }
+function _demoAnalizSunumu() {
+  if (!window._demoMod) return;
+
+  // Baykuş sembol modda — chat kapalı, sadece sesli anlatım
+  const am = document.getElementById('avatarModal');
+  if (am) am.style.display = 'none';
+
+  // Yardımcılar (demoBaslat kapsamında değil, burada yeniden tanımla)
+  function _vurgula(el, sure) {
+    if (!el) return;
+    el.scrollIntoView({behavior:'smooth', block:'center'});
+    const os=el.style.outline, obs=el.style.boxShadow;
+    el.style.transition='all 0.3s';
+    el.style.outline='3px solid #f5a623';
+    el.style.boxShadow='0 0 0 8px rgba(245,166,35,.2)';
+    setTimeout(() => { el.style.outline=os; el.style.boxShadow=obs; }, sure||3000);
+  }
+
+  function _bsoy(metin) {
+    if (!window._demoMod) return;
+    if (window.speechSynthesis) {
+      const tmp = document.createElement('div'); tmp.innerHTML = metin;
+      const text = tmp.textContent.trim();
+      if (text) {
+        speechSynthesis.cancel();
+        const utt = new SpeechSynthesisUtterance(text);
+        const voices = speechSynthesis.getVoices();
+        const trSes = voices.find(v => v.lang.startsWith('tr'));
+        if (trSes) utt.voice = trSes;
+        utt.lang='tr-TR'; utt.rate=1.05;
+        speechSynthesis.speak(utt);
+      }
+    }
+  }
+
+  // ADIM 1 — Kredi notu açıklaması | 2000ms
+  setTimeout(() => {
+    if (!window._demoMod) return;
+    window.scrollTo({top:0, behavior:'smooth'});
+    const hero = document.getElementById('ratingHero');
+    if (hero) _vurgula(hero, 13000);
+    const fin = document.getElementById('valFinansal');
+    const subj = document.getElementById('valSubjektif');
+    const finVal = fin ? fin.textContent.trim().split('/')[0].trim() : '21';
+    const subjVal = subj ? subj.textContent.trim().split('/')[0].trim().replace('.', ' nokta ') : '24 nokta 55';
+    const not = document.getElementById('ratingNoteBig');
+    const notVal = not ? not.textContent.trim() : 'CCC';
+    const teminat = document.getElementById('ratingDesc');
+    const teminatVal = teminat ? teminat.textContent.trim() : '';
+    _bsoy('Finansal değerlerden 75 puan üzerinden ' + finVal + ' puan, '
+      + 'subjektif değerlerden ise 30 üzerinden ' + subjVal + ' puan alındı. '
+      + 'Kredi notu ' + notVal + '. Bu not yüksek risk anlamına gelir. '
+      + 'Teminat şartı: ' + teminatVal + '.');
+  }, 2000);
+
+  // ADIM 2 — Kredi not skalası | 17000ms
+  setTimeout(() => {
+    if (!window._demoMod) return;
+    const skala = document.getElementById('skalaBody');
+    if (skala) {
+      skala.scrollIntoView({behavior:'smooth', block:'center'});
+      _vurgula(skala, 9000);
+      // Aktif notu vurgula
+      const aktifSatir = skala.querySelector('tr[style*="border-left"]');
+      if (aktifSatir) _vurgula(aktifSatir, 9000);
+    }
+    _bsoy('Kredi not skalasında firmanın notu işaretli. Skala AAA dan D ye 10 kademe. ' +
+      'Her kademenin teminat koşulları farklıdır. Üst notlarda teminatsız çalışılabilir.');
+  }, 20000);
+
+  // ADIM 3 — Finansal oranlar | 28000ms
+  setTimeout(() => {
+    if (!window._demoMod) return;
+    const oran = document.getElementById('liquidityRatios');
+    if (oran) { oran.scrollIntoView({behavior:'smooth', block:'center'}); _vurgula(oran, 9000); }
+    _bsoy('Finansal oranlar bölümünde 18 oran hesaplanmış. ' +
+      'Her oran için referans aralığı gösterilir. ' +
+      'Yeşil iyi, sarı kabul edilebilir, kırmızı riskli demektir.');
+  }, 31000);
+
+  // ADIM 4 — Rating artırıcı öneriler | 39000ms
+  setTimeout(() => {
+    if (!window._demoMod) return;
+    const oneri = document.getElementById('i18nOneri');
+    if (oneri) { oneri.scrollIntoView({behavior:'smooth', block:'center'}); _vurgula(oneri, 8000); }
+    _bsoy('Rating artırıcı öneriler bölümünde firmanın zayıf noktaları ve iyileştirme adımları yer alır. ' +
+      'Bu öneriler PDF raporda da bulunur.');
+  }, 42000);
+
+  // ADIM 5 — Özet bilanço | 49000ms
+  setTimeout(() => {
+    if (!window._demoMod) return;
+    const ozet = document.getElementById('ozetTabloGrid');
+    if (ozet) {
+      ozet.style.display = 'block';
+      ozet.scrollIntoView({behavior:'smooth', block:'center'});
+      _vurgula(ozet, 9000);
+    }
+    _bsoy('Özet bilanço ve gelir tablosu bölümünde aktif ve pasif toplamı birbirine eşittir. ' +
+      'Aktif pasif dengesi sağlıklı bir bilançonun temelidir.');
+  }, 52000);
+
+  // ADIM 6 — Senaryo analizi | 60000ms
+  setTimeout(() => {
+    if (!window._demoMod) return;
+    window.scrollTo({top:0, behavior:'smooth'});
+    // Senaryo modalını aç, sermaye değerini set et (20.4M)
+    setTimeout(() => {
+      if (typeof showSenaryoModal === 'function') showSenaryoModal();
+      setTimeout(() => {
+        // Sermaye slider'ını 20.4M TL yap
+        const sermayeInput = document.getElementById('sld_sermaye');
+        if (sermayeInput) {
+          const hedef = 20400000;
+          sermayeInput.value = hedef;
+          sermayeInput.dispatchEvent(new Event('input'));
+          const lbl = document.getElementById('lbl_sermaye');
+          if (lbl) lbl.textContent = '20.4M ₺';
+          if (window._senaryoState) window._senaryoState.sermaye = hedef;
+          if (typeof _renderSenaryo === 'function') _renderSenaryo();
+        }
+        const senModal = document.getElementById('senaryoModal');
+        if (senModal) _vurgula(senModal, 14000);
+      }, 800);
+    }, 500);
+    _bsoy('Kredi notu artırma senaryo analizi. Dört kriter var: sermaye artışı, ' +
+      'kısa vadeli banka borcunu uzun vadeye taşımak, net kar marjı artışı ve ciro artışı. ' +
+      'Bu örnekte firma sermayesini 20 virgül 4 milyon TL artırdığında finansal not 9 puan artmaktadır.');
+  }, 63000);
+
+  // ADIM 7 — KV→UV taşıma ek senaryo ve simülasyon | 78000ms (+6sn: ADIM 6 metni 18sn)
+  setTimeout(() => {
+    if (!window._demoMod) return;
+    // KV taşıma oranını %75 yap, vade 48 ay
+    const kvInput = document.getElementById('sld_kvtasima');
+    const vadeSelect = document.getElementById('sel_vade');
+    if (kvInput) {
+      kvInput.value = 75;
+      kvInput.dispatchEvent(new Event('input'));
+      const lbl = document.getElementById('lbl_kvtasima');
+      if (lbl) lbl.textContent = '%75';
+      if (window._senaryoState) window._senaryoState.kvtasima = 75;
+    }
+    if (vadeSelect) {
+      vadeSelect.value = '48';
+      vadeSelect.dispatchEvent(new Event('change'));
+      if (window._senaryoState) window._senaryoState.vade = 48;
+    }
+    if (typeof _renderSenaryo === 'function') _renderSenaryo();
+    const senModal = document.getElementById('senaryoModal');
+    if (senModal) _vurgula(senModal, 14000);
+    _bsoy('Kısa vadeli banka borcunun yüzde 75 i 48 ay vadeli taksitli kredi kullanılarak kapatıldığında ' +
+      'finansal not 3 puan daha artarak 57 virgül 55 e ulaşmaktadır. ' +
+      'Kredi notu CCC den B ye çıkmış olacaktır. ' +
+      'Bu şekilde birçok simülasyon yapılabilir.');
+  }, 81000);
+
+  // ADIM 8 — FinSkor Otomatik Senaryo Önerisi | 96000ms (+18sn: ADIM 7 metni)
+  setTimeout(() => {
+    if (!window._demoMod) return;
+    const sen = document.getElementById('senaryoModal');
+    if (sen) sen.style.display = 'none';
+    window.scrollTo({top:0, behavior:'smooth'});
+    setTimeout(() => {
+      if (typeof showOtomSenaryo === 'function') showOtomSenaryo();
+      const otomBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('FinSkor Otomatik Senaryo'));
+      if (otomBtn) { otomBtn.scrollIntoView({behavior:'smooth', block:'center'}); _vurgula(otomBtn, 14000); }
+    }, 500);
+    _bsoy('FinSkor otomatik senaryo önerisi, notunuzu bir ve iki kademe artırmak için ' +
+      'en uygun kombinasyonu hesaplar. Sermaye artışı, kısa vadeden uzun vadeye taşıma ve satış büyümesi ' +
+      'kombinasyonları denenir. Bu öneri PDF raporda da yer alır.');
+  }, 99000);
+
+  // ADIM 9 — Kapanış | 114000ms (+18sn)
+  setTimeout(() => {
+    if (!window._demoMod) return;
+    window.scrollTo({top:0, behavior:'smooth'});
+    _bsoy('Bankadan kredi kullanmak isteyen KOBİ ve ticari firmaların en büyük dezavantajı, ' +
+      'bankanın kendilerini nasıl değerlendirdiğini bilmemeleridir. ' +
+      'FinSkor bu bilgiyi firmanın eline verir. ' +
+      'Kredi başvurusundan önce notunuzu öğrenin, zayıf noktaları güçlendirin, ' +
+      'bankaya hazırlıklı gidin. Daha az teminat, daha iyi faiz, daha hızlı onay. ' +
+      'FinSkor, kredide güç dengesi artık sizin tarafınızda.');
+  }, 117000);
+}
+
+
 function _demoGeriSayimBaslat() {
   if (_demoTimer) clearInterval(_demoTimer);
   _demoTimer = setInterval(() => {
