@@ -394,7 +394,7 @@ tbody td { padding:8px 13px; color:var(--text); }
   <div style="display:flex;align-items:center;gap:10px">
     <span style="font-size:18px">🎯</span>
     <div>
-      <div style="font-size:13px;font-weight:700;color:#000">DEMO MODU — Çuhadaroğlu Metal A.Ş.</div>
+      <div style="font-size:13px;font-weight:700;color:#000">DEMO MODU — ABC Metal A.Ş.</div>
       <div style="font-size:11px;color:rgba(0,0,0,0.7)">Gerçek firma verisiyle örnek analiz · Kaydetme ve PDF devre dışı &nbsp;|&nbsp; <span class="demo-sure">Demo süresi: 15:00 kaldı</span></div>
     </div>
   </div>
@@ -7527,7 +7527,7 @@ function adminLoginKontrol(code) {
 // DEMO MODU
 // ══════════════════════════════════════════════════════
 const DEMO_FIRMA = {
-  ad: 'Çuhadaroğlu Metal A.Ş.',
+  ad: 'ABC Metal A.Ş.',
   tip: 'pazarlama',
   refYear: 2024,
   period: '12',
@@ -7794,7 +7794,7 @@ function demoBaslat() {
     const btnler = Array.from(document.querySelectorAll('button')).filter(b =>
       b.textContent.includes('Pazarlama') || b.textContent.includes('Üretim') || b.textContent.includes('Taahhüt'));
     if (btnler.length) { btnler[0].scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elDolas(btnler,700), 600); }
-    _bsoy('<b>Firma Tipi</b>: Pazarlama veya Hizmet, Üretim ya da Taahhüt. Her tip için finansal oran eşikleri farklı hesaplanır. Çuhadaroğlu Metal için Üretim seçili.');
+    _bsoy('<b>Firma Tipi</b>: Pazarlama veya Hizmet, Üretim ya da Taahhüt. Her tip için finansal oran eşikleri farklı hesaplanır. ABC Metal için Üretim seçili.');
   }, 26000);
 
   // ADIM 4 — 2024/2023 zorunluluğu | başlangıç: 24200+12000=36200ms | süre: 13000ms
