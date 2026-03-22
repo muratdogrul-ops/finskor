@@ -3756,7 +3756,7 @@ function _renderSenaryo() {
   // KV banka borcu: KV taşıma ile azalabilir
   const sKvBankaToplam = Math.max(0, baseKvMaliBor - netKvAzalis); // KV mali borç azalır
 
-  const senaryo = _senaryoPuan(sOz, sTotalBor, sDonenVar, sKvBorclar, sLikit, sNetSatis, sVoKar, sFaalKar, sToplamFin, sAktif, r.ihracatSatis, basePrevFaalKar, sKvBankaToplam);
+  const senaryo = _senaryoPuan(sOz, sTotalBor, sDonenVar, sKvBorclar, sLikit, sNetSatis, sVoKar, sFaalKar, sToplamFin, sAktif, r.ihracatSatis, basePrevFaalKar, sKvBankaToplam, faalMarjDelta);
   const sRating = getRating(senaryo.s + subjPuan);
 
   const fmtTL = v => v >= 1e6 ? (v/1e6).toFixed(1)+'M ₺' : v >= 1e3 ? (v/1e3).toFixed(0)+'K ₺' : v.toFixed(0)+' ₺';
@@ -4042,7 +4042,8 @@ function _rsSimule(r, subjPuan, sermaye, kvPct, vade, karMarj, satisDelta) {
 
   const p = _senaryoPuan(sOz, sTotalBor, sDonenVar, sKvBorclar, sLikit,
     sNetSatis, sVoKar, sFaalKar, sToplamFin, sAktif,
-    r.ihracatSatis, basePrevFaalKar, sKvBankaToplam);
+    r.ihracatSatis, basePrevFaalKar, sKvBankaToplam, 0);
+
 
   return {
     puan: p.s + subjPuan,
@@ -7042,7 +7043,8 @@ function _baykusSenaryoYorum() {
   const sAktif = baseAktif + sermayeArtis;
   const sKvBankaToplam = Math.max(0, baseKvMaliBor - netKvAzalis);  // KV mali borç azalır
 
-  const sen = _senaryoPuan(sOz, baseTotalBor, sDonenVar, sKvBorclar, sLikit, sNetSatis, sVoKar, baseFaalKar, baseToplamFin, sAktif, r.ihracatSatis, basePrevFaalKar, sKvBankaToplam);
+  const sen = _senaryoPuan(sOz, baseTotalBor, sDonenVar, sKvBorclar, sLikit, sNetSatis, sVoKar, baseFaalKar, baseToplamFin, sAktif, r.ihracatSatis, basePrevFaalKar, sKvBankaToplam, 0);
+
   const totalSen = sen.s + subjPuan;
   const senRating = getRating(totalSen);
   const pDiff = sen.s - base.s;
