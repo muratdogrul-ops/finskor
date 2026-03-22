@@ -3767,15 +3767,16 @@ function _renderSenaryo() {
   const sKvBankaToplam = Math.max(0, baseKvMaliBor - netKvAzalis); // KV mali borç azalır
 
   const senaryo = _senaryoPuan(sOz, sTotalBor, sDonenVar, sKvBorclar, sLikit, sNetSatis, sVoKar, sFaalKar, sToplamFin, sAktif, r.ihracatSatis, basePrevFaalKar, sKvBankaToplam, faalMarjDelta);
-  const sRating = getRating(senaryo.s + subjPuan + _rsOffset);
 
-  const fmtTL = v => v >= 1e6 ? (v/1e6).toFixed(1)+'M ₺' : v >= 1e3 ? (v/1e3).toFixed(0)+'K ₺' : v.toFixed(0)+' ₺';
-  const pDiff = (senaryo.s - base.s); // ham fark
   // Offset: gerçek analiz puanı ile _senaryoPuan bazı arasındaki fark
   const _realToplam = (state._last || state.lastResult) ? (state._last || state.lastResult).toplam : (base.s + subjPuan);
   const _rsOffset   = _realToplam - (base.s + subjPuan);
   const totalBase = _realToplam;                    // gerçek analiz puanı
   const totalSen  = senaryo.s + subjPuan + _rsOffset; // senaryo puanı + offset
+  const sRating = getRating(senaryo.s + subjPuan + _rsOffset);
+
+  const fmtTL = v => v >= 1e6 ? (v/1e6).toFixed(1)+'M ₺' : v >= 1e3 ? (v/1e3).toFixed(0)+'K ₺' : v.toFixed(0)+' ₺';
+  const pDiff = (senaryo.s - base.s); // ham fark
 
   function pRow(lbl, bv, sv, max) {
     const d = sv - bv;
