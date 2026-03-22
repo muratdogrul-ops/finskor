@@ -1270,6 +1270,9 @@ function downloadReport() {
     ['Net Kar / Satış (VÖ)', r.netKarMarj.toFixed(1)+'%',
       paz2?(r.netKarMarj>14?6:r.netKarMarj>9?5:r.netKarMarj>5?3:r.netKarMarj>2?2:r.netKarMarj>0?1:0)
           :(r.netKarMarj>19?6:r.netKarMarj>14?5:r.netKarMarj>9?3:r.netKarMarj>4?2:r.netKarMarj>1?1:0), 6],
+    ['Faaliyet Karı / Satış', r.faalMarj.toFixed(1)+'%',
+      paz2?(r.faalMarj>14?6:r.faalMarj>9?5:r.faalMarj>5?3:r.faalMarj>2?2:r.faalMarj>0?1:0)
+          :(r.faalMarj>19?6:r.faalMarj>14?5:r.faalMarj>9?3:r.faalMarj>4?2:r.faalMarj>1?1:0), 6],
     ['Reel Faaliyet Karı Artışı', r.reelFaalKarBuy.toFixed(1)+'%',
       r.reelFaalKarBuy>14?5:r.reelFaalKarBuy>9?4:r.reelFaalKarBuy>5?3:r.reelFaalKarBuy>2?2:r.reelFaalKarBuy>0?1:0, 5],
     ['Faaliyet Karı Karşılaştırma', r.faalKarYillik>=0?'Artış':'Azalış', r.faalKarYillik>0?5:0, 5],
@@ -1371,6 +1374,7 @@ function downloadReport() {
     +'<h2>'+T('karlilik')+'</h2>'
     +'<table><tr><th>'+T('kriter')+'</th><th>'+T('deger')+'</th><th>Hedef</th><th>'+T('durum')+'</th></tr>'
     +'<tr><td>VÖ Net Kar / Satış</td><td>'+r.netKarMarj.toFixed(1)+'%</td><td>Min: '+(paz?'%3':'%5')+'</td><td class="'+(r.netKarMarj>=(paz?9:14)?'ok':r.netKarMarj>=(paz?3:5)?'warn':'bad')+'">'+(r.netKarMarj>=(paz?9:14)?T('iyi'):r.netKarMarj>=(paz?3:5)?T('kabul'):T('riskli'))+'</td></tr>'
+    +'<tr><td>Faaliyet Karı / Satış</td><td>'+r.faalMarj.toFixed(1)+'%</td><td>Min: '+(paz?'%3':'%5')+'</td><td class="'+(r.faalMarj>=(paz?9:14)?'ok':r.faalMarj>=(paz?3:5)?'warn':'bad')+'">'+(r.faalMarj>=(paz?9:14)?T('iyi'):r.faalMarj>=(paz?3:5)?T('kabul'):T('riskli'))+'</td></tr>'
     +'<tr><td>Reel Satış Büyümesi</td><td>'+(r.reelSatisBuy>=0?'+':'')+r.reelSatisBuy.toFixed(1)+'%</td><td>Min: %0</td><td class="'+(r.reelSatisBuy>=5?'ok':r.reelSatisBuy>=0?'warn':'bad')+'">'+(r.reelSatisBuy>=5?T('iyi'):r.reelSatisBuy>=0?T('kabul'):T('gerileme'))+'</td></tr>'
     +'<tr><td>Reel Faal. Karı Artışı</td><td>'+(r.reelFaalKarBuy>=0?'+':'')+r.reelFaalKarBuy.toFixed(1)+'%</td><td>Min: %0</td><td class="'+(r.reelFaalKarBuy>=5?'ok':r.reelFaalKarBuy>=0?'warn':'bad')+'">'+(r.reelFaalKarBuy>=5?T('iyi'):r.reelFaalKarBuy>=0?T('kabul'):T('gerileme'))+'</td></tr>'
     +'</table>'
@@ -1483,6 +1487,12 @@ function calcObjScore(r, firmType) {
     ? (r.netKarMarj > 14 ? 6 : r.netKarMarj > 9 ? 5 : r.netKarMarj > 5 ? 3 : r.netKarMarj > 2 ? 2 : r.netKarMarj > 0 ? 1 : 0)
     : (r.netKarMarj > 19 ? 6 : r.netKarMarj > 14 ? 5 : r.netKarMarj > 9 ? 3 : r.netKarMarj > 4 ? 2 : r.netKarMarj > 1 ? 1 : 0);
   s += _c4;
+
+  // ④b Faaliyet Karı/Satış
+  const _c12 = paz
+    ? (r.faalMarj > 14 ? 6 : r.faalMarj > 9 ? 5 : r.faalMarj > 5 ? 3 : r.faalMarj > 2 ? 2 : r.faalMarj > 0 ? 1 : 0)
+    : (r.faalMarj > 19 ? 6 : r.faalMarj > 14 ? 5 : r.faalMarj > 9 ? 3 : r.faalMarj > 4 ? 2 : r.faalMarj > 1 ? 1 : 0);
+  s += _c12;
 
   // ⑤ Reel Faaliyet Karı Artışı — max 5 — Her tipte AYNI
   // IF(>14,5,IF(>9,4,IF(>5,3,IF(>2,2,IF(>0,1,0)))))
@@ -8358,5 +8368,6 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
