@@ -5640,57 +5640,7 @@ function mizanTextIsle(text, structuredLines) {
 
 // ── BEYANNAME / AYRINTILI BİLANÇO PARSER ──────────────────────────────────────
 // Sadece ". A." seviyesi grup satırlarını alır, alt kalemleri atlar
-function mizanTextIsleGeciciBeyanname(lines, result, year) {
-  var u1='',u2='';
-  for(var i=0;i<lines.length;i++){
-    var m1=lines[i].match(/Soyadı \(Unvanı\)\s+(.+)/i),m2=lines[i].match(/Adı \(Unvanın Devamı\)\s+(.+)/i);
-    if(m1)u1=m1[1].trim();if(m2)u2=m2[1].trim();
-  }
-  var gelirBas=false,kSat=[];
-  for(var i=0;i<lines.length;i++){
-    var l=lines[i].trim();
-    if(/TEK\s*D[U\u00dc]ZEN\s*HESAP\s*PLAN/i.test(l)){gelirBas=true;continue;}
-    if(gelirBas&&l)kSat.push(l);
-  }
-  if(kSat.length<5)kSat=lines.map(function(l){return l.trim();}).filter(Boolean);
-  var sRe=/^-?\d{1,3}(?:\.\d{3})*,\d{2}$/;
-  function pN(s){return parseFloat(s.replace(/\./g,'').replace(',','.'))}
-  var SKIP=/tek duzen|aciklama|cari donem|\(2025\)|ekler|beyannameyi|mukellef|vergi kimlik|soyad|irtibat|e.posta|kanunen kabul edilmeyen|toplam|patent|sinai|vuk genel|gercek faydalan/;
-  var etk=[],say=[];
-  for(var i=0;i<kSat.length;i++){var l=kSat[i],ln=normTR(l);if(sRe.test(l)){say.push(pN(l));}else if(l.length>3&&!SKIP.test(ln)){etk.push(l);}}
-  var MAP=[
-    [/^a\.\s*brut satis/,'brutSatis'],[/\.\s*1\..*yurtici/,null],
-    [/^b\.\s*satis indiri/,'satisInd'],[/\.\s*1\..*satistan iade/,null],
-    [/^c\.?\s*net satis/,null],[/^d\.\s*satislarin maliyet/,'satMaliyet'],
-    [/\.\s*2\..*satilan ticari mal/,'_satTicMal'],[/\.\s*3\..*satilan hizmet/,'_satHizMal'],
-    [/brut satis kar[i\u0131] veya/,null],[/^e\.\s*faaliyet gider/,'faalGider'],
-    [/\.\s*3\..*genel yonetim/,null],[/faaliyet kar[i\u0131] veya/,null],
-    [/^f\..*olagan gelir/,'digerFaalGelir'],[/\.\s*10\..*diger olagan gelir/,null],
-    [/^g\..*olagan gider/,'digerFaalGider'],[/\.\s*7\..*diger olagan gider/,null],
-    [/^h\.\s*finansman gider/,'finansmanGider'],[/\.\s*1\..*kisa vadeli borclanma/,null],
-    [/olagan kar veya zarar$/,null],[/donem kar[i\u0131] veya zarar[i\u0131]$/,null],
-    [/donem net kar[i\u0131]/,'donemNetKar']
-  ];
-  var akm={},sIdx=0;
-  for(var i=0;i<etk.length;i++){
-    if(sIdx>=say.length)break;
-    var ln=normTR(etk[i]),hit=false;
-    for(var g=0;g<MAP.length;g++){
-      if(MAP[g][0].test(ln)){
-        var k=MAP[g][1],v=Math.abs(say[sIdx]);
-        if(k!==null){if(k.charAt(0)==='_'){akm[k]=(akm[k]||0)+v;}else if(!result[k]){result[k]=v;}}
-        sIdx++;hit=true;break;
-      }
-    }
-    if(!hit)sIdx++;
-  }
-  var sm=(akm['_satTicMal']||0)+(akm['_satHizMal']||0);
-  if(sm>0&&!result['satMaliyet'])result['satMaliyet']=sm;
-  if(u1||u2)result._firmaAdi=(u1+(u2?' '+u2:'')).trim();
-  var n=Object.keys(result).filter(function(k){return !k.startsWith('_')&&result[k]!==0;}).length;
-  importLog('\u2705 Ge\u00e7ici Beyanname: '+n+' kalem',n>0?'ok':'warn');
-  return result;
-}
+function mizanTextIsleGeciciBeyanname(lines,result,year){var u1='',u2='';for(var i=0;i<lines.length;i++){var m1=lines[i].match(/Soyadı \(Unvanı\)\s+(.+)/i),m2=lines[i].match(/Adı \(Unvanın Devamı\)\s+(.+)/i);if(m1)u1=m1[1].trim();if(m2)u2=m2[1].trim();}var gB=false,kS=[];for(var i=0;i<lines.length;i++){var l=lines[i].trim();if(/TEK\s*D[U\u00dc]ZEN\s*HESAP\s*PLAN/i.test(l)){gB=true;continue;}if(gB&&l)kS.push(l);}if(kS.length<5)kS=lines.map(function(l){return l.trim();}).filter(Boolean);var sR=/^-?\d{1,3}(?:\.\d{3})*,\d{2}$/;function pN(s){return parseFloat(s.replace(/\./g,'').replace(',','.'))}var SK=/tek duzen|aciklama|cari donem|\(2025\)|ekler|beyannameyi|mukellef|vergi kimlik|soyad|irtibat|e.posta|kanunen kabul eilmeyen|toplam|patent|sinai|vuk genel|gercek faydalan/;var etk=[],say=[];for(var i=0;i<kS.length;i++){var l=kS[i],ln=normTR(l);if(sR.test(l)){say.push(pN(l));}else if(l.length>3&&!SK.test(ln)){etk.push(l);}}var M=[[/^a\.\s*brut satis/,'brutSatis'],[/\.\s*1\..*yurtici/,null],[/^b\.\s*satis indiri/,'satisInd'],[/\.\s*1\..*satistan iade/,null],[/^c\.?\s*net satis/,null],[/^d\.\s*satislarin maliyet/,'satMaliyet'],[/\.\s*2\..*satilan ticari mal/,'_satTicMal'],[/\.\s*3\..*satilan hizmet/,'_satHizMal'],[/brut satis kar/,null],[/^e\.\s*faaliyet gider/,'faalGider'],[/\.\s*3\..*genel yonetim/,null],[/faaliyet kar.*veya/,null],[/^f\..*olagan gelir/,'digerFaalGelir'],[/\.\s*10\..*diger olagan gelir/,null],[/^g\..*olagan gider/,'digerFaalGider'],[/\.\s*7\..*diger olagan gider/,null],[/^h\.\s*finansman gider/,'finansmanGider'],[/\.\s*1\..*kisa vadeli borclanma/,null],[/olagan kar veya zarar$/,null],[/donem kar[i\u0131] veya zarar[i\u0131]$/,null],[/donem net kar[i\u0131]/,'donemNetKar']];var akm={},sI=0;for(var i=0;i<etk.length;i++){if(sI>=say.length)break;var ln=normTR(etk[i]),hit=false;for(var g=0;g<M.length;g++){if(M[g][0].test(ln)){var k=M[g][1],v=Math.abs(say[sI]);if(k!==null){if(k.charAt(0)==='_'){akm[k]=(akm[k]||0)+v;}else if(!result[k]){result[k]=v;}}sI++;hit=true;break;}}if(!hit)sI++;}var sm=(akm['_satTicMal']||0)+(akm['_satHizMal']||0);if(sm>0&&!result['satMaliyet'])result['satMaliyet']=sm;if(u1||u2)result._firmaAdi=(u1+(u2?' '+u2:'')).trim();var n=Object.keys(result).filter(function(k){return !k.startsWith('_')&&result[k]!==0;}).length;importLog('\u2705 Ge\u00e7ici Beyanname: '+n+' kalem',n>0?'ok':'warn');return result;}
 function mizanTextIsleBeyanname(lines, result, year) {
   let bolum = null;  // DONEN | DURAN | KV | UV | OZKAYNAK | GELIR
   let unvan1 = '', unvan2 = '';
