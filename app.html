@@ -4017,8 +4017,11 @@ function _rsSimuleFaal(r, subjPuan, faalMarjDelta) {
     baseNetSatis, baseVoKar, sFaalKar, baseToplamFin, baseAktif,
     r.ihracatSatis, basePrevFaalKar, baseKvMaliBor, faalMarjDelta);
 
+  // Offset: gerçek analiz puanı ile _senaryoPuan bazı arasındaki fark
+  const _realToplam2 = (state._last || state.lastResult) ? (state._last || state.lastResult).toplam : (base.s + subjPuan);
+  const _offset2 = _realToplam2 - (base.s + subjPuan);
   return {
-    puan: p.s + subjPuan,
+    puan: p.s + subjPuan + _offset2,
     puanArtis: p.s - base.s,
     uvdeKalan: 0,
     netKvAzalis: 0
@@ -4077,8 +4080,11 @@ function _rsSimule(r, subjPuan, sermaye, kvPct, vade, karMarj, satisDelta) {
 
   // puan = analiz bazı + senaryo değişimi
   // Bu şekilde _senaryoBolumu'daki toplam (calcObjScore bazlı) ile tutarlı olur
+  // Offset: gerçek analiz puanı ile _senaryoPuan bazı arasındaki fark
+  const _realToplam = (state._last || state.lastResult) ? (state._last || state.lastResult).toplam : (base.s + subjPuan);
+  const _offset = _realToplam - (base.s + subjPuan);
   return {
-    puan: subjPuan + base.s + (p.s - base.s),  // = subjPuan + p.s
+    puan: subjPuan + p.s + _offset,
     puanArtis: p.s - base.s,   // sadece finansal artış
     uvdeKalan, netKvAzalis,
     sOz, sKvBorclar, sKvBankaToplam, sNetSatis, sVoKar
