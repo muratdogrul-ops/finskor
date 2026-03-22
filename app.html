@@ -4032,6 +4032,7 @@ function _rsSimule(r, subjPuan, sermaye, kvPct, vade, karMarj, satisDelta) {
   const sLikit     = baseLikit + sermaye;
   const sNetSatis  = baseNetSatis * (1 + satisDelta / 100);
   const sVoKar     = sNetSatis * ((base.netKarMarj + karMarj) / 100);
+  const faalMarjDelta = 0; // _rsSimule'de faaliyet marj değişimi yok — senaryo analizi sadece slider'dan
   const sFaalMarj  = (baseNetSatis > 0 ? baseFaalKar / baseNetSatis * 100 : 0) + faalMarjDelta;
   const sFaalKar   = sNetSatis * (sFaalMarj / 100);
   const sToplamFin = baseToplamFin;
