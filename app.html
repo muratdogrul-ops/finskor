@@ -711,7 +711,7 @@ tbody td { padding:8px 13px; color:var(--text); }
           <div style="background:linear-gradient(135deg,#1e2d4a,#2a1f4a);padding:20px 24px;display:flex;justify-content:space-between;align-items:center">
             <div>
               <div style="font-size:18px;font-weight:700;color:#e2e8f0">📈 Kredi Notu Artırma Senaryo Analizi</div>
-              <div style="font-size:12px;color:#94a3b8;margin-top:4px">Sermaye artışı, KV→UV borç taşıma, satış büyümesi ve faaliyet karı değişiminin rating üzerindeki etkisini simüle edin. FinSkor Otomatik Senaryo Önerisi mevcut notunuzu 2 kademe artıracak en uygun senaryoyu belirler ve bu analize raporda yer verir.</div>
+              <div style="font-size:12px;color:#94a3b8;margin-top:4px">Sermaye artışı, KV→UV borç taşıma, satış büyümesi ve net kar marjı değişiminin rating üzerindeki etkisini simüle edin. FinSkor Otomatik Senaryo Önerisi mevcut notunuzu 2 kademe artıracak en uygun senaryoyu belirler ve bu analize raporda yer verir.</div>
             </div>
             <button onclick="document.getElementById('senaryoModal').style.display='none'" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1">✕</button>
           </div>
@@ -1185,8 +1185,8 @@ function downloadReport() {
   if (r.likOran < (paz ? 0.69 : 0.59)) {
     oneriler.push({icon:'💧', text:'<b>Likit varlıkları artırma:</b> Likidite oranı <b>'+r.likOran.toFixed(2)+'</b> (hedef >'+(paz?'0.84':'0.74')+').'+ ' Stok ve nakit yapısının optimize edilmesi bu kriteri <b>3-6 puan</b> iyileştirebilir.'});
   }
-  if (r.faalMarj < (paz ? 9 : 14)) {
-    oneriler.push({icon:'📈', text:'<b>Faaliyet karlılığını artırma (fiyat artışı / maliyet kontrolü):</b> Faaliyet Karı/Satış <b>'+r.faalMarj.toFixed(1)+'%</b> (hedef >'+(paz?'%9':'%14')+').'+ ' Satış fiyatlarını artırmak veya faaliyet giderlerini azaltmak bu kriterden <b>2-5 puan</b> katkı sağlayabilir.'});
+  if (r.netKarMarj < (paz ? 9 : 14)) {
+    oneriler.push({icon:'📈', text:'<b>Karlılık artışı (fiyat artışı / maliyet kontrolü):</b> VÖ Kar/Satış <b>'+r.netKarMarj.toFixed(1)+'%</b> (hedef >'+(paz?'%9':'%14')+').'+ ' Satış fiyatlarını artırmak veya maliyetleri azaltmak bu kriterden <b>2-5 puan</b> katkı sağlayabilir.'});
   }
   if (r.reelFaalKarBuy < 5) {
     oneriler.push({icon:'📊', text:'<b>Faaliyet karlılığını artırma:</b> Reel faaliyet karı büyümesi <b>'+r.reelFaalKarBuy.toFixed(1)+'%</b> (hedef >%5). Faaliyet karındaki reel artış büyüme kriterlerinden <b>+3-5 puan</b> katkı sağlar.'});
@@ -1247,9 +1247,9 @@ function downloadReport() {
     oneriler.push({icon:'💼', text:'<b>Geçmiş yıl zararını kapatma — sermaye artışı:</b> Birikmiş geçmiş yıl zararı <b>'+_zararDR.toLocaleString('tr-TR',{maximumFractionDigits:0})+' TL</b>'+(_ozkDR>0?' (özkaynağın %'+(_zararDR/_ozkDR*100).toFixed(1)+'\u2019i)':'')+'. Bu zararın sermaye artışıyla kapatılması özkaynağı güçlendirir, Borç/ÖzKaynak oranını iyileştirir ve kredi notuna doğrudan olumlu katkı sağlar. Ortaklar nakit enjeksiyonu yapabilir veya mevcut ortak borçlanmalarını özkaynak hesaplarına aktarabilir.'});
   }
 
-  // ── Faaliyet karı düşük ──
-  if (r.faalMarj < 5 && r.netSatis > 0) {
-    oneriler.push({icon:'📊', text:'<b>Faaliyet karı iyileştirmesi:</b> Faaliyet karı/satış oranı <b>%'+r.faalMarj.toFixed(2)+'</b> — ciroya kıyasla çok düşük. Öncelikli adımlar: (1) <b>Fiyatlandırma:</b> satış fiyatları ve ürün karması marjı koruyacak şekilde gözden geçirilmeli; (2) <b>Maliyet kontrolü:</b> tedarik, lojistik ve enerji giderlerinde tasarruf analizi; (3) <b>Ürün/müşteri karması:</b> yüksek marjlı ürün ve müşterilere kayma; (4) <b>Finansman maliyeti:</b> daha düşük faizli refinansman doğrudan net kâra yansır.'+ ((r.ihracatSatis||0)>0?' (5) <b>Döviz/Eximbank kredisi:</b> ihracat gelirleri doğal kur koruması sağladığından döviz kredisine geçiş önerilir.':'')});
+  // ── Net kar marjı düşük ──
+  if (r.netKarMarj < 5 && r.netSatis > 0) {
+    oneriler.push({icon:'📊', text:'<b>Net kar marjı iyileştirmesi:</b> Net kar marjı <b>%'+r.netKarMarj.toFixed(2)+'</b> — ciroya kıyasla çok düşük. Öncelikli adımlar: (1) <b>Fiyatlandırma:</b> satış fiyatları ve ürün karması marjı koruyacak şekilde gözden geçirilmeli; (2) <b>Maliyet kontrolü:</b> tedarik, lojistik ve enerji giderlerinde tasarruf analizi; (3) <b>Ürün/müşteri karması:</b> yüksek marjlı ürün ve müşterilere kayma; (4) <b>Finansman maliyeti:</b> daha düşük faizli refinansman doğrudan net kâra yansır.'+ ((r.ihracatSatis||0)>0?' (5) <b>Döviz/Eximbank kredisi:</b> ihracat gelirleri doğal kur koruması sağladığından döviz kredisine geçiş önerilir.':'')});
   }
 
   if (oneriler.length === 0) {
@@ -1547,7 +1547,7 @@ function calcObjScore(r, firmType) {
   const _c11 = r.reelSatisBuy > 150 ? 0 : r.reelSatisBuy > 110 ? 1 : r.reelSatisBuy > 70 ? 4 : r.reelSatisBuy > 20 ? 5 : r.reelSatisBuy > 4 ? 4 : r.reelSatisBuy > 0 ? 1 : 0; s += _c11;
 
   // Puan kırılımı Baykuş asistan için kaydet (popup gösterme)
-  window._lastKirilim = 'PUAN KIRILIMI (Toplam='+s+')\n\n①Cari='+_c1+'/12  ['+r.cariOran.toFixed(3)+']\n②Likidite='+_c2+'/6  ['+r.likOran.toFixed(3)+']\n③Borç/ÖK='+_c3+'/12  ['+r.borcOzKay.toFixed(3)+']\n④NetKarMarj='+_c4+'/6  [%'+r.netKarMarj.toFixed(2)+']\n⑤ReelFaalKar='+_c5+'/5  [%'+r.reelFaalKarBuy.toFixed(1)+', prev='+r.prevFaalKar.toFixed(0)+']\n⑥FaalKarKarş='+_c6+'/5  [prevFaalKar='+r.prevFaalKar.toFixed(0)+']\n⑦KVBanka/Sat='+_c7+'/10  [%'+r.kvBankaB_Sat.toFixed(1)+']\n⑧KVBorç/Sat='+_c8+'/6  [%'+r.kvBorcSat.toFixed(1)+']\n⑨İhracat/Sat='+_c9+'/3  [%'+r.ihracatSatis.toFixed(1)+']\n⑩Banka/Aktif='+_c10+'/5  [%'+r.bnkBorcAkt.toFixed(1)+']\n⑪ReelSatBüy='+_c11+'/5  [%'+r.reelSatisBuy.toFixed(1)+']';
+  window._lastKirilim = 'PUAN KIRILIMI (Toplam='+s+')\n\n①Cari='+_c1+'/12  ['+r.cariOran.toFixed(3)+']\n②Likidite='+_c2+'/6  ['+r.likOran.toFixed(3)+']\n③Borç/ÖK='+_c3+'/12  ['+r.borcOzKay.toFixed(3)+']\n④NetKarMarj='+_c4+'/6  [%'+r.netKarMarj.toFixed(2)+']\n④bFaalKarMarj='+_c12+'/6  [%'+r.faalMarj.toFixed(2)+']\n⑤ReelFaalKar='+_c5+'/5  [%'+r.reelFaalKarBuy.toFixed(1)+', prev='+r.prevFaalKar.toFixed(0)+']\n⑥FaalKarKarş='+_c6+'/5  [prevFaalKar='+r.prevFaalKar.toFixed(0)+']\n⑦KVBanka/Sat='+_c7+'/10  [%'+r.kvBankaB_Sat.toFixed(1)+']\n⑧KVBorç/Sat='+_c8+'/6  [%'+r.kvBorcSat.toFixed(1)+']\n⑨İhracat/Sat='+_c9+'/3  [%'+r.ihracatSatis.toFixed(1)+']\n⑩Banka/Aktif='+_c10+'/5  [%'+r.bnkBorcAkt.toFixed(1)+']\n⑪ReelSatBüy='+_c11+'/5  [%'+r.reelSatisBuy.toFixed(1)+']';
 
   return s;
   // Toplam maks: 12+6+12+6+5+5+10+6+3+5+5 = 75 (Pazarlama ve Üretim/Taahhüt, eşikler farklı)
@@ -3015,10 +3015,10 @@ function buildAnalizMetin(refYear, r, paz, prevYear, enflasyon, donemAd, isTaahh
     oneriler.push({icon:'💧',text: en
       ? '<strong>Increase liquid assets</strong> — Liquidity ratio '+r.likOran.toFixed(2)+'. Increasing cash and receivables improves score.'
       : '<strong>Likit varlık artırma</strong> — Likidite oranı '+r.likOran.toFixed(2)+'.'});
-  if (r.faalMarj < (paz?9:14))
+  if (r.netKarMarj < (paz?9:14))
     oneriler.push({icon:'📈',text: en
-      ? '<strong>Improve profitability</strong> — Operating margin '+r.faalMarj.toFixed(1)+'%. Cost control or pricing strategy needed.'
-      : '<strong>Faaliyet karlılığını artırma</strong> — Faaliyet Karı/Satış '+r.faalMarj.toFixed(1)+'%.'});
+      ? '<strong>Improve profitability</strong> — Pre-tax margin '+r.netKarMarj.toFixed(1)+'%. Cost control or pricing strategy needed.'
+      : '<strong>Karlılık iyileştirmesi</strong> — VÖ Kar/Satış '+r.netKarMarj.toFixed(1)+'%.'});
   if (r.alacakTahsilSuresi > 90)
     oneriler.push({icon:'📋',text: en
       ? '<strong>Accelerate receivables collection</strong> — '+r.alacakTahsilSuresi.toFixed(0)+' days. Target <60 days.'
@@ -3100,12 +3100,12 @@ function buildAnalizMetin(refYear, r, paz, prevYear, enflasyon, donemAd, isTaahh
       : '<strong>Geçmiş yıl zararını kapatma — sermaye artışı:</strong> Birikmiş geçmiş yıl zararı <strong>'+_zarar.toLocaleString('tr-TR',{maximumFractionDigits:0})+' TL</strong>'+(_ozk>0?' (özkaynağın %'+(_zarar/_ozk*100).toFixed(1)+'\u2019i)':'')+'. Bu zararın sermaye artışıyla kapatılması özkaynağı güçlendirir, Borç/ÖzKaynak oranını iyileştirir ve kredi notuna doğrudan olumlu katkı sağlar. Ortaklar nakit enjeksiyonu yapabilir veya mevcut ortak borçlanmaları özkaynak hesaplarına aktarabilir. Birikmiş zararın kapatılması bankalar ve derecelendirme kuruluşları nezdindeki olumsuz sinyali de ortadan kaldırır.'});
   }
 
-  // ── Faaliyet karı düşük — faalMarj < 5 ve satışlar > 0 ──
-  if (r.faalMarj < 5 && r.netSatis > 0) {
+  // ── Net kar marjı düşük — netKarMarj < 5 ve satışlar > 0 ──
+  if (r.netKarMarj < 5 && r.netSatis > 0) {
     const _hasIhracat = (r.ihracatSatis || 0) > 0;
     oneriler.push({icon:'📊', text: en
-      ? '<strong>Net profit margin improvement:</strong> Operating margin is <strong>'+r.faalMarj.toFixed(2)+'%</strong> — very low relative to turnover. Key actions: (1) <strong>Pricing strategy:</strong> review sales pricing and product mix to protect margins; (2) <strong>Cost control:</strong> analyse COGS structure for procurement, logistics and energy savings; (3) <strong>Product/customer mix:</strong> shift toward higher-margin products and markets; (4) <strong>Financing cost reduction:</strong> refinancing at lower rates directly increases net profit. Even a 1% margin improvement at current revenue scale adds significant absolute profit.'
-      : '<strong>Net kar marjı iyileştirmesi:</strong> Faaliyet karı/satış <strong>%'+r.faalMarj.toFixed(2)+'</strong> — ciroya kıyasla çok düşük. Öncelikli adımlar: (1) <strong>Fiyatlandırma stratejisi:</strong> satış fiyatları ve ürün karması marjı koruyacak şekilde gözden geçirilmeli; (2) <strong>Maliyet kontrolü:</strong> satışların maliyeti içinde tedarik, lojistik ve enerji tasarrufu analiz edilmeli; (3) <strong>Ürün/müşteri karması:</strong> yüksek marjlı ürün ve müşterilere kayma; (4) <strong>Finansman maliyeti düşürme:</strong> daha düşük faizli refinansman doğrudan net kâra yansır. Mevcut ciro ölçeğinde %1\u2019lik marj artışı bile önemli mutlak kâr artışı sağlar.'
+      ? '<strong>Net profit margin improvement:</strong> Net margin is <strong>'+r.netKarMarj.toFixed(2)+'%</strong> — very low relative to turnover. Key actions: (1) <strong>Pricing strategy:</strong> review sales pricing and product mix to protect margins; (2) <strong>Cost control:</strong> analyse COGS structure for procurement, logistics and energy savings; (3) <strong>Product/customer mix:</strong> shift toward higher-margin products and markets; (4) <strong>Financing cost reduction:</strong> refinancing at lower rates directly increases net profit. Even a 1% margin improvement at current revenue scale adds significant absolute profit.'
+      : '<strong>Net kar marjı iyileştirmesi:</strong> Net kar marjı <strong>%'+r.netKarMarj.toFixed(2)+'</strong> — ciroya kıyasla çok düşük. Öncelikli adımlar: (1) <strong>Fiyatlandırma stratejisi:</strong> satış fiyatları ve ürün karması marjı koruyacak şekilde gözden geçirilmeli; (2) <strong>Maliyet kontrolü:</strong> satışların maliyeti içinde tedarik, lojistik ve enerji tasarrufu analiz edilmeli; (3) <strong>Ürün/müşteri karması:</strong> yüksek marjlı ürün ve müşterilere kayma; (4) <strong>Finansman maliyeti düşürme:</strong> daha düşük faizli refinansman doğrudan net kâra yansır. Mevcut ciro ölçeğinde %1\u2019lik marj artışı bile önemli mutlak kâr artışı sağlar.'
         + (_hasIhracat ? ' (5) <strong>Döviz/Eximbank kredisi:</strong> ihracat gelirleri doğal kur koruması sağladığından döviz kredisine geçiş finansman maliyetini düşürür.' : '')
     });
   }
@@ -4336,7 +4336,7 @@ function generatePDF() {
   if (r.kvBankaB_Sat > 20) _oneriler.push({icon:'🏦', text:'<b>KV banka borçlarını azaltma:</b> KV Banka Borç/Satış <b>'+r.kvBankaB_Sat.toFixed(1)+'%</b> (hedef ≤%20). UV krediye dönüştürme veya geri ödemesiyle <b>+4 puan</b> katkı sağlanabilir.'});
   if (r.cariOran < 1.25) _oneriler.push({icon:'🔵', text:'<b>Dönen varlıkları artırma / KV borç azaltma:</b> Cari oran <b>'+r.cariOran.toFixed(2)+'</b> (hedef >1.39). Nakit ve tahsilat artışıyla <b>3-9 puan</b> iyileşme sağlanabilir.'});
   if (r.likOran < (_paz ? 0.69 : 0.59)) _oneriler.push({icon:'💧', text:'<b>Likit varlıkları artırma:</b> Likidite oranı <b>'+r.likOran.toFixed(2)+'</b> (hedef >'+(_paz?'0.84':'0.74')+'. Nakit ve stok yapısı optimize edilmesiyle <b>3-6 puan</b> iyileşme.'});
-  if (r.faalMarj < (_paz ? 9 : 14)) _oneriler.push({icon:'📈', text:'<b>Faaliyet karlılığını artırma:</b> Faaliyet Karı/Satış <b>'+r.faalMarj.toFixed(1)+'%</b> (hedef >'+(_paz?'%9':'%14')+'. Satış fiyatı veya faaliyet gideri kontrolüyle <b>2-5 puan</b> katkı.'});
+  if (r.netKarMarj < (_paz ? 9 : 14)) _oneriler.push({icon:'📈', text:'<b>Karlılık artışı:</b> Net Kar Marjı <b>'+r.netKarMarj.toFixed(1)+'%</b> (hedef >'+(_paz?'%9':'%14')+'. Fiyat artışı veya maliyet kontrolüyle <b>2-5 puan</b> katkı.'});
   if (r.reelFaalKarBuy < 5) _oneriler.push({icon:'📊', text:'<b>Faaliyet karlılığını artırma:</b> Reel faaliyet karı büyümesi <b>'+r.reelFaalKarBuy.toFixed(1)+'%</b> (hedef >%5). <b>+3-5 puan</b> katkı.'});
   if (r.alacakTahsil > 90) _oneriler.push({icon:'📋', text:'<b>Alacak tahsilatını hızlandırma:</b> Tahsil süresi <b>'+r.alacakTahsil.toFixed(0)+' gün</b> (hedef ≤60 gün). Faktoring veya erken ödeme iskontosu önerilir.'});
   if (r.stokGun > 120) _oneriler.push({icon:'📦', text:'<b>Stok yönetimini iyileştirme:</b> Stok gün sayısı <b>'+r.stokGun.toFixed(0)+' gün</b> (hedef ≤90 gün).'});
@@ -4350,7 +4350,7 @@ function generatePDF() {
   if (_tmR>0 && _kvMR/_tmR*100>=45) _oneriler.push({icon:'🏭', text:'<b>Sat-Geri Kirala (⭐):</b> KV mali borç oranı <b>%'+(_kvMR/_tmR*100).toFixed(1)+'</b>. Taşınmaz/ekipman satış-geri kiralanarak KV borç azaltılabilir, cari oran iyileşir.'});
   if (r.stokGunSayisi>90 && state.firmType==='uretim') _oneriler.push({icon:'🏗️', text:'<b>Emtia rehinli kredi:</b> Stok gün sayısı <b>'+r.stokGunSayisi.toFixed(0)+' gün</b>. Lisanslı depoda emtia teminatıyla düşük maliyetli işletme sermayesi finansmanı sağlanabilir.'});
   if ((r.gecmisZarar||0)>0) _oneriler.push({icon:'💼', text:'<b>Geçmiş yıl zararını kapatma:</b> Birikmiş zarar <b>'+r.gecmisZarar.toLocaleString('tr-TR',{maximumFractionDigits:0})+' TL</b>. Sermaye artışıyla kapatılması özkaynağı güçlendirir.'});
-  if (r.faalMarj<5 && r.netSatis>0) _oneriler.push({icon:'📉', text:'<b>Faaliyet karı iyileştirmesi:</b> Faaliyet karı/satış <b>%'+r.faalMarj.toFixed(2)+'</b>. Fiyatlandırma, maliyet kontrolü ve ürün karması gözden geçirilmeli.'});
+  if (r.netKarMarj<5 && r.netSatis>0) _oneriler.push({icon:'📉', text:'<b>Net kar marjı iyileştirmesi:</b> Net kar marjı <b>%'+r.netKarMarj.toFixed(2)+'</b>. Fiyatlandırma, maliyet kontrolü ve ürün karması gözden geçirilmeli.'});
   if (_oneriler.length===0) _oneriler.push({icon:'✅', text:'Firma oranları genel olarak iyi seviyede. Mevcut finansal politikaların sürdürülmesi önerilir.'});
 
   const _oneriHTMLpdf = _oneriler.map(o =>
@@ -6863,15 +6863,15 @@ function _baykusSenaryoAc() {
     }
 
     // 4. Net kar marjı
-    if (r.faalMarj < (paz ? 9 : 14)) {
+    if (r.netKarMarj < (paz ? 9 : 14)) {
       const mevcutC4 = baseCalc.c4 || 0;
       const potansiyel = 6 - mevcutC4;
       const hedefMarj = paz ? 9 : 14;
       if (potansiyel > 0) aksiyonlar.push({
         oncelik: potansiyel * 0.8, // biraz daha zor ulaşılır
         ikon: '📊',
-        baslik: 'Faaliyet Karlılığı İyileştirme',
-        aciklama: `Faaliyet karı/satış <b style="color:#f87171">%${r.faalMarj.toFixed(1)}</b> (hedef >%${hedefMarj}). `
+        baslik: 'Kar Marjı İyileştirme',
+        aciklama: `Net kar marjı <b style="color:#f87171">%${r.netKarMarj.toFixed(1)}</b> (hedef >%${hedefMarj}). `
           + `Maliyet kontrolü veya fiyat artışı ile marj iyileştirilebilir.`,
         kazanim: `+${potansiyel} puan potansiyel`
       });
@@ -7158,7 +7158,7 @@ function _avSenaryoSoruYanit(s) {
     const liste = [];
     if (r.borcOzKay > (paz?2:1.5)) liste.push({ aksiyon: 'Sermaye artışı', zorluk: 'Orta', aciklama: 'Ortak desteği veya kar transferi ile yapılabilir.' });
     if (r.cariOran < 1.25) liste.push({ aksiyon: 'KV→UV borç taşıma', zorluk: 'Orta', aciklama: 'Mevcut banka ilişkisi güçlüyse görece kolay.' });
-    if (r.faalMarj < 5) liste.push({ aksiyon: 'Faaliyet karı iyileştirme', zorluk: 'Zor', aciklama: 'Fiyat artışı veya maliyet kesintisi gerektirir.' });
+    if (r.netKarMarj < 5) liste.push({ aksiyon: 'Kar marjı iyileştirme', zorluk: 'Zor', aciklama: 'Fiyat artışı veya maliyet kesintisi gerektirir.' });
     if (liste.length === 0) return '🏆 Kriterler zaten güçlü! Büyük aksiyon gerekmiyor.';
     return `<b>Firmaya özel öneri sırası:</b><br>`
       + liste.map((l, i) => `<div style="margin:5px 0;padding:6px 10px;background:rgba(255,255,255,.04);border-radius:7px">`
@@ -7232,7 +7232,7 @@ function _avMatchText(q) {
     return 'Puanı artırmanın en etkili yolları:<br>'
       +'• <b>Sermaye artışı</b> — borç/özkaynak oranını iyileştirir (+6–12 puan potansiyel)<br>'
       +'• <b>KV borçları UV\'ye taşıma</b> — cari oran ve likiditeyi güçlendirir<br>'
-      +'• <b>Faaliyet karlılığı artışı</b> — faaliyet karı/satış oranı puanı yükseltir<br>'
+      +'• <b>Karlılık artışı</b> — net kar marjı ve faaliyet karı puanı yükseltir<br>'
       +'• <b>Banka borcu azaltma</b> — Banka borç/aktif oranını düşürür<br>'
       +'<span style="color:#94a3b8">Senaryo sekmesinde bu değişikliklerin etkisini anlık görebilirsiniz.</span>';
   }
@@ -8368,6 +8368,3 @@ window.onload = () => {
 
 </body>
 </html>
-
-
-
