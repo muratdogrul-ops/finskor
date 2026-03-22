@@ -3749,7 +3749,7 @@ function _renderSenaryo() {
   const sLikit     = baseLikit + sermayeArtis;
   const sNetSatis  = baseNetSatis * (1 + satisDelta / 100);
   const sVoKar     = sNetSatis * ((base.netKarMarj + karMarjDelta) / 100);
-  const sFaalMarj  = (netSatis > 0 ? baseFaalKar / baseNetSatis * 100 : 0) + faalMarjDelta;
+  const sFaalMarj  = (baseNetSatis > 0 ? baseFaalKar / baseNetSatis * 100 : 0) + faalMarjDelta;
   const sFaalKar   = sNetSatis * (sFaalMarj / 100);
   const sToplamFin = baseToplamFin;                                       // toplam fin borç değişmez
   const sAktif     = baseAktif + sermayeArtis;
@@ -3947,8 +3947,8 @@ function _renderSenaryo() {
         <span style="color:${senaryo.borcOzKay<base.borcOzKay?'#22c55e':'#ef4444'};font-weight:700">${senaryo.borcOzKay.toFixed(2)}x</span>
 
         <span style="color:#94a3b8">🏭 Faal. Kar Marjı</span>
-        <span style="color:#e2e8f0;font-weight:600">${netSatis > 0 ? (baseFaalKar/baseNetSatis*100).toFixed(1) : '0.0'}%</span>
-        <span style="color:${faalMarjDelta > 0 ? '#22c55e' : faalMarjDelta < 0 ? '#ef4444' : '#e2e8f0'};font-weight:700">%${(netSatis > 0 ? (baseFaalKar/baseNetSatis*100) + faalMarjDelta : faalMarjDelta).toFixed(1)}${faalMarjDelta !== 0 ? ' <span style="font-size:10px">(' + (faalMarjDelta>0?'+':'') + faalMarjDelta.toFixed(1) + '%)</span>' : ''}</span>
+        <span style="color:#e2e8f0;font-weight:600">${baseNetSatis > 0 ? (baseFaalKar/baseNetSatis*100).toFixed(1) : '0.0'}%</span>
+        <span style="color:${faalMarjDelta > 0 ? '#22c55e' : faalMarjDelta < 0 ? '#ef4444' : '#e2e8f0'};font-weight:700">%${(baseNetSatis > 0 ? (baseFaalKar/baseNetSatis*100) + faalMarjDelta : faalMarjDelta).toFixed(1)}${faalMarjDelta !== 0 ? ' <span style="font-size:10px">(' + (faalMarjDelta>0?'+':'') + faalMarjDelta.toFixed(1) + '%)</span>' : ''}</span>
 
         <span style="color:#94a3b8">📊 Net Kar Marjı</span>
         <span style="color:#e2e8f0;font-weight:600">%${base.netKarMarj.toFixed(1)} <span style="color:#64748b;font-weight:400;font-size:10px">(${fmtTL(baseVoKar)})</span></span>
@@ -4032,7 +4032,7 @@ function _rsSimule(r, subjPuan, sermaye, kvPct, vade, karMarj, satisDelta) {
   const sLikit     = baseLikit + sermaye;
   const sNetSatis  = baseNetSatis * (1 + satisDelta / 100);
   const sVoKar     = sNetSatis * ((base.netKarMarj + karMarj) / 100);
-  const sFaalMarj  = (netSatis > 0 ? baseFaalKar / baseNetSatis * 100 : 0) + faalMarjDelta;
+  const sFaalMarj  = (baseNetSatis > 0 ? baseFaalKar / baseNetSatis * 100 : 0) + faalMarjDelta;
   const sFaalKar   = sNetSatis * (sFaalMarj / 100);
   const sToplamFin = baseToplamFin;
   const sAktif     = baseAktif + sermaye;
