@@ -4114,39 +4114,48 @@ function _rsSimule(r, subjPuan, sermaye, kvPct, vade, karMarj, satisDelta) {
 }
 
 // 1. kademe için: sadece sermaye artışı — 27.6M TL sabit
-function _rsEnIyiSermaye(r, subjPuan, hedefEsik) {
-  // Hedef eşiğe ulaşmak için gereken minimum sermaye artışını bul
-  const ozKaynak = r.ozKaynak || 1;
-  const adimlar = [0.1, 0.2, 0.3, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0];
-  for (const carpan of adimlar) {
-    const serm = Math.round(ozKaynak * carpan / 100000) * 100000;
-    if (serm <= 0) continue;
-    const sonuc = _rsSimule(r, subjPuan, serm, 0, 48, 0, 0);
+function _rsEnIyiKvTasima(r, subjPuan, hedefEsik) {
+  // KV mali borcun %25'den %100'e kadar UV'ye taşınmasını dene
+  for (let kvPct = 25; kvPct <= 100; kvPct += 25) {
+    const sonuc = _rsSimule(r, subjPuan, 0, kvPct, 48, 0, 0);
     if (sonuc.puan >= hedefEsik) {
-      return { s:serm, k:0, m:0, sat:0, vade:48, puan:sonuc.puan,
+      return { s:0, k:kvPct, m:0, sat:0, faalmarj:0, vade:48, puan:sonuc.puan,
         uvdeKalan:sonuc.uvdeKalan, netKvAzalis:sonuc.netKvAzalis };
     }
   }
-  // Maksimum ile dene
-  const serm5x = Math.round(ozKaynak * 5 / 100000) * 100000;
-  const sonucMax = _rsSimule(r, subjPuan, serm5x, 0, 48, 0, 0);
-  return { s:serm5x, k:0, m:0, sat:0, vade:48, puan:sonucMax.puan,
-    uvdeKalan:sonucMax.uvdeKalan, netKvAzalis:sonucMax.netKvAzalis };
+  // Ulaşılamıyorsa %100 ile en iyi sonucu döndür
+  const sonuc100 = _rsSimule(r, subjPuan, 0, 100, 48, 0, 0);
+  return { s:0, k:100, m:0, sat:0, faalmarj:0, vade:48, puan:sonuc100.puan,
+    uvdeKalan:sonuc100.uvdeKalan, netKvAzalis:sonuc100.netKvAzalis };
 }
 
-// 2. kademe için: sadece satış büyümesi — %15 sabit
+function _rsEnIyiSermaye(r, subjPuan, hedefEsik) {
+  // Hedef eşiğe ulaşmak için gereken minimum sermaye artışını bul
+  const adimBin = 500000; // 500K adım
+  const maxSerm = (r.ozKaynak || 1) * 10;
+  for (let serm = adimBin; serm <= maxSerm; serm += adimBin) {
+    const sonuc = _rsSimule(r, subjPuan, serm, 0, 48, 0, 0);
+    if (sonuc.puan >= hedefEsik) {
+      return { s:serm, k:0, m:0, sat:0, faalmarj:0, vade:48, puan:sonuc.puan,
+        uvdeKalan:sonuc.uvdeKalan, netKvAzalis:sonuc.netKvAzalis };
+    }
+  }
+  // Ulaşılamıyorsa en büyük değerle sonucu göster
+  const sonucMax = _rsSimule(r, subjPuan, maxSerm, 0, 48, 0, 0);
+  return { s:maxSerm, k:0, m:0, sat:0, faalmarj:0, vade:48, puan:sonucMax.puan,
+    uvdeKalan:sonucMax.uvdeKalan, netKvAzalis:sonucMax.netKvAzalis };
+}
 function _rsEnIyiSatis(r, subjPuan, hedefEsik) {
   // Hedef eşiğe ulaşmak için gereken minimum satış büyümesini bul
-  for (let delta = 5; delta <= 100; delta += 5) {
+  for (let delta = 5; delta <= 60; delta += 5) {
     const sonuc = _rsSimule(r, subjPuan, 0, 0, 48, 0, delta);
     if (sonuc.puan >= hedefEsik) {
       return { s:0, k:0, m:0, sat:delta, faalmarj:0, vade:48, puan:sonuc.puan,
         uvdeKalan:0, netKvAzalis:0 };
     }
   }
-  const sonucMax = _rsSimule(r, subjPuan, 0, 0, 48, 0, 100);
-  return { s:0, k:0, m:0, sat:100, faalmarj:0, vade:48, puan:sonucMax.puan,
-    uvdeKalan:0, netKvAzalis:0 };
+  // %60 ile ulaşılamıyorsa null döndür — bu kademe için yeterli değil
+  return null;
 }
 
 // Faaliyet kar marjı artışı — %5 sabit
@@ -4280,13 +4289,24 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
       continue;
     }
 
-    // 1. kademe: sermaye artışı | 2. kademe: faaliyet kar marjı + satış büyümesi
+    // Kademe 1: KV taşıma → faaliyet kar marjı → satış büyümesi (sermaye YOK)
+    // Kademe 2: sermaye artışı → faaliyet kar marjı
     let c;
     if (kademe === 1) {
-      c = _rsEnIyiSermaye(r, subjPuan, esik);
+      // Önce KV taşıma dene
+      const cKv = _rsEnIyiKvTasima(r, subjPuan, esik);
+      // Sonra faaliyet kar marjı dene
+      const cFaal1 = _rsEnIyiFaalMarj(r, subjPuan, esik);
+      // Sonra satış büyümesi dene
+      const cSat1 = _rsEnIyiSatis(r, subjPuan, esik);
+      // En az değişimle hedefi karşılayanı seç
+      if (cKv && cKv.puan >= esik) c = cKv;
+      else if (cFaal1 && cFaal1.puan >= esik) c = cFaal1;
+      else if (cSat1 && cSat1.puan >= esik) c = cSat1;
+      else c = cKv || cFaal1 || cSat1; // hiçbiri yetmiyorsa en iyisini göster
     } else {
-      // 2. kademe: 1. kademenin birikimli sonucundan başla
-      // Eğer 1. kademe sermaye artışı yaptıysa, r2 o artışı yansıtsın
+      // 2. kademe: sermaye artışı ana kriter, sonra faaliyet kar marjı
+      // 1. kademenin birikimli sonucundan başla
       const r2 = _k1Params && _k1Params.s && c1result
         ? Object.assign({}, r, {
             ozKaynak: (r.ozKaynak||0) + (c1result.s||0),
@@ -4295,13 +4315,22 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
             aktif: (r.aktif||0) + (c1result.s||0)
           })
         : r;
-      // Birikimli subjPuan (aynı kalır)
       const subjPuan2 = subjPuan;
+      // Kademe 2: önce sermaye artışı, sonra faaliyet kar marjı
+      const cSerm = _rsEnIyiSermaye(r2, subjPuan2, esik);
       const cFaal = _rsEnIyiFaalMarj(r2, subjPuan2, esik);
-      const cSat  = _rsEnIyiSatis(r2, subjPuan2, esik);
-      // Her ikisini de göster — önce faaliyet kar marjı
-      c = cFaal && cFaal.puan >= (esik - _senaryoOffset) ? cFaal : cSat;
-      window._k2SatisOneri = cSat;
+      // Sermaye artışı hedefi karşılıyorsa onu göster
+      if (cSerm && cSerm.puan >= esik) {
+        c = cSerm;
+      } else if (cFaal && cFaal.puan >= esik) {
+        c = cFaal;
+      } else {
+        // İkisi de yetmiyorsa en iyi sonucu göster
+        c = (cSerm && cFaal)
+          ? (cSerm.puan >= cFaal.puan ? cSerm : cFaal)
+          : (cSerm || cFaal);
+      }
+      window._k2SatisOneri = null;
     }
 
     if (!c) {
