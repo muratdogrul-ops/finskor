@@ -3768,9 +3768,12 @@ function _renderSenaryo() {
   const sRating = getRating(senaryo.s + subjPuan);
 
   const fmtTL = v => v >= 1e6 ? (v/1e6).toFixed(1)+'M ₺' : v >= 1e3 ? (v/1e3).toFixed(0)+'K ₺' : v.toFixed(0)+' ₺';
-  const pDiff = (senaryo.s - base.s); // ham fark (offset dahil değil — görsel için kullanılır)
-  const totalBase = base.s + subjPuan;
-  const totalSen  = senaryo.s + subjPuan;
+  const pDiff = (senaryo.s - base.s); // ham fark
+  // Offset: gerçek analiz puanı ile _senaryoPuan bazı arasındaki fark
+  const _realToplam = (state._last || state.lastResult) ? (state._last || state.lastResult).toplam : (base.s + subjPuan);
+  const _rsOffset   = _realToplam - (base.s + subjPuan);
+  const totalBase = _realToplam;                    // gerçek analiz puanı
+  const totalSen  = senaryo.s + subjPuan + _rsOffset; // senaryo puanı + offset
 
   function pRow(lbl, bv, sv, max) {
     const d = sv - bv;
@@ -4046,6 +4049,7 @@ function _rsSimuleFaal(r, subjPuan, faalMarjDelta) {
 }
 
 function _rsSimule(r, subjPuan, sermaye, kvPct, vade, karMarj, satisDelta) {
+  const faalMarjDelta = 0; // _rsSimule faaliyet marj slider kullanmaz — her zaman 0
   // _renderSenaryo ile BİREBİR AYNI baz değerler
   const d = state.yearData[parseInt(document.getElementById('refYear').value)] || {};
   const baseOz        = r.ozKaynak    || 0;
@@ -4079,12 +4083,12 @@ function _rsSimule(r, subjPuan, sermaye, kvPct, vade, karMarj, satisDelta) {
   // Sermaye artışı → Aktif 10. Hazır Değerler/Bankalar hesabına tam giriyor
   const sDonenVar  = baseDonenVar + sermaye;
   const sLikit     = baseLikit + sermaye;
+  // c11 için satisDelta'yı global'e ilet — _senaryoPuan içinde kullanılır
+  window._satisDeltaTemp = satisDelta;
   const sNetSatis  = baseNetSatis * (1 + satisDelta / 100);
-  // Net kar: karMarj slider + faalMarjDelta etkisi (faalMarjDelta=0 _rsSimule için)
-  const sVoKar     = sNetSatis * ((base.netKarMarj + karMarj + (faalMarjDelta||0)) / 100);
-  const faalMarjDelta = 0; // _rsSimule'de faaliyet marj değişimi yok — senaryo analizi sadece slider'dan
-  const sFaalMarj  = (baseNetSatis > 0 ? baseFaalKar / baseNetSatis * 100 : 0) + faalMarjDelta;
-  const sFaalKar   = sNetSatis * (sFaalMarj / 100);
+  // _rsSimule'de faaliyet kar marjı değişimi yok (sadece render senaryo slider'ında var)
+  const sVoKar     = sNetSatis * ((base.netKarMarj + karMarj) / 100);
+  const sFaalKar   = baseFaalKar; // faaliyet karı değişmez — sadece faalMarj slider etkiler
   const sToplamFin = baseToplamFin;
   const sAktif     = baseAktif + sermaye;
   // Sermaye artışı: bankalar hesabına giriyor — KV banka borcu değişmez ama
