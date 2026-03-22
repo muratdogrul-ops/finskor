@@ -3672,8 +3672,16 @@ function _senaryoPuan(oz, totalBor, donenVar, kvBorclar, likit, netSatis, voKar,
     : (bna > 44 ? 0 : bna > 34 ? 1 : bna > 24 ? 2 : bna > 14 ? 3 : 5);
   s += c10;
 
-  // ⑪ReelSatBüy (sabit)
-  const c11 = window._senaryoPrevC11 || 0; s += c11;
+  // ⑪ReelSatBüy — satisDelta > 0 ise yeniden hesapla
+  let c11;
+  const _satD = window._satisDeltaTemp || 0;
+  if (_satD > 0) {
+    const reelBuy = _satD;
+    c11 = reelBuy > 150 ? 0 : reelBuy > 110 ? 1 : reelBuy > 70 ? 4 : reelBuy > 20 ? 5 : reelBuy > 4 ? 4 : reelBuy > 0 ? 1 : 0;
+  } else {
+    c11 = window._senaryoPrevC11 || 0;
+  }
+  s += c11;
 
   return {
     s, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11,
@@ -3740,10 +3748,17 @@ function _renderSenaryo() {
   // Sermaye artışı → Aktif 10. Hazır Değerler/Bankalar hesabına tam giriyor
   const sDonenVar  = baseDonenVar + sermayeArtis;
   const sLikit     = baseLikit + sermayeArtis;
+  // c11 için satisDelta'yı global'e ilet
+  window._satisDeltaTemp = satisDelta;
   const sNetSatis  = baseNetSatis * (1 + satisDelta / 100);
-  const sVoKar     = sNetSatis * ((base.netKarMarj + karMarjDelta) / 100);
+  // c11 için satisDelta'yı _senaryoPuan'a ilet (global geçici değişken)
+  window._satisDeltaTemp = satisDelta;
+  // faalMarjDelta: faaliyet kar marjı artışı → net kara da yansır (işletme verimliliği)
   const sFaalMarj  = (baseNetSatis > 0 ? baseFaalKar / baseNetSatis * 100 : 0) + faalMarjDelta;
   const sFaalKar   = sNetSatis * (sFaalMarj / 100);
+  // Net kar: hem karMarjDelta hem faalMarjDelta etkisi (faaliyet iyileştirmesi net kara yansır)
+  const baseNetKarMarjVal = base.netKarMarj || 0;
+  const sVoKar     = sNetSatis * ((baseNetKarMarjVal + karMarjDelta + faalMarjDelta) / 100);
   const sToplamFin = baseToplamFin;                                       // toplam fin borç değişmez
   const sAktif     = baseAktif + sermayeArtis;
   // KV banka borcu: KV taşıma ile azalabilir
@@ -4013,8 +4028,10 @@ function _rsSimuleFaal(r, subjPuan, faalMarjDelta) {
   const sFaalMarj = (baseNetSatis > 0 ? baseFaalKar / baseNetSatis * 100 : 0) + faalMarjDelta;
   const sFaalKar  = baseNetSatis * (sFaalMarj / 100);
 
+  // Net kar da faalMarjDelta kadar artar (faaliyet iyileştirmesi → net kara yansır)
+  const sVoKarFaal = baseNetSatis * ((baseNetSatis > 0 ? baseVoKar/baseNetSatis*100 : 0) + faalMarjDelta) / 100;
   const p = _senaryoPuan(baseOz, baseTotalBor, baseDonenVar, baseKvBorclar, baseLikit,
-    baseNetSatis, baseVoKar, sFaalKar, baseToplamFin, baseAktif,
+    baseNetSatis, sVoKarFaal, sFaalKar, baseToplamFin, baseAktif,
     r.ihracatSatis, basePrevFaalKar, baseKvMaliBor, faalMarjDelta);
 
   // Offset: gerçek analiz puanı ile _senaryoPuan bazı arasındaki fark
@@ -4063,7 +4080,8 @@ function _rsSimule(r, subjPuan, sermaye, kvPct, vade, karMarj, satisDelta) {
   const sDonenVar  = baseDonenVar + sermaye;
   const sLikit     = baseLikit + sermaye;
   const sNetSatis  = baseNetSatis * (1 + satisDelta / 100);
-  const sVoKar     = sNetSatis * ((base.netKarMarj + karMarj) / 100);
+  // Net kar: karMarj slider + faalMarjDelta etkisi (faalMarjDelta=0 _rsSimule için)
+  const sVoKar     = sNetSatis * ((base.netKarMarj + karMarj + (faalMarjDelta||0)) / 100);
   const faalMarjDelta = 0; // _rsSimule'de faaliyet marj değişimi yok — senaryo analizi sadece slider'dan
   const sFaalMarj  = (baseNetSatis > 0 ? baseFaalKar / baseNetSatis * 100 : 0) + faalMarjDelta;
   const sFaalKar   = sNetSatis * (sFaalMarj / 100);
