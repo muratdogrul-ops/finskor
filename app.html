@@ -5617,13 +5617,20 @@ function mizanTextIsle(text, structuredLines) {
   // ── FORMAT TESPİT ────────────────────────────────────────────────────────────
   // Beyanname formatı: ". A. Hazır Değerler  0,00  8.820.155,96"
   // Mizan formatı:     "100  KASA  1234,56  0,00  1234,56  0,00"
+  // Geçici Vergi Beyannamesi: etiket ve değerler ayrı satırlarda
   const isBeyannameFormat = lines.some(l =>
     /^\.\s+[A-Z][\.\s]/.test(l.trim()) || /^(I{1,3}V?|IV|V)\.\s+/.test(l.trim())
   );
 
-  importLog(`📄 Format: ${isBeyannameFormat ? 'Beyanname/Ayrıntılı Bilanço' : 'Mizan'}`, 'info');
+  const isGeciciBeyanname = lines.some(l =>
+    /GEÇİCİ VERGİ BEYANNAMESİ/i.test(l) || /Ticari Bilanço Karı/i.test(l) || /GECİCİ VERGİ BEYANNAMESİ/i.test(l)
+  );
 
-  if (isBeyannameFormat) {
+  importLog(`📄 Format: ${isGeciciBeyanname ? 'Geçici Vergi Beyannamesi' : isBeyannameFormat ? 'Beyanname/Ayrıntılı Bilanço' : 'Mizan'}`, 'info');
+
+  if (isGeciciBeyanname) {
+    return mizanTextIsleGeciciBeyanname(lines, result, importState.year || importState.silentYear);
+  } else if (isBeyannameFormat) {
     return mizanTextIsleBeyanname(lines, result, importState.year || importState.silentYear);
   } else {
     // Eğer PDF koordinat bilgisi varsa koordinat bazlı oku (daha güvenilir)
@@ -5632,6 +5639,100 @@ function mizanTextIsle(text, structuredLines) {
     }
     return mizanTextIsleMizan(lines, result);
   }
+}
+
+// ── GEÇİCİ VERGİ BEYANNAMESİ PARSER ─────────────────────────────────────────
+// Bu PDF'de etiketler ve değerler ayrı satırlarda gelir (tek sütun liste formatı)
+// Gelir tablosunu "TEK DÜZEN HESAP PLANINA UYGUN GELİR TABLOSU" ekinden okur
+function mizanTextIsleGeciciBeyanname(lines, result, year) {
+  let unvan1 = '', unvan2 = '';
+  let gelirBasladi = false;
+  const gelirSatirlar = [];
+
+  for (const rawLine of lines) {
+    const l = rawLine.trim();
+    if (!l) continue;
+    // Firma ünvanı
+    const m1 = rawLine.match(/Soyadı \(Unvanı\)\s+(.+)/i);
+    const m2 = rawLine.match(/Adı \(Unvanın Devamı\)\s+(.+)/i);
+    if (m1) unvan1 = m1[1].trim();
+    if (m2) unvan2 = m2[1].trim();
+    // Gelir tablosu başlığını bul
+    if (/TEK\s+D[UÜ]ZEN\s+HESAP\s+PLAN/i.test(l)) { gelirBasladi = true; continue; }
+    if (gelirBasladi) gelirSatirlar.push(l);
+  }
+
+  // Gelir tablosu başlığı bulunamadıysa tüm satırları dene
+  const kaynakSatirlar = gelirSatirlar.length > 10 ? gelirSatirlar : lines.map(l => l.trim()).filter(Boolean);
+
+  const sayiRe = /^-?[\d]{1,3}(?:\.[\d]{3})*,\d{2}$/;
+  function parseNum(s) { return parseFloat(s.replace(/\./g,'').replace(',','.')); }
+
+  // Satırları etiket ve sayı olarak sınıflandır
+  const satirlar = kaynakSatirlar.map((l, i) => ({
+    text: l, idx: i,
+    isSayi: sayiRe.test(l),
+    val: sayiRe.test(l) ? parseNum(l) : null
+  }));
+
+  // Her etiket satırı için kendinden sonraki ilk sayı satırını değer olarak al
+  function nextVal(fromIdx) {
+    for (let i = fromIdx + 1; i < satirlar.length; i++) {
+      if (satirlar[i].isSayi) return satirlar[i].val;
+    }
+    return null;
+  }
+
+  const GEL_MAP = [
+    [/brut satis(?!.*kar|.*zarar|.*indiri)/,   'brutSatis'],
+    [/satis indiri|satistan iade/,             'satisInd'],
+    [/satilan ticari mal/,                      '_satTicMal'],
+    [/satilan hizmet maliyet/,                  '_satHizMal'],
+    [/satislarin maliyeti/,                     'satMaliyet'],
+    [/genel yonetim gider/,                     'faalGider'],
+    [/faaliyet gider(?!.*kar)/,                 'faalGider'],
+    [/olagan gelir|diger.*faali.*gelir/,        'digerFaalGelir'],
+    [/olagan gider|diger.*faali.*gider/,        'digerFaalGider'],
+    [/kisa vadeli borclanma gider/,             'finansmanGider'],
+    [/finansman gider/,                         'finansmanGider'],
+    [/donem net kar[iı]/,                       'donemNetKar'],
+    [/donem kari veya zarari/,                  'donemNetKar'],
+  ];
+
+  const akum = {}; // birden fazla kalemin toplandığı alanlar için
+
+  satirlar.forEach((s, i) => {
+    if (s.isSayi) return;
+    const ln = normTR(s.text.toLowerCase());
+    for (const [pat, key] of GEL_MAP) {
+      if (pat.test(ln)) {
+        const val = nextVal(i);
+        if (val === null) return;
+        const absVal = Math.abs(val);
+        if (key.startsWith('_')) {
+          akum[key] = (akum[key] || 0) + absVal;
+        } else if (key === 'satMaliyet' && (akum['_satTicMal'] || akum['_satHizMal'])) {
+          // Alt kalemler zaten toplandıysa genel satMaliyet satırını atla (çift sayım önle)
+        } else {
+          // Daha önce bu key alt kalemden yazıldıysa override etme
+          if (!result[key]) result[key] = absVal;
+        }
+        break;
+      }
+    }
+  });
+
+  // Alt kalemlerden elde edilen satMaliyet birleştir
+  const toplamSatMal = (akum['_satTicMal'] || 0) + (akum['_satHizMal'] || 0);
+  if (toplamSatMal > 0 && !result['satMaliyet']) result['satMaliyet'] = toplamSatMal;
+
+  // Firma ünvanı
+  if (unvan1 || unvan2) result._firmaAdi = (unvan1 + (unvan2 ? ' ' + unvan2 : '')).trim();
+
+  const n = Object.keys(result).filter(k => !k.startsWith('_') && result[k] !== 0).length;
+  importLog(`✅ Geçici Beyanname: ${n} gelir tablosu kalemi okundu`, n > 0 ? 'ok' : 'warn');
+  if (n === 0) importLog('⚠️ Gelir tablosu okunamadı — bilanço için mizan yüklemeyi unutmayın.', 'warn');
+  return result;
 }
 
 // ── BEYANNAME / AYRINTILI BİLANÇO PARSER ──────────────────────────────────────
