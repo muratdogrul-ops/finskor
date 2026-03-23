@@ -3612,7 +3612,7 @@ function showSenaryoModal() {
   setTimeout(() => _baykusSenaryoAc(), 400);
 }
 
-function _senaryoPuan(oz, totalBor, donenVar, kvBorclar, likit, netSatis, voKar, faalKar, toplamFinBor, aktif, ihracatSatis, prevFaalKar, kvBankaToplam, faalMarjDelta) {
+function _senaryoPuan(oz, totalBor, donenVar, kvBorclar, likit, netSatis, voKar, faalKar, toplamFinBor, aktif, ihracatSatis, prevFaalKar, kvBankaToplam, faalMarjDelta, satisDeltaParam, enflasyonParam) {
   const paz = (state.firmType === 'pazarlama');
   let s = 0;
 
@@ -3672,11 +3672,13 @@ function _senaryoPuan(oz, totalBor, donenVar, kvBorclar, likit, netSatis, voKar,
     : (bna > 44 ? 0 : bna > 34 ? 1 : bna > 24 ? 2 : bna > 14 ? 3 : 5);
   s += c10;
 
-  // ⑪ReelSatBüy — satisDelta > 0 ise yeniden hesapla
+  // ⑪ReelSatBüy — ÜFE'den arındırılmış reel büyüme ile hesapla
   let c11;
-  const _satD = window._satisDeltaTemp || 0;
+  const _satD = (satisDeltaParam !== undefined ? satisDeltaParam : 0);
   if (_satD > 0) {
-    const reelBuy = _satD;
+    const _enfl = (enflasyonParam !== undefined ? enflasyonParam : (window._senaryoEnflasyon || 0));
+    const nominalFactor = 1 + (_satD / 100);
+    const reelBuy = _enfl > 0 ? ((nominalFactor / (1 + _enfl)) - 1) * 100 : _satD;
     c11 = reelBuy > 150 ? 0 : reelBuy > 110 ? 1 : reelBuy > 70 ? 4 : reelBuy > 20 ? 5 : reelBuy > 4 ? 4 : reelBuy > 0 ? 1 : 0;
   } else {
     c11 = window._senaryoPrevC11 || 0;
@@ -3721,7 +3723,7 @@ function _renderSenaryo() {
   window._senaryoPrevC9  = r.ihracatPuan || 0;
   window._senaryoPrevC11 = r.reelSatisBuy > 150 ? 0 : r.reelSatisBuy > 110 ? 1 : r.reelSatisBuy > 70 ? 4 : r.reelSatisBuy > 20 ? 5 : r.reelSatisBuy > 4 ? 4 : r.reelSatisBuy > 0 ? 1 : 0;
 
-  const base = _senaryoPuan(baseOz, baseTotalBor, baseDonenVar, baseKvBorclar, baseLikit, baseNetSatis, baseVoKar, baseFaalKar, baseToplamFin, baseAktif, r.ihracatSatis, basePrevFaalKar, baseKvBankaToplam, 0);
+  const base = _senaryoPuan(baseOz, baseTotalBor, baseDonenVar, baseKvBorclar, baseLikit, baseNetSatis, baseVoKar, baseFaalKar, baseToplamFin, baseAktif, r.ihracatSatis, basePrevFaalKar, baseKvBankaToplam, 0, 0, _senEnfl);
   // baseRating: gerçek analiz puanından hesapla (totalBase ile tutarlı olsun)
   const _realToplamEarly = (state._last || state.lastResult) ? (state._last || state.lastResult).toplam : (base.s + subjPuan);
   const baseRating = getRating(_realToplamEarly);
@@ -3734,6 +3736,10 @@ function _renderSenaryo() {
   const karMarjDelta  = st.karmarj  || 0;
   const faalMarjDelta = st.faalmarj || 0;
   const satisDelta    = st.satis    || 0;
+  // ÜFE enflasyon — c11 reel büyüme hesabı için
+  const refYear2 = parseInt(document.getElementById('refYear').value);
+  const _senEnfl = (typeof getUfe === 'function') ? getUfe(refYear2) : 0;
+  window._senaryoEnflasyon = _senEnfl; // _rsSimule için global cache
 
   // KV→UV taşıma: seçilen % kadar KV banka borcu yeniden yapılandırılır
   // Vadeye göre KV'de kalacak pay: 36ay→1/3, 48ay→1/4, 60ay→1/5
@@ -3766,7 +3772,7 @@ function _renderSenaryo() {
   // KV banka borcu: KV taşıma ile azalabilir
   const sKvBankaToplam = Math.max(0, baseKvMaliBor - netKvAzalis); // KV mali borç azalır
 
-  const senaryo = _senaryoPuan(sOz, sTotalBor, sDonenVar, sKvBorclar, sLikit, sNetSatis, sVoKar, sFaalKar, sToplamFin, sAktif, r.ihracatSatis, basePrevFaalKar, sKvBankaToplam, faalMarjDelta);
+  const senaryo = _senaryoPuan(sOz, sTotalBor, sDonenVar, sKvBorclar, sLikit, sNetSatis, sVoKar, sFaalKar, sToplamFin, sAktif, r.ihracatSatis, basePrevFaalKar, sKvBankaToplam, faalMarjDelta, satisDelta, _senEnfl);
 
   // Offset: gerçek analiz puanı ile _senaryoPuan bazı arasındaki fark
   const _realToplam = (state._last || state.lastResult) ? (state._last || state.lastResult).toplam : (base.s + subjPuan);
@@ -4012,6 +4018,7 @@ function _resetSenaryo() {
 
 // Faaliyet kar marjı simülasyonu
 function _rsSimuleFaal(r, subjPuan, faalMarjDelta) {
+  const _enflFaal = (typeof getUfe === 'function') ? getUfe(parseInt((document.getElementById('refYear')||{value:'2024'}).value)) : (window._senaryoEnflasyon || 0);
   const d = state.yearData[parseInt(document.getElementById('refYear').value)] || {};
   const baseOz        = r.ozKaynak    || 0;
   const baseTotalBor  = r.totalBor    || 0;
@@ -4028,7 +4035,7 @@ function _rsSimuleFaal(r, subjPuan, faalMarjDelta) {
 
   const base = _senaryoPuan(baseOz, baseTotalBor, baseDonenVar, baseKvBorclar, baseLikit,
     baseNetSatis, baseVoKar, baseFaalKar, baseToplamFin, baseAktif,
-    r.ihracatSatis, basePrevFaalKar, baseKvMaliBor, 0);
+    r.ihracatSatis, basePrevFaalKar, baseKvMaliBor, 0, 0, _enflRs);
 
   // Faaliyet kar marjı artışı: sFaalKar değişir
   const sFaalMarj = (baseNetSatis > 0 ? baseFaalKar / baseNetSatis * 100 : 0) + faalMarjDelta;
@@ -4038,7 +4045,7 @@ function _rsSimuleFaal(r, subjPuan, faalMarjDelta) {
   const sVoKarFaal = baseNetSatis * ((baseNetSatis > 0 ? baseVoKar/baseNetSatis*100 : 0) + faalMarjDelta) / 100;
   const p = _senaryoPuan(baseOz, baseTotalBor, baseDonenVar, baseKvBorclar, baseLikit,
     baseNetSatis, sVoKarFaal, sFaalKar, baseToplamFin, baseAktif,
-    r.ihracatSatis, basePrevFaalKar, baseKvMaliBor, faalMarjDelta);
+    r.ihracatSatis, basePrevFaalKar, baseKvMaliBor, faalMarjDelta, 0, 0);
 
   // Offset: gerçek analiz puanı ile _senaryoPuan bazı arasındaki fark
   const _realToplam2 = (state._last || state.lastResult) ? (state._last || state.lastResult).toplam : (base.s + subjPuan);
@@ -4052,6 +4059,7 @@ function _rsSimuleFaal(r, subjPuan, faalMarjDelta) {
 }
 
 function _rsSimule(r, subjPuan, sermaye, kvPct, vade, karMarj, satisDelta) {
+    const _enflRs = (typeof getUfe === 'function') ? getUfe(parseInt((document.getElementById('refYear')||{value:'2024'}).value)) : (window._senaryoEnflasyon || 0);
   const faalMarjDelta = 0; // _rsSimule faaliyet marj slider kullanmaz — her zaman 0
   // _renderSenaryo ile BİREBİR AYNI baz değerler
   const d = state.yearData[parseInt(document.getElementById('refYear').value)] || {};
@@ -4071,7 +4079,7 @@ function _rsSimule(r, subjPuan, sermaye, kvPct, vade, karMarj, satisDelta) {
   // Baz _senaryoPuan (_renderSenaryo ile aynı şekilde)
   const base = _senaryoPuan(baseOz, baseTotalBor, baseDonenVar, baseKvBorclar, baseLikit,
     baseNetSatis, baseVoKar, baseFaalKar, baseToplamFin, baseAktif,
-    r.ihracatSatis, basePrevFaalKar, baseKvMaliBor, 0);
+    r.ihracatSatis, basePrevFaalKar, baseKvMaliBor, 0, 0, _enflRs);
 
   // _renderSenaryo ile birebir aynı hesap
   const kvOrani     = vade === 36 ? 1/3 : vade === 48 ? 1/4 : 1/5;
@@ -4090,7 +4098,9 @@ function _rsSimule(r, subjPuan, sermaye, kvPct, vade, karMarj, satisDelta) {
   window._satisDeltaTemp = satisDelta;
   const sNetSatis  = baseNetSatis * (1 + satisDelta / 100);
   // _rsSimule'de faaliyet kar marjı değişimi yok (sadece render senaryo slider'ında var)
-  const sVoKar     = sNetSatis * ((base.netKarMarj + karMarj) / 100);
+  // r.netKarMarj: calcObjScore'dan gelen gerçek değer (base.netKarMarj yerine)
+  const _baseNetKarMarj = (r.netKarMarj !== undefined ? r.netKarMarj : base.netKarMarj) || 0;
+  const sVoKar     = sNetSatis * ((_baseNetKarMarj + karMarj) / 100);
   const sFaalKar   = baseFaalKar; // faaliyet karı değişmez — sadece faalMarj slider etkiler
   const sToplamFin = baseToplamFin;
   const sAktif     = baseAktif + sermaye;
@@ -4098,16 +4108,9 @@ function _rsSimule(r, subjPuan, sermaye, kvPct, vade, karMarj, satisDelta) {
   // sKvBankaToplam yalnızca KV taşımadan etkilenir, sermayeden değil
   const sKvBankaToplam = Math.max(0, baseKvMaliBor - netKvAzalis);
 
-  // Satış büyümesi varsa c11 (reel satış büyümesi) dinamik güncelle
-  const _origC11 = window._senaryoPrevC11 || 0;
-  if (satisDelta > 0) {
-    const _rBuy = baseNetSatis > 0 ? (satisDelta) : 0;
-    window._senaryoPrevC11 = _rBuy > 150 ? 0 : _rBuy > 110 ? 1 : _rBuy > 70 ? 4 : _rBuy > 20 ? 5 : _rBuy > 4 ? 4 : _rBuy > 0 ? 1 : 0;
-  }
   const p = _senaryoPuan(sOz, sTotalBor, sDonenVar, sKvBorclar, sLikit,
     sNetSatis, sVoKar, sFaalKar, sToplamFin, sAktif,
-    r.ihracatSatis, basePrevFaalKar, sKvBankaToplam, 0);
-  window._senaryoPrevC11 = _origC11; // geri yükle
+    r.ihracatSatis, basePrevFaalKar, sKvBankaToplam, 0, satisDelta, _enflRs);
 
 
   // puan = analiz bazı + senaryo değişimi
@@ -4262,7 +4265,7 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
   const baseLikit     = r.likit     || 0;
   const baseBase = _senaryoPuan(baseOz, r.totalBor||0, r.donenVarlik||0, baseKvBorclar,
     baseLikit, baseNetSatis, baseVoKar, r.faalKar||0, r.toplamFinBor||0, r.aktif||0,
-    r.ihracatSatis, r.prevFaalKar||0, baseKvMaliBor, 0);
+    r.ihracatSatis, r.prevFaalKar||0, baseKvMaliBor, 0, 0, 0);
   const bazNetKarMarj = baseBase.netKarMarj;
   // _senaryoPuan bazı ile calcObjScore bazı arasındaki fark
   // Tüm senaryo puanları bu offset ile düzeltilir
@@ -6993,7 +6996,7 @@ function _baykusSenaryoAc() {
       r.toplamFinBor || 0, r.aktif || 0,
       r.ihracatSatis || 0, r.prevFaalKar || 0,
       r.kvBankaB_Sat > 0 ? r.kvBankaB_Sat / 100 * (r.netSatis || 0) : 0
-    , 0);
+    , 0, 0, 0);
     const toplamBase = baseCalc.s + subjPuan;
     // _lastKirilimData'yı taze değerle güncelle
     window._lastKirilimData = baseCalc;
@@ -7195,7 +7198,7 @@ function _baykusSenaryoYorum() {
   window._senaryoPrevC9  = r.ihracatPuan || 0;
   window._senaryoPrevC11 = r.reelSatisBuy > 150 ? 0 : r.reelSatisBuy > 110 ? 1 : r.reelSatisBuy > 70 ? 4 : r.reelSatisBuy > 20 ? 5 : r.reelSatisBuy > 4 ? 4 : r.reelSatisBuy > 0 ? 1 : 0;
 
-  const base = _senaryoPuan(baseOz, baseTotalBor, baseDonenVar, baseKvBorclar, baseLikit, baseNetSatis, baseVoKar, baseFaalKar, baseToplamFin, baseAktif, r.ihracatSatis, basePrevFaalKar, baseKvBankaToplam, 0);
+  const base = _senaryoPuan(baseOz, baseTotalBor, baseDonenVar, baseKvBorclar, baseLikit, baseNetSatis, baseVoKar, baseFaalKar, baseToplamFin, baseAktif, r.ihracatSatis, basePrevFaalKar, baseKvBankaToplam, 0, 0, 0);
   const totalBase = base.s + subjPuan;
   const baseRating = getRating(totalBase);
 
@@ -7219,7 +7222,7 @@ function _baykusSenaryoYorum() {
   const sAktif = baseAktif + sermayeArtis;
   const sKvBankaToplam = Math.max(0, baseKvMaliBor - netKvAzalis);  // KV mali borç azalır
 
-  const sen = _senaryoPuan(sOz, baseTotalBor, sDonenVar, sKvBorclar, sLikit, sNetSatis, sVoKar, baseFaalKar, baseToplamFin, sAktif, r.ihracatSatis, basePrevFaalKar, sKvBankaToplam, 0);
+  const sen = _senaryoPuan(sOz, baseTotalBor, sDonenVar, sKvBorclar, sLikit, sNetSatis, sVoKar, baseFaalKar, baseToplamFin, sAktif, r.ihracatSatis, basePrevFaalKar, sKvBankaToplam, 0, 0, 0);
 
   const totalSen = sen.s + subjPuan;
   const senRating = getRating(totalSen);
@@ -7384,7 +7387,7 @@ function _avMatchText(q) {
         r.netSatis||0, r.voKar||0, r.faalKar||0,
         r.toplamFinBor||0, r.aktif||0, r.ihracatSatis||0, r.prevFaalKar||0,
         r.kvBankaB_Sat > 0 ? r.kvBankaB_Sat / 100 * (r.netSatis||0) : 0
-      , 0);
+      , 0, 0, 0);
       const totalBase = bc.s + subjPuan;
       const rating = getRating(totalBase);
       return `📈 <b>${firma} için Senaryo Analizi</b><br><br>`
