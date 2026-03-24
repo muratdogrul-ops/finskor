@@ -2932,6 +2932,9 @@ function _doRunAnalysis() {
     subjScores: JSON.parse(JSON.stringify(subjSec)),
     date: new Date().toLocaleDateString('tr-TR')};
   state._last = state.lastResult;  // compat
+  if (!window._demoMod) {
+    avAnalizOzetiMesaji(firma, rating, toplam);
+  }
   buildTrend(refYear);
   buildTrend(refYear);
   autoSave();  // Analiz sonucu otosave
@@ -6742,11 +6745,12 @@ function obClose() {
   if (el) el.style.display = 'none';
   window._obShown = true;
   localStorage.setItem('kas_ob_shown','1');
-  // Baykuş butonu göster + yönlendirme mesajı
+  // Baykuş butonu görünür olsun ve kullanıcı isterse kapatabilsin
   const ab = document.getElementById('avatarBtn');
   if (ab) ab.style.display = 'flex';
   setTimeout(() => {
-    // Chat'i otomatik açma — sadece mesajı hazırla, kullanıcı açınca görsün
+    // Onboarding sonrası Baykuş otomatik açılır; kullanıcı X ile kapatabilir
+    showAvatarChat();
     const box = document.getElementById('avatarMessages');
     if (box && !box.children.length) {
       _avAddMsg('bot', 'Merhaba! &#x1F989;<br><br>Sistem tanıtımı için aşağıdaki konu başlıklarına Analiz Yılından başlayarak teker teker basıp dinleyin lütfen.');
@@ -6839,8 +6843,15 @@ function avSesOku(html) {
   // HTML taglarını temizle
   const tmp = document.createElement('div');
   tmp.innerHTML = html;
-  const text = tmp.textContent || tmp.innerText || '';
-  if (!text.trim()) return;
+  let text = tmp.textContent || tmp.innerText || '';
+  // Yalnız finansal yorum kalsın: emoji/süs sembollerini seslendirme
+  text = text
+    .replace(/[\u{1F300}-\u{1FAFF}]/gu, ' ')
+    .replace(/[✅⚠️🔶🚫🎯🎉📊📈💰🔄🏦💧📉🏆👇◈◆♦•●⭐]/g, ' ')
+    .replace(/[→←↗↘]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!text) return;
   speechSynthesis.cancel();
   const utt = new SpeechSynthesisUtterance(text);
   // Türkçe ses ara
@@ -6866,6 +6877,18 @@ function avSesOku(html) {
     if (typeof window._demoOnEnd === 'function') window._demoOnEnd();
   }, Math.min(20000, Math.max(6000, text.split(' ').length * 400)));
   speechSynthesis.speak(utt);
+}
+
+function avAnalizOzetiMesaji(firma, rating, toplam) {
+  if (!rating) return;
+  const ab = document.getElementById('avatarBtn');
+  if (ab) ab.style.display = 'flex';
+  showAvatarChat();
+  const msg =
+    `<b>${firma}</b> için kredi notunuz <b style="color:${rating.color}">${rating.note}</b> ` +
+    `(${toplam.toFixed(1)}/105).<br>` +
+    `<span style="font-size:11px;color:#94a3b8">Teminat yapısı: ${rating.teminat}</span>`;
+  _avAddMsg('bot', msg);
 }
 
 function _avTyping() {
