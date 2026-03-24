@@ -1032,6 +1032,30 @@ function getRating(puan) {
   return RATING_SCALE[9];
 }
 
+/** D: tasfiye; CCC: yüksek risk; C/CC ve B+: ek cümle yok. Demo TTS + Baykuş ortak kaynak. */
+function _ratingRiskVoiceSuffix(note) {
+  if (!note || ['B', 'BB', 'BBB', 'A', 'AA', 'AAA'].includes(note)) return '';
+  if (note === 'D') return 'Bu not tasfiye riskini işaret eder. ';
+  if (note === 'C' || note === 'CC') return '';
+  if (note === 'CCC') return 'Bu not yüksek risk bandındadır. ';
+  return '';
+}
+function _ratingRiskHtmlExtra(note, en) {
+  if (!note || ['B', 'BB', 'BBB', 'A', 'AA', 'AAA'].includes(note)) return '';
+  if (note === 'D') {
+    return en
+      ? '<br><span style="font-size:11px;color:#f87171">This rating indicates liquidation/default risk.</span>'
+      : '<br><span style="font-size:11px;color:#f87171">Bu not tasfiye riskini işaret eder.</span>';
+  }
+  if (note === 'C' || note === 'CC') return '';
+  if (note === 'CCC') {
+    return en
+      ? '<br><span style="font-size:11px;color:#fb923c">High-risk band; strong collateral and strict terms are typically required.</span>'
+      : '<br><span style="font-size:11px;color:#fb923c">Yüksek risk bandı; güçlü teminat ve sıkı koşullar gerekir.</span>';
+  }
+  return '';
+}
+
 // ══════════════════════════════════════════
 // SUBJEKTİF FAKTÖRLER (Excel'den - %30 ağırlık)
 // ══════════════════════════════════════════
@@ -2840,7 +2864,7 @@ function _doRunAnalysis() {
 
   // ── SKOR HESAPLA (Excel B127+B128 birebir)
   const _objHesaplanan = calcObjScore(r, state.firmType);  // maks 75
-  const objPuan  = window._demoMod ? 52.00 : _objHesaplanan;
+  const objPuan  = window._demoMod ? 35.00 : _objHesaplanan;
   // calcSubjPuan() artık 30 üzerinden direkt puan döndürüyor
   // (20.60 = otomatik, veya seçimlerden hesaplanan normalize puan)
   const subjRaw  = calcSubjPuan();
@@ -3179,8 +3203,9 @@ function buildAnalizMetin(refYear, r, paz, prevYear, enflasyon, donemAd, isTaahh
     '<div style="margin-top:10px;padding:11px 16px;border-radius:8px;background:'+rating.color+'15;border:1px solid '+rating.color+'40;color:'+rating.color+';font-weight:600;font-size:13px">'+rating.teminat+'</div>' +
     '<p style="margin-top:8px;font-size:11px;color:var(--text-muted)">'+(en?'Long-Term National Credit Rating: TR '+rating.note+' | Outlook: Stable':'Uzun Vadeli Ulusal Kredi Derecelendirme Notu: TR '+rating.note+' | Görünüm: Stabil')+'</p>' +
 
-    // ── ÖZET ANALİZ YORUMU ──────────────────────────────────────────
+    // ── ÖZET ANALİZ YORUMU (B ve üstü: ek açıklama kutusu yok) ───────
     (()=>{
+      if (['B','BB','BBB','A','AA','AAA'].includes(rating.note)) return '';
       const t = toplam;
       let icon, baslik, renk, yorum;
       if (t >= 93) {
@@ -3218,7 +3243,7 @@ function buildAnalizMetin(refYear, r, paz, prevYear, enflasyon, donemAd, isTaahh
         +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">'
         +'<span style="font-size:18px">'+icon+'</span>'
         +'<b style="color:'+renk+';font-size:13px">'+baslik+'</b>'
-        +'<span style="margin-left:auto;font-size:11px;color:var(--text-muted)">'+t.toFixed(1)+'/105 puan</span>'
+        +'<span style="margin-left:auto;font-size:11px;color:var(--text-muted)">'+t.toFixed(1)+'/105 '+(en?'points':'puan')+'</span>'
         +'</div>'
         +'<p style="font-size:12px;color:var(--text-dim);line-height:1.6;margin:0">'+yorum+'</p>'
         +'</div>';
@@ -4410,7 +4435,7 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
           + 'border-radius:10px;padding:18px;margin-bottom:16px">'
           + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">'
           + '<div style="background:' + renk + '22;border:1.5px solid ' + renk + ';'
-          + 'border-radius:8px;padding:6px 18px;font-size:22px;font-weight:900;color:' + gercekRating.color + '">' + gercekRating.note + '</div>'
+          + 'border-radius:8px;padding:6px 18px;font-size:22px;font-weight:900;color:' + renk + '">' + not + '</div>'
           + '<div><div style="font-size:13px;font-weight:700">Kredi Notu ' + (kademe===1?'1':'2') + ' Kademe Artırma Önerisi &mdash; Hedef: ' + not + '</div>'
           + '<div style="font-size:11px;color:#64748b">Gereken: &ge;' + esik
           + ' &nbsp;|&nbsp; Senaryo: ' + cPuanDuzeltilmis.toFixed(1)
@@ -6966,10 +6991,13 @@ function avAnalizOzetiMesaji(firma, rating, toplam) {
   const box = document.getElementById('avatarMessages');
   if (box) box.innerHTML = '';
   avBuildQuickBtns();
+  const enUi = typeof state !== 'undefined' && state && state.lang === 'en';
+  const riskEk = _ratingRiskHtmlExtra(rating.note, enUi);
   const msg =
     `<b>${cleanFirma}</b> için kredi notunuz <b style="color:${rating.color}">${rating.note}</b>.<br>` +
     `<span style="font-size:11px;color:#94a3b8">105 üzerinden <b>${toplam.toFixed(1)}</b> puan.</span><br>` +
-    `<span style="font-size:11px;color:#94a3b8">Teminat yapısı: ${rating.teminat}</span>`;
+    `<span style="font-size:11px;color:#94a3b8">Teminat yapısı: ${rating.teminat}</span>` +
+    riskEk;
   _avAddMsg('bot', msg);
 }
 
@@ -8267,9 +8295,10 @@ function _demoAnalizSunumu() {
     const notVal = not ? not.textContent.trim() : 'CCC';
     const teminat = document.getElementById('ratingDesc');
     const teminatVal = teminat ? teminat.textContent.trim() : '';
+    const notYorum = _ratingRiskVoiceSuffix(notVal);
     _bsoy('Finansal değerlerden 75 puan üzerinden ' + finVal + ' puan, '
       + 'subjektif değerlerden ise 30 üzerinden ' + subjVal + ' puan alındı. '
-      + 'Kredi notu ' + notVal + '. Bu not yüksek risk anlamına gelir. '
+      + 'Kredi notu ' + notVal + '. ' + notYorum
       + 'Teminat şartı: ' + teminatVal + '.');
   }, 2000);
 
@@ -8343,9 +8372,8 @@ function _demoAnalizSunumu() {
         if (senModal) _vurgula(senModal, 14000);
       }, 800);
     }, 500);
-    _bsoy('Kredi notu artırma senaryo analizi. Beş kriter var: sermaye artışı, ' +
-      'kısa vadeli banka borcunu uzun vadeye taşımak, faaliyet kar marjı artışı, net kar marjı artışı ve ciro artışı. ' +
-      'Faaliyet kar marjı artışı; operasyonel verimliliği iyileştirerek, gider azaltımı veya fiyat artışıyla sağlanır. ' +
+    _bsoy('Kredi notu artırma senaryo analizi. Sermaye, borç vadesi, kârlılık ve ciro ' +
+      'parametreleriyle simülasyon yapılır. ' +
       'Bu ekranda gördüğünüz puan ve kredi notu, o anki senaryo değerlerine göre canlı hesaplanır.');
   }, 63000);
 
