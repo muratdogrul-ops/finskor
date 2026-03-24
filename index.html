@@ -156,8 +156,8 @@ nav {
   padding: 10px 60px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  justify-content: flex-start;
+  gap: 24px;
 }
 .sticky-hero-title {
   font-size: 12px;
@@ -167,6 +167,8 @@ nav {
   white-space: nowrap;
 }
 .sticky-hero-text {
+  flex: 1;
+  min-width: 0;
   font-size: 13px;
   color: var(--white-dim);
   white-space: nowrap;
@@ -983,7 +985,6 @@ footer {
     <li><a href="#fiyat">Fiyatlar</a></li>
   </ul>
   <div class="nav-cta">
-    <a href="app.html" class="btn-outline">Demo Yap</a>
     <a href="app.html" class="btn-primary">Platforma Giriş →</a>
   </div>
 </nav>
@@ -993,11 +994,6 @@ footer {
   <div class="sticky-hero-inner">
     <div class="sticky-hero-title">Kredi Notunu Artırma</div>
     <div class="sticky-hero-text">Firmanızın notunu hangi adımla kaç puan yükselteceğinizi senaryo ve otomatik öneriyle görün.</div>
-    <div class="sticky-hero-actions">
-      <a href="platform.html" class="btn-mini">Kredi notu analizi</a>
-      <button id="autoTourBtn" class="btn-mini" type="button">Demo Turu</button>
-      <a href="app.html" class="btn-mini btn-mini-gold">Senaryoya Başla</a>
-    </div>
   </div>
 </div>
 
@@ -1557,47 +1553,6 @@ document.querySelectorAll('.feature-card, .how-step, .pricing-card, .scenario-ca
 document.querySelectorAll('.features-grid .feature-card').forEach((el, i) => el.style.transitionDelay = (i * 0.08) + 's');
 document.querySelectorAll('.how-steps .how-step').forEach((el, i) => el.style.transitionDelay = (i * 0.1) + 's');
 document.querySelectorAll('.rating-row').forEach((el, i) => el.style.transitionDelay = (i * 0.05) + 's');
-
-// Auto tour: kurumsal demo akisi (kullanici etkileşiminde otomatik durur)
-const autoTourBtn = document.getElementById('autoTourBtn');
-const tourTargets = ['#ozellikler', '#baykus', '#senaryo', '#nasil', '#fiyat', '#cta'];
-let tourTimer = null;
-let tourIndex = 0;
-let autoTourRunning = false;
-
-function stopAutoTour() {
-  autoTourRunning = false;
-  if (tourTimer) clearTimeout(tourTimer);
-  tourTimer = null;
-  if (autoTourBtn) autoTourBtn.classList.remove('active');
-}
-
-function runAutoTourStep() {
-  if (!autoTourRunning) return;
-  const sel = tourTargets[tourIndex % tourTargets.length];
-  const el = document.querySelector(sel);
-  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  tourIndex += 1;
-  tourTimer = setTimeout(runAutoTourStep, 4200);
-}
-
-if (autoTourBtn) {
-  autoTourBtn.addEventListener('click', () => {
-    if (autoTourRunning) {
-      stopAutoTour();
-      return;
-    }
-    autoTourRunning = true;
-    autoTourBtn.classList.add('active');
-    runAutoTourStep();
-  });
-}
-
-['wheel', 'touchstart', 'keydown'].forEach(evt => {
-  window.addEventListener(evt, () => {
-    if (autoTourRunning) stopAutoTour();
-  }, { passive: true });
-});
 </script>
 
 </body>
