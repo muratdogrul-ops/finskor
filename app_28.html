@@ -4659,7 +4659,7 @@ function generatePDF() {
   <tr><td>Faiz Karşılama</td><td>${N2(r.faizKarsilama)}x</td><td>Min:1x / İyi:3x</td><td><span class="badge-s ${r.faizKarsilama>=3?'s-ok':r.faizKarsilama>=1?'s-warn':'s-bad'}">${r.faizKarsilama>=3?'İYİ':r.faizKarsilama>=1?'KABUL':'ZAYIF'}</span></td></tr>
   <tr><td rowspan="4" style="font-weight:700;color:#22c55e;font-size:11px">KARLILIK</td>
     <td>Brüt Kar Marjı</td><td>${PCT(r.brutMarj)}</td><td>Min:%10 / İyi:%20</td><td><span class="badge-s ${r.brutMarj>=20?'s-ok':r.brutMarj>=10?'s-warn':'s-bad'}">${r.brutMarj>=20?'İYİ':r.brutMarj>=10?'KABUL':'ZAYIF'}</span></td></tr>
-  <tr><td>Faaliyet Kar Marjı</td><td>${PCT(r.faalMarj)}</td><td>Min:%0 / İyi:%10</td><td><span class="badge-s ${r.faalMarj>=10?'s-ok':r.faalMarj>=0?'s-warn':'s-bad'}">${r.faalMarj>=10?'İYİ':r.faalMarj>=0?'KABUL':'ZAYIF'}</span></td></tr>
+  <tr><td>Faaliyet Karı(FAVÖK)Marjı</td><td>${PCT(r.faalMarj)}</td><td>Min:%0 / İyi:%10</td><td><span class="badge-s ${r.faalMarj>=10?'s-ok':r.faalMarj>=0?'s-warn':'s-bad'}">${r.faalMarj>=10?'İYİ':r.faalMarj>=0?'KABUL':'ZAYIF'}</span></td></tr>
   <tr><td>Net Kar Marjı</td><td>${PCT(netMarj)}</td><td>Min:%0 / İyi:%5</td><td><span class="badge-s ${netMarj>=5?'s-ok':netMarj>=0?'s-warn':'s-bad'}">${netMarj>=5?'İYİ':netMarj>=0?'KABUL':'ZAYIF'}</span></td></tr>
   <tr><td>EBITDA Marjı</td><td>${PCT(r.ebitdaMarj)}</td><td>Min:%5 / İyi:%15</td><td><span class="badge-s ${r.ebitdaMarj>=15?'s-ok':r.ebitdaMarj>=5?'s-warn':'s-bad'}">${r.ebitdaMarj>=15?'İYİ':r.ebitdaMarj>=5?'KABUL':'ZAYIF'}</span></td></tr>
   <tr><td rowspan="2" style="font-weight:700;color:#8b5cf6;font-size:11px">VERİMLİLİK</td>
