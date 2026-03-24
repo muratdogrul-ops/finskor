@@ -1748,9 +1748,7 @@ async function deductCredit() {
 
 function doLogout() {
   // Baykuş sesini ve konuşmasını tamamen durdur
-  if (window.speechSynthesis) {
-    window.speechSynthesis.cancel();
-  }
+  avStopAudio();
   window._avSesAcik = false;
   // Baykuş modalını ve butonunu gizle
   const avModal = document.getElementById('avatarModal');
@@ -1769,6 +1767,13 @@ function doLogout() {
   localStorage.removeItem(AUTOSAVE_KEY);
   location.reload();
 }
+
+// Ekran kapanır/arka plana düşerse Baykuş hemen sussun
+window.addEventListener('beforeunload', avStopAudio);
+window.addEventListener('pagehide', avStopAudio);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) avStopAudio();
+});
 
 // ══════════════════════════════════════════
 // DİL YÖNETİMİ
@@ -2933,7 +2938,7 @@ function _doRunAnalysis() {
     date: new Date().toLocaleDateString('tr-TR')};
   state._last = state.lastResult;  // compat
   if (!window._demoMod) {
-    avAnalizOzetiMesaji(firma, rating, toplam);
+    avAnalizOzetiMesaji(state.lastResult.firma, rating, toplam);
   }
   buildTrend(refYear);
   buildTrend(refYear);
@@ -6811,7 +6816,7 @@ function hideAvatarChat() {
   const b = document.getElementById('avatarBtn');
   if (m) m.style.display = 'none';
   if (b) b.style.animation = 'avPulse 2.5s ease-in-out infinite';
-  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  avStopAudio();
 }
 
 function _avAddMsg(role, text) {
@@ -6835,7 +6840,7 @@ function avSesDegistir() {
   window._avSesAcik = !window._avSesAcik;
   const btn = document.getElementById('avSesBtn');
   if (btn) btn.innerHTML = window._avSesAcik ? '&#x1F50A;' : '&#x1F508;';
-  if (!window._avSesAcik) speechSynthesis.cancel();
+  if (!window._avSesAcik) avStopAudio();
 }
 
 function avSesOku(html) {
@@ -6852,7 +6857,7 @@ function avSesOku(html) {
     .replace(/\s+/g, ' ')
     .trim();
   if (!text) return;
-  speechSynthesis.cancel();
+  avStopAudio();
   const utt = new SpeechSynthesisUtterance(text);
   // Türkçe ses ara
   const voices = speechSynthesis.getVoices();
@@ -6879,14 +6884,25 @@ function avSesOku(html) {
   speechSynthesis.speak(utt);
 }
 
+function avStopAudio() {
+  try {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+  } catch (e) {}
+}
+
 function avAnalizOzetiMesaji(firma, rating, toplam) {
   if (!rating) return;
+  const cleanFirma = (firma || 'Firma').toString().replace(/\s+/g, ' ').trim();
   const ab = document.getElementById('avatarBtn');
   if (ab) ab.style.display = 'flex';
   showAvatarChat();
+  // Yeni analizde eski firmanın mesajları kalmasın
+  const box = document.getElementById('avatarMessages');
+  if (box) box.innerHTML = '';
+  avBuildQuickBtns();
   const msg =
-    `<b>${firma}</b> için kredi notunuz <b style="color:${rating.color}">${rating.note}</b> ` +
-    `(${toplam.toFixed(1)}/105).<br>` +
+    `<b>${cleanFirma}</b> için kredi notunuz <b style="color:${rating.color}">${rating.note}</b>.<br>` +
+    `<span style="font-size:11px;color:#94a3b8">105 üzerinden <b>${toplam.toFixed(1)}</b> puan.</span><br>` +
     `<span style="font-size:11px;color:#94a3b8">Teminat yapısı: ${rating.teminat}</span>`;
   _avAddMsg('bot', msg);
 }
