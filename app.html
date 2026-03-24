@@ -904,7 +904,7 @@ tbody td { padding:8px 13px; color:var(--text); }
 
 <!-- YÜZEN BAYKUŞ BUTONU -->
 <div id="avatarBtn" onclick="showAvatarChat()"
-  style="display:none;position:fixed;bottom:28px;left:28px;z-index:1000;
+  style="display:flex;position:fixed;bottom:28px;left:28px;z-index:1000;
     cursor:pointer;animation:avPulse 2.5s ease-in-out infinite;
     width:62px;height:62px">
   <div style="width:62px;height:62px;border-radius:50%;
@@ -1186,7 +1186,7 @@ function downloadReport() {
     oneriler.push({icon:'💧', text:'<b>Likit varlıkları artırma:</b> Likidite oranı <b>'+r.likOran.toFixed(2)+'</b> (hedef >'+(paz?'0.84':'0.74')+').'+ ' Stok ve nakit yapısının optimize edilmesi bu kriteri <b>3-6 puan</b> iyileştirebilir.'});
   }
   if (r.netKarMarj < (paz ? 9 : 14)) {
-    oneriler.push({icon:'📈', text:'<b>Karlılık artışı (fiyat artışı / maliyet kontrolü):</b> VÖ Kar/Satış <b>'+r.netKarMarj.toFixed(1)+'%</b> (hedef >%50).'+ ' Satış fiyatlarını artırmak veya maliyetleri azaltmak bu kriterden <b>2-5 puan</b> katkı sağlayabilir.'});
+    oneriler.push({icon:'📈', text:'<b>Karlılık artışı (fiyat artışı / maliyet kontrolü):</b> VÖ Kar/Satış <b>'+r.netKarMarj.toFixed(1)+'%</b> (hedef >'+(paz?'%9':'%14')+').'+ ' Satış fiyatlarını artırmak veya maliyetleri azaltmak bu kriterden <b>2-5 puan</b> katkı sağlayabilir.'});
   }
   if (r.reelFaalKarBuy < 5) {
     oneriler.push({icon:'📊', text:'<b>Faaliyet karlılığını artırma:</b> Reel faaliyet karı büyümesi <b>'+r.reelFaalKarBuy.toFixed(1)+'%</b> (hedef >%5). Faaliyet karındaki reel artış büyüme kriterlerinden <b>+3-5 puan</b> katkı sağlar.'});
@@ -1270,9 +1270,6 @@ function downloadReport() {
     ['Net Kar / Satış (VÖ)', r.netKarMarj.toFixed(1)+'%',
       paz2?(r.netKarMarj>14?6:r.netKarMarj>9?5:r.netKarMarj>5?3:r.netKarMarj>2?2:r.netKarMarj>0?1:0)
           :(r.netKarMarj>19?6:r.netKarMarj>14?5:r.netKarMarj>9?3:r.netKarMarj>4?2:r.netKarMarj>1?1:0), 6],
-    ['Faaliyet Karı (FAVÖK) Marjı', r.faalMarj.toFixed(1)+'%',
-      paz2?(r.faalMarj>50?6:r.faalMarj>40?5:r.faalMarj>30?3:r.faalMarj>20?2:r.faalMarj>10?1:0)
-          :(r.faalMarj>50?6:r.faalMarj>40?5:r.faalMarj>30?3:r.faalMarj>20?2:r.faalMarj>10?1:0), 6],
     ['Reel Faaliyet Karı Artışı', r.reelFaalKarBuy.toFixed(1)+'%',
       r.reelFaalKarBuy>14?5:r.reelFaalKarBuy>9?4:r.reelFaalKarBuy>5?3:r.reelFaalKarBuy>2?2:r.reelFaalKarBuy>0?1:0, 5],
     ['Faaliyet Karı Karşılaştırma', r.faalKarYillik>=0?'Artış':'Azalış', r.faalKarYillik>0?5:0, 5],
@@ -1374,7 +1371,6 @@ function downloadReport() {
     +'<h2>'+T('karlilik')+'</h2>'
     +'<table><tr><th>'+T('kriter')+'</th><th>'+T('deger')+'</th><th>Hedef</th><th>'+T('durum')+'</th></tr>'
     +'<tr><td>VÖ Net Kar / Satış</td><td>'+r.netKarMarj.toFixed(1)+'%</td><td>Min: '+(paz?'%3':'%5')+'</td><td class="'+(r.netKarMarj>=(paz?9:14)?'ok':r.netKarMarj>=(paz?3:5)?'warn':'bad')+'">'+(r.netKarMarj>=(paz?9:14)?T('iyi'):r.netKarMarj>=(paz?3:5)?T('kabul'):T('riskli'))+'</td></tr>'
-    +'<tr><td>Faaliyet Karı (FAVÖK) Marjı</td><td>'+r.faalMarj.toFixed(1)+'%</td><td>Min: '+(paz?'%3':'%5')+'</td><td class="'+(r.faalMarj>=50?'ok':r.faalMarj>=20?'warn':'bad')+'">'+(r.faalMarj>=50?T('iyi'):r.faalMarj>=20?T('kabul'):T('riskli'))+'</td></tr>'
     +'<tr><td>Reel Satış Büyümesi</td><td>'+(r.reelSatisBuy>=0?'+':'')+r.reelSatisBuy.toFixed(1)+'%</td><td>Min: %0</td><td class="'+(r.reelSatisBuy>=5?'ok':r.reelSatisBuy>=0?'warn':'bad')+'">'+(r.reelSatisBuy>=5?T('iyi'):r.reelSatisBuy>=0?T('kabul'):T('gerileme'))+'</td></tr>'
     +'<tr><td>Reel Faal. Karı Artışı</td><td>'+(r.reelFaalKarBuy>=0?'+':'')+r.reelFaalKarBuy.toFixed(1)+'%</td><td>Min: %0</td><td class="'+(r.reelFaalKarBuy>=5?'ok':r.reelFaalKarBuy>=0?'warn':'bad')+'">'+(r.reelFaalKarBuy>=5?T('iyi'):r.reelFaalKarBuy>=0?T('kabul'):T('gerileme'))+'</td></tr>'
     +'</table>'
@@ -1488,12 +1484,6 @@ function calcObjScore(r, firmType) {
     : (r.netKarMarj > 19 ? 6 : r.netKarMarj > 14 ? 5 : r.netKarMarj > 9 ? 3 : r.netKarMarj > 4 ? 2 : r.netKarMarj > 1 ? 1 : 0);
   s += _c4;
 
-  // ④b Faaliyet Karı (FAVÖK) Marjı
-  const _c12 = paz
-    ? (r.faalMarj > 50 ? 6 : r.faalMarj > 40 ? 5 : r.faalMarj > 30 ? 3 : r.faalMarj > 20 ? 2 : r.faalMarj > 10 ? 1 : 0)
-    : (r.faalMarj > 50 ? 6 : r.faalMarj > 40 ? 5 : r.faalMarj > 30 ? 3 : r.faalMarj > 20 ? 2 : r.faalMarj > 10 ? 1 : 0);
-  s += _c12;
-
   // ⑤ Reel Faaliyet Karı Artışı — max 5 — Her tipte AYNI
   // IF(>14,5,IF(>9,4,IF(>5,3,IF(>2,2,IF(>0,1,0)))))
   // Taahhüt dahil (E13 = Faaliyet karı, C13 = önceki yıl faaliyet karı)
@@ -1547,7 +1537,7 @@ function calcObjScore(r, firmType) {
   const _c11 = r.reelSatisBuy > 150 ? 0 : r.reelSatisBuy > 110 ? 1 : r.reelSatisBuy > 70 ? 4 : r.reelSatisBuy > 20 ? 5 : r.reelSatisBuy > 4 ? 4 : r.reelSatisBuy > 0 ? 1 : 0; s += _c11;
 
   // Puan kırılımı Baykuş asistan için kaydet (popup gösterme)
-  window._lastKirilim = 'PUAN KIRILIMI (Toplam='+s+')\n\n①Cari='+_c1+'/12  ['+r.cariOran.toFixed(3)+']\n②Likidite='+_c2+'/6  ['+r.likOran.toFixed(3)+']\n③Borç/ÖK='+_c3+'/12  ['+r.borcOzKay.toFixed(3)+']\n④NetKarMarj='+_c4+'/6  [%'+r.netKarMarj.toFixed(2)+']\n④b FAVÖK Marjı='+_c12+'/6  [%'+r.faalMarj.toFixed(2)+']\n⑤ReelFaalKar='+_c5+'/5  [%'+r.reelFaalKarBuy.toFixed(1)+', prev='+r.prevFaalKar.toFixed(0)+']\n⑥FaalKarKarş='+_c6+'/5  [prevFaalKar='+r.prevFaalKar.toFixed(0)+']\n⑦KVBanka/Sat='+_c7+'/10  [%'+r.kvBankaB_Sat.toFixed(1)+']\n⑧KVBorç/Sat='+_c8+'/6  [%'+r.kvBorcSat.toFixed(1)+']\n⑨İhracat/Sat='+_c9+'/3  [%'+r.ihracatSatis.toFixed(1)+']\n⑩Banka/Aktif='+_c10+'/5  [%'+r.bnkBorcAkt.toFixed(1)+']\n⑪ReelSatBüy='+_c11+'/5  [%'+r.reelSatisBuy.toFixed(1)+']';
+  window._lastKirilim = 'PUAN KIRILIMI (Toplam='+s+')\n\n①Cari='+_c1+'/12  ['+r.cariOran.toFixed(3)+']\n②Likidite='+_c2+'/6  ['+r.likOran.toFixed(3)+']\n③Borç/ÖK='+_c3+'/12  ['+r.borcOzKay.toFixed(3)+']\n④NetKarMarj='+_c4+'/6  [%'+r.netKarMarj.toFixed(2)+']\n⑤ReelFaalKar='+_c5+'/5  [%'+r.reelFaalKarBuy.toFixed(1)+', prev='+r.prevFaalKar.toFixed(0)+']\n⑥FaalKarKarş='+_c6+'/5  [prevFaalKar='+r.prevFaalKar.toFixed(0)+']\n⑦KVBanka/Sat='+_c7+'/10  [%'+r.kvBankaB_Sat.toFixed(1)+']\n⑧KVBorç/Sat='+_c8+'/6  [%'+r.kvBorcSat.toFixed(1)+']\n⑨İhracat/Sat='+_c9+'/3  [%'+r.ihracatSatis.toFixed(1)+']\n⑩Banka/Aktif='+_c10+'/5  [%'+r.bnkBorcAkt.toFixed(1)+']\n⑪ReelSatBüy='+_c11+'/5  [%'+r.reelSatisBuy.toFixed(1)+']';
 
   return s;
   // Toplam maks: 12+6+12+6+5+5+10+6+3+5+5 = 75 (Pazarlama ve Üretim/Taahhüt, eşikler farklı)
@@ -1647,6 +1637,7 @@ async function doLogin() {
 }
 
 function loginSuccess(userData) {
+  window._avKapatildi = false; // Yeni giriş — baykuş aktif
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
 
@@ -1760,8 +1751,22 @@ function doLogout() {
   // Baykuş sesini ve konuşmasını tamamen durdur
   if (window.speechSynthesis) {
     window.speechSynthesis.cancel();
+    // Tarayıcı bug'ı: cancel() bazen yetmez — interval ile zorla durdur
+    let _stopTry = 0;
+    const _stopInt = setInterval(() => {
+      if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+        window.speechSynthesis.cancel();
+      }
+      if (++_stopTry > 5) clearInterval(_stopInt);
+    }, 100);
   }
   window._avSesAcik = false;
+  window._avKapatildi = true; // Sayfa yenilenene kadar konuşma engeli
+  window._avQueue = [];
+  window._avPlaying = false;
+  // Tüm baykuş timer'larını temizle
+  if (window._baykusDebTimer) { clearTimeout(window._baykusDebTimer); window._baykusDebTimer = null; }
+  if (window._baykusTimer) { clearTimeout(window._baykusTimer); window._baykusTimer = null; }
   // Baykuş modalını ve butonunu gizle
   const avModal = document.getElementById('avatarModal');
   const avBtn   = document.getElementById('avatarBtn');
@@ -1770,6 +1775,13 @@ function doLogout() {
   // Mesaj kuyruğunu temizle
   window._avQueue = [];
   window._avPlaying = false;
+  // Baykuş global flag'lerini tamamen sıfırla
+  window._baykusAktif = false;
+  window._avSesAcik = false;
+  window._avKonusuyor = false;
+  // Tüm pending timeout/interval'ları temizle
+  if (window._avInterval) { clearInterval(window._avInterval); window._avInterval = null; }
+  if (window._baykusSenaryo) { clearTimeout(window._baykusSenaryo); window._baykusSenaryo = null; }
 
   localStorage.removeItem('kas_logged');
   localStorage.removeItem('kas_role');
@@ -2064,7 +2076,6 @@ function saveSettings() {
 // PAGES
 // ══════════════════════════════════════════
 function showPage(p) {
-  if (p === 'results') { const _ab4 = document.getElementById('avatarBtn'); if (_ab4) _ab4.style.display = 'flex'; }
   document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
   if (p==='settings') { applyLang(); }
   document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
@@ -2925,6 +2936,10 @@ function _doRunAnalysis() {
   ].join(''));
 
   // ── OTOMATİK ANALİZ METNİ
+  // Yeni analiz: Baykuş chat geçmişini temizle (eski firma kalmasın)
+  const _avBox = document.getElementById('avatarMessages');
+  if (_avBox) _avBox.innerHTML = '';
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
   buildAnalizMetin(refYear, r, paz, prevYear, enflasyon, donemAd, isTaahhut, rating, firma, objPuan, subjPuan, toplam);
 
   // ── TREND
@@ -2943,6 +2958,9 @@ function _doRunAnalysis() {
     subjScores: JSON.parse(JSON.stringify(subjSec)),
     date: new Date().toLocaleDateString('tr-TR')};
   state._last = state.lastResult;  // compat
+  // Analiz tamamlandı — baykuşu görünür yap (gerçek analiz)
+  const _avBtnRA = document.getElementById('avatarBtn');
+  if (_avBtnRA) _avBtnRA.style.display = 'flex';
   buildTrend(refYear);
   buildTrend(refYear);
   autoSave();  // Analiz sonucu otosave
@@ -3623,7 +3641,7 @@ function showSenaryoModal() {
   setTimeout(() => _baykusSenaryoAc(), 400);
 }
 
-function _senaryoPuan(oz, totalBor, donenVar, kvBorclar, likit, netSatis, voKar, faalKar, toplamFinBor, aktif, ihracatSatis, prevFaalKar, kvBankaToplam) {
+function _senaryoPuan(oz, totalBor, donenVar, kvBorclar, likit, netSatis, voKar, faalKar, toplamFinBor, aktif, ihracatSatis, prevFaalKar, kvBankaToplam, faalMarjDelta, satisDeltaParam, enflasyonParam) {
   const paz = (state.firmType === 'pazarlama');
   let s = 0;
 
@@ -3653,8 +3671,9 @@ function _senaryoPuan(oz, totalBor, donenVar, kvBorclar, likit, netSatis, voKar,
     : (nkm > 19 ? 6 : nkm > 14 ? 5 : nkm > 9 ? 3 : nkm > 4 ? 2 : nkm > 1 ? 1 : 0);
   s += c4;
 
-  // ⑤ReelFaalKar (önceki yıl verisi değişmez)
-  const c5 = window._senaryoPrevC5 || 0; s += c5;
+  // ⑤ReelFaalKar (önceki yıl verisi değişmez — sabit)
+  const c5 = window._senaryoPrevC5 || 0;
+  s += c5;
 
   // ⑥FaalKarKarş
   const c6 = (prevFaalKar < 0) ? 5 : 0; s += c6;
@@ -3682,8 +3701,18 @@ function _senaryoPuan(oz, totalBor, donenVar, kvBorclar, likit, netSatis, voKar,
     : (bna > 44 ? 0 : bna > 34 ? 1 : bna > 24 ? 2 : bna > 14 ? 3 : 5);
   s += c10;
 
-  // ⑪ReelSatBüy (sabit)
-  const c11 = window._senaryoPrevC11 || 0; s += c11;
+  // ⑪ReelSatBüy — ÜFE'den arındırılmış reel büyüme ile hesapla
+  let c11;
+  const _satD = (satisDeltaParam !== undefined ? satisDeltaParam : 0);
+  if (_satD > 0) {
+    const _enfl = (enflasyonParam !== undefined ? enflasyonParam : (window._senaryoEnflasyon || 0));
+    const nominalFactor = 1 + (_satD / 100);
+    const reelBuy = _enfl > 0 ? ((nominalFactor / (1 + _enfl)) - 1) * 100 : _satD;
+    c11 = reelBuy > 150 ? 0 : reelBuy > 110 ? 1 : reelBuy > 70 ? 4 : reelBuy > 20 ? 5 : reelBuy > 4 ? 4 : reelBuy > 0 ? 1 : 0;
+  } else {
+    c11 = window._senaryoPrevC11 || 0;
+  }
+  s += c11;
 
   return {
     s, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11,
@@ -3719,11 +3748,19 @@ function _renderSenaryo() {
 
   // Sabit puanlar (önceki yıl bazlı veya ihracat bazlı)
   window._senaryoPrevC5  = r.reelFaalKarBuy > 14 ? 5 : r.reelFaalKarBuy > 9 ? 4 : r.reelFaalKarBuy > 5 ? 3 : r.reelFaalKarBuy > 2 ? 2 : r.reelFaalKarBuy > 0 ? 1 : 0;
+  window._senaryoPrevFaalKar = r.prevFaalKar || 0;
   window._senaryoPrevC9  = r.ihracatPuan || 0;
   window._senaryoPrevC11 = r.reelSatisBuy > 150 ? 0 : r.reelSatisBuy > 110 ? 1 : r.reelSatisBuy > 70 ? 4 : r.reelSatisBuy > 20 ? 5 : r.reelSatisBuy > 4 ? 4 : r.reelSatisBuy > 0 ? 1 : 0;
+  // ÜFE enflasyon — c11 reel büyüme hesabı için
+  const refYear2 = parseInt(document.getElementById('refYear').value);
+  const _senEnfl = (typeof getUfe === 'function') ? getUfe(refYear2) : 0;
+  window._senaryoEnflasyon = _senEnfl; // _rsSimule için global cache
 
-  const base = _senaryoPuan(baseOz, baseTotalBor, baseDonenVar, baseKvBorclar, baseLikit, baseNetSatis, baseVoKar, baseFaalKar, baseToplamFin, baseAktif, r.ihracatSatis, basePrevFaalKar, baseKvBankaToplam);
-  const baseRating = getRating(base.s + subjPuan);
+
+  const base = _senaryoPuan(baseOz, baseTotalBor, baseDonenVar, baseKvBorclar, baseLikit, baseNetSatis, baseVoKar, baseFaalKar, baseToplamFin, baseAktif, r.ihracatSatis, basePrevFaalKar, baseKvBankaToplam, 0, 0, _senEnfl);
+  // baseRating: gerçek analiz puanından hesapla (totalBase ile tutarlı olsun)
+  const _realToplamEarly = (state._last || state.lastResult) ? (state._last || state.lastResult).toplam : (base.s + subjPuan);
+  const baseRating = getRating(_realToplamEarly);
 
   // Slider değerlerini oku — DOM yeniden yazılınca sıfırlanmasın diye global state kullan
   const st = window._senaryoState;
@@ -3731,8 +3768,8 @@ function _renderSenaryo() {
   const kvTasimaOran  = st.kvtasima || 0;
   const vadeSec       = st.vade     || 36;
   const karMarjDelta  = st.karmarj  || 0;
+  const faalMarjDelta = st.faalmarj || 0;
   const satisDelta    = st.satis    || 0;
-
   // KV→UV taşıma: seçilen % kadar KV banka borcu yeniden yapılandırılır
   // Vadeye göre KV'de kalacak pay: 36ay→1/3, 48ay→1/4, 60ay→1/5
   const kvOrani = vadeSec === 36 ? 1/3 : vadeSec === 48 ? 1/4 : 1/5;   // KV'de kalacak pay
@@ -3748,21 +3785,33 @@ function _renderSenaryo() {
   // Sermaye artışı → Aktif 10. Hazır Değerler/Bankalar hesabına tam giriyor
   const sDonenVar  = baseDonenVar + sermayeArtis;
   const sLikit     = baseLikit + sermayeArtis;
+  // c11 için satisDelta'yı global'e ilet
+  window._satisDeltaTemp = satisDelta;
   const sNetSatis  = baseNetSatis * (1 + satisDelta / 100);
-  const sVoKar     = sNetSatis * ((base.netKarMarj + karMarjDelta) / 100);
-  const sFaalKar   = baseFaalKar;
+  // c11 için satisDelta'yı _senaryoPuan'a ilet (global geçici değişken)
+  window._satisDeltaTemp = satisDelta;
+  // faalMarjDelta: faaliyet karı (FAVÖK) marjı artışı → net kara da yansır (işletme verimliliği)
+  const sFaalMarj  = (baseNetSatis > 0 ? baseFaalKar / baseNetSatis * 100 : 0) + faalMarjDelta;
+  const sFaalKar   = sNetSatis * (sFaalMarj / 100);
+  // Net kar: gerçek analiz net kar marjını baz al (r.netKarMarj), slider değişimleri üstüne eklenir
+  const baseNetKarMarjVal = (r.netKarMarj !== undefined ? r.netKarMarj : base.netKarMarj) || 0;
+  const sVoKar     = sNetSatis * ((baseNetKarMarjVal + karMarjDelta + faalMarjDelta) / 100);
   const sToplamFin = baseToplamFin;                                       // toplam fin borç değişmez
   const sAktif     = baseAktif + sermayeArtis;
   // KV banka borcu: KV taşıma ile azalabilir
   const sKvBankaToplam = Math.max(0, baseKvMaliBor - netKvAzalis); // KV mali borç azalır
 
-  const senaryo = _senaryoPuan(sOz, sTotalBor, sDonenVar, sKvBorclar, sLikit, sNetSatis, sVoKar, sFaalKar, sToplamFin, sAktif, r.ihracatSatis, basePrevFaalKar, sKvBankaToplam);
-  const sRating = getRating(senaryo.s + subjPuan);
+  const senaryo = _senaryoPuan(sOz, sTotalBor, sDonenVar, sKvBorclar, sLikit, sNetSatis, sVoKar, sFaalKar, sToplamFin, sAktif, r.ihracatSatis, basePrevFaalKar, sKvBankaToplam, faalMarjDelta, satisDelta, _senEnfl);
+
+  // Offset: gerçek analiz puanı ile _senaryoPuan bazı arasındaki fark
+  const _realToplam = (state._last || state.lastResult) ? (state._last || state.lastResult).toplam : (base.s + subjPuan);
+  const _rsOffset   = _realToplam - (base.s + subjPuan);
+  const totalBase = _realToplam;                    // gerçek analiz puanı
+  const totalSen  = senaryo.s + subjPuan + _rsOffset; // senaryo puanı + offset
+  const sRating = getRating(senaryo.s + subjPuan + _rsOffset);
 
   const fmtTL = v => v >= 1e6 ? (v/1e6).toFixed(1)+'M ₺' : v >= 1e3 ? (v/1e3).toFixed(0)+'K ₺' : v.toFixed(0)+' ₺';
-  const pDiff = (senaryo.s - base.s);
-  const totalBase = base.s + subjPuan;
-  const totalSen  = senaryo.s + subjPuan;
+  const pDiff = (senaryo.s - base.s); // ham fark
 
   function pRow(lbl, bv, sv, max) {
     const d = sv - bv;
@@ -3867,6 +3916,16 @@ function _renderSenaryo() {
 
         <div>
           <label style="font-size:11px;color:#94a3b8;display:flex;justify-content:space-between">
+            <span>🏭 Faaliyet Karı (FAVÖK) Marjı Değişimi</span>
+            <span id="lbl_faalmarj" style="color:#fb923c;font-weight:700">${faalMarjDelta >= 0 ? '+' : ''}${faalMarjDelta.toFixed(1)}%</span>
+          </label>
+          <input type="range" id="sld_faalmarj" min="-5" max="50" step="0.5"
+            value="${faalMarjDelta}" oninput="window._senaryoState.faalmarj=parseFloat(this.value);document.getElementById('lbl_faalmarj').textContent=(this.value>=0?'+':'')+parseFloat(this.value).toFixed(1)+'%';_renderSenaryo();_baykusSenaryoDebounce()"
+            style="width:100%;accent-color:#fb923c">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:#64748b;margin-top:2px;margin-bottom:14px">
+            <span>-5%</span><span>0%</span><span>+10%</span><span>+20%</span>
+          </div>
+          <label style="font-size:11px;color:#94a3b8;display:flex;justify-content:space-between">
             <span>📈 Satış Büyümesi</span>
             <span id="lbl_satis" style="color:#f5a623;font-weight:700">${satisDelta >= 0 ? '+' : ''}${satisDelta.toFixed(0)}%</span>
           </label>
@@ -3936,6 +3995,10 @@ function _renderSenaryo() {
         <span style="color:#e2e8f0;font-weight:600">${base.borcOzKay.toFixed(2)}x</span>
         <span style="color:${senaryo.borcOzKay<base.borcOzKay?'#22c55e':'#ef4444'};font-weight:700">${senaryo.borcOzKay.toFixed(2)}x</span>
 
+        <span style="color:#94a3b8">🏭 Faal. Kar Marjı</span>
+        <span style="color:#e2e8f0;font-weight:600">${baseNetSatis > 0 ? (baseFaalKar/baseNetSatis*100).toFixed(1) : '0.0'}%</span>
+        <span style="color:${faalMarjDelta > 0 ? '#22c55e' : faalMarjDelta < 0 ? '#ef4444' : '#e2e8f0'};font-weight:700">%${(baseNetSatis > 0 ? (baseFaalKar/baseNetSatis*100) + faalMarjDelta : faalMarjDelta).toFixed(1)}${faalMarjDelta !== 0 ? ' <span style="font-size:10px">(' + (faalMarjDelta>0?'+':'') + faalMarjDelta.toFixed(1) + '%)</span>' : ''}</span>
+
         <span style="color:#94a3b8">📊 Net Kar Marjı</span>
         <span style="color:#e2e8f0;font-weight:600">%${base.netKarMarj.toFixed(1)} <span style="color:#64748b;font-weight:400;font-size:10px">(${fmtTL(baseVoKar)})</span></span>
         <span style="color:${senaryo.netKarMarj>base.netKarMarj?'#22c55e':'#e2e8f0'};font-weight:700">%${senaryo.netKarMarj.toFixed(1)} <span style="color:#94a3b8;font-weight:400;font-size:10px">(${fmtTL(sVoKar)})</span></span>
@@ -3952,7 +4015,7 @@ function _renderSenaryo() {
 }
 
 // Senaryo slider state — innerHTML yeniden yazılınca DOM sıfırlanmasın diye
-window._senaryoState = window._senaryoState || { sermaye:0, kvtasima:0, vade:36, karmarj:0, satis:0 };
+window._senaryoState = window._senaryoState || { sermaye:0, kvtasima:0, vade:36, karmarj:0, satis:0, faalmarj:0 };
 
 function _senaryoOnChange(key, val) {
   window._senaryoState[key] = parseFloat(val);
@@ -3982,7 +4045,51 @@ function _resetSenaryo() {
 // 2. senaryo: 1. kademenin 1 kademe üstü (2 kademe toplam)
 // Tüm hesaplar _renderSenaryo'dakiyle birebir aynı
 
+// Faaliyet Karı (FAVÖK) Marjı simülasyonu
+function _rsSimuleFaal(r, subjPuan, faalMarjDelta) {
+  const _enflFaal = (typeof getUfe === 'function') ? getUfe(parseInt((document.getElementById('refYear')||{value:'2024'}).value)) : (window._senaryoEnflasyon || 0);
+  const d = state.yearData[parseInt(document.getElementById('refYear').value)] || {};
+  const baseOz        = r.ozKaynak    || 0;
+  const baseTotalBor  = r.totalBor    || 0;
+  const baseDonenVar  = r.donenVarlik || 0;
+  const baseKvBorclar = r.kvBorclar   || (d.kvYKToplam || 0);
+  const baseLikit     = r.likit       || (baseDonenVar * 0.5);
+  const baseNetSatis  = r.netSatis    || 0;
+  const baseVoKar     = r.voKar       || 0;
+  const baseFaalKar   = r.faalKar     || 0;
+  const baseToplamFin = r.toplamFinBor|| 0;
+  const baseAktif     = r.aktif       || 0;
+  const basePrevFaalKar = r.prevFaalKar || 0;
+  const baseKvMaliBor = r.kvMaliBor   || 0;
+
+  const base = _senaryoPuan(baseOz, baseTotalBor, baseDonenVar, baseKvBorclar, baseLikit,
+    baseNetSatis, baseVoKar, baseFaalKar, baseToplamFin, baseAktif,
+    r.ihracatSatis, basePrevFaalKar, baseKvMaliBor, 0, 0, _enflFaal);
+
+  // Faaliyet Karı (FAVÖK) Marjı artışı: sFaalKar değişir
+  const sFaalMarj = (baseNetSatis > 0 ? baseFaalKar / baseNetSatis * 100 : 0) + faalMarjDelta;
+  const sFaalKar  = baseNetSatis * (sFaalMarj / 100);
+
+  // Net kar da faalMarjDelta kadar artar (faaliyet karı FAVÖK iyileştirmesi → net kara yansır)
+  const sVoKarFaal = baseNetSatis * ((baseNetSatis > 0 ? baseVoKar/baseNetSatis*100 : 0) + faalMarjDelta) / 100;
+  const p = _senaryoPuan(baseOz, baseTotalBor, baseDonenVar, baseKvBorclar, baseLikit,
+    baseNetSatis, sVoKarFaal, sFaalKar, baseToplamFin, baseAktif,
+    r.ihracatSatis, basePrevFaalKar, baseKvMaliBor, faalMarjDelta, 0, 0);
+
+  // Offset: gerçek analiz puanı ile _senaryoPuan bazı arasındaki fark
+  const _realToplam2 = (state._last || state.lastResult) ? (state._last || state.lastResult).toplam : (base.s + subjPuan);
+  const _offset2 = _realToplam2 - (base.s + subjPuan);
+  return {
+    puan: p.s + subjPuan + _offset2,
+    puanArtis: p.s - base.s,
+    uvdeKalan: 0,
+    netKvAzalis: 0
+  };
+}
+
 function _rsSimule(r, subjPuan, sermaye, kvPct, vade, karMarj, satisDelta) {
+    const _enflRs = (typeof getUfe === 'function') ? getUfe(parseInt((document.getElementById('refYear')||{value:'2024'}).value)) : (window._senaryoEnflasyon || 0);
+  const faalMarjDelta = 0; // _rsSimule faaliyet marj slider kullanmaz — her zaman 0
   // _renderSenaryo ile BİREBİR AYNI baz değerler
   const d = state.yearData[parseInt(document.getElementById('refYear').value)] || {};
   const baseOz        = r.ozKaynak    || 0;
@@ -4001,7 +4108,7 @@ function _rsSimule(r, subjPuan, sermaye, kvPct, vade, karMarj, satisDelta) {
   // Baz _senaryoPuan (_renderSenaryo ile aynı şekilde)
   const base = _senaryoPuan(baseOz, baseTotalBor, baseDonenVar, baseKvBorclar, baseLikit,
     baseNetSatis, baseVoKar, baseFaalKar, baseToplamFin, baseAktif,
-    r.ihracatSatis, basePrevFaalKar, baseKvMaliBor);
+    r.ihracatSatis, basePrevFaalKar, baseKvMaliBor, 0, 0, _enflRs);
 
   // _renderSenaryo ile birebir aynı hesap
   const kvOrani     = vade === 36 ? 1/3 : vade === 48 ? 1/4 : 1/5;
@@ -4016,9 +4123,14 @@ function _rsSimule(r, subjPuan, sermaye, kvPct, vade, karMarj, satisDelta) {
   // Sermaye artışı → Aktif 10. Hazır Değerler/Bankalar hesabına tam giriyor
   const sDonenVar  = baseDonenVar + sermaye;
   const sLikit     = baseLikit + sermaye;
+  // c11 için satisDelta'yı global'e ilet — _senaryoPuan içinde kullanılır
+  window._satisDeltaTemp = satisDelta;
   const sNetSatis  = baseNetSatis * (1 + satisDelta / 100);
-  const sVoKar     = sNetSatis * ((base.netKarMarj + karMarj) / 100);
-  const sFaalKar   = baseFaalKar;
+  // _rsSimule'de faaliyet karı (FAVÖK) marjı değişimi yok (sadece render senaryo slider'ında var)
+  // r.netKarMarj: calcObjScore'dan gelen gerçek değer (base.netKarMarj yerine)
+  const _baseNetKarMarj = (r.netKarMarj !== undefined ? r.netKarMarj : base.netKarMarj) || 0;
+  const sVoKar     = sNetSatis * ((_baseNetKarMarj + karMarj) / 100);
+  const sFaalKar   = baseFaalKar; // faaliyet karı değişmez — sadece faalMarj slider etkiler
   const sToplamFin = baseToplamFin;
   const sAktif     = baseAktif + sermaye;
   // Sermaye artışı: bankalar hesabına giriyor — KV banka borcu değişmez ama
@@ -4027,28 +4139,80 @@ function _rsSimule(r, subjPuan, sermaye, kvPct, vade, karMarj, satisDelta) {
 
   const p = _senaryoPuan(sOz, sTotalBor, sDonenVar, sKvBorclar, sLikit,
     sNetSatis, sVoKar, sFaalKar, sToplamFin, sAktif,
-    r.ihracatSatis, basePrevFaalKar, sKvBankaToplam);
+    r.ihracatSatis, basePrevFaalKar, sKvBankaToplam, 0, satisDelta, _enflRs);
 
+
+  // puan = analiz bazı + senaryo değişimi
+  // Bu şekilde _senaryoBolumu'daki toplam (calcObjScore bazlı) ile tutarlı olur
+  // Offset: gerçek analiz puanı ile _senaryoPuan bazı arasındaki fark
+  const _realToplam = (state._last || state.lastResult) ? (state._last || state.lastResult).toplam : (base.s + subjPuan);
+  const _offset = _realToplam - (base.s + subjPuan);
   return {
-    puan: p.s + subjPuan,
+    puan: subjPuan + p.s + _offset,
+    puanArtis: p.s - base.s,   // sadece finansal artış
     uvdeKalan, netKvAzalis,
     sOz, sKvBorclar, sKvBankaToplam, sNetSatis, sVoKar
   };
 }
 
 // 1. kademe için: sadece sermaye artışı — 27.6M TL sabit
-function _rsEnIyiSermaye(r, subjPuan, hedefEsik) {
-  const SABIT_SERM = 27600000; // 27.6 Milyon TL
-  const sonuc = _rsSimule(r, subjPuan, SABIT_SERM, 0, 48, 0, 0);
-  return { s:SABIT_SERM, k:0, m:0, sat:0, vade:48, puan:sonuc.puan,
-    uvdeKalan:sonuc.uvdeKalan, netKvAzalis:sonuc.netKvAzalis };
+function _rsEnIyiKvTasima(r, subjPuan, hedefEsik) {
+  // KV mali borcun %25'den %100'e kadar UV'ye taşınmasını dene
+  for (let kvPct = 25; kvPct <= 100; kvPct += 25) {
+    const sonuc = _rsSimule(r, subjPuan, 0, kvPct, 48, 0, 0);
+    if (sonuc.puan >= hedefEsik) {
+      return { s:0, k:kvPct, m:0, sat:0, faalmarj:0, vade:48, puan:sonuc.puan,
+        uvdeKalan:sonuc.uvdeKalan, netKvAzalis:sonuc.netKvAzalis };
+    }
+  }
+  // Ulaşılamıyorsa %100 ile en iyi sonucu döndür
+  const sonuc100 = _rsSimule(r, subjPuan, 0, 100, 48, 0, 0);
+  return { s:0, k:100, m:0, sat:0, faalmarj:0, vade:48, puan:sonuc100.puan,
+    uvdeKalan:sonuc100.uvdeKalan, netKvAzalis:sonuc100.netKvAzalis };
 }
 
-// 2. kademe için: sadece satış büyümesi — %15 sabit
+function _rsEnIyiSermaye(r, subjPuan, hedefEsik) {
+  // Hedef eşiğe ulaşmak için gereken minimum sermaye artışını bul
+  const adimBin = 500000; // 500K adım
+  const maxSerm = (r.ozKaynak || 1) * 10;
+  for (let serm = adimBin; serm <= maxSerm; serm += adimBin) {
+    const sonuc = _rsSimule(r, subjPuan, serm, 0, 48, 0, 0);
+    if (sonuc.puan >= hedefEsik) {
+      return { s:serm, k:0, m:0, sat:0, faalmarj:0, vade:48, puan:sonuc.puan,
+        uvdeKalan:sonuc.uvdeKalan, netKvAzalis:sonuc.netKvAzalis };
+    }
+  }
+  // Ulaşılamıyorsa en büyük değerle sonucu göster
+  const sonucMax = _rsSimule(r, subjPuan, maxSerm, 0, 48, 0, 0);
+  return { s:maxSerm, k:0, m:0, sat:0, faalmarj:0, vade:48, puan:sonucMax.puan,
+    uvdeKalan:sonucMax.uvdeKalan, netKvAzalis:sonucMax.netKvAzalis };
+}
 function _rsEnIyiSatis(r, subjPuan, hedefEsik) {
-  const SABIT_SAT = 15; // %15 satış artışı
-  const sonuc = _rsSimule(r, subjPuan, 0, 0, 48, 0, SABIT_SAT);
-  return { s:0, k:0, m:0, sat:SABIT_SAT, vade:48, puan:sonuc.puan,
+  // Hedef eşiğe ulaşmak için gereken minimum satış büyümesini bul
+  for (let delta = 5; delta <= 60; delta += 5) {
+    const sonuc = _rsSimule(r, subjPuan, 0, 0, 48, 0, delta);
+    if (sonuc.puan >= hedefEsik) {
+      return { s:0, k:0, m:0, sat:delta, faalmarj:0, vade:48, puan:sonuc.puan,
+        uvdeKalan:0, netKvAzalis:0 };
+    }
+  }
+  // %60 ile ulaşılamıyorsa null döndür — bu kademe için yeterli değil
+  return null;
+}
+
+// Faaliyet Karı (FAVÖK) Marjı artışı — %5 sabit
+function _rsEnIyiFaalMarj(r, subjPuan, hedefEsik) {
+  // hedefEsik'e ulaşmak için gereken faaliyet karı (FAVÖK) marjı artışını dene
+  for (let delta = 2; delta <= 50; delta += 1) {
+    const sonuc = _rsSimuleFaal(r, subjPuan, delta);
+    if (sonuc.puan >= hedefEsik) {
+      return { s:0, k:0, m:0, sat:0, faalmarj:delta, vade:0, puan:sonuc.puan,
+        uvdeKalan:0, netKvAzalis:0 };
+    }
+  }
+  // %50 ile dahi ulaşılamıyorsa en iyi sonucu döndür
+  const sonuc50 = _rsSimuleFaal(r, subjPuan, 50);
+  return { s:0, k:0, m:0, sat:0, faalmarj:50, vade:0, puan:sonuc50.puan,
     uvdeKalan:0, netKvAzalis:0 };
 }
 
@@ -4091,9 +4255,9 @@ function _rsEnIyi(r, subjPuan, hedefEsik, excludeParams) {
 
 // Not skalası — getRating ile birebir
 const _NOT_SKALA = [
-  {not:'D',  esik:0 }, {not:'C',  esik:30}, {not:'CC', esik:37},
-  {not:'CCC',esik:45}, {not:'B',  esik:53}, {not:'BB', esik:61},
-  {not:'BBB',esik:69}, {not:'A',  esik:77}, {not:'AA', esik:85}, {not:'AAA',esik:94}
+  {not:'D',  esik:0    }, {not:'C',  esik:30  }, {not:'CC', esik:36.01},
+  {not:'CCC',esik:44.01}, {not:'B',  esik:52.01}, {not:'BB', esik:60.01},
+  {not:'BBB',esik:68.01}, {not:'A',  esik:76.01}, {not:'AA', esik:84.01}, {not:'AAA',esik:93.01}
 ];
 const _NOT_RENK = {
   D:'#dc2626',C:'#ef4444',CC:'#f87171',CCC:'#fb923c',
@@ -4130,8 +4294,11 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
   const baseLikit     = r.likit     || 0;
   const baseBase = _senaryoPuan(baseOz, r.totalBor||0, r.donenVarlik||0, baseKvBorclar,
     baseLikit, baseNetSatis, baseVoKar, r.faalKar||0, r.toplamFinBor||0, r.aktif||0,
-    r.ihracatSatis, r.prevFaalKar||0, baseKvMaliBor);
+    r.ihracatSatis, r.prevFaalKar||0, baseKvMaliBor, 0, 0, 0);
   const bazNetKarMarj = baseBase.netKarMarj;
+  // _senaryoPuan bazı ile calcObjScore bazı arasındaki fark
+  // Tüm senaryo puanları bu offset ile düzeltilir
+  const _senaryoOffset = toplam - (baseBase.s + subjPuan);
 
   const TL2 = n => n>=1e9?(n/1e9).toFixed(2)+' Milyar TL'
                :n>=1e6?(n/1e6).toFixed(2)+' Milyon TL'
@@ -4153,6 +4320,7 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
         + '</p>';
 
   let _k1Params = null; // 1. kademede kullanılan parametreler
+  let c1result = null;   // 2. kademe birikimli hesap için
   for (const {not, esik, kademe} of hedefler) {
     const renk = _NOT_RENK[not] || '#f5a623';
 
@@ -4163,10 +4331,49 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
       continue;
     }
 
-    // 1. kademe: sadece sermaye artışı | 2. kademe: sadece satış büyümesi
-    const c = kademe === 1
-      ? _rsEnIyiSermaye(r, subjPuan, esik)
-      : _rsEnIyiSatis(r, subjPuan, esik);
+    // Kademe 1: KV taşıma → faaliyet karı (FAVÖK) marjı → satış büyümesi (sermaye YOK)
+    // Kademe 2: sermaye artışı → faaliyet karı (FAVÖK) marjı
+    let c;
+    if (kademe === 1) {
+      // Önce KV taşıma dene
+      const cKv = _rsEnIyiKvTasima(r, subjPuan, esik);
+      // Sonra faaliyet karı (FAVÖK) marjı dene
+      const cFaal1 = _rsEnIyiFaalMarj(r, subjPuan, esik);
+      // Sonra satış büyümesi dene
+      const cSat1 = _rsEnIyiSatis(r, subjPuan, esik);
+      // En az değişimle hedefi karşılayanı seç
+      if (cKv && cKv.puan >= esik) c = cKv;
+      else if (cFaal1 && cFaal1.puan >= esik) c = cFaal1;
+      else if (cSat1 && cSat1.puan >= esik) c = cSat1;
+      else c = cKv || cFaal1 || cSat1; // hiçbiri yetmiyorsa en iyisini göster
+    } else {
+      // 2. kademe: sermaye artışı ana kriter, sonra faaliyet karı (FAVÖK) marjı
+      // 1. kademenin birikimli sonucundan başla
+      const r2 = _k1Params && _k1Params.s && c1result
+        ? Object.assign({}, r, {
+            ozKaynak: (r.ozKaynak||0) + (c1result.s||0),
+            donenVarlik: (r.donenVarlik||0) + (c1result.s||0),
+            likit: (r.likit||0) + (c1result.s||0),
+            aktif: (r.aktif||0) + (c1result.s||0)
+          })
+        : r;
+      const subjPuan2 = subjPuan;
+      // Kademe 2: önce sermaye artışı, sonra faaliyet karı (FAVÖK) marjı
+      const cSerm = _rsEnIyiSermaye(r2, subjPuan2, esik);
+      const cFaal = _rsEnIyiFaalMarj(r2, subjPuan2, esik);
+      // Sermaye artışı hedefi karşılıyorsa onu göster
+      if (cSerm && cSerm.puan >= esik) {
+        c = cSerm;
+      } else if (cFaal && cFaal.puan >= esik) {
+        c = cFaal;
+      } else {
+        // İkisi de yetmiyorsa en iyi sonucu göster
+        c = (cSerm && cFaal)
+          ? (cSerm.puan >= cFaal.puan ? cSerm : cFaal)
+          : (cSerm || cFaal);
+      }
+      window._k2SatisOneri = null;
+    }
 
     if (!c) {
       html += '<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;'
@@ -4180,23 +4387,29 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
     // 1. kademe parametrelerini kaydet — 2. kademe farklı seçsin
     if (kademe === 1 && c) {
       _k1Params = { s: c.s > 0, k: c.k > 0, m: c.m > 0, sat: c.sat > 0 };
+      c1result = c; // 2. kademe birikimli hesap için
     }
-    const pArtis = (c.puan - toplam).toFixed(1);
+    // c.puan'ı analiz bazına göre düzelt
+    const cPuanDuzeltilmis = c.puan + _senaryoOffset;
+    const gercekRating = getRating(cPuanDuzeltilmis);
+    const pArtis = (cPuanDuzeltilmis - toplam).toFixed(1);
 
     html += '<div style="border:2px solid rgba(255,255,255,.1);border-left:4px solid ' + renk + ';page-break-inside:avoid;'
           + 'border-radius:10px;padding:18px;margin-bottom:16px">'
           + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">'
           + '<div style="background:' + renk + '22;border:1.5px solid ' + renk + ';'
-          + 'border-radius:8px;padding:6px 18px;font-size:22px;font-weight:900;color:' + renk + '">' + not + '</div>'
-          + '<div><div style="font-size:13px;font-weight:700">Kredi Notu ' + (kademe===1?'1':'2') + ' Kademe Artırma Önerisi &mdash; Hedef: ' + not + '</div>'
+          + 'border-radius:8px;padding:6px 18px;font-size:22px;font-weight:900;color:' + gercekRating.color + '">' + gercekRating.note + '</div>'
+          + '<div><div style="font-size:13px;font-weight:700">Kredi Notu ' + (kademe===1?'1':'2') + ' Kademe Artırma Önerisi &mdash; Hedef: ' + gercekRating.note + '</div>'
           + '<div style="font-size:11px;color:#64748b">Gereken: &ge;' + esik
-          + ' &nbsp;|&nbsp; Senaryo: ' + c.puan.toFixed(1)
+          + ' &nbsp;|&nbsp; Senaryo: ' + cPuanDuzeltilmis.toFixed(1)
           + ' &nbsp;|&nbsp; <span style="color:#22c55e">+' + pArtis + ' puan</span></div>'
           + '</div></div>'
           + '<table style="margin-bottom:0">'
           + '<tr><th>PARAMETRE</th><th>MEVCUT</th><th>'
-          + (c.s>0 && !c.k && !c.m && !c.sat ? 'ÖNERİLEN (Sermaye Artışı)'
-            : c.k>0 && !c.s && !c.m && !c.sat ? 'ÖNERİLEN (48 ay KV Taşıma)'
+          + (c.s>0 && !c.k && !c.m && !c.sat && !c.faalmarj ? 'ÖNERİLEN (Sermaye Artışı)'
+            : c.k>0 && !c.s && !c.m && !c.sat && !c.faalmarj ? 'ÖNERİLEN (48 ay KV Taşıma)'
+            : c.faalmarj>0 && !c.s && !c.k && !c.sat ? 'ÖNERİLEN (Faaliyet Karı FAVÖK Marjı)'
+            : c.sat>0 && !c.s && !c.k && !c.faalmarj ? 'ÖNERİLEN (Satış Büyümesi)'
             : 'ÖNERİLEN')
           + '</th><th>AÇIKLAMA</th></tr>';
 
@@ -4221,6 +4434,15 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
             + '<td>%' + bazNetKarMarj.toFixed(1) + '</td>'
             + '<td style="color:#22c55e;font-weight:700">+%' + c.m + ' (&rarr; %' + (bazNetKarMarj+c.m).toFixed(1) + ')</td>'
             + '<td style="font-size:12px;color:#64748b">Gider azaltımı veya fiyat artışı</td></tr>';
+    }
+    if (c.faalmarj > 0) {
+      const mevcutFaalMarj = r.netSatis > 0 ? (r.faalKar||0) / r.netSatis * 100 : 0;
+      html += '<tr>'
+            + '<td>🏭 Faaliyet Karı (FAVÖK) Marjı</td>'
+            + '<td style="color:#e2e8f0">%' + mevcutFaalMarj.toFixed(1) + '</td>'
+            + '<td style="color:#22c55e;font-weight:700">+%' + c.faalmarj + ' (&rarr; %' + (mevcutFaalMarj+c.faalmarj).toFixed(1) + ')</td>'
+            + '<td style="color:#94a3b8">Faaliyet giderlerini azaltın / fiyat artışı yapın</td>'
+            + '</tr>';
     }
     if (c.sat > 0) {
       html += '<tr><td><b>&#128202; Net Satış Büyümesi</b></td>'
@@ -4301,6 +4523,7 @@ function generatePDF() {
   const tip = state.firmType==='uretim' ? 'Üretim' : state.firmType==='pazarlama' ? 'Pazarlama' : 'Taahhüt';
   // Prev değerlerini generatePDF başında set et — senaryo bölümü için
   window._senaryoPrevC5  = r.reelFaalKarBuy > 14 ? 5 : r.reelFaalKarBuy > 9 ? 4 : r.reelFaalKarBuy > 5 ? 3 : r.reelFaalKarBuy > 2 ? 2 : r.reelFaalKarBuy > 0 ? 1 : 0;
+  window._senaryoPrevFaalKar = r.prevFaalKar || 0;
   window._senaryoPrevC9  = r.ihracatPuan || 0;
   window._senaryoPrevC11 = r.reelSatisBuy > 150 ? 0 : r.reelSatisBuy > 110 ? 1 : r.reelSatisBuy > 70 ? 4 : r.reelSatisBuy > 20 ? 5 : r.reelSatisBuy > 4 ? 4 : r.reelSatisBuy > 0 ? 1 : 0;
   const donem = state.period==='12' ? 'Aralık (Yıl Sonu)' : state.period+'. Ay Sonu';
@@ -4337,7 +4560,7 @@ function generatePDF() {
   if (r.kvBankaB_Sat > 20) _oneriler.push({icon:'🏦', text:'<b>KV banka borçlarını azaltma:</b> KV Banka Borç/Satış <b>'+r.kvBankaB_Sat.toFixed(1)+'%</b> (hedef ≤%20). UV krediye dönüştürme veya geri ödemesiyle <b>+4 puan</b> katkı sağlanabilir.'});
   if (r.cariOran < 1.25) _oneriler.push({icon:'🔵', text:'<b>Dönen varlıkları artırma / KV borç azaltma:</b> Cari oran <b>'+r.cariOran.toFixed(2)+'</b> (hedef >1.39). Nakit ve tahsilat artışıyla <b>3-9 puan</b> iyileşme sağlanabilir.'});
   if (r.likOran < (_paz ? 0.69 : 0.59)) _oneriler.push({icon:'💧', text:'<b>Likit varlıkları artırma:</b> Likidite oranı <b>'+r.likOran.toFixed(2)+'</b> (hedef >'+(_paz?'0.84':'0.74')+'. Nakit ve stok yapısı optimize edilmesiyle <b>3-6 puan</b> iyileşme.'});
-  if (r.netKarMarj < (_paz ? 9 : 14)) _oneriler.push({icon:'📈', text:'<b>Karlılık artışı:</b> Net Kar Marjı <b>'+r.netKarMarj.toFixed(1)+'%</b> (hedef >%50. Fiyat artışı veya maliyet kontrolüyle <b>2-5 puan</b> katkı.'});
+  if (r.netKarMarj < (_paz ? 9 : 14)) _oneriler.push({icon:'📈', text:'<b>Karlılık artışı:</b> Net Kar Marjı <b>'+r.netKarMarj.toFixed(1)+'%</b> (hedef >'+(_paz?'%9':'%14')+'. Fiyat artışı veya maliyet kontrolüyle <b>2-5 puan</b> katkı.'});
   if (r.reelFaalKarBuy < 5) _oneriler.push({icon:'📊', text:'<b>Faaliyet karlılığını artırma:</b> Reel faaliyet karı büyümesi <b>'+r.reelFaalKarBuy.toFixed(1)+'%</b> (hedef >%5). <b>+3-5 puan</b> katkı.'});
   if (r.alacakTahsil > 90) _oneriler.push({icon:'📋', text:'<b>Alacak tahsilatını hızlandırma:</b> Tahsil süresi <b>'+r.alacakTahsil.toFixed(0)+' gün</b> (hedef ≤60 gün). Faktoring veya erken ödeme iskontosu önerilir.'});
   if (r.stokGun > 120) _oneriler.push({icon:'📦', text:'<b>Stok yönetimini iyileştirme:</b> Stok gün sayısı <b>'+r.stokGun.toFixed(0)+' gün</b> (hedef ≤90 gün).'});
@@ -4679,7 +4902,7 @@ function generatePDF() {
   <tr><td>Faiz Karşılama</td><td>${N2(r.faizKarsilama)}x</td><td>Min:1x / İyi:3x</td><td><span class="badge-s ${r.faizKarsilama>=3?'s-ok':r.faizKarsilama>=1?'s-warn':'s-bad'}">${r.faizKarsilama>=3?'İYİ':r.faizKarsilama>=1?'KABUL':'ZAYIF'}</span></td></tr>
   <tr><td rowspan="4" style="font-weight:700;color:#22c55e;font-size:11px">KARLILIK</td>
     <td>Brüt Kar Marjı</td><td>${PCT(r.brutMarj)}</td><td>Min:%10 / İyi:%20</td><td><span class="badge-s ${r.brutMarj>=20?'s-ok':r.brutMarj>=10?'s-warn':'s-bad'}">${r.brutMarj>=20?'İYİ':r.brutMarj>=10?'KABUL':'ZAYIF'}</span></td></tr>
-  <tr><td>Faaliyet Kar Marjı</td><td>${PCT(r.faalMarj)}</td><td>Min:%0 / İyi:%10</td><td><span class="badge-s ${r.faalMarj>=10?'s-ok':r.faalMarj>=0?'s-warn':'s-bad'}">${r.faalMarj>=10?'İYİ':r.faalMarj>=0?'KABUL':'ZAYIF'}</span></td></tr>
+  <tr><td>Faaliyet Karı (FAVÖK) Marjı</td><td>${PCT(r.faalMarj)}</td><td>Min:%0 / İyi:%10</td><td><span class="badge-s ${r.faalMarj>=10?'s-ok':r.faalMarj>=0?'s-warn':'s-bad'}">${r.faalMarj>=10?'İYİ':r.faalMarj>=0?'KABUL':'ZAYIF'}</span></td></tr>
   <tr><td>Net Kar Marjı</td><td>${PCT(netMarj)}</td><td>Min:%0 / İyi:%5</td><td><span class="badge-s ${netMarj>=5?'s-ok':netMarj>=0?'s-warn':'s-bad'}">${netMarj>=5?'İYİ':netMarj>=0?'KABUL':'ZAYIF'}</span></td></tr>
   <tr><td>EBITDA Marjı</td><td>${PCT(r.ebitdaMarj)}</td><td>Min:%5 / İyi:%15</td><td><span class="badge-s ${r.ebitdaMarj>=15?'s-ok':r.ebitdaMarj>=5?'s-warn':'s-bad'}">${r.ebitdaMarj>=15?'İYİ':r.ebitdaMarj>=5?'KABUL':'ZAYIF'}</span></td></tr>
   <tr><td rowspan="2" style="font-weight:700;color:#8b5cf6;font-size:11px">VERİMLİLİK</td>
@@ -4833,6 +5056,15 @@ ${(function(){
   Rapordaki bilgiler girilen verilere dayanmakta olup bağımsız bir finansal danışmanlık hizmeti değildir.
 </div>
 </div>
+<script>
+// Sayfa kapanınca / değişince sesi durdur
+window.addEventListener('beforeunload', () => {
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && window.speechSynthesis) window.speechSynthesis.cancel();
+});
+</script>
 </body></html>`;
 
   try {
@@ -5629,7 +5861,7 @@ function mizanTextIsle(text, structuredLines) {
   // Beyanname formatı: ". A. Hazır Değerler  0,00  8.820.155,96"
   // Mizan formatı:     "100  KASA  1234,56  0,00  1234,56  0,00"
   const isBeyannameFormat = lines.some(l =>
-    /^\.\s+[A-Z][.\s]/.test(l.trim()) || /^(I{1,3}V?|IV|V)\.\s+/.test(l.trim()) || /^[A-H]\.\s/.test(l.trim())
+    /^\.\s+[A-Z][\.\s]/.test(l.trim()) || /^(I{1,3}V?|IV|V)\.\s+/.test(l.trim())
   );
 
   importLog(`📄 Format: ${isBeyannameFormat ? 'Beyanname/Ayrıntılı Bilanço' : 'Mizan'}`, 'info');
@@ -5677,8 +5909,6 @@ function mizanTextIsleBeyanname(lines, result, year) {
 
     // Gelir tablosu: "A. Brüt Satışlar" gibi başlıklar (nokta yok, harf ile başlar)
     const isGelirAna = /^[a-k][\.\s]/.test(ln) && !/^\.\s/.test(line);
-    // Noktasız format: "A. Brüt Satışlar" (geçici beyanname gelir tablosu)
-    const isGelirAnaNokta = /^[a-k]\.\s/.test(ln) && !/^\.\s/.test(line);
     // Grup satırı: SADECE harf ile başlayan ". A." / ". B." satırları — toplam satırları
     // ". 1." / ". 3." gibi rakamla başlayan ALT KALEMLER dahil değil (çift sayım önlenir)
     const isGrupHarf = /^\.\s+[a-z][\.\s]/.test(ln);  // sadece harf: ". A.", ". B." vs.
@@ -5687,7 +5917,7 @@ function mizanTextIsleBeyanname(lines, result, year) {
     const isYurtdisi = /^\.\s+\d+\.?\s*yurt/.test(ln);  // boşluk/nokta varyasyonlarını yakala
     // KURAL: Alt rakam satırları atla (ihracat hariç) — grup harf satırları ve gelir ana satırları al
     if (isAltRakam && !isYurtdisi) continue;
-    if (!isGrupHarf && !isGelirAna && !isGelirAnaNokta && !isGelirIJ && !isYurtdisi) continue;
+    if (!isGrupHarf && !isGelirAna && !isGelirIJ && !isYurtdisi) continue;
 
     // Sayıları çek: "Önceki Dönem  Cari Dönem" → son sayı = cari dönem
     const sayilar = [...line.matchAll(/(?<![\w\d])-?[\d]+[\d.]*,\d{2}/g)]
@@ -6596,8 +6826,6 @@ function obRender() {
 
 // ── Avatar Chat ───────────────────────────────────────────────
 function showAvatarChat() {
-  window._avKapali = false;
-  clearTimeout(window._avKapaliTimer);
   const m = document.getElementById('avatarModal');
   const b = document.getElementById('avatarBtn');
   if (!m) return;
@@ -6618,9 +6846,6 @@ function hideAvatarChat() {
   if (m) m.style.display = 'none';
   if (b) b.style.animation = 'avPulse 2.5s ease-in-out infinite';
   if (window.speechSynthesis) window.speechSynthesis.cancel();
-  window._avKapali = true;
-  clearTimeout(window._avKapaliTimer);
-  window._avKapaliTimer = setTimeout(() => { window._avKapali = false; }, 60000);
 }
 
 function _avAddMsg(role, text) {
@@ -6678,7 +6903,7 @@ function avSesOku(html) {
   const _demoEndTimer = setTimeout(() => {
     if (typeof window._demoOnEnd === 'function') window._demoOnEnd();
   }, Math.min(20000, Math.max(6000, text.split(' ').length * 400)));
-  speechSynthesis.speak(utt);
+  if (!window._avKapatildi) { speechSynthesis.speak(utt); }
 }
 
 function _avTyping() {
@@ -6809,7 +7034,7 @@ function _baykusSenaryoAc() {
       r.toplamFinBor || 0, r.aktif || 0,
       r.ihracatSatis || 0, r.prevFaalKar || 0,
       r.kvBankaB_Sat > 0 ? r.kvBankaB_Sat / 100 * (r.netSatis || 0) : 0
-    );
+    , 0, 0, 0);
     const toplamBase = baseCalc.s + subjPuan;
     // _lastKirilimData'yı taze değerle güncelle
     window._lastKirilimData = baseCalc;
@@ -6970,14 +7195,12 @@ function _baykusSenaryoAc() {
 let _baykusDebTimer = null;
 let _baykusOncekiNot = null;
 function _baykusSenaryoDebounce() {
-  if (window._avKapali) return;
   if (window._demoMod) return; // Demo modunda slider Baykuş konuşmasın
   clearTimeout(_baykusDebTimer);
   _baykusDebTimer = setTimeout(() => _baykusSenaryoYorum(), 900);
 }
 
 function _baykusSenaryoYorum() {
-  if (window._avKapali) return;
   const r = window._lastR;
   if (!r) return;
 
@@ -7009,10 +7232,11 @@ function _baykusSenaryoYorum() {
 
   // _senaryoPrevC5/C9/C11'i bağımsız set et — _renderSenaryo'ya bağımlılık olmasın
   window._senaryoPrevC5  = r.reelFaalKarBuy > 14 ? 5 : r.reelFaalKarBuy > 9 ? 4 : r.reelFaalKarBuy > 5 ? 3 : r.reelFaalKarBuy > 2 ? 2 : r.reelFaalKarBuy > 0 ? 1 : 0;
+  window._senaryoPrevFaalKar = r.prevFaalKar || 0;
   window._senaryoPrevC9  = r.ihracatPuan || 0;
   window._senaryoPrevC11 = r.reelSatisBuy > 150 ? 0 : r.reelSatisBuy > 110 ? 1 : r.reelSatisBuy > 70 ? 4 : r.reelSatisBuy > 20 ? 5 : r.reelSatisBuy > 4 ? 4 : r.reelSatisBuy > 0 ? 1 : 0;
 
-  const base = _senaryoPuan(baseOz, baseTotalBor, baseDonenVar, baseKvBorclar, baseLikit, baseNetSatis, baseVoKar, baseFaalKar, baseToplamFin, baseAktif, r.ihracatSatis, basePrevFaalKar, baseKvBankaToplam);
+  const base = _senaryoPuan(baseOz, baseTotalBor, baseDonenVar, baseKvBorclar, baseLikit, baseNetSatis, baseVoKar, baseFaalKar, baseToplamFin, baseAktif, r.ihracatSatis, basePrevFaalKar, baseKvBankaToplam, 0, 0, 0);
   const totalBase = base.s + subjPuan;
   const baseRating = getRating(totalBase);
 
@@ -7036,7 +7260,8 @@ function _baykusSenaryoYorum() {
   const sAktif = baseAktif + sermayeArtis;
   const sKvBankaToplam = Math.max(0, baseKvMaliBor - netKvAzalis);  // KV mali borç azalır
 
-  const sen = _senaryoPuan(sOz, baseTotalBor, sDonenVar, sKvBorclar, sLikit, sNetSatis, sVoKar, baseFaalKar, baseToplamFin, sAktif, r.ihracatSatis, basePrevFaalKar, sKvBankaToplam);
+  const sen = _senaryoPuan(sOz, baseTotalBor, sDonenVar, sKvBorclar, sLikit, sNetSatis, sVoKar, baseFaalKar, baseToplamFin, sAktif, r.ihracatSatis, basePrevFaalKar, sKvBankaToplam, 0, 0, 0);
+
   const totalSen = sen.s + subjPuan;
   const senRating = getRating(totalSen);
   const pDiff = sen.s - base.s;
@@ -7167,6 +7392,7 @@ function _avSenaryoSoruYanit(s) {
     if (r.borcOzKay > (paz?2:1.5)) liste.push({ aksiyon: 'Sermaye artışı', zorluk: 'Orta', aciklama: 'Ortak desteği veya kar transferi ile yapılabilir.' });
     if (r.cariOran < 1.25) liste.push({ aksiyon: 'KV→UV borç taşıma', zorluk: 'Orta', aciklama: 'Mevcut banka ilişkisi güçlüyse görece kolay.' });
     if (r.netKarMarj < 5) liste.push({ aksiyon: 'Kar marjı iyileştirme', zorluk: 'Zor', aciklama: 'Fiyat artışı veya maliyet kesintisi gerektirir.' });
+    if (r.faalMarj !== undefined && r.faalMarj < 8) liste.push({ aksiyon: 'Faaliyet Karı (FAVÖK) Marjı artışı', zorluk: 'Orta', aciklama: 'Gider azaltımı veya fiyat artışı ile faaliyet verimliliği. Rating sisteminde doğrudan etki.' });
     if (liste.length === 0) return '🏆 Kriterler zaten güçlü! Büyük aksiyon gerekmiyor.';
     return `<b>Firmaya özel öneri sırası:</b><br>`
       + liste.map((l, i) => `<div style="margin:5px 0;padding:6px 10px;background:rgba(255,255,255,.04);border-radius:7px">`
@@ -7200,7 +7426,7 @@ function _avMatchText(q) {
         r.netSatis||0, r.voKar||0, r.faalKar||0,
         r.toplamFinBor||0, r.aktif||0, r.ihracatSatis||0, r.prevFaalKar||0,
         r.kvBankaB_Sat > 0 ? r.kvBankaB_Sat / 100 * (r.netSatis||0) : 0
-      );
+      , 0, 0, 0);
       const totalBase = bc.s + subjPuan;
       const rating = getRating(totalBase);
       return `📈 <b>${firma} için Senaryo Analizi</b><br><br>`
@@ -7209,6 +7435,7 @@ function _avMatchText(q) {
         + `<div style="margin-top:6px;line-height:2">• 💰 Sermaye artışı → Borç/ÖK oranı<br>`
         + `• 🔄 KV→UV borç taşıma → Cari & likidite<br>`
         + `• 📊 Kar marjı iyileştirme → Karlılık puanı<br>`
+        + `• 🏭 Faaliyet Karı (FAVÖK) Marjı artışı → Operasyonel verimlilik<br>`
         + `• 📈 Satış büyümesi → KV borç/satış oranı</div><br>`
         + `<span style="color:#94a3b8">Senaryo butonu: Rating Hero bölümünde veya analiz sonrası.</span>`;
     }
@@ -7639,6 +7866,7 @@ let _demoSure  = 15 * 60; // 15 dakika saniye cinsinden
 
 function demoBaslat() {
   window._demoMod = true;
+  window._avKapatildi = false; // Demo modunda baykuş aktif
   window._demoKalan = _demoSure;
 
   document.getElementById('loginScreen').style.display = 'none';
@@ -7683,7 +7911,7 @@ function demoBaslat() {
       const trSes = voices.find(v => v.lang.startsWith('tr'));
       if (trSes) utt.voice = trSes;
       utt.lang = 'tr-TR'; utt.rate = 1.05;
-      speechSynthesis.speak(utt);
+      if (!window._avKapatildi) { speechSynthesis.speak(utt); }
     }
   }, 300);
 
@@ -7801,7 +8029,7 @@ function demoBaslat() {
         const trSes = voices.find(v => v.lang.startsWith('tr'));
         if (trSes) utt.voice = trSes;
         utt.lang='tr-TR'; utt.rate=1.05;
-        speechSynthesis.speak(utt);
+        if (!window._avKapatildi) { speechSynthesis.speak(utt); }
       }
     }
   }
@@ -8005,7 +8233,7 @@ function _demoAnalizSunumu() {
         const trSes = voices.find(v => v.lang.startsWith('tr'));
         if (trSes) utt.voice = trSes;
         utt.lang='tr-TR'; utt.rate=1.05;
-        speechSynthesis.speak(utt);
+        if (!window._avKapatildi) { speechSynthesis.speak(utt); }
       }
     }
   }
@@ -8100,10 +8328,35 @@ function _demoAnalizSunumu() {
         if (senModal) _vurgula(senModal, 14000);
       }, 800);
     }, 500);
-    _bsoy('Kredi notu artırma senaryo analizi. Dört kriter var: sermaye artışı, ' +
-      'kısa vadeli banka borcunu uzun vadeye taşımak, net kar marjı artışı ve ciro artışı. ' +
+    _bsoy('Kredi notu artırma senaryo analizi. Beş kriter var: sermaye artışı, ' +
+      'kısa vadeli banka borcunu uzun vadeye taşımak, faaliyet karı (FAVÖK) marjı artışı, net kar marjı artışı ve ciro artışı. ' +
+      'Faaliyet Karı (FAVÖK) Marjı artışı; operasyonel verimliliği iyileştirerek, gider azaltımı veya fiyat artışıyla sağlanır. ' +
       'Bu örnekte firma sermayesini 20 virgül 4 milyon TL artırdığında finansal not 9 puan artmaktadır.');
   }, 63000);
+
+  // ADIM 6b — Faaliyet Karı (FAVÖK) Marjı slider'ı göster | 78000ms
+  setTimeout(() => {
+    if (!window._demoMod) return;
+    // Faal marj slider'ını +5 yap
+    if (window._senaryoState) { window._senaryoState.faalmarj = 5; }
+    if (typeof _renderSenaryo === 'function') _renderSenaryo();
+    const faalSlider = document.getElementById('sld_faalmarj');
+    if (faalSlider) {
+      faalSlider.value = 5;
+      faalSlider.style.outline = '2px solid #fb923c';
+      const lbl = document.getElementById('lbl_faalmarj');
+      if (lbl) lbl.textContent = '+5.0%';
+    }
+    _bsoy('Faaliyet Karı (FAVÖK) Marjı slaydırı. Operasyonel verimliliği artırarak, gider azaltımı veya fiyat artışıyla faaliyet karı (FAVÖK) marjınızı yüzdece kaç puan artırabileceğinizi simüle edin. ' +
+      'Faaliyet karı hem c dört hem de c beş kriterini etkiler. Yüzde beş artışla puanın nasıl değiştiğini görün.');
+    // Slider'ı sıfırla
+    setTimeout(() => {
+      if (window._senaryoState) { window._senaryoState.faalmarj = 0; }
+      if (typeof _renderSenaryo === 'function') _renderSenaryo();
+      const faalSlider2 = document.getElementById('sld_faalmarj');
+      if (faalSlider2) { faalSlider2.value = 0; faalSlider2.style.outline = ''; }
+    }, 8000);
+  }, 78000);
 
   // ADIM 7 — KV→UV taşıma ek senaryo ve simülasyon | 78000ms (+6sn: ADIM 6 metni 18sn)
   setTimeout(() => {
