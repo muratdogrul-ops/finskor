@@ -4147,9 +4147,9 @@ function _rsSimuleFaal(r, subjPuan, faalMarjDelta) {
   };
 }
 
-function _rsSimule(r, subjPuan, sermaye, kvPct, vade, karMarj, satisDelta) {
+function _rsSimule(r, subjPuan, sermaye, kvPct, vade, karMarj, satisDelta, faalMarjDelta) {
     const _enflRs = (typeof getUfe === 'function') ? getUfe(parseInt((document.getElementById('refYear')||{value:'2024'}).value)) : (window._senaryoEnflasyon || 0);
-  const faalMarjDelta = 0; // _rsSimule faaliyet marj slider kullanmaz — her zaman 0
+  if (faalMarjDelta === undefined || faalMarjDelta === null) faalMarjDelta = 0;
   // _renderSenaryo ile BİREBİR AYNI baz değerler
   const d = state.yearData[parseInt(document.getElementById('refYear').value)] || {};
   const baseOz        = r.ozKaynak    || 0;
@@ -4189,8 +4189,9 @@ function _rsSimule(r, subjPuan, sermaye, kvPct, vade, karMarj, satisDelta) {
   // _rsSimule'de faaliyet kar marjı değişimi yok (sadece render senaryo slider'ında var)
   // r.netKarMarj: calcObjScore'dan gelen gerçek değer (base.netKarMarj yerine)
   const _baseNetKarMarj = (r.netKarMarj !== undefined ? r.netKarMarj : base.netKarMarj) || 0;
-  const sVoKar     = sNetSatis * ((_baseNetKarMarj + karMarj) / 100);
-  const sFaalKar   = baseFaalKar; // faaliyet karı değişmez — sadece faalMarj slider etkiler
+  const sVoKar     = sNetSatis * ((_baseNetKarMarj + karMarj + faalMarjDelta) / 100);
+  const sFaalMarj0 = baseNetSatis > 0 ? (baseFaalKar / baseNetSatis * 100) : 0;
+  const sFaalKar   = sNetSatis * ((sFaalMarj0 + faalMarjDelta) / 100);
   const sToplamFin = baseToplamFin;
   const sAktif     = baseAktif + sermaye;
   // Sermaye artışı: bankalar hesabına giriyor — KV banka borcu değişmez ama
@@ -4199,7 +4200,7 @@ function _rsSimule(r, subjPuan, sermaye, kvPct, vade, karMarj, satisDelta) {
 
   const p = _senaryoPuan(sOz, sTotalBor, sDonenVar, sKvBorclar, sLikit,
     sNetSatis, sVoKar, sFaalKar, sToplamFin, sAktif,
-    r.ihracatSatis, basePrevFaalKar, sKvBankaToplam, 0, satisDelta, _enflRs);
+    r.ihracatSatis, basePrevFaalKar, sKvBankaToplam, faalMarjDelta, satisDelta, _enflRs);
 
 
   const _realToplam = (state._last || state.lastResult) ? (state._last || state.lastResult).toplam : (base.s + subjPuan);
@@ -4216,14 +4217,14 @@ function _rsSimule(r, subjPuan, sermaye, kvPct, vade, karMarj, satisDelta) {
 function _rsEnIyiKvTasima(r, subjPuan, hedefEsik) {
   // KV mali borcun %25'den %100'e kadar UV'ye taşınmasını dene
   for (let kvPct = 25; kvPct <= 100; kvPct += 25) {
-    const sonuc = _rsSimule(r, subjPuan, 0, kvPct, 48, 0, 0);
+    const sonuc = _rsSimule(r, subjPuan, 0, kvPct, 48, 0, 0, 0);
     if (sonuc.puan >= hedefEsik) {
       return { s:0, k:kvPct, m:0, sat:0, faalmarj:0, vade:48, puan:sonuc.puan,
         uvdeKalan:sonuc.uvdeKalan, netKvAzalis:sonuc.netKvAzalis };
     }
   }
   // Ulaşılamıyorsa %100 ile en iyi sonucu döndür
-  const sonuc100 = _rsSimule(r, subjPuan, 0, 100, 48, 0, 0);
+  const sonuc100 = _rsSimule(r, subjPuan, 0, 100, 48, 0, 0, 0);
   return { s:0, k:100, m:0, sat:0, faalmarj:0, vade:48, puan:sonuc100.puan,
     uvdeKalan:sonuc100.uvdeKalan, netKvAzalis:sonuc100.netKvAzalis };
 }
@@ -4233,21 +4234,21 @@ function _rsEnIyiSermaye(r, subjPuan, hedefEsik) {
   const adimBin = 500000; // 500K adım
   const maxSerm = (r.ozKaynak || 1) * 10;
   for (let serm = adimBin; serm <= maxSerm; serm += adimBin) {
-    const sonuc = _rsSimule(r, subjPuan, serm, 0, 48, 0, 0);
+    const sonuc = _rsSimule(r, subjPuan, serm, 0, 48, 0, 0, 0);
     if (sonuc.puan >= hedefEsik) {
       return { s:serm, k:0, m:0, sat:0, faalmarj:0, vade:48, puan:sonuc.puan,
         uvdeKalan:sonuc.uvdeKalan, netKvAzalis:sonuc.netKvAzalis };
     }
   }
   // Ulaşılamıyorsa en büyük değerle sonucu göster
-  const sonucMax = _rsSimule(r, subjPuan, maxSerm, 0, 48, 0, 0);
+  const sonucMax = _rsSimule(r, subjPuan, maxSerm, 0, 48, 0, 0, 0);
   return { s:maxSerm, k:0, m:0, sat:0, faalmarj:0, vade:48, puan:sonucMax.puan,
     uvdeKalan:sonucMax.uvdeKalan, netKvAzalis:sonucMax.netKvAzalis };
 }
 function _rsEnIyiSatis(r, subjPuan, hedefEsik) {
   // Hedef eşiğe ulaşmak için gereken minimum satış büyümesini bul
   for (let delta = 5; delta <= 60; delta += 5) {
-    const sonuc = _rsSimule(r, subjPuan, 0, 0, 48, 0, delta);
+    const sonuc = _rsSimule(r, subjPuan, 0, 0, 48, 0, delta, 0);
     if (sonuc.puan >= hedefEsik) {
       return { s:0, k:0, m:0, sat:delta, faalmarj:0, vade:48, puan:sonuc.puan,
         uvdeKalan:0, netKvAzalis:0 };
@@ -4255,6 +4256,45 @@ function _rsEnIyiSatis(r, subjPuan, hedefEsik) {
   }
   // %60 ile ulaşılamıyorsa null döndür — bu kademe için yeterli değil
   return null;
+}
+
+/** Kademe 1: tek kriter yetmezse KV+FAVÖK, KV+satış, FAVÖK+satış (sermaye yok). */
+function _rsEnIyiKademe1Ikili(r, subjPuan, hedefEsik) {
+  const kvs = [25, 50, 75, 100];
+  const faals = [];
+  for (let f = 2; f <= 35; f++) faals.push(f);
+  const sats = [5, 10, 15, 20, 25, 30, 40, 50];
+  let best = null;
+  let bestMal = Infinity;
+  let bestP = -1;
+  const consider = (kv, f, sat, sonuc) => {
+    if (!sonuc || sonuc.puan < hedefEsik) return;
+    const n = (kv > 0 ? 1 : 0) + (f > 0 ? 1 : 0) + (sat > 0 ? 1 : 0);
+    if (n < 2) return;
+    const mal = (kv > 0 ? 2 : 0) + (f > 0 ? (1 + f * 0.22) : 0) + (sat > 0 ? (1 + sat * 0.06) : 0);
+    if (mal < bestMal || (mal === bestMal && sonuc.puan > bestP)) {
+      bestMal = mal;
+      bestP = sonuc.puan;
+      best = { s: 0, k: kv, m: 0, sat: sat, faalmarj: f, vade: 48, puan: sonuc.puan,
+        uvdeKalan: sonuc.uvdeKalan, netKvAzalis: sonuc.netKvAzalis };
+    }
+  };
+  for (const kv of kvs) {
+    for (const f of faals) {
+      consider(kv, f, 0, _rsSimule(r, subjPuan, 0, kv, 48, 0, 0, f));
+    }
+  }
+  for (const kv of kvs) {
+    for (const sat of sats) {
+      consider(kv, 0, sat, _rsSimule(r, subjPuan, 0, kv, 48, 0, sat, 0));
+    }
+  }
+  for (const f of faals) {
+    for (const sat of sats) {
+      consider(0, f, sat, _rsSimule(r, subjPuan, 0, 0, 48, 0, sat, f));
+    }
+  }
+  return best;
 }
 
 // Faaliyet kar marjı artışı
@@ -4291,7 +4331,7 @@ function _rsEnIyi(r, subjPuan, hedefEsik, excludeParams) {
   // Net kar marjı vergiye tabi olduğu için en son tercih
   // Skor: daha az parametre kullan, net kar marjını minimize et
   for (const s of SERM) for (const k of KV) for (const sat of SAT) for (const m of KM) {
-    const sonuc = _rsSimule(r, subjPuan, s, k, VADE, m, sat);
+    const sonuc = _rsSimule(r, subjPuan, s, k, VADE, m, sat, 0);
     if (sonuc.puan >= hedefEsik) {
       // Maliyet: net kar marjına 5x ceza (son tercih), diğerleri normal
       // excludeParams: 1. kademede kullanılan parametrelere 10x ek ceza
@@ -4322,6 +4362,32 @@ const _NOT_RENK = {
   B:'#d97706',BB:'#f59e0b',BBB:'#fbbf24',
   A:'#86efac',AA:'#4ade80',AAA:'#22c55e'
 };
+
+function _senaryoHedefNotKarsilaniyor(c, hedefNot) {
+  if (!c || !hedefNot) return false;
+  const rt = getRating(c.puan);
+  return (_NOT_INDEX[rt.note] ?? -1) >= (_NOT_INDEX[hedefNot] ?? 999);
+}
+
+/** 1. kademe sonrası bilanço — etkin likit + KV taşıma net düşüşü (_renderSenaryo ile uyum). */
+function _r2SenaryoAnalizR(r, c1) {
+  if (!c1) return r;
+  const refY = parseInt((document.getElementById('refYear') || { value: '2025' }).value);
+  const d = state.yearData[refY] || {};
+  const kvB0 = r.kvBorclar || (d.kvYKToplam || 0);
+  const addS = c1.s || 0;
+  const netKv = (c1.k > 0 && c1.netKvAzalis != null) ? c1.netKvAzalis : 0;
+  const effLikit = r.likit || ((r.donenVarlik || 0) * 0.5);
+  const aktif0 = r.aktif || ((r.donenVarlik || 0) + (d.duranVarlik || 0));
+  return Object.assign({}, r, {
+    ozKaynak: (r.ozKaynak || 0) + addS,
+    donenVarlik: (r.donenVarlik || 0) + addS,
+    likit: effLikit + addS,
+    aktif: aktif0 + addS,
+    kvBorclar: Math.max(0, kvB0 - netKv),
+    kvMaliBor: Math.max(0, (r.kvMaliBor || 0) - netKv)
+  });
+}
 
 function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
   const idx = _NOT_SKALA.findIndex(s => s.not === mevcutRating.note);
@@ -4395,28 +4461,23 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
     // Kademe 2: sermaye artışı → faaliyet kar marjı
     let c;
     if (kademe === 1) {
-      // Önce KV taşıma dene
       const cKv = _rsEnIyiKvTasima(r, subjPuan, esik);
-      // Sonra faaliyet kar marjı dene
       const cFaal1 = _rsEnIyiFaalMarj(r, subjPuan, esik);
-      // Sonra satış büyümesi dene
       const cSat1 = _rsEnIyiSatis(r, subjPuan, esik);
-      // En az değişimle hedefi karşılayanı seç
-      if (cKv && cKv.puan >= esik) c = cKv;
-      else if (cFaal1 && cFaal1.puan >= esik) c = cFaal1;
-      else if (cSat1 && cSat1.puan >= esik) c = cSat1;
-      else c = cKv || cFaal1 || cSat1; // hiçbiri yetmiyorsa en iyisini göster
+      let c1 = null;
+      if (cKv && cKv.puan >= esik) c1 = cKv;
+      else if (cFaal1 && cFaal1.puan >= esik) c1 = cFaal1;
+      else if (cSat1 && cSat1.puan >= esik) c1 = cSat1;
+      else c1 = cKv || cFaal1 || cSat1;
+      const cIk = _rsEnIyiKademe1Ikili(r, subjPuan, esik);
+      if (_senaryoHedefNotKarsilaniyor(cIk, not)) c = cIk;
+      else if (_senaryoHedefNotKarsilaniyor(c1, not)) c = c1;
+      else {
+        c = (cIk && c1) ? (cIk.puan >= c1.puan ? cIk : c1) : (cIk || c1);
+      }
     } else {
-      // 2. kademe: sermaye artışı ana kriter, sonra faaliyet kar marjı
-      // 1. kademenin birikimli sonucundan başla
-      const r2 = _k1Params && _k1Params.s && c1result
-        ? Object.assign({}, r, {
-            ozKaynak: (r.ozKaynak||0) + (c1result.s||0),
-            donenVarlik: (r.donenVarlik||0) + (c1result.s||0),
-            likit: (r.likit||0) + (c1result.s||0),
-            aktif: (r.aktif||0) + (c1result.s||0)
-          })
-        : r;
+      // 2. kademe: 1. kademe sonrası bilanço (etkin likit + KV net düşüşü)
+      const r2 = c1result ? _r2SenaryoAnalizR(r, c1result) : r;
       const subjPuan2 = subjPuan;
       // Kademe 2: önce sermaye artışı, sonra faaliyet kar marjı
       const cSerm = _rsEnIyiSermaye(r2, subjPuan2, esik);
@@ -4444,11 +4505,6 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
       continue;
     }
 
-    // 1. kademe parametrelerini kaydet — 2. kademe farklı seçsin
-    if (kademe === 1 && c) {
-      _k1Params = { s: c.s > 0, k: c.k > 0, m: c.m > 0, sat: c.sat > 0 };
-      c1result = c; // 2. kademe birikimli hesap için
-    }
     const cPuanDuzeltilmis = c.puan;
     const gercekRating = getRating(cPuanDuzeltilmis);
     const hedefNotIndex = _NOT_INDEX[not] ?? -1;
@@ -4461,6 +4517,12 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
             + '</b> ve not <b style="color:' + gercekRating.color + '">' + gercekRating.note + '</b> seviyesinde kalıyor.'
             + ' Daha güçlü iyileştirme adımı gerekiyor.</div>';
       continue;
+    }
+
+    // 1. kademe başarılı — 2. kademe birikim bilançosu (yalnızca geçerli hedef sonrası)
+    if (kademe === 1 && c) {
+      _k1Params = { s: c.s > 0, k: c.k > 0, m: c.m > 0, sat: c.sat > 0 };
+      c1result = c;
     }
     const pArtis = (cPuanDuzeltilmis - toplam).toFixed(1);
 
@@ -4477,6 +4539,9 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
           + '<table style="margin-bottom:0">'
           + '<tr><th>PARAMETRE</th><th>MEVCUT</th><th>'
           + (c.s>0 && !c.k && !c.m && !c.sat && !c.faalmarj ? 'ÖNERİLEN (Sermaye Artışı)'
+            : c.k>0 && c.faalmarj>0 && !c.s && !c.m && !c.sat ? 'ÖNERİLEN (KV Taşıma + FAVÖK Marjı)'
+            : c.k>0 && c.sat>0 && !c.s && !c.m && !c.faalmarj ? 'ÖNERİLEN (KV Taşıma + Satış Büyümesi)'
+            : c.faalmarj>0 && c.sat>0 && !c.s && !c.k && !c.m ? 'ÖNERİLEN (FAVÖK Marjı + Satış Büyümesi)'
             : c.k>0 && !c.s && !c.m && !c.sat && !c.faalmarj ? 'ÖNERİLEN (48 ay KV Taşıma)'
             : c.faalmarj>0 && !c.s && !c.k && !c.sat ? 'ÖNERİLEN (Faaliyet Karı(FAVÖK)Marjı)'
             : c.sat>0 && !c.s && !c.k && !c.faalmarj ? 'ÖNERİLEN (Satış Büyümesi)'
@@ -4520,7 +4585,7 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
             + '<td style="color:#22c55e;font-weight:700">+%' + c.sat + ' (&rarr; ' + TL2(baseNetSatis*(1+c.sat/100)) + ')</td>'
             + '<td style="font-size:12px;color:#64748b">Ciro artışı borç/satış oranını iyileştirir</td></tr>';
     }
-    if (!c.s && !c.k && !c.m && !c.sat) {
+    if (!c.s && !c.k && !c.m && !c.sat && !c.faalmarj) {
       html += '<tr><td colspan="4" style="color:#22c55e;text-align:center">&#9989; Mevcut parametreler yeterli</td></tr>';
     }
     html += '</table></div>';
