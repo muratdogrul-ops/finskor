@@ -695,7 +695,7 @@ tbody td { padding:8px 13px; color:var(--text); }
     <div id="results">
       <div class="action-bar">
         <button class="action-btn" onclick="saveFirm()">💾 Kaydet</button>
-        <button class="action-btn" onclick="printCurrentView()">🖨️ Yazdır</button>
+        <button class="action-btn" onclick="window.print()">🖨️ Yazdır</button>
         <button class="action-btn" onclick="showOtomSenaryo()" 
           style="background:rgba(99,102,241,0.15);border-color:rgba(99,102,241,0.4);color:#818cf8">
           🎯 FinSkor Otomatik Senaryo Önerisi
@@ -1423,11 +1423,6 @@ function downloadReport() {
     printWin.print();
     printWin.onafterprint = function() { printWin.close(); };
   }, 800);
-}
-
-function printCurrentView() {
-  if (!_demoKisitKontrol('printReport')) return;
-  window.print();
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -8285,7 +8280,7 @@ function _demoAnalizSunumu() {
     const oneri = document.getElementById('i18nOneri');
     if (oneri) { oneri.scrollIntoView({behavior:'smooth', block:'center'}); _vurgula(oneri, 8000); }
     _bsoy('Rating artırıcı öneriler bölümünde firmanın zayıf noktaları ve iyileştirme adımları yer alır. ' +
-      'Bu öneriler, satın alma sonrası PDF raporda da bulunur. Demo modunda PDF kapalıdır.');
+      'Bu öneriler PDF raporda da bulunur.');
   }, 42000);
 
   // ADIM 5 — Özet bilanço | 49000ms
@@ -8370,7 +8365,7 @@ function _demoAnalizSunumu() {
     }, 500);
     _bsoy('FinSkor otomatik senaryo önerisi, notunuzu bir ve iki kademe artırmak için ' +
       'en uygun kombinasyonu hesaplar. Sermaye artışı, kısa vadeden uzun vadeye taşıma ve satış büyümesi ' +
-      'kombinasyonları denenir. Bu öneri, satın alma sonrası PDF raporda da yer alır.');
+      'kombinasyonları denenir. Bu öneri PDF raporda da yer alır.');
   }, 99000);
 
   // ADIM 9 — Kapanış | 114000ms (+18sn)
@@ -8419,15 +8414,13 @@ function _demoUyari(mesaj) {
 }
 
 function demoSatinAl() {
-  window.location.href = 'mailto:info@finskor.tr?subject=FinSkor%20Demo%20Sat%C4%B1n%20Alma%20Talebi';
+  // Satın alma sayfasına yönlendir veya modal aç
+  _demoUyari('Satın almak için info@finskor.tr ile iletişime geçin.');
 }
 
 function demoCik(sureBitti = false) {
   window._demoMod = false;
   if (_demoTimer) { clearInterval(_demoTimer); _demoTimer = null; }
-  if (window.speechSynthesis) {
-    window.speechSynthesis.cancel();
-  }
 
   // Banner'ı gizle
   const banner = document.getElementById('demoBanner');
@@ -8443,20 +8436,18 @@ function demoCik(sureBitti = false) {
     state.firmType = 'pazarlama';
   }
 
-  const app = document.getElementById('app');
-  if (app) app.style.display = 'none';
-  const login = document.getElementById('loginScreen');
-  if (login) login.style.display = 'flex';
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-  _demoUyari(sureBitti
-    ? 'Demo süreniz doldu. Satın alarak tüm özelliklere erişin.'
-    : 'Demo modu kapatıldı. Giriş ekranına yönlendirildiniz.');
+  if (sureBitti) {
+    _demoUyari('Demo süreniz doldu. Satın alarak tüm özelliklere erişin.');
+    setTimeout(() => location.reload(), 3000);
+  } else {
+    location.reload();
+  }
 }
 
 // Demo modunda kısıtlama kontrolü
 function _demoKisitKontrol(islem) {
   if (!window._demoMod) return true; // Demo değilse geç
-  const kisitli = ['saveFirm', 'generatePDF', 'downloadReport', 'deductCredit', 'printReport'];
+  const kisitli = ['saveFirm', 'generatePDF', 'downloadReport', 'deductCredit'];
   if (kisitli.includes(islem)) {
     _demoUyari('Bu özellik demo modunda devre dışı. Satın alarak tüm özelliklere erişin.');
     return false;
