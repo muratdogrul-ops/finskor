@@ -2874,6 +2874,10 @@ function _doRunAnalysis() {
   // Senaryo analizi için global cache
   window._lastR = r;
   window._lastSubjPuan = subjPuan;
+  // Gerçek kullanıcı: senaryo/otomatik öneri ofseti analiz bilançosuna sabitlenir (r2 ikinci kademede kayma olmaz)
+  if (!window._demoMod) {
+    window._senaryoAnalizAlignOff = toplam - (_senaryoBaseSAnalizR(r, refYear) + subjPuan);
+  }
   // ── KONTÖR DÜŞME ──
   deductCredit();
   // Puan kırılımını avatar için kaydet (calcObjScore çağrısından sonra r üzerinde)
@@ -3746,6 +3750,40 @@ function _senaryoPuan(oz, totalBor, donenVar, kvBorclar, likit, netSatis, voKar,
   };
 }
 
+function _senaryoSetPrevGlobalsFromR(r) {
+  window._senaryoPrevC5  = r.reelFaalKarBuy > 14 ? 5 : r.reelFaalKarBuy > 9 ? 4 : r.reelFaalKarBuy > 5 ? 3 : r.reelFaalKarBuy > 2 ? 2 : r.reelFaalKarBuy > 0 ? 1 : 0;
+  window._senaryoPrevC9  = r.ihracatPuan || 0;
+  window._senaryoPrevC11 = r.reelSatisBuy > 150 ? 0 : r.reelSatisBuy > 110 ? 1 : r.reelSatisBuy > 70 ? 4 : r.reelSatisBuy > 20 ? 5 : r.reelSatisBuy > 4 ? 4 : r.reelSatisBuy > 0 ? 1 : 0;
+}
+
+/** _renderSenaryo ile aynı girdilerle senaryo modülü taban s (analiz anındaki bilanço). */
+function _senaryoBaseSAnalizR(r, refYear) {
+  const d = state.yearData[refYear] || {};
+  _senaryoSetPrevGlobalsFromR(r);
+  const baseOz = r.ozKaynak || 0;
+  const baseTotalBor = r.totalBor || 0;
+  const baseDonenVar = r.donenVarlik || 0;
+  const baseKvBorclar = r.kvBorclar || (d.kvYKToplam || 0);
+  const baseLikit = r.likit || (baseDonenVar * 0.5);
+  const baseNetSatis = r.netSatis || 0;
+  const baseVoKar = r.voKar || 0;
+  const baseFaalKar = r.faalKar || 0;
+  const baseToplamFin = r.toplamFinBor || 0;
+  const baseAktif = r.aktif || (baseDonenVar + (d.duranVarlik || 0));
+  const basePrevFaalKar = r.prevFaalKar || 0;
+  const baseKvMaliBor = r.kvMaliBor || 0;
+  const enfl = (typeof getUfe === 'function') ? getUfe(refYear) : 0;
+  return _senaryoPuan(baseOz, baseTotalBor, baseDonenVar, baseKvBorclar, baseLikit, baseNetSatis, baseVoKar, baseFaalKar, baseToplamFin, baseAktif, r.ihracatSatis, basePrevFaalKar, baseKvMaliBor, 0, 0, enfl).s;
+}
+
+/** Gerçek kullanıcı: analizde sabitlenen ofset. Demo: her zaman mevcut baz.s ile dinamik (değişmez). */
+function _senaryoRsOffset(_realToplam, baseS, subjPuan) {
+  if (!window._demoMod && window._senaryoAnalizAlignOff != null && Number.isFinite(window._senaryoAnalizAlignOff)) {
+    return window._senaryoAnalizAlignOff;
+  }
+  return _realToplam - (baseS + subjPuan);
+}
+
 function _renderSenaryo() {
   const refYear = parseInt(document.getElementById('refYear').value);
   const d = state.yearData[refYear];
@@ -3772,10 +3810,8 @@ function _renderSenaryo() {
   const baseKvBankaToplam = baseKvMaliBor; // alias — _senaryoPuan'a geçirilir
 
   // Sabit puanlar (önceki yıl bazlı veya ihracat bazlı)
-  window._senaryoPrevC5  = r.reelFaalKarBuy > 14 ? 5 : r.reelFaalKarBuy > 9 ? 4 : r.reelFaalKarBuy > 5 ? 3 : r.reelFaalKarBuy > 2 ? 2 : r.reelFaalKarBuy > 0 ? 1 : 0;
+  _senaryoSetPrevGlobalsFromR(r);
   window._senaryoPrevFaalKar = r.prevFaalKar || 0;
-  window._senaryoPrevC9  = r.ihracatPuan || 0;
-  window._senaryoPrevC11 = r.reelSatisBuy > 150 ? 0 : r.reelSatisBuy > 110 ? 1 : r.reelSatisBuy > 70 ? 4 : r.reelSatisBuy > 20 ? 5 : r.reelSatisBuy > 4 ? 4 : r.reelSatisBuy > 0 ? 1 : 0;
   // ÜFE enflasyon — c11 reel büyüme hesabı için
   const refYear2 = parseInt(document.getElementById('refYear').value);
   const _senEnfl = (typeof getUfe === 'function') ? getUfe(refYear2) : 0;
@@ -3828,9 +3864,9 @@ function _renderSenaryo() {
 
   const senaryo = _senaryoPuan(sOz, sTotalBor, sDonenVar, sKvBorclar, sLikit, sNetSatis, sVoKar, sFaalKar, sToplamFin, sAktif, r.ihracatSatis, basePrevFaalKar, sKvBankaToplam, faalMarjDelta, satisDelta, _senEnfl);
 
-  // Offset: gerçek analiz puanı ile _senaryoPuan bazı arasındaki fark
+  // Offset: gerçek kullanıcıda analiz anında sabitlenir (2. kademe r2 ile tutarlılık için)
   const _realToplam = (state._last || state.lastResult) ? (state._last || state.lastResult).toplam : (base.s + subjPuan);
-  const _rsOffset   = _realToplam - (base.s + subjPuan);
+  const _rsOffset   = _senaryoRsOffset(_realToplam, base.s, subjPuan);
   const totalBase = _realToplam;                    // gerçek analiz puanı
   const totalSen  = senaryo.s + subjPuan + _rsOffset; // senaryo puanı + offset
   const sRating = getRating(senaryo.s + subjPuan + _rsOffset);
@@ -4101,9 +4137,8 @@ function _rsSimuleFaal(r, subjPuan, faalMarjDelta) {
     baseNetSatis, sVoKarFaal, sFaalKar, baseToplamFin, baseAktif,
     r.ihracatSatis, basePrevFaalKar, baseKvMaliBor, faalMarjDelta, 0, 0);
 
-  // Offset: gerçek analiz puanı ile _senaryoPuan bazı arasındaki fark
   const _realToplam2 = (state._last || state.lastResult) ? (state._last || state.lastResult).toplam : (base.s + subjPuan);
-  const _offset2 = _realToplam2 - (base.s + subjPuan);
+  const _offset2 = _senaryoRsOffset(_realToplam2, base.s, subjPuan);
   return {
     puan: p.s + subjPuan + _offset2,
     puanArtis: p.s - base.s,
@@ -4167,11 +4202,8 @@ function _rsSimule(r, subjPuan, sermaye, kvPct, vade, karMarj, satisDelta) {
     r.ihracatSatis, basePrevFaalKar, sKvBankaToplam, 0, satisDelta, _enflRs);
 
 
-  // puan = analiz bazı + senaryo değişimi
-  // Bu şekilde _senaryoBolumu'daki toplam (calcObjScore bazlı) ile tutarlı olur
-  // Offset: gerçek analiz puanı ile _senaryoPuan bazı arasındaki fark
   const _realToplam = (state._last || state.lastResult) ? (state._last || state.lastResult).toplam : (base.s + subjPuan);
-  const _offset = _realToplam - (base.s + subjPuan);
+  const _offset = _senaryoRsOffset(_realToplam, base.s, subjPuan);
   return {
     puan: subjPuan + p.s + _offset,
     puanArtis: p.s - base.s,   // sadece finansal artış
