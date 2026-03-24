@@ -4315,16 +4315,18 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
   const baseNetSatis  = r.netSatis  || 0;
   const baseVoKar     = r.voKar     || 0;
 
-  // Baz netKarMarj (_renderSenaryo ile aynı şekilde hesapla)
-  const baseKvBorclar = r.kvBorclar || 0;
-  const baseLikit     = r.likit     || 0;
-  const baseBase = _senaryoPuan(baseOz, r.totalBor||0, r.donenVarlik||0, baseKvBorclar,
-    baseLikit, baseNetSatis, baseVoKar, r.faalKar||0, r.toplamFinBor||0, r.aktif||0,
-    r.ihracatSatis, r.prevFaalKar||0, baseKvMaliBor, 0, 0, 0);
+  // Baz _senaryoPuan — _rsSimule / _renderSenaryo ile aynı girdiler (çift ofset hatasını önler)
+  const dSen = state.yearData[refYear] || {};
+  const baseDonenVar = r.donenVarlik || 0;
+  const baseKvBorclar = r.kvBorclar || (dSen.kvYKToplam || 0);
+  const baseLikit = r.likit || (baseDonenVar * 0.5);
+  const baseAktifSen = r.aktif || (baseDonenVar + (dSen.duranVarlik || 0));
+  const _enflBolum = (typeof getUfe === 'function') ? getUfe(refYear) : 0;
+  const baseBase = _senaryoPuan(baseOz, r.totalBor || 0, baseDonenVar, baseKvBorclar,
+    baseLikit, baseNetSatis, baseVoKar, r.faalKar || 0, r.toplamFinBor || 0, baseAktifSen,
+    r.ihracatSatis, r.prevFaalKar || 0, baseKvMaliBor, 0, 0, _enflBolum);
   const bazNetKarMarj = baseBase.netKarMarj;
-  // _senaryoPuan bazı ile calcObjScore bazı arasındaki fark
-  // Tüm senaryo puanları bu offset ile düzeltilir
-  const _senaryoOffset = toplam - (baseBase.s + subjPuan);
+  // c.puan zaten _rsSimule içinde state._last.toplam ile hizalı; burada tekrar ofset eklenmez
 
   const TL2 = n => n>=1e9?(n/1e9).toFixed(2)+' Milyar TL'
                :n>=1e6?(n/1e6).toFixed(2)+' Milyon TL'
@@ -4415,8 +4417,7 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
       _k1Params = { s: c.s > 0, k: c.k > 0, m: c.m > 0, sat: c.sat > 0 };
       c1result = c; // 2. kademe birikimli hesap için
     }
-    // c.puan'ı analiz bazına göre düzelt
-    const cPuanDuzeltilmis = c.puan + _senaryoOffset;
+    const cPuanDuzeltilmis = c.puan;
     const gercekRating = getRating(cPuanDuzeltilmis);
     const hedefNotIndex = _NOT_INDEX[not] ?? -1;
     const gercekNotIndex = _NOT_INDEX[gercekRating.note] ?? -1;
