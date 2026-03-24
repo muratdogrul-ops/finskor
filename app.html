@@ -7931,7 +7931,7 @@ let _demoSure  = 15 * 60; // 15 dakika saniye cinsinden
 function demoBaslat() {
   window._demoMod = true;
   window._demoKalan = _demoSure;
-  window._demoSubjHazir = false;
+  demoRandomizeSubjSec();
 
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
@@ -7970,7 +7970,7 @@ function demoBaslat() {
     // Demo akışına uygun kısa bilgilendirme
     if (window.speechSynthesis) {
       speechSynthesis.cancel();
-      const utt = new SpeechSynthesisUtterance('Ben Baykuş, merhaba! Demo için subjektif bölümde otomatik 20 nokta 60 puan uygulanacak ve doğrudan analize geçeceğiz.');
+      const utt = new SpeechSynthesisUtterance('Ben Baykuş, merhaba! Subjektif bölümde iki seçeneği kısa anlatacağım ve demo için cevapları hazır işaretlenmiş göstereceğim.');
       const voices = speechSynthesis.getVoices();
       const trSes = voices.find(v => v.lang.startsWith('tr'));
       if (trSes) utt.voice = trSes;
@@ -8087,7 +8087,6 @@ function demoBaslat() {
       const tmp = document.createElement('div'); tmp.innerHTML = metin;
       const text = tmp.textContent.trim();
       if (text) {
-        speechSynthesis.cancel();
         const utt = new SpeechSynthesisUtterance(text);
         const voices = speechSynthesis.getVoices();
         const trSes = voices.find(v => v.lang.startsWith('tr'));
@@ -8164,22 +8163,22 @@ function demoBaslat() {
     _bsoy('Şimdi <b>Subjektif Faktörler</b> sekmesine geçiyoruz. Bu bölüm toplam 105 puanın 30 puanını oluşturur.');
   }, 64000);
 
-  // ADIM 7 — Otomatik 20.60 ve hızlı geçiş | başlangıç: 61200+7000=68200ms | süre: 9000ms
+  // ADIM 7 — Subjektif bilgilendirme (2 konu) | başlangıç: 61200+7000=68200ms | süre: 13000ms
   setTimeout(() => {
     if (!window._demoMod) return;
     const otom=document.querySelector('button[onclick="subjOtomatikSec()"]');
-    if (otom) {
-      otom.scrollIntoView({behavior:'smooth',block:'center'});
-      _elGit(otom);
-      _vurgula(otom, 2500);
-      setTimeout(() => { if (window._demoMod) subjOtomatikSec(); }, 1200);
-    } else {
-      subjOtomatikSec();
-    }
-    _bsoy('Demo hızlandırıldı. Subjektif bölümde <b>otomatik 20.60 puan</b> uygulanıyor; soru-cevap adımları atlanıp doğrudan analiz aşamasına geçiliyor.');
+    const manuel=document.querySelector('button[onclick="subjManuelSec()"]');
+    setTimeout(()=>_elDolas([otom,manuel].filter(Boolean),1200), 300);
+    _bsoy('Subjektif bölümde iki yöntem var. Birincisi, kullanıcı otomatik seçerse soru cevaplamadan sistem doğrudan yirmi nokta altmış puan verir.');
+    setTimeout(() => {
+      if (!window._demoMod) return;
+      const grid = document.getElementById('subjGridWrap');
+      if (grid) { grid.scrollIntoView({behavior:'smooth', block:'center'}); _vurgula(grid, 3500); }
+      _bsoy('İkincisi, sorular cevaplanırsa puan cevaplara göre gerçek hesaplanır. Demo modunda cevaplar rastgele işaretli hazır gelir, her demoda değişir ve gerçek subjektif puan buna göre hesaplanır.');
+    }, 5200);
   }, 71000);
 
-  // ADIM 8 — Analiz Et | başlangıç: 68200+9000=77200ms
+  // ADIM 8 — Analiz Et | başlangıç: 68200+13000=81200ms
   setTimeout(() => {
     if (!window._demoMod) return;
     window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
@@ -8192,7 +8191,7 @@ function demoBaslat() {
         setTimeout(() => { _elGizle(); if(window._demoMod && typeof runAnalysis==='function') runAnalysis(); }, 3000);
       }
     }, 600);
-  }, 80000);
+  }, 84000);
 
   _demoGeriSayimBaslat();
 }
@@ -8220,7 +8219,6 @@ function _demoAnalizSunumu() {
       const tmp = document.createElement('div'); tmp.innerHTML = metin;
       const text = tmp.textContent.trim();
       if (text) {
-        speechSynthesis.cancel();
         const utt = new SpeechSynthesisUtterance(text);
         const voices = speechSynthesis.getVoices();
         const trSes = voices.find(v => v.lang.startsWith('tr'));
