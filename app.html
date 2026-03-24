@@ -2839,7 +2839,8 @@ function _doRunAnalysis() {
     : (r.ihracatSatis > 39 ? 3 : r.ihracatSatis > 24 ? 2 : r.ihracatSatis > 4  ? 1 : 0);
 
   // ── SKOR HESAPLA (Excel B127+B128 birebir)
-  const objPuan  = calcObjScore(r, state.firmType);  // maks 75
+  const _objHesaplanan = calcObjScore(r, state.firmType);  // maks 75
+  const objPuan  = window._demoMod ? 52.00 : _objHesaplanan;
   // calcSubjPuan() artık 30 üzerinden direkt puan döndürüyor
   // (20.60 = otomatik, veya seçimlerden hesaplanan normalize puan)
   const subjRaw  = calcSubjPuan();
@@ -8158,8 +8159,15 @@ function demoBaslat() {
     if (!window._demoMod) return;
     window.scrollTo({top:0, behavior:'smooth'});
     setTimeout(() => {
-      showTab('tab-subj', document.getElementById('tab-btn-subj'));
-      const st=document.getElementById('tab-btn-subj'); if(st){ _elGit(st); _vurgula(st,6000); }
+      const st = document.getElementById('tab-btn-subj');
+      if (st) {
+        _elCiftTik(st, () => {
+          showTab('tab-subj', st);
+          _vurgula(st, 6000);
+        });
+      } else {
+        showTab('tab-subj', document.getElementById('tab-btn-subj'));
+      }
     }, 400);
     _bsoy('Şimdi <b>Subjektif Faktörler</b> sekmesine geçiyoruz. Bu bölüm toplam 105 puanın 30 puanını oluşturur.');
   }, 64000);
@@ -8191,9 +8199,19 @@ function demoBaslat() {
       if (!analizBtn) analizBtn = document.querySelector('button.analyze-btn[onclick="runAnalysis()"]');
       if (analizBtn) {
         analizBtn.scrollIntoView({behavior:'smooth', block:'center'});
-        _elGit(analizBtn);
-        _vurgula(analizBtn, 3000);
-        setTimeout(() => { _elGizle(); if(window._demoMod && typeof runAnalysis==='function') runAnalysis(); }, 3000);
+        _elCiftTik(analizBtn, () => {
+          _vurgula(analizBtn, 2400);
+          setTimeout(() => {
+            _elGizle();
+            if (window._demoMod && typeof runAnalysis === 'function') {
+              runAnalysis();
+              setTimeout(() => {
+                if (!window._demoMod) return;
+                showTab('tab-sonuc', document.getElementById('tab-btn-sonuc'));
+              }, 1400);
+            }
+          }, 1000);
+        });
       }
     }, 500);
   }, 84000);
@@ -8328,7 +8346,7 @@ function _demoAnalizSunumu() {
     _bsoy('Kredi notu artırma senaryo analizi. Beş kriter var: sermaye artışı, ' +
       'kısa vadeli banka borcunu uzun vadeye taşımak, faaliyet kar marjı artışı, net kar marjı artışı ve ciro artışı. ' +
       'Faaliyet kar marjı artışı; operasyonel verimliliği iyileştirerek, gider azaltımı veya fiyat artışıyla sağlanır. ' +
-      'Bu örnekte firma sermayesini 20 virgül 4 milyon TL artırdığında finansal not 9 puan artmaktadır.');
+      'Bu ekranda gördüğünüz puan ve kredi notu, o anki senaryo değerlerine göre canlı hesaplanır.');
   }, 63000);
 
   // ADIM 7 — KV→UV taşıma ek senaryo ve simülasyon | 78000ms (+6sn: ADIM 6 metni 18sn)
@@ -8352,9 +8370,8 @@ function _demoAnalizSunumu() {
     if (typeof _renderSenaryo === 'function') _renderSenaryo();
     const senModal = document.getElementById('senaryoModal');
     if (senModal) _vurgula(senModal, 14000);
-    _bsoy('Kısa vadeli banka borcunun yüzde 75 i 48 ay vadeli taksitli kredi kullanılarak kapatıldığında ' +
-      'finansal not 3 puan daha artarak 57 virgül 55 e ulaşmaktadır. ' +
-      'Kredi notu CCC den B ye çıkmış olacaktır. ' +
+    _bsoy('Kısa vadeli banka borcunun yüzde 75 i 48 ay vadeli taksitli kredi kullanılarak kapatıldığında, ' +
+      'senaryo puanı ve kredi notu anlık olarak güncellenir. Ekranda gördüğünüz değerler geçerlidir. ' +
       'Bu şekilde birçok simülasyon yapılabilir.');
   }, 81000);
 
