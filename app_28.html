@@ -7607,8 +7607,31 @@ let _demoTimer = null;
 let _demoSure  = 15 * 60; // 15 dakika saniye cinsinden
 
 function demoBaslat() {
-  alert('Demo modu kapatildi.');
-  return;
+  window._demoMod = true;
+  window._demoKalan = _demoSure;
+
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+
+  const banner = document.getElementById('demoBanner');
+  if (banner) banner.style.display = 'flex';
+
+  const logo = document.querySelector('.logo');
+  if (logo) logo.innerHTML = 'FinSkor <span style="font-size:10px;background:#f5a623;color:#000;padding:2px 7px;border-radius:20px;font-weight:700;vertical-align:middle;margin-left:6px">DEMO</span>';
+
+  if (!state.yearData) state.yearData = {};
+  state.yearData[DEMO_FIRMA.refYear]       = {...DEMO_FIRMA.data};
+  state.yearData[DEMO_FIRMA.refYear - 1]   = {...DEMO_FIRMA.data2023};
+  state.firmType = DEMO_FIRMA.tip;
+  state.period   = DEMO_FIRMA.period;
+  state.refYear  = DEMO_FIRMA.refYear;
+  const firmaEl = document.getElementById('firmaAdi');
+  if (firmaEl) firmaEl.value = DEMO_FIRMA.ad;
+  const refYearEl = document.getElementById('refYear');
+  if (refYearEl) refYearEl.value = DEMO_FIRMA.refYear;
+  document.querySelectorAll('.btn-period').forEach(b =>
+    b.classList.toggle('active', b.dataset.val === DEMO_FIRMA.period));
+  if (typeof updateFirmTypeDisplay === 'function') updateFirmTypeDisplay();
 
   const _ab = document.getElementById('avatarBtn');
   if (_ab) _ab.style.display = 'flex';
