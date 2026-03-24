@@ -1,0 +1,12 @@
+---
+description: FinSkor tanıtım sitesi görünümü — kullanıcı açıkça istemedikçe dokunma
+alwaysApply: true
+---
+
+# Tanıtım sitesi görünümü (donduruldu)
+
+- **`index.html` ve `platform.html`**: Metin, başlık, hero, buton, nav, sticky bar, renk, spacing, CSS veya yapısal HTML **değiştirme** — kullanıcı bunu **açıkça** isteyene kadar.
+- **Diğer dosyalar** (`app.html`, JS vb.) yazarken tanıtım sayfalarını **yanlışlıkla etkileyecek** değişiklik yapma (ör. paylaşılan asset yoksa bile gereksiz yönlendirme / kopya senkronu önerme).
+- İstisna: Kullanıcı aynı mesajda veya net bir talepte “landing’i değiştir” / “hero’yu…” derse o zaman güncelle.
+
+Bu kural, kullanıcının “ben söyleyene kadar değiştirme” talimatını kalıcı olarak kaydeder.
