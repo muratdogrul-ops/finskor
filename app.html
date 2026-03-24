@@ -4258,6 +4258,7 @@ const _NOT_SKALA = [
   {not:'CCC',esik:44.01}, {not:'B',  esik:52.01}, {not:'BB', esik:60.01},
   {not:'BBB',esik:68.01}, {not:'A',  esik:76.01}, {not:'AA', esik:84.01}, {not:'AAA',esik:93.01}
 ];
+const _NOT_INDEX = _NOT_SKALA.reduce((acc, s, i) => { acc[s.not] = i; return acc; }, {});
 const _NOT_RENK = {
   D:'#dc2626',C:'#ef4444',CC:'#f87171',CCC:'#fb923c',
   B:'#d97706',BB:'#f59e0b',BBB:'#fbbf24',
@@ -4391,6 +4392,17 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
     // c.puan'ı analiz bazına göre düzelt
     const cPuanDuzeltilmis = c.puan + _senaryoOffset;
     const gercekRating = getRating(cPuanDuzeltilmis);
+    const hedefNotIndex = _NOT_INDEX[not] ?? -1;
+    const gercekNotIndex = _NOT_INDEX[gercekRating.note] ?? -1;
+    if (gercekNotIndex < hedefNotIndex) {
+      html += '<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;'
+            + 'padding:12px 16px;margin-bottom:12px">'
+            + '&#9888;&#65039; ' + kademe + '. kademe <b style="color:' + renk + '">' + not
+            + '</b> hedefi sağlanamadı. Senaryo puanı <b>' + cPuanDuzeltilmis.toFixed(1)
+            + '</b> ve not <b style="color:' + gercekRating.color + '">' + gercekRating.note + '</b> seviyesinde kalıyor.'
+            + ' Daha güçlü iyileştirme adımı gerekiyor.</div>';
+      continue;
+    }
     const pArtis = (cPuanDuzeltilmis - toplam).toFixed(1);
 
     html += '<div style="border:2px solid rgba(255,255,255,.1);border-left:4px solid ' + renk + ';page-break-inside:avoid;'
@@ -4398,7 +4410,7 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
           + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">'
           + '<div style="background:' + renk + '22;border:1.5px solid ' + renk + ';'
           + 'border-radius:8px;padding:6px 18px;font-size:22px;font-weight:900;color:' + gercekRating.color + '">' + gercekRating.note + '</div>'
-          + '<div><div style="font-size:13px;font-weight:700">Kredi Notu ' + (kademe===1?'1':'2') + ' Kademe Artırma Önerisi &mdash; Hedef: ' + gercekRating.note + '</div>'
+          + '<div><div style="font-size:13px;font-weight:700">Kredi Notu ' + (kademe===1?'1':'2') + ' Kademe Artırma Önerisi &mdash; Hedef: ' + not + '</div>'
           + '<div style="font-size:11px;color:#64748b">Gereken: &ge;' + esik
           + ' &nbsp;|&nbsp; Senaryo: ' + cPuanDuzeltilmis.toFixed(1)
           + ' &nbsp;|&nbsp; <span style="color:#22c55e">+' + pArtis + ' puan</span></div>'
@@ -7919,7 +7931,7 @@ let _demoSure  = 15 * 60; // 15 dakika saniye cinsinden
 function demoBaslat() {
   window._demoMod = true;
   window._demoKalan = _demoSure;
-  demoRandomizeSubjSec();
+  window._demoSubjHazir = false;
 
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
@@ -7958,7 +7970,7 @@ function demoBaslat() {
     // Demo akışına uygun kısa bilgilendirme
     if (window.speechSynthesis) {
       speechSynthesis.cancel();
-      const utt = new SpeechSynthesisUtterance('Ben Baykuş, merhaba! Demo için subjektif kriter yanıtları hazırlandı. Analizde gerçek subjektif puan hesaplanacak.');
+      const utt = new SpeechSynthesisUtterance('Ben Baykuş, merhaba! Demo için subjektif bölümde otomatik 20 nokta 60 puan uygulanacak ve doğrudan analize geçeceğiz.');
       const voices = speechSynthesis.getVoices();
       const trSes = voices.find(v => v.lang.startsWith('tr'));
       if (trSes) utt.voice = trSes;
@@ -8152,93 +8164,22 @@ function demoBaslat() {
     _bsoy('Şimdi <b>Subjektif Faktörler</b> sekmesine geçiyoruz. Bu bölüm toplam 105 puanın 30 puanını oluşturur.');
   }, 64000);
 
-  // ADIM 7 — Otomatik/Manuel seçim | başlangıç: 61200+7000=68200ms | süre: 10000ms
+  // ADIM 7 — Otomatik 20.60 ve hızlı geçiş | başlangıç: 61200+7000=68200ms | süre: 9000ms
   setTimeout(() => {
     if (!window._demoMod) return;
     const otom=document.querySelector('button[onclick="subjOtomatikSec()"]');
-    const manuel=document.querySelector('button[onclick="subjManuelSec()"]');
-    setTimeout(()=>_elDolas([otom,manuel].filter(Boolean),1200), 400);
-    _bsoy('İki seçenek var. <b>Otomatik</b>: 20 nokta 60 puan atanır. <b>Manuel</b>: dört soruyu yanıtlarsınız, gerçek puanınız ortaya çıkar.');
+    if (otom) {
+      otom.scrollIntoView({behavior:'smooth',block:'center'});
+      _elGit(otom);
+      _vurgula(otom, 2500);
+      setTimeout(() => { if (window._demoMod) subjOtomatikSec(); }, 1200);
+    } else {
+      subjOtomatikSec();
+    }
+    _bsoy('Demo hızlandırıldı. Subjektif bölümde <b>otomatik 20.60 puan</b> uygulanıyor; soru-cevap adımları atlanıp doğrudan analiz aşamasına geçiliyor.');
   }, 71000);
 
-  // ADIM 8 — Manuel aç + Soru 1 | başlangıç: 68200+10000=78200ms | süre: 16000ms
-  setTimeout(() => {
-    if (!window._demoMod) return;
-    subjManuelSec();
-    setTimeout(() => {
-      window.scrollTo({top:0, behavior:'smooth'});
-      // Soru 1 seçeneği vurgula + el işaret et
-      setTimeout(() => { _subjVurgula('sopts_s1', 0); }, 800);
-      _bsoy('<b>1. Kredi Geçmişi</b>: Son 1 yılda firma adına aktif gecikme, icra ya da olumsuzluk var mı? Hiçbir olumsuz kayıt veya gecikme yoksa olumsuz kayıt veya gecikme yok cevabı işaretlenir.');
-    }, 500);
-  }, 81000);
-
-  // ADIM 8b — S1 seç + Soru 2 | başlangıç: 78200+16000=94200ms | süre: 16000ms
-  setTimeout(() => {
-    if (!window._demoMod) return;
-    // S1 kalıcı seç
-    subjSec['s1'] = 0;
-    document.querySelectorAll('#sopts_s1 .subj-opt').forEach((d,j) => {
-      d.classList.toggle('selected', j===0);
-      d.style.background=''; d.style.border=''; d.style.color='';
-    });
-    _checkSubjComplete();
-    // Soru 2 vurgula
-    const s6el = document.querySelector('#sopts_s6 .subj-opt:nth-child(2)') ||
-                 document.querySelectorAll('#sopts_s6 .subj-opt')[1];
-    if (s6el) { s6el.scrollIntoView({behavior:'smooth',block:'center'}); }
-    setTimeout(() => { _subjVurgula('sopts_s6', 1); }, 800);
-    _bsoy('<b>2. Banka Limit Kullanımı</b>: Mevcut kredi kullanımı toplam limitin yüzde kaçı? Yüzde elli ile altmış beş arası kullanım varsa yüzde elli ile altmış beş arası normal kullanım cevabı seçilir.');
-  }, 94000);
-
-  // ADIM 8c — S6 seç + Soru 3 | başlangıç: 94200+16000=110200ms | süre: 11000ms
-  setTimeout(() => {
-    if (!window._demoMod) return;
-    subjSec['s6'] = 1;
-    document.querySelectorAll('#sopts_s6 .subj-opt').forEach((d,j) => {
-      d.classList.toggle('selected', j===1);
-      d.style.background=''; d.style.border=''; d.style.color='';
-    });
-    _checkSubjComplete();
-    const s12el = document.querySelectorAll('#sopts_s12 .subj-opt')[1];
-    if (s12el) { s12el.scrollIntoView({behavior:'smooth',block:'center'}); }
-    setTimeout(() => { _subjVurgula('sopts_s12', 1); }, 800);
-    _bsoy('<b>3. Faaliyet Süresi</b>: Firmanın kuruluşundan bu yana geçen süre. İlgili firma 7 yıl önce kurulduysa 5 ila 10 yıl seçilir.');
-  }, 109000);
-
-  // ADIM 8d — S12 seç + Soru 4 | başlangıç: 110200+11000=121200ms | süre: 11000ms
-  setTimeout(() => {
-    if (!window._demoMod) return;
-    subjSec['s12'] = 1;
-    document.querySelectorAll('#sopts_s12 .subj-opt').forEach((d,j) => {
-      d.classList.toggle('selected', j===1);
-      d.style.background=''; d.style.border=''; d.style.color='';
-    });
-    _checkSubjComplete();
-    const s19el = document.querySelectorAll('#sopts_s19 .subj-opt')[1];
-    if (s19el) { s19el.scrollIntoView({behavior:'smooth',block:'center'}); }
-    setTimeout(() => { _subjVurgula('sopts_s19', 1); }, 800);
-    _bsoy('<b>4. Muhasebe ve Denetim</b>: Bağımsız denetim raporu veya YMM tasdiki var mı? YMM veya bağımsız denetim yoksa yok seçilir.');
-  }, 118000);
-
-  // ADIM 8e — S19 seç + Puan | başlangıç: 121200+11000=132200ms | süre: 11000ms
-  setTimeout(() => {
-    if (!window._demoMod) return;
-    subjSec['s19'] = 1;
-    document.querySelectorAll('#sopts_s19 .subj-opt').forEach((d,j) => {
-      d.classList.toggle('selected', j===1);
-      d.style.background=''; d.style.border=''; d.style.color='';
-    });
-    _checkSubjComplete();
-    _elGizle();
-    setTimeout(() => {
-      const pb=document.getElementById('subjResultBox');
-      if (pb) { pb.scrollIntoView({behavior:'smooth',block:'center'}); _vurgula(pb, 8000); }
-    }, 800);
-    _bsoy('Dört soru tamamlandı. Subjektif puan hesaplandı. Bu puan toplam 105 puanın 30 puanlık subjektif bölümünden geliyor. Şimdi Analiz Et butonuna basıyorum.');
-  }, 128000);
-
-  // ADIM 9 — Analiz Et | başlangıç: 132200+11000=143200ms
+  // ADIM 8 — Analiz Et | başlangıç: 68200+9000=77200ms
   setTimeout(() => {
     if (!window._demoMod) return;
     window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
@@ -8251,7 +8192,7 @@ function demoBaslat() {
         setTimeout(() => { _elGizle(); if(window._demoMod && typeof runAnalysis==='function') runAnalysis(); }, 3000);
       }
     }, 600);
-  }, 138000);
+  }, 80000);
 
   _demoGeriSayimBaslat();
 }
