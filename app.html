@@ -1048,8 +1048,28 @@ const SUBJ_FACTORS = [
 const SUBJ_MAX = SUBJ_FACTORS.reduce((s,f) => s + f.maxP, 0);
 const subjSec  = {};  // id -> seçenek indexi
 
+function demoRandomizeSubjSec() {
+  SUBJ_FACTORS.forEach(f => {
+    const maxIdx = Math.max(0, (f.opts || []).length - 1);
+    const rnd = Math.floor(Math.random() * (maxIdx + 1));
+    subjSec[f.id] = rnd;
+  });
+  window._demoSubjHazir = true;
+}
+
 // ── Subjektif Seçim Ekranı Fonksiyonları ──────────────────
 function subjSecimGoster() {
+  if (window._demoMod && window._demoSubjHazir) {
+    const secim  = document.getElementById('subjSecimEkrani');
+    const manuel = document.getElementById('subjGridWrap');
+    const otom   = document.getElementById('subjOtomatikWrap');
+    if (secim)  secim.style.display  = 'none';
+    if (otom)   otom.style.display   = 'none';
+    if (manuel) manuel.style.display = 'block';
+    buildSubjGrid();
+    _checkSubjComplete();
+    return;
+  }
   // Seçim ekranını göster, diğerlerini gizle
   const secim  = document.getElementById('subjSecimEkrani');
   const manuel = document.getElementById('subjGridWrap');
@@ -7899,6 +7919,7 @@ let _demoSure  = 15 * 60; // 15 dakika saniye cinsinden
 function demoBaslat() {
   window._demoMod = true;
   window._demoKalan = _demoSure;
+  demoRandomizeSubjSec();
 
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
@@ -7934,10 +7955,10 @@ function demoBaslat() {
   // Açılış merhaba mesajı
   setTimeout(() => {
     if (!window._demoMod) return;
-    // Sadece sesli "Ben Baykuş, merhaba!" — _avAddMsg çağırma, ses çakışmasın
+    // Demo akışına uygun kısa bilgilendirme
     if (window.speechSynthesis) {
       speechSynthesis.cancel();
-      const utt = new SpeechSynthesisUtterance('Ben Baykuş, merhaba!');
+      const utt = new SpeechSynthesisUtterance('Ben Baykuş, merhaba! Demo için subjektif kriter yanıtları hazırlandı. Analizde gerçek subjektif puan hesaplanacak.');
       const voices = speechSynthesis.getVoices();
       const trSes = voices.find(v => v.lang.startsWith('tr'));
       if (trSes) utt.voice = trSes;
