@@ -3890,11 +3890,11 @@ function _renderSenaryo() {
             <span>🏭 Faaliyet Karı(FAVÖK)Marjı Değişimi</span>
             <span id="lbl_faalmarj" style="color:#fb923c;font-weight:700">${faalMarjDelta >= 0 ? '+' : ''}${faalMarjDelta.toFixed(1)}%</span>
           </label>
-          <input type="range" id="sld_faalmarj" min="-5" max="20" step="0.5"
+          <input type="range" id="sld_faalmarj" min="-5" max="50" step="0.5"
             value="${faalMarjDelta}" oninput="window._senaryoState.faalmarj=parseFloat(this.value);document.getElementById('lbl_faalmarj').textContent=(this.value>=0?'+':'')+parseFloat(this.value).toFixed(1)+'%';_renderSenaryo();_baykusSenaryoDebounce()"
             style="width:100%;accent-color:#fb923c">
           <div style="display:flex;justify-content:space-between;font-size:10px;color:#64748b;margin-top:2px;margin-bottom:14px">
-            <span>-5%</span><span>0%</span><span>+10%</span><span>+20%</span>
+            <span>-5%</span><span>0%</span><span>+25%</span><span>+50%</span>
           </div>
           <label style="font-size:11px;color:#94a3b8;display:flex;justify-content:space-between">
             <span>📈 Satış Büyümesi</span>
@@ -4171,19 +4171,19 @@ function _rsEnIyiSatis(r, subjPuan, hedefEsik) {
   return null;
 }
 
-// Faaliyet kar marjı artışı — %5 sabit
+// Faaliyet kar marjı artışı
 function _rsEnIyiFaalMarj(r, subjPuan, hedefEsik) {
   // hedefEsik'e ulaşmak için gereken faaliyet kar marjı artışını dene
-  for (let delta = 2; delta <= 20; delta += 1) {
+  for (let delta = 2; delta <= 50; delta += 1) {
     const sonuc = _rsSimuleFaal(r, subjPuan, delta);
     if (sonuc.puan >= hedefEsik) {
       return { s:0, k:0, m:0, sat:0, faalmarj:delta, vade:0, puan:sonuc.puan,
         uvdeKalan:0, netKvAzalis:0 };
     }
   }
-  // %20 ile dahi ulaşılamıyorsa en iyi sonucu döndür
-  const sonuc20 = _rsSimuleFaal(r, subjPuan, 20);
-  return { s:0, k:0, m:0, sat:0, faalmarj:20, vade:0, puan:sonuc20.puan,
+  // %50 ile dahi ulaşılamıyorsa en iyi sonucu döndür
+  const sonuc50 = _rsSimuleFaal(r, subjPuan, 50);
+  return { s:0, k:0, m:0, sat:0, faalmarj:50, vade:0, puan:sonuc50.puan,
     uvdeKalan:0, netKvAzalis:0 };
 }
 
