@@ -3873,6 +3873,7 @@ function _renderSenaryo() {
 
   const fmtTL = v => v >= 1e6 ? (v/1e6).toFixed(1)+'M ₺' : v >= 1e3 ? (v/1e3).toFixed(0)+'K ₺' : v.toFixed(0)+' ₺';
   const pDiff = (senaryo.s - base.s); // ham fark
+  const pDiffDisp = Math.round(pDiff); // otomatik senaryo / kademe gösterimi ile aynı tam sayı
 
   function pRow(lbl, bv, sv, max) {
     const d = sv - bv;
@@ -4020,7 +4021,7 @@ function _renderSenaryo() {
             <td style="padding:9px 6px;font-weight:700;color:#e2e8f0;font-size:13px">FİNANSAL TOPLAM</td>
             <td style="padding:9px 6px;text-align:center;font-weight:700;font-size:14px;color:#e2e8f0">${base.s}<span style="color:#475569;font-size:10px">/75</span></td>
             <td style="padding:9px 6px;text-align:center;font-weight:700;font-size:14px;color:${senaryo.s >= base.s ? '#22c55e':'#ef4444'}">${senaryo.s}<span style="color:#475569;font-size:10px">/75</span></td>
-            <td style="padding:9px 6px;text-align:center;font-weight:700;font-size:14px;color:${pDiff>=0?'#22c55e':'#ef4444'}">${pDiff>=0?'+':''}${pDiff}</td>
+            <td style="padding:9px 6px;text-align:center;font-weight:700;font-size:14px;color:${pDiff>=0?'#22c55e':'#ef4444'}">${pDiffDisp>=0?'+':''}${pDiffDisp}</td>
           </tr>
           <tr style="background:rgba(99,102,241,.05)">
             <td style="padding:7px 6px;font-size:11px;color:#64748b">Subjektif (sabit)</td>
@@ -4030,7 +4031,7 @@ function _renderSenaryo() {
             <td style="padding:10px 6px;font-weight:800;color:#e2e8f0;font-size:14px">GENEL TOPLAM</td>
             <td style="padding:10px 6px;text-align:center;font-weight:800;font-size:16px;color:${baseRating.color}">${totalBase}</td>
             <td style="padding:10px 6px;text-align:center;font-weight:800;font-size:16px;color:${sRating.color}">${totalSen}</td>
-            <td style="padding:10px 6px;text-align:center;font-weight:800;font-size:16px;color:${pDiff>=0?'#22c55e':'#ef4444'}">${pDiff>=0?'+':''}${pDiff}</td>
+            <td style="padding:10px 6px;text-align:center;font-weight:800;font-size:16px;color:${pDiff>=0?'#22c55e':'#ef4444'}">${pDiffDisp>=0?'+':''}${pDiffDisp}</td>
           </tr>
         </tfoot>
       </table>
@@ -4069,7 +4070,7 @@ function _renderSenaryo() {
         <span style="color:${sNetSatis>baseNetSatis?'#22c55e':'#e2e8f0'};font-weight:700">${fmtTL(sNetSatis)}</span>
       </div>
       <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(99,102,241,.2)">
-        ${pDiff > 0 ? '✅ Senaryo mevcut durumu <strong style="color:#22c55e">iyileştiriyor</strong>' : pDiff < 0 ? '⚠️ Senaryo mevcut durumu <strong style="color:#ef4444">kötüleştiriyor</strong>' : '↔️ Senaryo mevcut durumu <strong style="color:#94a3b8">değiştirmiyor</strong>'} — finansal skor <strong style="color:${pDiff>=0?'#22c55e':'#ef4444'}">${pDiff>=0?'+':''}${pDiff} puan</strong>.
+        ${pDiff > 0 ? '✅ Senaryo mevcut durumu <strong style="color:#22c55e">iyileştiriyor</strong>' : pDiff < 0 ? '⚠️ Senaryo mevcut durumu <strong style="color:#ef4444">kötüleştiriyor</strong>' : '↔️ Senaryo mevcut durumu <strong style="color:#94a3b8">değiştirmiyor</strong>'} — finansal skor <strong style="color:${pDiff>=0?'#22c55e':'#ef4444'}">${pDiffDisp>=0?'+':''}${pDiffDisp} puan</strong>.
       </div>
     </div>
   `;
@@ -4089,7 +4090,7 @@ function _fmtTLsen(v) {
 }
 
 function _resetSenaryo() {
-  window._senaryoState = { sermaye:0, kvtasima:0, vade:36, karmarj:0, satis:0 };
+  window._senaryoState = { sermaye:0, kvtasima:0, vade:36, karmarj:0, satis:0, faalmarj:0 };
   _renderSenaryo();
 }
 
@@ -4219,13 +4220,13 @@ function _rsEnIyiKvTasima(r, subjPuan, hedefEsik) {
   for (let kvPct = 25; kvPct <= 100; kvPct += 25) {
     const sonuc = _rsSimule(r, subjPuan, 0, kvPct, 48, 0, 0, 0);
     if (sonuc.puan >= hedefEsik) {
-      return { s:0, k:kvPct, m:0, sat:0, faalmarj:0, vade:48, puan:sonuc.puan,
+      return { s:0, k:kvPct, m:0, sat:0, faalmarj:0, vade:48, puan:sonuc.puan, puanArtis: sonuc.puanArtis,
         uvdeKalan:sonuc.uvdeKalan, netKvAzalis:sonuc.netKvAzalis };
     }
   }
   // Ulaşılamıyorsa %100 ile en iyi sonucu döndür
   const sonuc100 = _rsSimule(r, subjPuan, 0, 100, 48, 0, 0, 0);
-  return { s:0, k:100, m:0, sat:0, faalmarj:0, vade:48, puan:sonuc100.puan,
+  return { s:0, k:100, m:0, sat:0, faalmarj:0, vade:48, puan:sonuc100.puan, puanArtis: sonuc100.puanArtis,
     uvdeKalan:sonuc100.uvdeKalan, netKvAzalis:sonuc100.netKvAzalis };
 }
 
@@ -4236,13 +4237,13 @@ function _rsEnIyiSermaye(r, subjPuan, hedefEsik) {
   for (let serm = adimBin; serm <= maxSerm; serm += adimBin) {
     const sonuc = _rsSimule(r, subjPuan, serm, 0, 48, 0, 0, 0);
     if (sonuc.puan >= hedefEsik) {
-      return { s:serm, k:0, m:0, sat:0, faalmarj:0, vade:48, puan:sonuc.puan,
+      return { s:serm, k:0, m:0, sat:0, faalmarj:0, vade:48, puan:sonuc.puan, puanArtis: sonuc.puanArtis,
         uvdeKalan:sonuc.uvdeKalan, netKvAzalis:sonuc.netKvAzalis };
     }
   }
   // Ulaşılamıyorsa en büyük değerle sonucu göster
   const sonucMax = _rsSimule(r, subjPuan, maxSerm, 0, 48, 0, 0, 0);
-  return { s:maxSerm, k:0, m:0, sat:0, faalmarj:0, vade:48, puan:sonucMax.puan,
+  return { s:maxSerm, k:0, m:0, sat:0, faalmarj:0, vade:48, puan:sonucMax.puan, puanArtis: sonucMax.puanArtis,
     uvdeKalan:sonucMax.uvdeKalan, netKvAzalis:sonucMax.netKvAzalis };
 }
 function _rsEnIyiSatis(r, subjPuan, hedefEsik) {
@@ -4250,7 +4251,7 @@ function _rsEnIyiSatis(r, subjPuan, hedefEsik) {
   for (let delta = 5; delta <= 60; delta += 5) {
     const sonuc = _rsSimule(r, subjPuan, 0, 0, 48, 0, delta, 0);
     if (sonuc.puan >= hedefEsik) {
-      return { s:0, k:0, m:0, sat:delta, faalmarj:0, vade:48, puan:sonuc.puan,
+      return { s:0, k:0, m:0, sat:delta, faalmarj:0, vade:48, puan:sonuc.puan, puanArtis: sonuc.puanArtis,
         uvdeKalan:0, netKvAzalis:0 };
     }
   }
@@ -4275,7 +4276,7 @@ function _rsEnIyiKademe1Ikili(r, subjPuan, hedefEsik) {
     if (mal < bestMal || (mal === bestMal && sonuc.puan > bestP)) {
       bestMal = mal;
       bestP = sonuc.puan;
-      best = { s: 0, k: kv, m: 0, sat: sat, faalmarj: f, vade: 48, puan: sonuc.puan,
+      best = { s: 0, k: kv, m: 0, sat: sat, faalmarj: f, vade: 48, puan: sonuc.puan, puanArtis: sonuc.puanArtis,
         uvdeKalan: sonuc.uvdeKalan, netKvAzalis: sonuc.netKvAzalis };
     }
   };
@@ -4303,13 +4304,13 @@ function _rsEnIyiFaalMarj(r, subjPuan, hedefEsik) {
   for (let delta = 2; delta <= 50; delta += 1) {
     const sonuc = _rsSimuleFaal(r, subjPuan, delta);
     if (sonuc.puan >= hedefEsik) {
-      return { s:0, k:0, m:0, sat:0, faalmarj:delta, vade:0, puan:sonuc.puan,
+      return { s:0, k:0, m:0, sat:0, faalmarj:delta, vade:0, puan:sonuc.puan, puanArtis: sonuc.puanArtis,
         uvdeKalan:0, netKvAzalis:0 };
     }
   }
   // %50 ile dahi ulaşılamıyorsa en iyi sonucu döndür
   const sonuc50 = _rsSimuleFaal(r, subjPuan, 50);
-  return { s:0, k:0, m:0, sat:0, faalmarj:50, vade:0, puan:sonuc50.puan,
+  return { s:0, k:0, m:0, sat:0, faalmarj:50, vade:0, puan:sonuc50.puan, puanArtis: sonuc50.puanArtis,
     uvdeKalan:0, netKvAzalis:0 };
 }
 
@@ -4342,12 +4343,48 @@ function _rsEnIyi(r, subjPuan, hedefEsik, excludeParams) {
       const paramSay = (s>0?1:0) + (k>0?1:0) + (sat>0?1:0) + (m>0?1:0);
       if (!best || mal < bestScore.mal || (mal === bestScore.mal && paramSay < bestScore.paramSay)) {
         bestScore = { mal, paramSay };
-        best = { s, k, m, sat, vade:VADE, puan:sonuc.puan,
+        best = { s, k, m, sat, faalmarj: 0, vade:VADE, puan:sonuc.puan, puanArtis: sonuc.puanArtis,
           uvdeKalan:sonuc.uvdeKalan, netKvAzalis:sonuc.netKvAzalis };
       }
     }
   }
   return best;
+}
+
+/** 2. kademe: 1. kademede kullanılan parametre türleri yasak (aynı kriter iki kez kullanılmaz). */
+function _rsEnIyiWithForbid(r, subjPuan, hedefEsik, forb) {
+  const f = forb || {};
+  const baseOz = r.ozKaynak || 0;
+  const ozk    = baseOz > 0 ? baseOz : 1000000;
+  const SERM = f.s ? [0] : [0, ozk*0.1, ozk*0.25, ozk*0.5, ozk, ozk*2, ozk*3, ozk*5];
+  const KV   = f.k ? [0] : [0, 10, 20, 30, 50, 70, 100];
+  const KM   = f.m ? [0] : [0, 1, 2, 3, 5, 8, 10, 15, 20];
+  const SAT  = f.sat ? [0] : [0, 5, 10, 20, 30, 50, 80, 100];
+  const FAAL = f.faal ? [0] : [0, 2, 4, 6, 8, 10, 12, 16, 20, 25, 30, 35, 40, 45, 50];
+  const VADE = 48;
+  let best = null, bestScore = null;
+  for (const s of SERM) for (const k of KV) for (const sat of SAT) for (const m of KM) for (const fa of FAAL) {
+    const sonuc = _rsSimule(r, subjPuan, s, k, VADE, m, sat, fa);
+    if (sonuc.puan >= hedefEsik) {
+      const mal = (s>0?2:0) + (k>0?2:0) + (sat>0?1:0) + (m>0?5:0) + (fa>0?1:0);
+      const paramSay = (s>0?1:0) + (k>0?1:0) + (sat>0?1:0) + (m>0?1:0) + (fa>0?1:0);
+      if (!best || mal < bestScore.mal || (mal === bestScore.mal && paramSay < bestScore.paramSay)) {
+        bestScore = { mal, paramSay };
+        best = { s, k, m, sat, faalmarj: fa, vade: VADE, puan: sonuc.puan, puanArtis: sonuc.puanArtis,
+          uvdeKalan: sonuc.uvdeKalan, netKvAzalis: sonuc.netKvAzalis };
+      }
+    }
+  }
+  if (best) return best;
+  let bestAny = null;
+  for (const s of SERM) for (const k of KV) for (const sat of SAT) for (const m of KM) for (const fa of FAAL) {
+    const sonuc = _rsSimule(r, subjPuan, s, k, VADE, m, sat, fa);
+    if (!bestAny || sonuc.puan > bestAny.puan) {
+      bestAny = { s, k, m, sat, faalmarj: fa, vade: VADE, puan: sonuc.puan, puanArtis: sonuc.puanArtis,
+        uvdeKalan: sonuc.uvdeKalan, netKvAzalis: sonuc.netKvAzalis };
+    }
+  }
+  return bestAny;
 }
 
 // Not skalası — getRating ile birebir
@@ -4369,7 +4406,7 @@ function _senaryoHedefNotKarsilaniyor(c, hedefNot) {
   return (_NOT_INDEX[rt.note] ?? -1) >= (_NOT_INDEX[hedefNot] ?? 999);
 }
 
-/** 1. kademe sonrası bilanço — etkin likit + KV taşıma net düşüşü (_renderSenaryo ile uyum). */
+/** 1. kademe sonrası bilanço — KV/sermaye + (varsa) satış / FAVÖK / net marj etkisi; _rsSimule ile uyumlu. */
 function _r2SenaryoAnalizR(r, c1) {
   if (!c1) return r;
   const refY = parseInt((document.getElementById('refYear') || { value: '2025' }).value);
@@ -4379,7 +4416,7 @@ function _r2SenaryoAnalizR(r, c1) {
   const netKv = (c1.k > 0 && c1.netKvAzalis != null) ? c1.netKvAzalis : 0;
   const effLikit = r.likit || ((r.donenVarlik || 0) * 0.5);
   const aktif0 = r.aktif || ((r.donenVarlik || 0) + (d.duranVarlik || 0));
-  return Object.assign({}, r, {
+  let r2 = Object.assign({}, r, {
     ozKaynak: (r.ozKaynak || 0) + addS,
     donenVarlik: (r.donenVarlik || 0) + addS,
     likit: effLikit + addS,
@@ -4387,6 +4424,24 @@ function _r2SenaryoAnalizR(r, c1) {
     kvBorclar: Math.max(0, kvB0 - netKv),
     kvMaliBor: Math.max(0, (r.kvMaliBor || 0) - netKv)
   });
+  const satD = c1.sat || 0;
+  const faalD = c1.faalmarj || 0;
+  const mD = c1.m || 0;
+  if (satD || faalD || mD) {
+    const bns = r2.netSatis || 0;
+    const ns = bns * (1 + satD / 100);
+    const faalMarj0 = bns > 0 ? (r2.faalKar || 0) / bns * 100 : 0;
+    const faalKarN = ns * (faalMarj0 + faalD) / 100;
+    const nkmB = (r.netKarMarj !== undefined ? r.netKarMarj : 0);
+    const voKarN = ns * (nkmB + mD + faalD) / 100;
+    Object.assign(r2, {
+      netSatis: ns,
+      faalKar: faalKarN,
+      voKar: voKarN,
+      netKarMarj: ns > 0 ? (voKarN / ns * 100) : nkmB
+    });
+  }
+  return r2;
 }
 
 function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
@@ -4447,6 +4502,7 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
 
   let _k1Params = null; // 1. kademede kullanılan parametreler
   let c1result = null;   // 2. kademe birikimli hesap için
+  let puanRefOrtak = toplam; // gösterilen artış: k1 analiz bazı; k2 bir önceki kademe sonrası (render senaryo ile uyum)
   for (const {not, esik, kademe} of hedefler) {
     const renk = _NOT_RENK[not] || '#f5a623';
 
@@ -4457,10 +4513,11 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
       continue;
     }
 
-    // Kademe 1: KV taşıma → faaliyet kar marjı → satış büyümesi (sermaye YOK)
-    // Kademe 2: sermaye artışı → faaliyet kar marjı
+    // Kademe 1: grid (sermaye+KV+marj+satış) + ikili KV/FAVÖK/satış; hedefi tutanlar arasında önce sermaye tercih
+    // Kademe 2: 1. kademede kullanılan kriter türleri yasak; kalanlarla grid (+FAVÖK)
     let c;
     if (kademe === 1) {
+      const cGrid = _rsEnIyi(r, subjPuan, esik, null);
       const cKv = _rsEnIyiKvTasima(r, subjPuan, esik);
       const cFaal1 = _rsEnIyiFaalMarj(r, subjPuan, esik);
       const cSat1 = _rsEnIyiSatis(r, subjPuan, esik);
@@ -4470,29 +4527,28 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
       else if (cSat1 && cSat1.puan >= esik) c1 = cSat1;
       else c1 = cKv || cFaal1 || cSat1;
       const cIk = _rsEnIyiKademe1Ikili(r, subjPuan, esik);
-      if (_senaryoHedefNotKarsilaniyor(cIk, not)) c = cIk;
-      else if (_senaryoHedefNotKarsilaniyor(c1, not)) c = c1;
-      else {
-        c = (cIk && c1) ? (cIk.puan >= c1.puan ? cIk : c1) : (cIk || c1);
+      const pool = [cGrid, cIk, c1].filter(Boolean);
+      const ok = pool.filter(x => _senaryoHedefNotKarsilaniyor(x, not));
+      const _malK1 = x => (x.s>0?2:0)+(x.k>0?2:0)+(x.sat>0?1+x.sat*0.06:0)+(x.m>0?5+x.m*0.5:0)+((x.faalmarj||0)>0?1+(x.faalmarj||0)*0.22:0);
+      const _parsK1 = x => (x.s>0?1:0)+(x.k>0?1:0)+(x.sat>0?1:0)+(x.m>0?1:0)+((x.faalmarj||0)>0?1:0);
+      if (ok.length) {
+        const withS = ok.filter(x => (x.s||0) > 0);
+        const cand = withS.length ? withS : ok;
+        cand.sort((a, b) => _malK1(a) - _malK1(b) || _parsK1(a) - _parsK1(b) || (b.puan || 0) - (a.puan || 0));
+        c = cand[0];
+      } else {
+        c = pool.slice().sort((a, b) => (b.puan || 0) - (a.puan || 0))[0];
       }
     } else {
-      // 2. kademe: 1. kademe sonrası bilanço (etkin likit + KV net düşüşü)
       const r2 = c1result ? _r2SenaryoAnalizR(r, c1result) : r;
-      const subjPuan2 = subjPuan;
-      // Kademe 2: önce sermaye artışı, sonra faaliyet kar marjı
-      const cSerm = _rsEnIyiSermaye(r2, subjPuan2, esik);
-      const cFaal = _rsEnIyiFaalMarj(r2, subjPuan2, esik);
-      // Sermaye artışı hedefi karşılıyorsa onu göster
-      if (cSerm && cSerm.puan >= esik) {
-        c = cSerm;
-      } else if (cFaal && cFaal.puan >= esik) {
-        c = cFaal;
-      } else {
-        // İkisi de yetmiyorsa en iyi sonucu göster
-        c = (cSerm && cFaal)
-          ? (cSerm.puan >= cFaal.puan ? cSerm : cFaal)
-          : (cSerm || cFaal);
-      }
+      const forb = !c1result ? { s: false, k: false, m: false, sat: false, faal: false } : {
+        s: (c1result.s || 0) > 0,
+        k: (c1result.k || 0) > 0,
+        m: (c1result.m || 0) > 0,
+        sat: (c1result.sat || 0) > 0,
+        faal: ((c1result.faalmarj || 0) > 0)
+      };
+      c = _rsEnIyiWithForbid(r2, subjPuan, esik, forb);
       window._k2SatisOneri = null;
     }
 
@@ -4521,10 +4577,13 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
 
     // 1. kademe başarılı — 2. kademe birikim bilançosu (yalnızca geçerli hedef sonrası)
     if (kademe === 1 && c) {
-      _k1Params = { s: c.s > 0, k: c.k > 0, m: c.m > 0, sat: c.sat > 0 };
+      _k1Params = { s: c.s > 0, k: c.k > 0, m: c.m > 0, sat: c.sat > 0, faal: (c.faalmarj || 0) > 0 };
       c1result = c;
     }
-    const pArtis = (cPuanDuzeltilmis - toplam).toFixed(1);
+    const finArtisHam = (kademe === 1 && c.puanArtis != null && Number.isFinite(c.puanArtis))
+      ? c.puanArtis
+      : (cPuanDuzeltilmis - puanRefOrtak);
+    const pArtisStr = String(Math.round(finArtisHam));
 
     html += '<div style="border:2px solid rgba(255,255,255,.1);border-left:4px solid ' + renk + ';page-break-inside:avoid;'
           + 'border-radius:10px;padding:18px;margin-bottom:16px">'
@@ -4534,7 +4593,9 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
           + '<div><div style="font-size:13px;font-weight:700">Kredi Notu ' + (kademe===1?'1':'2') + ' Kademe Artırma Önerisi &mdash; Hedef: ' + not + '</div>'
           + '<div style="font-size:11px;color:#64748b">Gereken: &ge;' + esik
           + ' &nbsp;|&nbsp; Senaryo: ' + cPuanDuzeltilmis.toFixed(1)
-          + ' &nbsp;|&nbsp; <span style="color:#22c55e">+' + pArtis + ' puan</span></div>'
+          + ' &nbsp;|&nbsp; <span style="color:#22c55e">+' + pArtisStr + ' puan</span>'
+          + (kademe === 2 ? ' <span style="color:#64748b;font-weight:500">(önceki kademeye göre)</span>' : '')
+          + '</div>'
           + '</div></div>'
           + '<table style="margin-bottom:0">'
           + '<tr><th>PARAMETRE</th><th>MEVCUT</th><th>'
@@ -4585,10 +4646,11 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
             + '<td style="color:#22c55e;font-weight:700">+%' + c.sat + ' (&rarr; ' + TL2(baseNetSatis*(1+c.sat/100)) + ')</td>'
             + '<td style="font-size:12px;color:#64748b">Ciro artışı borç/satış oranını iyileştirir</td></tr>';
     }
-    if (!c.s && !c.k && !c.m && !c.sat && !c.faalmarj) {
+    if (!c.s && !c.k && !c.m && !c.sat && !(c.faalmarj > 0)) {
       html += '<tr><td colspan="4" style="color:#22c55e;text-align:center">&#9989; Mevcut parametreler yeterli</td></tr>';
     }
     html += '</table></div>';
+    puanRefOrtak = cPuanDuzeltilmis;
   }
 
   window._senaryoPrevC5=_s5; window._senaryoPrevC9=_s9; window._senaryoPrevC11=_s11;
