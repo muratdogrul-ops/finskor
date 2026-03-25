@@ -4543,8 +4543,8 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
       continue;
     }
 
-    // Kademe 1: grid (sermaye+KV+marj+satış) + ikili KV/FAVÖK/satış; hedefi tutanlar arasında önce sermaye tercih
-    // Kademe 2: 1. kademede kullanılan kriter türleri yasak; kalanlarla grid (+FAVÖK)
+    // Kademe 1: stage-1 hedefini tutan adaylar arasından, 2. kademe potansiyeli en yüksek olanı seç.
+    // Kademe 2: aynı kriter kullanımına izin ver (kademeler arası yasak yok).
     let c;
     if (kademe === 1) {
       const cGrid = _rsEnIyi(r, subjPuan, esik, null);
@@ -4562,22 +4562,31 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
       const _malK1 = x => (x.s>0?2:0)+(x.k>0?2:0)+(x.sat>0?1+x.sat*0.06:0)+(x.m>0?5+x.m*0.5:0)+((x.faalmarj||0)>0?1+(x.faalmarj||0)*0.22:0);
       const _parsK1 = x => (x.s>0?1:0)+(x.k>0?1:0)+(x.sat>0?1:0)+(x.m>0?1:0)+((x.faalmarj||0)>0?1:0);
       if (ok.length) {
-        const withS = ok.filter(x => (x.s||0) > 0);
-        const cand = withS.length ? withS : ok;
-        cand.sort((a, b) => _malK1(a) - _malK1(b) || _parsK1(a) - _parsK1(b) || (b.puan || 0) - (a.puan || 0));
-        c = cand[0];
+        const cand = ok.map(x => {
+          let k2 = null;
+          let k2Reach = 0;
+          if (h2 && h2.esik) {
+            const r2x = _r2SenaryoAnalizR(r, x);
+            // Kademeler arası aynı kriter kullanımı serbest.
+            k2 = _rsEnIyiWithForbid(r2x, subjPuan, h2.esik, { s:false, k:false, m:false, sat:false, faal:false });
+            k2Reach = (k2 && _senaryoHedefNotKarsilaniyor(k2, h2.not)) ? 1 : 0;
+          }
+          return { x, k2, k2Reach };
+        });
+        cand.sort((a, b) =>
+          (b.k2Reach - a.k2Reach) ||
+          (((b.k2 && b.k2.puan) || -1) - ((a.k2 && a.k2.puan) || -1)) ||
+          (_malK1(a.x) - _malK1(b.x)) ||
+          (_parsK1(a.x) - _parsK1(b.x)) ||
+          ((b.x.puan || 0) - (a.x.puan || 0))
+        );
+        c = cand[0].x;
       } else {
         c = pool.slice().sort((a, b) => (b.puan || 0) - (a.puan || 0))[0];
       }
     } else {
       const r2 = c1result ? _r2SenaryoAnalizR(r, c1result) : r;
-      const forb = !c1result ? { s: false, k: false, m: false, sat: false, faal: false } : {
-        s: (c1result.s || 0) > 0,
-        k: (c1result.k || 0) > 0,
-        m: (c1result.m || 0) > 0,
-        sat: (c1result.sat || 0) > 0,
-        faal: ((c1result.faalmarj || 0) > 0)
-      };
+      const forb = { s: false, k: false, m: false, sat: false, faal: false };
       c = _rsEnIyiWithForbid(r2, subjPuan, esik, forb);
       window._k2SatisOneri = null;
     }
