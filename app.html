@@ -6470,7 +6470,16 @@ function mizanTextIsleMizan(lines, result, silent) {
   // "100 00 01 …" alt hesap satırları çift toplam yapmaması için atlanır.
   const HAZIR_OZET_KOD = new Set([100, 101, 102, 103, 108]);
 
-  for (const line of lines) {
+  function pdfMizanParaTokenlari(tail) {
+    return [...tail.matchAll(/[0-9][0-9.,]*/g)].map(m => m[0]).filter(tok => {
+      if (tok.includes(',')) return true;
+      if (tok.includes('.') && /^\d{1,3}(\.\d{3})+$/.test(tok.replace(/\s/g, ''))) return true;
+      return false;
+    });
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].replace(/^\uFEFF/, '');
     if (!line.trim() || line.trim().length < 5) continue;
 
     const kodMatch = line.match(/^\s*([1-6]\d{2})(?:[.\-]\d+)?(?!\d)/);
@@ -6490,12 +6499,32 @@ function mizanTextIsleMizan(lines, result, silent) {
 
     if (rawKod >= 100 && rawKod <= 599 && key !== 'hazirDegerler' && pdfMizanBilancoSatirAtla(line, kodMatch)) continue;
 
-    const tail = line.slice(kodMatch.index + kodMatch[0].length);
-    const moneyTokens = [...tail.matchAll(/[0-9][0-9.,]*/g)].map(m => m[0]).filter(tok => {
-      if (tok.includes(',')) return true;
-      if (tok.includes('.') && /^\d{1,3}(\.\d{3})+$/.test(tok.replace(/\s/g, ''))) return true;
-      return false;
-    });
+    let workLine = line;
+    let extra = 0;
+    // PDF satır kırığı: "102 BANKALAR" bir satır, tutarlar hemen alt satırda — tek satırda para yoksa birleştir
+    if (key === 'hazirDegerler' && HAZIR_OZET_KOD.has(rawKod)) {
+      let tailTry = workLine.slice(kodMatch.index + kodMatch[0].length);
+      let toksTry = pdfMizanParaTokenlari(tailTry);
+      let numsTry = toksTry.map(m => parseImportNumber(m)).filter(n => n !== null && isFinite(n) && n >= 0);
+      while (numsTry.length < 3 && i + 1 + extra < lines.length) {
+        const nxt = lines[i + 1 + extra].replace(/^\uFEFF/, '').trim();
+        if (!nxt) {
+          extra++;
+          continue;
+        }
+        if (/^\s*[1-6]\d{2}(?:[.\-]\d+)?(?!\d)/.test(nxt)) break;
+        if (!/^\d/.test(nxt)) break;
+        workLine = workLine + ' ' + nxt;
+        extra++;
+        tailTry = workLine.slice(kodMatch.index + kodMatch[0].length);
+        toksTry = pdfMizanParaTokenlari(tailTry);
+        numsTry = toksTry.map(m => parseImportNumber(m)).filter(n => n !== null && isFinite(n) && n >= 0);
+      }
+      i += extra;
+    }
+
+    const tail = workLine.slice(kodMatch.index + kodMatch[0].length);
+    const moneyTokens = pdfMizanParaTokenlari(tail);
     const sayilar = moneyTokens
       .map(m => parseImportNumber(m))
       .filter(n => n !== null && isFinite(n) && n >= 0);
