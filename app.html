@@ -3750,10 +3750,14 @@ function _senaryoPuan(oz, totalBor, donenVar, kvBorclar, likit, netSatis, voKar,
   let c11;
   const _satD = (satisDeltaParam !== undefined ? satisDeltaParam : 0);
   if (_satD > 0) {
+    const _prevC11 = window._senaryoPrevC11 || 0;
     const _enfl = (enflasyonParam !== undefined ? enflasyonParam : (window._senaryoEnflasyon || 0));
     const nominalFactor = 1 + (_satD / 100);
     const reelBuy = _enfl > 0 ? ((nominalFactor / (1 + _enfl)) - 1) * 100 : _satD;
-    c11 = reelBuy > 150 ? 0 : reelBuy > 110 ? 1 : reelBuy > 70 ? 4 : reelBuy > 20 ? 5 : reelBuy > 4 ? 4 : reelBuy > 0 ? 1 : 0;
+    const _c11Yeni = reelBuy > 150 ? 0 : reelBuy > 110 ? 1 : reelBuy > 70 ? 4 : reelBuy > 20 ? 5 : reelBuy > 4 ? 4 : reelBuy > 0 ? 1 : 0;
+    // Senaryoda satış büyümesi girdisi mevcut analiz puanını düşürmesin:
+    // kullanıcı "iyileştirme" adımı denerken c11, mevcut seviyenin altına inmez.
+    c11 = Math.max(_prevC11, _c11Yeni);
   } else {
     c11 = window._senaryoPrevC11 || 0;
   }
@@ -4522,6 +4526,9 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
         + ' (' + toplam.toFixed(1) + ' puan)'
         + ' &nbsp;|&nbsp; KV Mali Borç (30. hesap): <b>' + TL2(baseKvMaliBor) + '</b>'
         + '</p>';
+  html += '<div style="margin-bottom:12px;padding:10px 12px;border:1px solid rgba(99,102,241,.25);background:rgba(99,102,241,.09);border-radius:8px;font-size:11px;color:#a5b4fc">'
+        + '📌 Bu alan bir sonraki dönem senaryo projeksiyonudur. ÜFE eşleşmesi: ' + refYear + '→' + (refYear >= 2026 ? 2027 : (refYear + 1)) + '.'
+        + '</div>';
 
   let _k1Params = null; // 1. kademede kullanılan parametreler
   let c1result = null;   // 2. kademe birikimli hesap için
