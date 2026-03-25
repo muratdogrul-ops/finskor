@@ -6097,16 +6097,20 @@ function mizanTextIsle(text, structuredLines) {
     importLog(`✅ Birleştirme: <b>metin öncelikli</b> (Excel mizan ile uyumlu; koordinat yedek)`, 'ok');
     const nFin = countMizanNonZeroKeys(result);
     importLog(`✅ PDF mizan: ${nFin} kalem aktarıldı`, nFin > 0 ? 'ok' : 'warn');
-    return result;
-  }
-
-  if (nKor > 0) {
+  } else if (nKor > 0) {
     Object.assign(result, resultKoord);
     importLog(`✅ Mizan PDF (koordinat): ${nKor} kalem eşleştirildi`, 'ok');
-    return result;
+  } else {
+    Object.assign(result, resultText);
+    importLog(`✅ Mizan PDF: ${nTxt} kalem eşleştirildi`, nTxt > 0 ? 'ok' : 'warn');
   }
-  Object.assign(result, resultText);
-  importLog(`✅ Mizan PDF: ${nTxt} kalem eşleştirildi`, nTxt > 0 ? 'ok' : 'warn');
+
+  // Metin 102 BANKALAR'ı kaçırınca hazır değerler eksik kalıyor: özet 102 satırında X ile bak.borç sütununu oku
+  if (!isBeyannameFormat && structuredLines && structuredLines.length && pdfMizanSupplementHazir102FromKoord(result, structuredLines)) {
+    const fmt = Number(result.hazirDegerler).toLocaleString('tr-TR', { maximumFractionDigits: 0 });
+    importLog(`📎 102 BANKALAR: koordinat <b>bak.borç</b> bandı ile hazır değerler tamamlandı → toplam <b>${fmt} ₺</b>`, 'ok');
+  }
+
   return result;
 }
 
@@ -6387,6 +6391,48 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
   const n = Object.keys(result).filter(k => result[k] !== 0).length;
   if (!silent) importLog(`✅ Mizan PDF (koordinat): ${n} kalem eşleştirildi`, n > 0 ? 'ok' : 'warn');
   return result;
+}
+
+/** Sadece "102 BANKALAR" özet satırı: bak.borç X bandı (mizanTextIsleMizanKoordinat ile aynı). Alt satır 102 01… atlanır. */
+function pdfMizanKoord102BakBorcOzet(structuredLines) {
+  const COL_BAKBORC_MIN = 440;
+  const COL_BAKBORC_MAX = 513;
+  const COL_BAKALAC_MIN = 513;
+  const COL_BAKALAC_MAX = 600;
+  function parseNum(s) {
+    const v = parseFloat(String(s).replace(/[.]/g, '').replace(',', '.'));
+    return isNaN(v) ? 0 : v;
+  }
+  for (const sl of structuredLines) {
+    const trimmed = sl.text.trim();
+    if (!/^102(?:[.\-]\d+)?\s+/.test(trimmed)) continue;
+    const after102 = trimmed.replace(/^102(?:[.\-]\d+)?\s+/, '');
+    if (!after102.length || /^\d/.test(after102)) continue;
+    let borcBak = 0, alacBak = 0;
+    for (const item of sl.items) {
+      const v = parseNum(item.str);
+      if (v <= 0) continue;
+      const x = item.x;
+      if (x >= COL_BAKBORC_MIN && x < COL_BAKBORC_MAX) borcBak += v;
+      else if (x >= COL_BAKALAC_MIN && x < COL_BAKALAC_MAX) alacBak += v;
+    }
+    if (borcBak === 0 && alacBak === 0) continue;
+    const isM = MINUS_KODLAR.has(102);
+    const katki = isM ? (alacBak - borcBak) : (borcBak - alacBak);
+    if (katki === 0) continue;
+    return Math.abs(katki);
+  }
+  return 0;
+}
+
+/** Metin hazır toplamı 102 bakiyesinden küçükse (102 eksik), koordinat bak.borç ekle — çift sayım: h >= kb ise dokunma */
+function pdfMizanSupplementHazir102FromKoord(result, structuredLines) {
+  const kb = pdfMizanKoord102BakBorcOzet(structuredLines);
+  if (kb <= 0 || kb > MIZAN_PDF_MAX_PLAUSIBLE_TL) return false;
+  const h = result.hazirDegerler || 0;
+  if (h >= kb) return false;
+  result.hazirDegerler = h + kb;
+  return true;
 }
 
 /** PDF metin mizanı: satır içi 0059145 gibi küçük tamsayıları buda (4 sütundan önce gelen gürültü) */
