@@ -5566,21 +5566,34 @@ function pdfMizanGrupOzetSatirMi(key, rawKod) {
 const PDF_MIZAN_HAZIR_OZET_KOD = new Set([100, 101, 102, 103, 108]);
 
 /**
- * PDF grup özet / hazır özet (YOL BAK): yalnız "620 AÇIKLAMA" (kod + boşluk + harf).
- * Atlanır: "120.01 …", "620 01 …" (alt kod); "296 6736 SAYILI …" tutulur (ilk rakam token 4+ hane).
+ * YOL BAK: yalnız "100 KASA" / "102 BANKALAR" (kod + boşluk + harfli açıklama).
+ * Atlanır: "100.01", "101.2024", "102.01.01.01", "100 01 …" (boşluktan sonra rakam).
  */
-function pdfMizanGrupOzetSatiraDahilEt(lineTrim, rawKod) {
-  const t = String(lineTrim).trim();
-  const ks = String(rawKod);
-  const esc = ks.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  if (new RegExp('^' + esc + '\\s+[A-Za-zÇĞİÖŞÜçğıöşü]').test(t)) return true;
-  const mDig = t.match(new RegExp('^' + esc + '\\s+(\\d.*)$'));
-  if (mDig) {
-    const rest = mDig[1].trim();
-    const mm = rest.match(/^(\d+)/);
-    if (mm && mm[1].length >= 4) return true;
-  }
-  return false;
+function pdfMizanHazirAnaSatirMi(lineTrim) {
+  return /^(100|101|102|103|108)\s+[A-Za-zÇĞİÖŞÜçğıöşü]/.test(String(lineTrim).trim());
+}
+
+/** 12 Ticari alacaklar — KOD_TO_KEY ile aynı kodlar (PDF tablo mizan) */
+const PDF_MIZAN_TICARI_OZET_KOD = new Set([120, 121, 122, 124, 126, 127, 128, 129]);
+
+/**
+ * Hazır ile aynı YOL BAK kuralı: "120 ALICILAR" / "126 VERİLEN …"
+ * Atlanır: "120.A", "120.01", "120.B.02", "120 01 …"
+ */
+function pdfMizanTicariAlacakAnaSatirMi(lineTrim) {
+  return /^(120|121|122|124|126|127|128|129)\s+[A-Za-zÇĞİÖŞÜçğıöşü]/.test(String(lineTrim).trim());
+}
+
+/**
+ * Grup özet: kuyruk rakamla başlıyorsa çoğunlukla alt hesap (296 01…) → atla.
+ * İlk token 4+ hane ise çoğunlukla kanun/yıl no (296 6736 SAYILI KANUN…) → ana satır, atlama.
+ */
+function pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterTrim) {
+  if (!afterTrim.length) return true;
+  if (!/^\d/.test(afterTrim)) return false;
+  const m = afterTrim.match(/^(\d+)/);
+  if (m && m[1].length >= 4) return false;
+  return true;
 }
 
 // 2 haneli ana grup → key (2-pass için)
@@ -6458,8 +6471,16 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
     const key = KOD_TO_KEY[rawKod];
     if (!key) continue;
 
-    if (key === 'hazirDegerler' && PDF_MIZAN_HAZIR_OZET_KOD.has(rawKod) && !pdfMizanGrupOzetSatiraDahilEt(trimmed, rawKod)) continue;
-    if (pdfMizanGrupOzetSatirMi(key, rawKod) && !pdfMizanGrupOzetSatiraDahilEt(trimmed, rawKod)) continue;
+    if (key === 'hazirDegerler' && PDF_MIZAN_HAZIR_OZET_KOD.has(rawKod) && !pdfMizanHazirAnaSatirMi(trimmed)) continue;
+    if (key === 'ticAlacaklar' && PDF_MIZAN_TICARI_OZET_KOD.has(rawKod) && !pdfMizanTicariAlacakAnaSatirMi(trimmed)) continue;
+
+    // Bilanço + gelir (100–699) grup özetleri: "620 SATMAL…" gibi; "620 01…" atlanır
+    if (pdfMizanGrupOzetSatirMi(key, rawKod)) {
+      const head = trimmed.match(/^([1-6]\d{2})(?:[.\-]\d+)?\s+/);
+      if (!head) continue;
+      const afterKoord = trimmed.slice(head[0].length).trim();
+      if (!afterKoord.length || pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterKoord)) continue;
+    }
 
     // BAK.BORÇ ve BAK.ALACAK sütunlarındaki değerleri koordinata göre topla
     let borcBak = 0, alacBak = 0;
@@ -6487,7 +6508,7 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
   return result;
 }
 
-/** Yalnız "102 BANKALAR" (102 + boşluk + harf); 102.01… atlanır — pdfMizanGrupOzetSatiraDahilEt(102) ile uyumlu */
+/** Yalnız "102 BANKALAR" (102 + boşluk + harf); 102.01… atlanır — pdfMizanHazirAnaSatirMi ile uyumlu */
 function pdfMizanKoord102BakBorcOzet(structuredLines) {
   const COL_BAKBORC_MIN = 440;
   const COL_BAKBORC_MAX = 513;
@@ -6606,7 +6627,7 @@ function pdfMizanPickBakBorcAlacBak(sayilar, kod, rawKod) {
 
 function mizanTextIsleMizan(lines, result, silent) {
   // PDF mizan: çoğu dosyada 2 haneli özet satır yok → yalnızca 3 haneli satır başı kodlar.
-  // Hazır + tüm grup özet: pdfMizanGrupOzetSatiraDahilEt (YOL BAK ana satır; 296 6736 istisnası)
+  // Hazır: PDF_MIZAN_HAZIR_OZET_KOD + pdfMizanHazirAnaSatirMi (YOL BAK noktalı alt kod atlanır)
 
   function pdfMizanParaTokenlari(tail) {
     return [...tail.matchAll(/[0-9][0-9.,]*/g)].map(m => m[0]).filter(tok => {
@@ -6630,8 +6651,16 @@ function mizanTextIsleMizan(lines, result, silent) {
     if (!key) continue;
     const kod = rawKod;
 
-    if (key === 'hazirDegerler' && PDF_MIZAN_HAZIR_OZET_KOD.has(rawKod) && !pdfMizanGrupOzetSatiraDahilEt(line, rawKod)) continue;
-    if (pdfMizanGrupOzetSatirMi(key, rawKod) && !pdfMizanGrupOzetSatiraDahilEt(line, rawKod)) continue;
+    if (key === 'hazirDegerler' && PDF_MIZAN_HAZIR_OZET_KOD.has(rawKod)) {
+      const after = line.slice(kodMatch.index + kodMatch[0].length).trim();
+      if (/^\d/.test(after)) continue;
+      if (!pdfMizanHazirAnaSatirMi(line)) continue;
+    }
+    if (key === 'ticAlacaklar' && PDF_MIZAN_TICARI_OZET_KOD.has(rawKod) && !pdfMizanTicariAlacakAnaSatirMi(line)) continue;
+    if (pdfMizanGrupOzetSatirMi(key, rawKod)) {
+      const afterGr = line.slice(kodMatch.index + kodMatch[0].length).trim();
+      if (!afterGr.length || pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterGr)) continue;
+    }
 
     if (rawKod >= 100 && rawKod <= 599 && key !== 'hazirDegerler' &&
         !pdfMizanGrupOzetSatirMi(key, rawKod) &&
