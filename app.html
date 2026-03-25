@@ -6105,10 +6105,10 @@ function mizanTextIsle(text, structuredLines) {
     importLog(`✅ Mizan PDF: ${nTxt} kalem eşleştirildi`, nTxt > 0 ? 'ok' : 'warn');
   }
 
-  // Metin özet satırı kaçırınca hazır değerler eksik: 100/101/102/103/108 ana satırda koordinat bakiye (mizan koord ile aynı mantık)
-  if (!isBeyannameFormat && structuredLines && structuredLines.length && pdfMizanSupplementHazirOzetFromKoord(result, structuredLines)) {
+  // Metin 102 BANKALAR'ı kaçırınca hazır değerler eksik kalıyor: özet 102 satırında X ile bak.borç sütununu oku
+  if (!isBeyannameFormat && structuredLines && structuredLines.length && pdfMizanSupplementHazir102FromKoord(result, structuredLines)) {
     const fmt = Number(result.hazirDegerler).toLocaleString('tr-TR', { maximumFractionDigits: 0 });
-    importLog(`📎 Hazır değerler (100–108 özet): koordinat bakiye ile tamamlandı → toplam <b>${fmt} ₺</b>`, 'ok');
+    importLog(`📎 102 BANKALAR: koordinat <b>bak.borç</b> bandı ile hazır değerler tamamlandı → toplam <b>${fmt} ₺</b>`, 'ok');
   }
 
   return result;
@@ -6393,14 +6393,8 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
   return result;
 }
 
-/** mizanTextIsleMizan ile aynı hazır özet kodları; ana satır (102 01… değil) */
-const PDF_MIZAN_HAZIR_OZET_KODLAR = [100, 101, 102, 103, 108];
-
-/**
- * Tek bir ana hesap satırı (örn. 102 BANKALAR): bak.borç / bak.alacak X bandı — mizanTextIsleMizanKoordinat katkısı ile uyumlu.
- * Alt özet (102 01 …) atlanır.
- */
-function pdfMizanKoordHazirOzetBakForCode(structuredLines, rawKod) {
+/** Sadece "102 BANKALAR" özet satırı: bak.borç X bandı (mizanTextIsleMizanKoordinat ile aynı). Alt satır 102 01… atlanır. */
+function pdfMizanKoord102BakBorcOzet(structuredLines) {
   const COL_BAKBORC_MIN = 440;
   const COL_BAKBORC_MAX = 513;
   const COL_BAKALAC_MIN = 513;
@@ -6409,12 +6403,11 @@ function pdfMizanKoordHazirOzetBakForCode(structuredLines, rawKod) {
     const v = parseFloat(String(s).replace(/[.]/g, '').replace(',', '.'));
     return isNaN(v) ? 0 : v;
   }
-  const headRe = new RegExp(`^${rawKod}(?:[.\\-]\\d+)?\\s+`);
   for (const sl of structuredLines) {
     const trimmed = sl.text.trim();
-    if (!headRe.test(trimmed)) continue;
-    const after = trimmed.replace(headRe, '');
-    if (!after.length || /^\d/.test(after)) continue;
+    if (!/^102(?:[.\-]\d+)?\s+/.test(trimmed)) continue;
+    const after102 = trimmed.replace(/^102(?:[.\-]\d+)?\s+/, '');
+    if (!after102.length || /^\d/.test(after102)) continue;
     let borcBak = 0, alacBak = 0;
     for (const item of sl.items) {
       const v = parseNum(item.str);
@@ -6424,30 +6417,21 @@ function pdfMizanKoordHazirOzetBakForCode(structuredLines, rawKod) {
       else if (x >= COL_BAKALAC_MIN && x < COL_BAKALAC_MAX) alacBak += v;
     }
     if (borcBak === 0 && alacBak === 0) continue;
-    let katki = 0;
-    if (rawKod >= 100 && rawKod <= 299) katki = borcBak - alacBak;
-    else if (rawKod >= 300 && rawKod <= 591) katki = alacBak - borcBak;
-    else katki = alacBak || borcBak;
+    const isM = MINUS_KODLAR.has(102);
+    const katki = isM ? (alacBak - borcBak) : (borcBak - alacBak);
     if (katki === 0) continue;
     return Math.abs(katki);
   }
   return 0;
 }
 
-/**
- * Metin bir özet satırı kaçırdığında hazır toplamı o satırın koordinat bakiyesinden küçük kalabiliyor.
- * Her özet kod için (sabit sıra): h < kb ise h += kb — çift sayım yok (h zaten kb üstündeyse atla).
- */
-function pdfMizanSupplementHazirOzetFromKoord(result, structuredLines) {
-  let h = result.hazirDegerler || 0;
-  const h0 = h;
-  for (const rawKod of PDF_MIZAN_HAZIR_OZET_KODLAR) {
-    const kb = pdfMizanKoordHazirOzetBakForCode(structuredLines, rawKod);
-    if (kb <= 0 || kb > MIZAN_PDF_MAX_PLAUSIBLE_TL) continue;
-    if (h < kb) h += kb;
-  }
-  if (h === h0) return false;
-  result.hazirDegerler = h;
+/** Metin hazır toplamı 102 bakiyesinden küçükse (102 eksik), koordinat bak.borç ekle — çift sayım: h >= kb ise dokunma */
+function pdfMizanSupplementHazir102FromKoord(result, structuredLines) {
+  const kb = pdfMizanKoord102BakBorcOzet(structuredLines);
+  if (kb <= 0 || kb > MIZAN_PDF_MAX_PLAUSIBLE_TL) return false;
+  const h = result.hazirDegerler || 0;
+  if (h >= kb) return false;
+  result.hazirDegerler = h + kb;
   return true;
 }
 
