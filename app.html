@@ -5573,6 +5573,17 @@ function pdfMizanHazirAnaSatirMi(lineTrim) {
   return /^(100|101|102|103|108)\s+[A-Za-zÇĞİÖŞÜçğıöşü]/.test(String(lineTrim).trim());
 }
 
+/** 12 Ticari alacaklar — KOD_TO_KEY ile aynı kodlar (PDF tablo mizan) */
+const PDF_MIZAN_TICARI_OZET_KOD = new Set([120, 121, 122, 124, 126, 127, 128, 129]);
+
+/**
+ * Hazır ile aynı YOL BAK kuralı: "120 ALICILAR" / "126 VERİLEN …"
+ * Atlanır: "120.A", "120.01", "120.B.02", "120 01 …"
+ */
+function pdfMizanTicariAlacakAnaSatirMi(lineTrim) {
+  return /^(120|121|122|124|126|127|128|129)\s+[A-Za-zÇĞİÖŞÜçğıöşü]/.test(String(lineTrim).trim());
+}
+
 /**
  * Grup özet: kuyruk rakamla başlıyorsa çoğunlukla alt hesap (296 01…) → atla.
  * İlk token 4+ hane ise çoğunlukla kanun/yıl no (296 6736 SAYILI KANUN…) → ana satır, atlama.
@@ -6461,6 +6472,7 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
     if (!key) continue;
 
     if (key === 'hazirDegerler' && PDF_MIZAN_HAZIR_OZET_KOD.has(rawKod) && !pdfMizanHazirAnaSatirMi(trimmed)) continue;
+    if (key === 'ticAlacaklar' && PDF_MIZAN_TICARI_OZET_KOD.has(rawKod) && !pdfMizanTicariAlacakAnaSatirMi(trimmed)) continue;
 
     // Bilanço + gelir (100–699) grup özetleri: "620 SATMAL…" gibi; "620 01…" atlanır
     if (pdfMizanGrupOzetSatirMi(key, rawKod)) {
@@ -6644,6 +6656,7 @@ function mizanTextIsleMizan(lines, result, silent) {
       if (/^\d/.test(after)) continue;
       if (!pdfMizanHazirAnaSatirMi(line)) continue;
     }
+    if (key === 'ticAlacaklar' && PDF_MIZAN_TICARI_OZET_KOD.has(rawKod) && !pdfMizanTicariAlacakAnaSatirMi(line)) continue;
     if (pdfMizanGrupOzetSatirMi(key, rawKod)) {
       const afterGr = line.slice(kodMatch.index + kodMatch[0].length).trim();
       if (!afterGr.length || pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterGr)) continue;
