@@ -6036,7 +6036,9 @@ const BEYAN_GRUP_MAP = [
   [/diger alacak/,                         'digerAlacaklar'],    // DURAN bölümünde uzunDigAlacak'a override edilir
   [/stok/,                                 'stoklar'],
   [/yillara yaygin/,                        'yilYayginMal'],  // 17x(DONEN) veya 35x(KV) — bolum override ile ayrılır
-  [/gelecek ay.*gider/,                    'gelecekAyGider'],
+  // "Gelirler ve Gider" (KV pasif H.) önce — geniş /gider/ yoksa dönen G. satırı KV ile karışır
+  [/gelecek ay.*gelirler.*ve.*gider/,      'gelecekAyGelir'],
+  [/gelecek ay.*giderler.*ve.*gelir/,      'gelecekAyGider'],
   [/diger donen/,                          'digerDonen'],
   // AKTİF DURAN
   [/maddi duran varlik/,                   'maddiDuranVar'],
@@ -6054,7 +6056,7 @@ const BEYAN_GRUP_MAP = [
   [/yillara yaygin.*hakedis/,               'yilHakediş'],    // açıkça "hakedis" yazıyorsa direkt eşleş
   [/borc.*karsili|karsili.*borc|kidem tazminat/,  'borcKarsilik'],
   [/odenecek vergi/,                       'odenecekVergi'],
-  [/gelecek ay.*gelir/,                    'gelecekAyGelir'],
+  // gelecekAyGelir yukarıda (gelirler ve gider) — geniş /gelecek ay.*gelir/ kaldırıldı
   // ÖZ KAYNAK
   [/odenmi[sg] sermaye/,                   'odenmisSermaye'],
   [/sermaye duzeltme.*olumlu/,             'sermaYedek'],
@@ -6160,19 +6162,6 @@ function mizanTextIsleBeyanname(lines, result, year) {
     if (!line || line.length < 5) continue;
     const ln = normTR(line);
 
-    // Gelir tablosu: "Dönem Net Karı veya Zararı" — A.–K. öneki yok; filtrede eleniyordu
-    if (/^donem net kar/i.test(ln) && /veya\s+(zarar|kari)/i.test(ln)) {
-      const sayilarDn = [...line.matchAll(/(?<![\w\d])-?[\d]+[\d.]*,\d{2,4}/g)]
-        .map(m => { const s = m[0].replace(/\./g,'').replace(',','.'); return parseFloat(s); })
-        .filter(n => !isNaN(n));
-      if (sayilarDn.length) {
-        const cariDn = sayilarDn[sayilarDn.length - 1];
-        result['donemNetKar'] = (result['donemNetKar'] || 0) + cariDn;
-        result._dnkFromGelir = true;
-      }
-      continue;
-    }
-
     // Bölüm tespiti: Roman rakamları — ama gelir tablosu I/J satırları hariç
     // I. Olağan Dışı (gelir), J. Olağandışı Gider — bunlar bölüm değil veri satırı
     // ". I. ..." satırlarında baştaki nokta yoksa "I. Diğer Kısa Vadeli Yabancı Kaynaklar" ana başlık sanılıp atlanıyordu
@@ -6229,10 +6218,14 @@ function mizanTextIsleBeyanname(lines, result, year) {
       if (pat.test(label)) { key = k; matched = true; break; }
     }
     if (!matched) {
+      if (/g\.?v\.?k\.?\s*113|hasiat\s+esasli|yurtici\s+satis|yurt\s*ici\s+satis/i.test(label)) continue;
       importLog(`  ? Eşleşmedi: "${label.substring(0,40)}"`, 'warn');
       continue;
     }
     if (key === null) continue; // Hesaplanan satır (brüt satış karı vb.) — atla
+
+    // Özkaynak ". F. Dönem Net Karı" PDF sırası gelir tablosundan önce gelebilir; dönem karı tek kaynak: fonksiyon sonunda (gelir öncelikli)
+    if (key === 'donemNetKar' && bolum === 'OZKAYNAK') continue;
 
     // ── YILLARA YAYGIN BÖLÜM OVERRIDE ─────────────────────────────────────
     // PDF'de başlık kırpılır: ". F. Yıllara Yaygın İnşaat ve Onarım" (Maliyetleri/Hakedişleri yok)
@@ -6252,12 +6245,6 @@ function mizanTextIsleBeyanname(lines, result, year) {
         odenecekVergi:'uvDigYK',       gelecekAyGelir:'uvDigYK',
       };
       key = uvMap[key] || key;
-    }
-    // Özkaynak ". F. Dönem Net Karı" — gelir tablosunda "Dönem Net Karı veya Zararı" zaten okunduysa çift sayım yapma
-    if (key === 'donemNetKar' && bolum === 'OZKAYNAK' && result._dnkFromGelir) continue;
-    // 2023 enflasyon: özkaynak "Dönem Net Karı" son sütun 0,00 — mali tutar genelde sondan bir önceki sütun
-    if (year === 2023 && bolum === 'OZKAYNAK' && key === 'donemNetKar' && sayilar.length >= 2 && Math.abs(sayilar[sayilar.length - 1]) < 1e-9) {
-      cari = sayilar[sayilar.length - 2];
     }
     // Duran varlıkta ticari/diğer alacaklar uzun vadeli key'e override edilir
     if (bolum === 'DURAN' && key === 'ticAlacaklar')  key = 'uzunTicAlacak';
@@ -6288,11 +6275,63 @@ function mizanTextIsleBeyanname(lines, result, year) {
     // NOT: PDF beyannamede A.Brüt Satışlar zaten toplam — ihracat brutSatis'e EKLENMIYOR
   }
 
+  // Dönem net karı: gelir tablosu "Dönem Net Karı veya Zararı" öncelikli (bilanço önce gelince çift sayım olmasın)
+  (function applyDonemNetKarFinal() {
+    const numRe = /(?<![\w\d])-?[\d]+[\d.]*,\d{2,4}/g;
+    let dnk = null;
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line || line.length < 5) continue;
+      const t = normTR(line);
+      if (/^donem net kar/i.test(t) && /veya\s+(zarar|kari)/i.test(t)) {
+        const sayilarDn = [...line.matchAll(numRe)]
+          .map(m => { const s = m[0].replace(/\./g,'').replace(',','.'); return parseFloat(s); })
+          .filter(n => !isNaN(n));
+        if (sayilarDn.length) { dnk = sayilarDn[sayilarDn.length - 1]; break; }
+      }
+    }
+    if (dnk !== null) {
+      result['donemNetKar'] = dnk;
+      return;
+    }
+    let b2 = null;
+    const isGelirIJ2 = (ln, line) => /^[ij]\.\s+/.test(ln) && !/^\.\s/.test(line) && (/olagan|olagandisi|olagan dis/.test(ln));
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line || line.length < 5) continue;
+      const ln = normTR(line);
+      const isRoman2 = /^(i{1,3}v?|iv|v|vi|vii)\b/i.test(ln) && !/^\.\s/.test(line.trim());
+      const isRomanDigerKv2 = /^(i{1,3}v?|iv|v|vi|vii)\b/i.test(ln) &&
+        /diger.*kisa\s*vadeli/i.test(ln) && /yabanci/i.test(ln);
+      if (isRoman2 && !isGelirIJ2(ln, line) && !isRomanDigerKv2) {
+        if (/donen varlik|donen/.test(ln) && !/duran/.test(ln)) b2 = 'DONEN';
+        else if (/duran varlik|duran/.test(ln)) b2 = 'DURAN';
+        else if (/kisa vadeli/.test(ln)) b2 = 'KV';
+        else if (/uzun vadeli/.test(ln)) b2 = 'UV';
+        else if (/oz kaynak/.test(ln)) b2 = 'OZKAYNAK';
+        continue;
+      }
+      const isGrupHarf2 = /^\.\s+[a-z][\.\s]/.test(ln);
+      if (!isGrupHarf2) continue;
+      const sayilar = [...line.matchAll(numRe)]
+        .map(m => { const s = m[0].replace(/\./g,'').replace(',','.'); return parseFloat(s); })
+        .filter(n => !isNaN(n));
+      if (!sayilar.length) continue;
+      let lab = ln.replace(/^\.\s+([a-z]|\d+)[\.\s]+/, '').replace(/[\d.,\s\(\)-]+$/, '').trim();
+      lab = lab.replace(/^[a-j]\.\s+/, '').trim();
+      if (!/donem net kar/.test(lab) || b2 !== 'OZKAYNAK') continue;
+      let cari = sayilar[sayilar.length - 1];
+      if (year === 2023 && sayilar.length >= 2 && Math.abs(sayilar[sayilar.length - 1]) < 1e-9) cari = sayilar[sayilar.length - 2];
+      result['donemNetKar'] = cari;
+      break;
+    }
+  })();
+
   // Firma ünvanını birleştir
   if (unvan1 || unvan2) {
     result._firmaAdi = (unvan1 + (unvan2 ? ' ' + unvan2 : '')).trim();
   }
-  const n = Object.keys(result).filter(k => result[k] !== 0).length;
+  const n = Object.keys(result).filter(k => !k.startsWith('_') && result[k] !== 0).length;
   importLog(`✅ Beyanname: ${n} kalem eşleştirildi`, n > 0 ? 'ok' : 'warn');
   return result;
 }
