@@ -5493,7 +5493,7 @@ const KOD_TO_KEY = {
 };
 
 /**
- * Dönen 12–19 + duran 22–29 (KOD_TO_KEY): yalnız özet ana satır (250 BİNALAR gibi);
+ * Dönen 12–19, duran 22–29, pasif 30–59 (300–599 KOD_TO_KEY, 600 hariç): özet ana satır;
  * kuyruk rakamla başlıyorsa alt hesap — anahtara tekrar yazılmaz (çift toplam önlenir).
  */
 const PDF_MIZAN_GRUP_OZET_KEYS = new Set([
@@ -5511,6 +5511,27 @@ const PDF_MIZAN_GRUP_OZET_KEYS = new Set([
   'ozelTukenme',
   'gelecekYilGider',
   'digerDuran',
+  'kvMaliBorclar',
+  'kvTicBorclar',
+  'kvDigBorclar',
+  'alinanAvans',
+  'yilHakediş',
+  'odenecekVergi',
+  'borcKarsilik',
+  'gelecekAyGelir',
+  'digerKvYK',
+  'uvMaliBorclar',
+  'uvTicBorclar',
+  'uvDigBorclar',
+  'uvAlinanAvans',
+  'uvBorcKarsilik',
+  'uvDigYK',
+  'odenmisSermaye',
+  'sermaYedek',
+  'karYedek',
+  'gecmisKar',
+  'gecmisZarar',
+  'donemNetKar',
 ]);
 
 const PDF_MIZAN_GRUP_OZET_KOD_BY_KEY = (function () {
@@ -6404,7 +6425,7 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
     const key = KOD_TO_KEY[rawKod];
     if (!key) continue;
 
-    // Dönen 12–19 + duran 22–29 özetleri: yalnız "250 BİNALAR" gibi satırlar; "250 01…" atlanır
+    // Dönen + duran + pasif (300–599) özetleri: yalnız "320 SATICILAR" / "590 …" gibi satırlar; "320 01…" atlanır
     if (pdfMizanGrupOzetSatirMi(key, rawKod)) {
       const head = trimmed.match(/^([1-6]\d{2})(?:[.\-]\d+)?\s+/);
       if (!head) continue;
@@ -6565,7 +6586,7 @@ function pdfMizanPickBakBorcAlacBak(sayilar, kod, rawKod) {
 function mizanTextIsleMizan(lines, result, silent) {
   // PDF mizan: çoğu dosyada 2 haneli özet satır yok → yalnızca 3 haneli satır başı kodlar.
   // Hazır değerler (100–103,108): yalnızca grup özet satırları (100 KASA, 102 BANKALAR…);
-  // Grup 12–19 (dönen) + 22–29 (duran): özet satır kuralı PDF_MIZAN_GRUP_OZET_KEYS / KOD_TO_KEY’den türetilir
+  // Grup özet: dönen 12–19, duran 22–29, pasif 30–59 (KOD_TO_KEY 100–599, gelir 600+ hariç)
   const HAZIR_OZET_KOD = new Set([100, 101, 102, 103, 108]);
 
   function pdfMizanParaTokenlari(tail) {
