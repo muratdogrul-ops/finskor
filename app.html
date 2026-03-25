@@ -6468,10 +6468,10 @@ function mizanTextIsleMizan(lines, result, silent) {
   for (const line of lines) {
     if (!line.trim() || line.trim().length < 5) continue;
 
-    // Önce 3 haneli kodu dene (nokta/alt hesap ile birlikte de yakalar: 170.01 → 170)
-    let kodMatch = line.match(/(?<![.\d])([1-6]\d{2})(?:[.\-]\d+)?(?!\d)/);
+    // Satır başı (veya önde boşluk) — satırın ortasında geçen "102" tutar/metin parçası sanılmasın
+    let kodMatch = line.match(/^\s*([1-6]\d{2})(?:[.\-]\d+)?(?!\d)/);
     // Bulunamazsa satır başında 2 haneli kodu dene (17, 35 gibi — alt hesapsız satırlar)
-    if (!kodMatch) kodMatch = line.match(/^(\d{2})\s+\D/);
+    if (!kodMatch) kodMatch = line.match(/^\s*(\d{2})\s+\D/);
     if (!kodMatch) continue;
     const rawKod = parseInt(kodMatch[1]);
     // 2 haneli ise KOD_TO_KEY_2'den al, 3 haneli ise KOD_TO_KEY'den al
