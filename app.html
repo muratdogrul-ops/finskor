@@ -5584,6 +5584,22 @@ function pdfMizanTicariAlacakAnaSatirMi(lineTrim) {
   return /^(120|121|122|124|126|127|128|129)\s+[A-Za-zÇĞİÖŞÜçğıöşü]/.test(String(lineTrim).trim());
 }
 
+/** 13 Diğer alacaklar — KOD_TO_KEY ile aynı kodlar */
+const PDF_MIZAN_DIGER_OZET_KOD = new Set([131, 132, 133, 135, 136, 137, 138, 139]);
+
+/** YOL BAK: "136 DİĞER …"; atlanır: "136.S.01", "136.01 …" */
+function pdfMizanDigerAlacakAnaSatirMi(lineTrim) {
+  return /^(131|132|133|135|136|137|138|139)\s+[A-Za-zÇĞİÖŞÜçğıöşü]/.test(String(lineTrim).trim());
+}
+
+/** 15 Stoklar — KOD_TO_KEY ile aynı kodlar */
+const PDF_MIZAN_STOK_OZET_KOD = new Set([150, 151, 152, 153, 157, 158, 159]);
+
+/** YOL BAK: "150 İLK MADDE …", "159 VERİLEN …"; atlanır: "150.01", "159.A.01 …" */
+function pdfMizanStokAnaSatirMi(lineTrim) {
+  return /^(150|151|152|153|157|158|159)\s+[A-Za-zÇĞİÖŞÜçğıöşü]/.test(String(lineTrim).trim());
+}
+
 /**
  * Grup özet: kuyruk rakamla başlıyorsa çoğunlukla alt hesap (296 01…) → atla.
  * İlk token 4+ hane ise çoğunlukla kanun/yıl no (296 6736 SAYILI KANUN…) → ana satır, atlama.
@@ -6473,6 +6489,8 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
 
     if (key === 'hazirDegerler' && PDF_MIZAN_HAZIR_OZET_KOD.has(rawKod) && !pdfMizanHazirAnaSatirMi(trimmed)) continue;
     if (key === 'ticAlacaklar' && PDF_MIZAN_TICARI_OZET_KOD.has(rawKod) && !pdfMizanTicariAlacakAnaSatirMi(trimmed)) continue;
+    if (key === 'digerAlacaklar' && PDF_MIZAN_DIGER_OZET_KOD.has(rawKod) && !pdfMizanDigerAlacakAnaSatirMi(trimmed)) continue;
+    if (key === 'stoklar' && PDF_MIZAN_STOK_OZET_KOD.has(rawKod) && !pdfMizanStokAnaSatirMi(trimmed)) continue;
 
     // Bilanço + gelir (100–699) grup özetleri: "620 SATMAL…" gibi; "620 01…" atlanır
     if (pdfMizanGrupOzetSatirMi(key, rawKod)) {
@@ -6627,7 +6645,7 @@ function pdfMizanPickBakBorcAlacBak(sayilar, kod, rawKod) {
 
 function mizanTextIsleMizan(lines, result, silent) {
   // PDF mizan: çoğu dosyada 2 haneli özet satır yok → yalnızca 3 haneli satır başı kodlar.
-  // Hazır: PDF_MIZAN_HAZIR_OZET_KOD + pdfMizanHazirAnaSatirMi (YOL BAK noktalı alt kod atlanır)
+  // Hazır / 12 ticari / 13 diğer alacak / 15 stok: YOL BAK kod+boşluk+harf ana satır (noktalı alt atlanır)
 
   function pdfMizanParaTokenlari(tail) {
     return [...tail.matchAll(/[0-9][0-9.,]*/g)].map(m => m[0]).filter(tok => {
@@ -6657,6 +6675,8 @@ function mizanTextIsleMizan(lines, result, silent) {
       if (!pdfMizanHazirAnaSatirMi(line)) continue;
     }
     if (key === 'ticAlacaklar' && PDF_MIZAN_TICARI_OZET_KOD.has(rawKod) && !pdfMizanTicariAlacakAnaSatirMi(line)) continue;
+    if (key === 'digerAlacaklar' && PDF_MIZAN_DIGER_OZET_KOD.has(rawKod) && !pdfMizanDigerAlacakAnaSatirMi(line)) continue;
+    if (key === 'stoklar' && PDF_MIZAN_STOK_OZET_KOD.has(rawKod) && !pdfMizanStokAnaSatirMi(line)) continue;
     if (pdfMizanGrupOzetSatirMi(key, rawKod)) {
       const afterGr = line.slice(kodMatch.index + kodMatch[0].length).trim();
       if (!afterGr.length || pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterGr)) continue;
