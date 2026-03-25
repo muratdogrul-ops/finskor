@@ -6465,123 +6465,32 @@ function pdfMizanPickBakBorcAlacBak(sayilar, kod, rawKod) {
 }
 
 function mizanTextIsleMizan(lines, result, silent) {
-  // PDF mizanda senin kuralın:
-  // - sadece 2 haneli hesap kodlarını (10, 11, 12..., 30, 32..., 60...) okuyacağız
-  // - satır başındaki kodun karşısındaki "bakiye" sütun(lar)ından değer alacağız
-  // - bak.borç aktif; bak.alacak pasif normal; (-) hesaplarda aktif/pasif taraf ters.
-  // - hem bak.borç hem bak.alacakta bakiye yoksa değer aktarmayacağız.
+  // PDF mizan: çoğu dosyada 2 haneli özet satır yok → yalnızca 3 haneli satır başı kodlar.
+  // Hazır değerler (100–103,108): yalnızca grup özet satırları (100 KASA, 102 BANKALAR…);
+  // "100 00 01 …" alt hesap satırları çift toplam yapmaması için atlanır.
+  const HAZIR_OZET_KOD = new Set([100, 101, 102, 103, 108]);
 
-  const MINUS_2D_GROUPS = new Set(Array.from(MINUS_KODLAR).map(n => Math.floor(n / 10)));
-
-  for (const line of lines) {
-    const t = line.trim();
-    if (!t || t.length < 4) continue;
-
-    // Sadece satır başı 2 haneli kod: "10 HAZIR DEĞERLER" gibi
-    // "100 KASA" gibi 3 haneliler burada yakalanmaz çünkü 2 haneliden sonra boşluk yoktur.
-    const m = t.match(/^(\d{2})\s+\D/);
-    if (!m) continue;
-
-    const raw2 = parseInt(m[1], 10);
-    const key = KOD_TO_KEY_2[raw2];
-    if (!key) continue;
-
-    const tail = t.slice(m[0].length);
-
-    // Para tokenlarını al: ',' içerenler (TR) veya binlik '.' formatı (1.234.567)
-    const moneyTokens = [...tail.matchAll(/[0-9][0-9.,]*/g)].map(x => x[0]).filter(tok => {
-      if (tok.includes(',')) return true;
-      if (tok.includes('.') && /^\d{1,3}(\.\d{3})+$/.test(tok)) return true;
-      return false;
-    });
-    const nums = moneyTokens
-      .map(v => parseImportNumber(v))
-      .filter(n => n !== null && isFinite(n) && n >= 0);
-
-    // 2 haneli mizan satırında genelde 3 sayı var:
-    //  BORÇ | ALACAK | (aktif/pasif tarafındaki) BAKİYE
-    // Eğer 4 sayı varsa: BORÇ | ALACAK | BAK.BORÇ | BAK.ALACAK
-    if (nums.length < 3) continue;
-
-    const slice = nums.length >= 4 ? nums.slice(-4) : nums.slice(-3);
-    const isMinus = MINUS_2D_GROUPS.has(raw2);
-    let desiredBalance = 0;
-
-    if (slice.length === 4) {
-      const bakBorc = slice[2];
-      const bakAlacak = slice[3];
-
-      // Aktif gruplar (10–29): normal => bak.borç, (-) => bak.alacak
-      if (raw2 >= 10 && raw2 <= 29) desiredBalance = isMinus ? bakAlacak : bakBorc;
-      // Pasif gruplar (30–59): normal => bak.alacak, (-) => bak.borç
-      else if (raw2 >= 30 && raw2 <= 59) desiredBalance = isMinus ? bakBorc : bakAlacak;
-      // Gelir tablosu (60–69): normal gelir => bak.alacak, (-) gider => bak.borç
-      else if (raw2 >= 60 && raw2 <= 69) desiredBalance = isMinus ? bakBorc : bakAlacak;
-    } else {
-      // 3 sayı varsa: son sayı doğrudan bakiye sütunundaki (non-zero) değerdir.
-      desiredBalance = slice[2];
-    }
-
-    // Bakiye yoksa (0,00 dahil) aktarma yok
-    if (!desiredBalance || desiredBalance === 0) continue;
-    if (desiredBalance > MIZAN_PDF_MAX_PLAUSIBLE_TL) continue;
-
-    result[key] = (result[key] || 0) + desiredBalance;
-  }
-
-  const matched = Object.keys(result).filter(k => result[k] !== 0).length;
-  if (!silent) importLog(`✅ Mizan PDF: 2-haneli bakiye okundu (${matched} kalem)`, matched > 0 ? 'ok' : 'warn');
-  return result;
-
-  // Eski (3 haneli+token) kod aşağıda kalıyor; return yüzünden çalışmaz.
-  let hazirDegerlerFromSummary = false;
   for (const line of lines) {
     if (!line.trim() || line.trim().length < 5) continue;
 
-    // Satır başı (veya önde boşluk) — satırın ortasında geçen "102" tutar/metin parçası sanılmasın
-    let kodMatch = line.match(/^\s*([1-6]\d{2})(?:[.\-]\d+)?(?!\d)/);
-    // Bulunamazsa satır başında 2 haneli kodu dene (17, 35 gibi — alt hesapsız satırlar)
-    if (!kodMatch) kodMatch = line.match(/^\s*(\d{2})\s+\D/);
+    const kodMatch = line.match(/^\s*([1-6]\d{2})(?:[.\-]\d+)?(?!\d)/);
     if (!kodMatch) continue;
-    const rawKod = parseInt(kodMatch[1]);
-    // 2 haneli ise KOD_TO_KEY_2'den al, 3 haneli ise KOD_TO_KEY'den al
-    const key = rawKod < 100 ? KOD_TO_KEY_2[rawKod] : KOD_TO_KEY[rawKod];
-    const kod = rawKod < 100 ? rawKod * 10 : rawKod; // normalize for range checks
-    if (!key) continue;
 
-    // İki haneli özet satır (10 HAZIR, 30 KV…) alt hesaplarla aynı key'e çift toplam yapar — sadece 3 haneli+ satırlar
-    if (rawKod < 100) {
-      // 10. Hazır Değerler: doğrudan özet satırındaki bakiye borç'u al
-      if (rawKod === 10 && key === 'hazirDegerler') {
-        // Tail'de para tokenlarını al
-        const tail = line.slice(kodMatch.index + kodMatch[0].length);
-        const moneyTokens = [...tail.matchAll(/[0-9][0-9.,]*/g)].map(m => m[0]).filter(tok => {
-          if (tok.includes(',')) return true;
-          if (tok.includes('.') && /^\d{1,3}(\.\d{3})+$/.test(tok.replace(/\s/g, ''))) return true;
-          return false;
-        });
-        const sayilar = moneyTokens
-          .map(m => parseImportNumber(m))
-          .filter(n => n !== null && isFinite(n) && n >= 0);
-        if (sayilar.length >= 3 && sayilar[2] !== 0) {
-          result['hazirDegerler'] = sayilar[2];
-          hazirDegerlerFromSummary = true;
-        }
-      }
-      continue;
+    const rawKod = parseInt(kodMatch[1], 10);
+    if (rawKod < 100) continue;
+
+    const key = KOD_TO_KEY[rawKod];
+    if (!key) continue;
+    const kod = rawKod;
+
+    if (key === 'hazirDegerler' && HAZIR_OZET_KOD.has(rawKod)) {
+      const after = line.slice(kodMatch.index + kodMatch[0].length).trim();
+      if (/^\d/.test(after)) continue;
     }
 
-    // Hazır değerler özet satırından alındıysa yaprak satırları tekrar ekleme
-    if (hazirDegerlerFromSummary && key === 'hazirDegerler') continue;
-
-    // Bilanço: sadece yaprak/derin alt hesap (… 01 01 001); özet ve ara kırılım satırlarını atla
-    // Ancak 10. Hazır Değerler için doğrudan özet satırlardan (100/102/108) bakiye almak gerekiyor.
     if (rawKod >= 100 && rawKod <= 599 && key !== 'hazirDegerler' && pdfMizanBilancoSatirAtla(line, kodMatch)) continue;
 
-    // Sadece hesap kodundan SONRA gelen token'lar — yoksa 100,101,102 hem kod hem "tutar" sanılıyordu
     const tail = line.slice(kodMatch.index + kodMatch[0].length);
-    // Alt hesap kodu gibi küçük tamsayılar (01, 001, 0059145...) para sütunu değil.
-    // Bu yüzden sayıları; TR/Excel para biçimi gibi `,` içeren veya sadece binlik `.` biçimi olanlarla sınırla.
     const moneyTokens = [...tail.matchAll(/[0-9][0-9.,]*/g)].map(m => m[0]).filter(tok => {
       if (tok.includes(',')) return true;
       if (tok.includes('.') && /^\d{1,3}(\.\d{3})+$/.test(tok.replace(/\s/g, ''))) return true;
@@ -6607,9 +6516,7 @@ function mizanTextIsleMizan(lines, result, silent) {
     if (katki === 0) continue;
     const absK = Math.abs(katki);
     if (absK > MIZAN_PDF_MAX_PLAUSIBLE_TL) continue;
-    // Aktarımda daima pozitif değer yaz
     result[key] = (result[key] || 0) + absK;
-    // 601 Yurtdışı Satışlar: brutSatis'e eklenir + ihracat'a ayrıca yaz
     if (rawKod === 601) result['ihracat'] = (result['ihracat'] || 0) + absK;
   }
 
