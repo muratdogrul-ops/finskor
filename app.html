@@ -6006,6 +6006,25 @@ function countMizanTabloSatirlari(lines) {
   return c;
 }
 
+function countMizanNonZeroKeys(obj) {
+  return Object.keys(obj || {}).filter(k => !k.startsWith('_') && obj[k] !== 0).length;
+}
+
+/** PDF: koordinat sütunları her yazılımda farklı; metin satırı Excel mizan mantığına daha yakın → tablo mizanda metin öncelikli */
+function mergePdfMizanMetinOncelikli(textRes, koordRes) {
+  const out = {};
+  const keys = new Set([...Object.keys(textRes || {}), ...Object.keys(koordRes || {})]);
+  for (const k of keys) {
+    if (k.startsWith('_')) continue;
+    const tv = textRes[k], kv = koordRes[k];
+    if (tv != null && tv !== 0) out[k] = tv;
+    else if (kv != null && kv !== 0) out[k] = kv;
+  }
+  if (textRes && textRes._firmaAdi) out._firmaAdi = textRes._firmaAdi;
+  else if (koordRes && koordRes._firmaAdi) out._firmaAdi = koordRes._firmaAdi;
+  return out;
+}
+
 function mizanTextIsle(text, structuredLines) {
   const result = {};
   const lines = text.split(/\n|\r/);
@@ -6054,13 +6073,34 @@ function mizanTextIsle(text, structuredLines) {
     if (firma) result._firmaAdi = firma;
   }
 
+  const resultKoord = {};
   if (structuredLines && structuredLines.length > 0) {
-    mizanTextIsleMizanKoordinat(structuredLines, result);
+    mizanTextIsleMizanKoordinat(structuredLines, resultKoord, true);
   }
-  const nKor = Object.keys(result).filter(k => !k.startsWith('_') && result[k] !== 0).length;
-  if (nKor > 0) return result;
+  const resultText = {};
+  mizanTextIsleMizan(lines, resultText, true);
 
-  return mizanTextIsleMizan(lines, result);
+  const nKor = countMizanNonZeroKeys(resultKoord);
+  const nTxt = countMizanNonZeroKeys(resultText);
+
+  // Tablo mizan PDF: metin satırı (Excel ile aynı mantık) önce; koordinat YOL BAK sabit X'i diğer programlarda şaşırır
+  if (!isBeyannameFormat && mizanTabloSayisi >= 15 && nTxt > 0) {
+    Object.assign(result, mergePdfMizanMetinOncelikli(resultText, resultKoord));
+    importLog(`📎 PDF mizan: koordinat ${nKor} kalem, metin satırı ${nTxt} kalem`, 'info');
+    importLog(`✅ Birleştirme: <b>metin öncelikli</b> (Excel mizan ile uyumlu; koordinat yedek)`, 'ok');
+    const nFin = countMizanNonZeroKeys(result);
+    importLog(`✅ PDF mizan: ${nFin} kalem aktarıldı`, nFin > 0 ? 'ok' : 'warn');
+    return result;
+  }
+
+  if (nKor > 0) {
+    Object.assign(result, resultKoord);
+    importLog(`✅ Mizan PDF (koordinat): ${nKor} kalem eşleştirildi`, 'ok');
+    return result;
+  }
+  Object.assign(result, resultText);
+  importLog(`✅ Mizan PDF: ${nTxt} kalem eşleştirildi`, nTxt > 0 ? 'ok' : 'warn');
+  return result;
 }
 
 // ── BEYANNAME / AYRINTILI BİLANÇO PARSER ──────────────────────────────────────
@@ -6294,7 +6334,7 @@ function mizanTextIsleBeyanname(lines, result, year) {
 // PDF sütun sınırları (YOL BAK formatı, A4 sayfa ~595pt):
 //   BORÇ     : ~305-385   ALACAK    : ~385-450
 //   BAK.BORÇ : ~450-513   BAK.ALACAK: ~513-600
-function mizanTextIsleMizanKoordinat(structuredLines, result) {
+function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
   const COL_BAKBORC_MIN  = 440;
   const COL_BAKBORC_MAX  = 513;
   const COL_BAKALAC_MIN  = 513;
@@ -6338,11 +6378,11 @@ function mizanTextIsleMizanKoordinat(structuredLines, result) {
   }
 
   const n = Object.keys(result).filter(k => result[k] !== 0).length;
-  importLog(`✅ Mizan PDF (koordinat): ${n} kalem eşleştirildi`, n > 0 ? 'ok' : 'warn');
+  if (!silent) importLog(`✅ Mizan PDF (koordinat): ${n} kalem eşleştirildi`, n > 0 ? 'ok' : 'warn');
   return result;
 }
 
-function mizanTextIsleMizan(lines, result) {
+function mizanTextIsleMizan(lines, result, silent) {
   for (const line of lines) {
     if (!line.trim() || line.trim().length < 5) continue;
 
@@ -6390,7 +6430,7 @@ function mizanTextIsleMizan(lines, result) {
   }
 
   const n = Object.keys(result).filter(k => result[k] !== 0).length;
-  importLog(`✅ Mizan PDF: ${n} kalem eşleştirildi`, n > 0 ? 'ok' : 'warn');
+  if (!silent) importLog(`✅ Mizan PDF: ${n} kalem eşleştirildi`, n > 0 ? 'ok' : 'warn');
   return result;
 }
 
