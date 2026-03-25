@@ -6399,11 +6399,31 @@ function pdfMizanTrimLeadingHesapNoise(sayilar) {
 }
 
 /**
- * BORÇ | ALACAK | BAKİYE BORÇ | BAKİYE ALACAK (en az 4 sayı → son ikisi bakiye).
- * 3 sayı: çoğu raporda dönem borç, dönem alacak, bakiye — aktifte bak.borç s[2], pasifte bak.alacak s[2].
- * 2 sayı: sadece bakiye sütunları (Excel’e yakın kısa mizan).
+ * Bilanço satırı: hesap kodundan sonra açıklama harfle başlıyorsa özet (100 KASA, 102 BANKALAR) — atla.
+ * Ardından gelen ardışık 2–3 haneli alt kod adedi; 3'ten az ise ara özet (102 01 …), yaprak değil — çift toplamı önler.
  */
-function pdfMizanPickBakBorcAlacBak(sayilar, kod) {
+function pdfMizanBilancoSatirAtla(line, kodMatch) {
+  const t = line.slice(kodMatch.index + kodMatch[0].length).trim();
+  if (!t.length) return true;
+  if (/^[A-Za-zÇĞİÖŞÜçğıöşü]/.test(t)) return true;
+  const parts = t.split(/\s+/);
+  let depth = 0;
+  for (const p of parts) {
+    if (/^\d{2}$/.test(p) || /^\d{3}$/.test(p)) depth++;
+    else break;
+  }
+  return depth < 3;
+}
+
+/**
+ * BORÇ | ALACAK | BAKİYE BORÇ | BAKİYE ALACAK
+ * - n≥4: son iki = bakiye borç, bakiye alacak (önceki ikisi dönem toplamı — katkıya girmez).
+ * - n=3: dönem borç, dönem alacak, üçüncü = tek bakiye sütunu — aktifte bak.borç, pasifte bak.alacak.
+ * - 600–699 n=3: gider (MINUS_KODLAR) → üçüncü = bak.borç; gelir → üçüncü = bak.alacak (pasif ile aynı taraf).
+ * - n=2: PDF geniş mizanda neredeyse daima sadece DÖNEM borç|alacak; bakiye yok → [0,0] (aktarma yok).
+ * Excel mizan bu fonksiyonu kullanmaz.
+ */
+function pdfMizanPickBakBorcAlacBak(sayilar, kod, rawKod) {
   const s = pdfMizanTrimLeadingHesapNoise(sayilar);
   const n = s.length;
   let borcBak = 0, alacBak = 0;
@@ -6418,18 +6438,28 @@ function pdfMizanPickBakBorcAlacBak(sayilar, kod) {
     } else if (kod >= 300 && kod <= 591) {
       borcBak = 0;
       alacBak = s[2];
+    } else if (kod >= 600 && kod <= 699) {
+      if (MINUS_KODLAR.has(rawKod)) {
+        borcBak = s[2];
+        alacBak = 0;
+      } else {
+        borcBak = 0;
+        alacBak = s[2];
+      }
     } else {
-      borcBak = s[1];
-      alacBak = s[2];
+      borcBak = 0;
+      alacBak = 0;
     }
   } else if (n === 2) {
-    borcBak = s[0];
-    alacBak = s[1];
+    return [0, 0];
   } else {
     const v = s[0];
     if (kod >= 100 && kod <= 299) borcBak = v;
     else if (kod >= 300 && kod <= 591) alacBak = v;
-    else borcBak = v;
+    else if (kod >= 600 && kod <= 699) {
+      if (MINUS_KODLAR.has(rawKod)) borcBak = v;
+      else alacBak = v;
+    } else borcBak = v;
   }
   return [borcBak, alacBak];
 }
@@ -6449,6 +6479,12 @@ function mizanTextIsleMizan(lines, result, silent) {
     const kod = rawKod < 100 ? rawKod * 10 : rawKod; // normalize for range checks
     if (!key) continue;
 
+    // İki haneli özet satır (10 HAZIR, 30 KV…) alt hesaplarla aynı key'e çift toplam yapar — sadece 3 haneli+ satırlar
+    if (rawKod < 100) continue;
+
+    // Bilanço: sadece yaprak/derin alt hesap (… 01 01 001); özet ve ara kırılım satırlarını atla
+    if (rawKod >= 100 && rawKod <= 599 && pdfMizanBilancoSatirAtla(line, kodMatch)) continue;
+
     // Sadece hesap kodundan SONRA gelen token'lar — yoksa 100,101,102 hem kod hem "tutar" sanılıyordu
     const tail = line.slice(kodMatch.index + kodMatch[0].length);
     const sayilar = [...tail.matchAll(/[\d.,]+/g)]
@@ -6456,7 +6492,7 @@ function mizanTextIsleMizan(lines, result, silent) {
       .filter(n => n !== null && isFinite(n) && n >= 0);
     if (!sayilar.length) continue;
 
-    const [borcBak, alacBak] = pdfMizanPickBakBorcAlacBak(sayilar, kod);
+    const [borcBak, alacBak] = pdfMizanPickBakBorcAlacBak(sayilar, kod, rawKod);
     if (borcBak === 0 && alacBak === 0) continue;
 
     const isMinus = MINUS_KODLAR.has(rawKod);
