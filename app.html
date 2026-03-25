@@ -2432,18 +2432,16 @@ function applyParsedToYear(parsed, year) {
   if (!state.yearData[year]) state.yearData[year] = {};
   let n = 0;
   Object.entries(parsed).forEach(function([key, val]) {
+    if (key.startsWith('_')) return;
     if (val !== null && val !== 0) {
       state.yearData[year][key] = val;
       n++;
     }
   });
-  // Gelir tablosu varsa donemNetKar sıfırla (hesapToplamlar hesaplayacak)
+  // Gelir tablosu varsa donemNetKar sıfırla (hesapToplamlar yeniden hesaplasın)
+  // 2023 hariç: enflasyon düzeltmeli PDF'de dönem karı gelir tablosu satırından okunur; sıfırlama değeri siler
   const d0 = state.yearData[year];
-  if (d0.brutSatis || d0.satMaliyet || d0.faalGider) d0.donemNetKar = 0;
-  // SADECE 2023: bilanço özkaynaklar F. satırı enflasyon sütunundan 0 geliyor
-  // Gelir tablosundan da alma — doğrudan 0 olarak bırak
-  if (year === 2023) d0.donemNetKar = 0;
-
+  if ((d0.brutSatis || d0.satMaliyet || d0.faalGider) && year !== 2023) d0.donemNetKar = 0;
 
   hesapToplamlar(year);
   refreshInputs(year);
@@ -6043,6 +6041,7 @@ const BEYAN_GRUP_MAP = [
   // AKTİF DURAN
   [/maddi duran varlik/,                   'maddiDuranVar'],
   [/maddi olmayan/,                        'maddiOlmayan'],
+  [/ozel tuken|tukenmeye tabi varlik/,      'ozelTukenme'],
   [/mali duran/,                           'maliDuranVar'],
   [/gelecek yil.*gider/,                   'gelecekYilGider'],
   [/diger duran/,                          'digerDuran'],
@@ -6050,6 +6049,7 @@ const BEYAN_GRUP_MAP = [
   [/mali borc/,                            'kvMaliBorclar'],
   [/ticari borc/,                          'kvTicBorclar'],      // UV bölümünde uvTicBorclar'a override edilir
   [/diger borc/,                           'kvDigBorclar'],
+  [/diger.*kisa.*vadeli.*yabanci|diger kisa vadeli yabanci kaynak/, 'digerKvYK'],
   [/alinan avans/,                         'alinanAvans'],
   [/yillara yaygin.*hakedis/,               'yilHakediş'],    // açıkça "hakedis" yazıyorsa direkt eşleş
   [/borc.*karsili|karsili.*borc|kidem tazminat/,  'borcKarsilik'],
@@ -6160,12 +6160,28 @@ function mizanTextIsleBeyanname(lines, result, year) {
     if (!line || line.length < 5) continue;
     const ln = normTR(line);
 
+    // Gelir tablosu: "Dönem Net Karı veya Zararı" — A.–K. öneki yok; filtrede eleniyordu
+    if (/^donem net kar/i.test(ln) && /veya\s+(zarar|kari)/i.test(ln)) {
+      const sayilarDn = [...line.matchAll(/(?<![\w\d])-?[\d]+[\d.]*,\d{2,4}/g)]
+        .map(m => { const s = m[0].replace(/\./g,'').replace(',','.'); return parseFloat(s); })
+        .filter(n => !isNaN(n));
+      if (sayilarDn.length) {
+        const cariDn = sayilarDn[sayilarDn.length - 1];
+        result['donemNetKar'] = (result['donemNetKar'] || 0) + cariDn;
+        result._dnkFromGelir = true;
+      }
+      continue;
+    }
+
     // Bölüm tespiti: Roman rakamları — ama gelir tablosu I/J satırları hariç
     // I. Olağan Dışı (gelir), J. Olağandışı Gider — bunlar bölüm değil veri satırı
-    const isRoman = /^(i{1,3}v?|iv|v|vi|vii)\b/i.test(ln);
+    // ". I. ..." satırlarında baştaki nokta yoksa "I. Diğer Kısa Vadeli Yabancı Kaynaklar" ana başlık sanılıp atlanıyordu
+    const isRoman = /^(i{1,3}v?|iv|v|vi|vii)\b/i.test(ln) && !/^\.\s/.test(line.trim());
+    const isRomanDigerKv = /^(i{1,3}v?|iv|v|vi|vii)\b/i.test(ln) &&
+      /diger.*kisa\s*vadeli/i.test(ln) && /yabanci/i.test(ln);
     const isGelirIJ = /^[ij]\.\s+/.test(ln) && !/^\.\s/.test(line) &&
       (/olagan|olagandisi|olagan dis/.test(ln));
-    if (isRoman && !isGelirIJ) {
+    if (isRoman && !isGelirIJ && !isRomanDigerKv) {
       if (/donen varlik|donen/.test(ln) && !/duran/.test(ln)) bolum = 'DONEN';
       else if (/duran varlik|duran/.test(ln)) bolum = 'DURAN';
       else if (/kisa vadeli/.test(ln)) bolum = 'KV';
@@ -6194,8 +6210,8 @@ function mizanTextIsleBeyanname(lines, result, year) {
 
     // Sütun seçimi: son sütun = cari dönem (seçili yıl)
     // NOT: 0,00 meşru bir değerdir — fallback yapma, yoksa önceki dönem (2023) değeri alınır
-    // 2023 beyannamesi 3 sütunlu (enflasyon): ". F. DonemNetKar X Y 0,00" — bu satır zaten atlanıyor
-    const cari = sayilar[sayilar.length - 1];
+    // 2023 beyannamesi 3 sütunlu (enflasyon): özkaynak "Dönem Net Karı" son sütun 0,00 → cari 2. sütun
+    let cari = sayilar[sayilar.length - 1];
     // Hiç sayı yoksa atla (sadece başlık satırı)
     if (sayilar.length === 0) continue;
 
@@ -6237,11 +6253,12 @@ function mizanTextIsleBeyanname(lines, result, year) {
       };
       key = uvMap[key] || key;
     }
-    // 2023'e özgü: enflasyon düzeltmesi nedeniyle bilanço 3 sütunlu
-    // ". F. Dönem Net Karı (zararı) 1.448.218,35  1.925.211,27  0,00"
-    // Son sütun (enflasyon sonrası) 0,00 — doğru değer 2. sütun
-    // Bu satırı ATLA — değer gelir tablosundan hesaplanacak
-    if (year === 2023 && bolum === 'OZKAYNAK' && key === 'donemNetKar') continue;
+    // Özkaynak ". F. Dönem Net Karı" — gelir tablosunda "Dönem Net Karı veya Zararı" zaten okunduysa çift sayım yapma
+    if (key === 'donemNetKar' && bolum === 'OZKAYNAK' && result._dnkFromGelir) continue;
+    // 2023 enflasyon: özkaynak "Dönem Net Karı" son sütun 0,00 — mali tutar genelde sondan bir önceki sütun
+    if (year === 2023 && bolum === 'OZKAYNAK' && key === 'donemNetKar' && sayilar.length >= 2 && Math.abs(sayilar[sayilar.length - 1]) < 1e-9) {
+      cari = sayilar[sayilar.length - 2];
+    }
     // Duran varlıkta ticari/diğer alacaklar uzun vadeli key'e override edilir
     if (bolum === 'DURAN' && key === 'ticAlacaklar')  key = 'uzunTicAlacak';
     if (bolum === 'DURAN' && key === 'digerAlacaklar') key = 'uzunDigAlacak';
@@ -6395,7 +6412,7 @@ function finalizeImport(data) {
   const HESAP_LABELS = {};
   HESAPLAR.forEach(h => { if (h.key) HESAP_LABELS[h.key] = h.label; });
 
-  const girilen = Object.entries(data).filter(([k,v]) => v && v !== 0);
+  const girilen = Object.entries(data).filter(([k,v]) => !k.startsWith('_') && v && v !== 0);
 
   if (girilen.length === 0) {
     importLog('', 'info');
@@ -6417,8 +6434,8 @@ function finalizeImport(data) {
 
   // Kategorilere göre göster
   const cats = [
-    ['AKTİF',        ['hazirDegerler','menkKiymetler','ticAlacaklar','digerAlacaklar','stoklar','gelecekAyGider','digerDonen','uzunTicAlacak','uzunDigAlacak','maliDuranVar','maddiDuranVar','maddiOlmayan','ozelTukenme','gelecekYilGider','digerDuran']],
-    ['KV BORÇLAR',   ['kvMaliBorclar','kvTicBorclar','kvDigBorclar','alinanAvans','odenecekVergi','borcKarsilik','gelecekAyGelir','digerKvYK']],
+    ['AKTİF',        ['hazirDegerler','menkKiymetler','ticAlacaklar','digerAlacaklar','stoklar','yilYayginMal','gelecekAyGider','digerDonen','uzunTicAlacak','uzunDigAlacak','maliDuranVar','maddiDuranVar','maddiOlmayan','ozelTukenme','gelecekYilGider','digerDuran']],
+    ['KV BORÇLAR',   ['kvMaliBorclar','kvTicBorclar','kvDigBorclar','alinanAvans','yilHakediş','odenecekVergi','borcKarsilik','gelecekAyGelir','digerKvYK']],
     ['UV BORÇLAR',   ['uvMaliBorclar','uvTicBorclar','uvDigBorclar','uvAlinanAvans','uvBorcKarsilik','uvDigYK']],
     ['ÖZ KAYNAK',    ['odenmisSermaye','sermaYedek','karYedek','gecmisKar','gecmisZarar','donemNetKar']],
     ['GELİR TABLOSU',['brutSatis','satisInd','satMaliyet','faalGider','digerFaalGelir','digerFaalGider','finansmanGider','olagandisiGelir','olagandisiGider','vergiKarsilik']],
@@ -6461,15 +6478,16 @@ function applyImport() {
 
   let n = 0;
   Object.entries(importState.parsed).forEach(([key, val]) => {
+    if (key.startsWith('_')) return;
     if (val !== null && val !== 0) {
       state.yearData[year][key] = val;
       n++;
     }
   });
 
-  // Gelir tablosu verisi varsa donemNetKar'ı sıfırla — hesapToplamlar hesaplasın
+  // Gelir tablosu varsa donemNetKar sıfırla — 2023 PDF'de gelir tablosundan okunan değer korunur
   const d0 = state.yearData[year];
-  if (d0.brutSatis || d0.satMaliyet || d0.faalGider) {
+  if ((d0.brutSatis || d0.satMaliyet || d0.faalGider) && year !== 2023) {
     d0.donemNetKar = 0;
   }
 
@@ -6498,7 +6516,7 @@ function hesapToplamlar(year) {
   const sum = (...keys) => keys.reduce((t, k) => t + (d[k] || 0), 0);
 
   // Dönen Varlık = alt kalemler toplamı (yoksa sıfır)
-  const donenYeni = sum('hazirDegerler','menkKiymetler','ticAlacaklar','digerAlacaklar','stoklar','gelecekAyGider','digerDonen');
+  const donenYeni = sum('hazirDegerler','menkKiymetler','ticAlacaklar','digerAlacaklar','stoklar','yilYayginMal','gelecekAyGider','digerDonen');
   if (!d.donenVarlik || donenYeni > d.donenVarlik) d.donenVarlik = donenYeni;
 
   // Duran Varlık
@@ -6509,7 +6527,7 @@ function hesapToplamlar(year) {
   d.aktifToplam = (d.donenVarlik||0) + (d.duranVarlik||0);
 
   // KV Yabancı Kaynak — alt kalemler varsa onlardan hesapla, yoksa PDF'den gelen toplamı kullan
-  const kvAlt = sum('kvMaliBorclar','kvTicBorclar','kvDigBorclar','alinanAvans','odenecekVergi','borcKarsilik','gelecekAyGelir','digerKvYK');
+  const kvAlt = sum('kvMaliBorclar','kvTicBorclar','kvDigBorclar','alinanAvans','yilHakediş','odenecekVergi','borcKarsilik','gelecekAyGelir','digerKvYK');
   d.kvYKToplam = kvAlt > 0 ? kvAlt : (d.kvYKToplam || 0);
 
   // UV Yabancı Kaynak
