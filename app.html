@@ -6483,7 +6483,8 @@ function mizanTextIsleMizan(lines, result, silent) {
     if (rawKod < 100) continue;
 
     // Bilanço: sadece yaprak/derin alt hesap (… 01 01 001); özet ve ara kırılım satırlarını atla
-    if (rawKod >= 100 && rawKod <= 599 && pdfMizanBilancoSatirAtla(line, kodMatch)) continue;
+    // Ancak 10. Hazır Değerler için doğrudan özet satırlardan (100/102/108) bakiye almak gerekiyor.
+    if (rawKod >= 100 && rawKod <= 599 && key !== 'hazirDegerler' && pdfMizanBilancoSatirAtla(line, kodMatch)) continue;
 
     // Sadece hesap kodundan SONRA gelen token'lar — yoksa 100,101,102 hem kod hem "tutar" sanılıyordu
     const tail = line.slice(kodMatch.index + kodMatch[0].length);
