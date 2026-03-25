@@ -6465,8 +6465,75 @@ function pdfMizanPickBakBorcAlacBak(sayilar, kod, rawKod) {
 }
 
 function mizanTextIsleMizan(lines, result, silent) {
-  // POYRAZ tipi PDFlerde 10. Hazır Değerler için doğrudan özet satırından (100/102/108 yaprak toplamı)
-  // yanlış sütun/tekrar toplam riskine karşı tek kaynak kullanılır.
+  // PDF mizanda senin kuralın:
+  // - sadece 2 haneli hesap kodlarını (10, 11, 12..., 30, 32..., 60...) okuyacağız
+  // - satır başındaki kodun karşısındaki "bakiye" sütun(lar)ından değer alacağız
+  // - bak.borç aktif; bak.alacak pasif normal; (-) hesaplarda aktif/pasif taraf ters.
+  // - hem bak.borç hem bak.alacakta bakiye yoksa değer aktarmayacağız.
+
+  const MINUS_2D_GROUPS = new Set(Array.from(MINUS_KODLAR).map(n => Math.floor(n / 10)));
+
+  for (const line of lines) {
+    const t = line.trim();
+    if (!t || t.length < 4) continue;
+
+    // Sadece satır başı 2 haneli kod: "10 HAZIR DEĞERLER" gibi
+    // "100 KASA" gibi 3 haneliler burada yakalanmaz çünkü 2 haneliden sonra boşluk yoktur.
+    const m = t.match(/^(\d{2})\s+\D/);
+    if (!m) continue;
+
+    const raw2 = parseInt(m[1], 10);
+    const key = KOD_TO_KEY_2[raw2];
+    if (!key) continue;
+
+    const tail = t.slice(m[0].length);
+
+    // Para tokenlarını al: ',' içerenler (TR) veya binlik '.' formatı (1.234.567)
+    const moneyTokens = [...tail.matchAll(/[0-9][0-9.,]*/g)].map(x => x[0]).filter(tok => {
+      if (tok.includes(',')) return true;
+      if (tok.includes('.') && /^\d{1,3}(\.\d{3})+$/.test(tok)) return true;
+      return false;
+    });
+    const nums = moneyTokens
+      .map(v => parseImportNumber(v))
+      .filter(n => n !== null && isFinite(n) && n >= 0);
+
+    // 2 haneli mizan satırında genelde 3 sayı var:
+    //  BORÇ | ALACAK | (aktif/pasif tarafındaki) BAKİYE
+    // Eğer 4 sayı varsa: BORÇ | ALACAK | BAK.BORÇ | BAK.ALACAK
+    if (nums.length < 3) continue;
+
+    const slice = nums.length >= 4 ? nums.slice(-4) : nums.slice(-3);
+    const isMinus = MINUS_2D_GROUPS.has(raw2);
+    let desiredBalance = 0;
+
+    if (slice.length === 4) {
+      const bakBorc = slice[2];
+      const bakAlacak = slice[3];
+
+      // Aktif gruplar (10–29): normal => bak.borç, (-) => bak.alacak
+      if (raw2 >= 10 && raw2 <= 29) desiredBalance = isMinus ? bakAlacak : bakBorc;
+      // Pasif gruplar (30–59): normal => bak.alacak, (-) => bak.borç
+      else if (raw2 >= 30 && raw2 <= 59) desiredBalance = isMinus ? bakBorc : bakAlacak;
+      // Gelir tablosu (60–69): normal gelir => bak.alacak, (-) gider => bak.borç
+      else if (raw2 >= 60 && raw2 <= 69) desiredBalance = isMinus ? bakBorc : bakAlacak;
+    } else {
+      // 3 sayı varsa: son sayı doğrudan bakiye sütunundaki (non-zero) değerdir.
+      desiredBalance = slice[2];
+    }
+
+    // Bakiye yoksa (0,00 dahil) aktarma yok
+    if (!desiredBalance || desiredBalance === 0) continue;
+    if (desiredBalance > MIZAN_PDF_MAX_PLAUSIBLE_TL) continue;
+
+    result[key] = (result[key] || 0) + desiredBalance;
+  }
+
+  const matched = Object.keys(result).filter(k => result[k] !== 0).length;
+  if (!silent) importLog(`✅ Mizan PDF: 2-haneli bakiye okundu (${matched} kalem)`, matched > 0 ? 'ok' : 'warn');
+  return result;
+
+  // Eski (3 haneli+token) kod aşağıda kalıyor; return yüzünden çalışmaz.
   let hazirDegerlerFromSummary = false;
   for (const line of lines) {
     if (!line.trim() || line.trim().length < 5) continue;
