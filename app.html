@@ -5562,6 +5562,17 @@ function pdfMizanGrupOzetSatirMi(key, rawKod) {
   return !!(s && s.has(rawKod));
 }
 
+/** PDF tablo mizan hazır özet (100–103, 108) — Excel / beyanname ile paylaşılmaz */
+const PDF_MIZAN_HAZIR_OZET_KOD = new Set([100, 101, 102, 103, 108]);
+
+/**
+ * YOL BAK: yalnız "100 KASA" / "102 BANKALAR" (kod + boşluk + harfli açıklama).
+ * Atlanır: "100.01", "101.2024", "102.01.01.01", "100 01 …" (boşluktan sonra rakam).
+ */
+function pdfMizanHazirAnaSatirMi(lineTrim) {
+  return /^(100|101|102|103|108)\s+[A-Za-zÇĞİÖŞÜçğıöşü]/.test(String(lineTrim).trim());
+}
+
 /**
  * Grup özet: kuyruk rakamla başlıyorsa çoğunlukla alt hesap (296 01…) → atla.
  * İlk token 4+ hane ise çoğunlukla kanun/yıl no (296 6736 SAYILI KANUN…) → ana satır, atlama.
@@ -6442,12 +6453,14 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
     const trimmed = sl.text.trim();
     if (!trimmed || trimmed.length < 5) continue;
 
-    // Satır başı: 100 KASA veya 100.01 Alt Hesap (alt hesap no koordinatta ana koda toplanır)
+    // Satır başı: 100 KASA (özet) veya 100.01 … (hazır özet kodlarında yalnız ana satır toplanır)
     const m = trimmed.match(/^([1-6]\d{2})(?:[.\-]\d+)?\s+\S/);
     if (!m) continue;
     const rawKod = parseInt(m[1], 10);
     const key = KOD_TO_KEY[rawKod];
     if (!key) continue;
+
+    if (key === 'hazirDegerler' && PDF_MIZAN_HAZIR_OZET_KOD.has(rawKod) && !pdfMizanHazirAnaSatirMi(trimmed)) continue;
 
     // Bilanço + gelir (100–699) grup özetleri: "620 SATMAL…" gibi; "620 01…" atlanır
     if (pdfMizanGrupOzetSatirMi(key, rawKod)) {
@@ -6483,7 +6496,7 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
   return result;
 }
 
-/** Sadece "102 BANKALAR" özet satırı: bak.borç X bandı (mizanTextIsleMizanKoordinat ile aynı). Alt satır 102 01… atlanır. */
+/** Yalnız "102 BANKALAR" (102 + boşluk + harf); 102.01… atlanır — pdfMizanHazirAnaSatirMi ile uyumlu */
 function pdfMizanKoord102BakBorcOzet(structuredLines) {
   const COL_BAKBORC_MIN = 440;
   const COL_BAKBORC_MAX = 513;
@@ -6495,9 +6508,9 @@ function pdfMizanKoord102BakBorcOzet(structuredLines) {
   }
   for (const sl of structuredLines) {
     const trimmed = sl.text.trim();
-    if (!/^102(?:[.\-]\d+)?\s+/.test(trimmed)) continue;
-    const after102 = trimmed.replace(/^102(?:[.\-]\d+)?\s+/, '');
-    if (!after102.length || /^\d/.test(after102)) continue;
+    if (!/^102\s+[A-Za-zÇĞİÖŞÜçğıöşü]/.test(trimmed)) continue;
+    const after102 = trimmed.replace(/^102\s+/, '');
+    if (!after102.length) continue;
     let borcBak = 0, alacBak = 0;
     for (const item of sl.items) {
       const v = parseNum(item.str);
@@ -6602,9 +6615,7 @@ function pdfMizanPickBakBorcAlacBak(sayilar, kod, rawKod) {
 
 function mizanTextIsleMizan(lines, result, silent) {
   // PDF mizan: çoğu dosyada 2 haneli özet satır yok → yalnızca 3 haneli satır başı kodlar.
-  // Hazır değerler (100–103,108): yalnızca grup özet satırları (100 KASA, 102 BANKALAR…);
-  // Grup özet: dönen/duran/pasif + gelir 60–69 (KOD_TO_KEY 100–699, PDF_MIZAN_GRUP_OZET_KEYS)
-  const HAZIR_OZET_KOD = new Set([100, 101, 102, 103, 108]);
+  // Hazır: PDF_MIZAN_HAZIR_OZET_KOD + pdfMizanHazirAnaSatirMi (YOL BAK noktalı alt kod atlanır)
 
   function pdfMizanParaTokenlari(tail) {
     return [...tail.matchAll(/[0-9][0-9.,]*/g)].map(m => m[0]).filter(tok => {
@@ -6628,9 +6639,10 @@ function mizanTextIsleMizan(lines, result, silent) {
     if (!key) continue;
     const kod = rawKod;
 
-    if (key === 'hazirDegerler' && HAZIR_OZET_KOD.has(rawKod)) {
+    if (key === 'hazirDegerler' && PDF_MIZAN_HAZIR_OZET_KOD.has(rawKod)) {
       const after = line.slice(kodMatch.index + kodMatch[0].length).trim();
       if (/^\d/.test(after)) continue;
+      if (!pdfMizanHazirAnaSatirMi(line)) continue;
     }
     if (pdfMizanGrupOzetSatirMi(key, rawKod)) {
       const afterGr = line.slice(kodMatch.index + kodMatch[0].length).trim();
@@ -6644,7 +6656,7 @@ function mizanTextIsleMizan(lines, result, silent) {
     let workLine = line;
     let extra = 0;
     // PDF satır kırığı: hesap adı bir satır, tutarlar altta — hazır + grup özet (bilanço + gelir)
-    if ((key === 'hazirDegerler' && HAZIR_OZET_KOD.has(rawKod)) ||
+    if ((key === 'hazirDegerler' && PDF_MIZAN_HAZIR_OZET_KOD.has(rawKod)) ||
         pdfMizanGrupOzetSatirMi(key, rawKod)) {
       let tailTry = workLine.slice(kodMatch.index + kodMatch[0].length);
       let toksTry = pdfMizanParaTokenlari(tailTry);
