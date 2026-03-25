@@ -4543,8 +4543,8 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
       continue;
     }
 
-    // Kademe 1: stage-1 hedefini tutan adaylar arasından, 2. kademe potansiyeli en yüksek olanı seç.
-    // Kademe 2: aynı kriter kullanımına izin ver (kademeler arası yasak yok).
+    // Kademe 1: sermaye SON tercih. Önce sermayesiz adaylarla hedefe çıkmayı dener.
+    // Kademe 2: aynı kriter kullanımına izin ver (kademeler arası yasak yok); sermaye gerekirse devreye girer.
     let c;
     if (kademe === 1) {
       const cGrid = _rsEnIyi(r, subjPuan, esik, null);
@@ -4562,7 +4562,9 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
       const _malK1 = x => (x.s>0?2:0)+(x.k>0?2:0)+(x.sat>0?1+x.sat*0.06:0)+(x.m>0?5+x.m*0.5:0)+((x.faalmarj||0)>0?1+(x.faalmarj||0)*0.22:0);
       const _parsK1 = x => (x.s>0?1:0)+(x.k>0?1:0)+(x.sat>0?1:0)+(x.m>0?1:0)+((x.faalmarj||0)>0?1:0);
       if (ok.length) {
-        const cand = ok.map(x => {
+        const okNoS = ok.filter(x => (x.s || 0) <= 0);
+        const baseCand = okNoS.length ? okNoS : ok; // sermayesiz çözümler öncelikli, yoksa sermayeliye düş
+        const cand = baseCand.map(x => {
           let k2 = null;
           let k2Reach = 0;
           if (h2 && h2.esik) {
@@ -4586,8 +4588,13 @@ function _senaryoBolumu(r, mevcutRating, objPuan, subjPuan, toplam, refYear) {
       }
     } else {
       const r2 = c1result ? _r2SenaryoAnalizR(r, c1result) : r;
-      const forb = { s: false, k: false, m: false, sat: false, faal: false };
-      c = _rsEnIyiWithForbid(r2, subjPuan, esik, forb);
+      // Kademe 2: önce sermayesiz çözüm dene; hedefe çıkmıyorsa sermaye dahil serbest arama.
+      const cNoS = _rsEnIyiWithForbid(r2, subjPuan, esik, { s: true, k: false, m: false, sat: false, faal: false });
+      if (cNoS && _senaryoHedefNotKarsilaniyor(cNoS, not)) {
+        c = cNoS;
+      } else {
+        c = _rsEnIyiWithForbid(r2, subjPuan, esik, { s: false, k: false, m: false, sat: false, faal: false });
+      }
       window._k2SatisOneri = null;
     }
 
