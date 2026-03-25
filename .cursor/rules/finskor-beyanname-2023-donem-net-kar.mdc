@@ -1,12 +1,18 @@
 ---
-description: 2023 dönem net karı kuralı — PDF beyanname import
+description: Yalnızca 2023 — PDF beyanname importta dönem net karı (59) boş bırakılır
 globs: app.html
 ---
 
-# 2023 — Dönem net karı (59) özel kuralı
+# Dönem net karı (59) — tek yıllık istisna
 
-- **Sadece hedef yıl 2023** iken: `donemNetKar` **gelir tablosundan okunmaz**, `applyDonemNetKarFinal` içinde **bilanço fallback ile de doldurulmaz**; alan **boş / 0** kalır (enflasyon düzeltmeli kurumlar vergisi beyanı).
-- **2024 ve sonrası** için: gelir tablosu "Dönem Net Karı veya Zararı" satırı (D. önekli dahil) kullanılır; çift sayım yok.
-- Bu kuralı **kaldırma**, **2024 mantığını 2023’e bağlama** veya **year === 2023** kontrolünü silme — kullanıcı talebi ile sabitlendi.
+Bu kural **yalnızca hedef yıl `2023`** içindir.
 
-İlgili kod: `mizanTextIsleBeyanname` → `applyDonemNetKarFinal`, `applyParsedToYear`, `applyImport`, `hesapToplamlar` (2023’te `donemNetKar` hesaplamaya dokunulmaz).
+| Yıl | Bu kural |
+|-----|----------|
+| 2022 | **Yok** — normal import (gelir tablosu kullanılabilir) |
+| **2023** | **Var** — `donemNetKar` gelir tablosundan gelmez; `applyDonemNetKarFinal` yazmaz; alan **0/boş** |
+| 2024, 2025, 2026, 2027, … | **Yok** — normal import (gelir tablosu "Dönem Net Karı veya Zararı" vb.) |
+
+Kodda **yalnızca** `year === 2023` ile kontrol edilir; aralık (`>=`, `<=`) veya **2022/2024**’e genişletme **yapılmaz**.
+
+İlgili yerler: `applyDonemNetKarFinal` (başta `if (year === 2023) return`), `applyParsedToYear`, `applyImport`, `recalc` / `hesapToplamlar` içindeki `year !== 2023` dalları.
