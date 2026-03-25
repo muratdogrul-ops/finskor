@@ -6389,6 +6389,51 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
   return result;
 }
 
+/** PDF metin mizanı: satır içi 0059145 gibi küçük tamsayıları buda (4 sütundan önce gelen gürültü) */
+function pdfMizanTrimLeadingHesapNoise(sayilar) {
+  const s = [...sayilar];
+  while (s.length >= 4 && s[0] > 0 && s[0] < 1e6 && s[0] === Math.floor(s[0])) {
+    s.shift();
+  }
+  return s;
+}
+
+/**
+ * BORÇ | ALACAK | BAKİYE BORÇ | BAKİYE ALACAK (en az 4 sayı → son ikisi bakiye).
+ * 3 sayı: çoğu raporda dönem borç, dönem alacak, bakiye — aktifte bak.borç s[2], pasifte bak.alacak s[2].
+ * 2 sayı: sadece bakiye sütunları (Excel’e yakın kısa mizan).
+ */
+function pdfMizanPickBakBorcAlacBak(sayilar, kod) {
+  const s = pdfMizanTrimLeadingHesapNoise(sayilar);
+  const n = s.length;
+  let borcBak = 0, alacBak = 0;
+  if (n === 0) return [0, 0];
+  if (n >= 4) {
+    borcBak = s[n - 2];
+    alacBak = s[n - 1];
+  } else if (n === 3) {
+    if (kod >= 100 && kod <= 299) {
+      borcBak = s[2];
+      alacBak = 0;
+    } else if (kod >= 300 && kod <= 591) {
+      borcBak = 0;
+      alacBak = s[2];
+    } else {
+      borcBak = s[1];
+      alacBak = s[2];
+    }
+  } else if (n === 2) {
+    borcBak = s[0];
+    alacBak = s[1];
+  } else {
+    const v = s[0];
+    if (kod >= 100 && kod <= 299) borcBak = v;
+    else if (kod >= 300 && kod <= 591) alacBak = v;
+    else borcBak = v;
+  }
+  return [borcBak, alacBak];
+}
+
 function mizanTextIsleMizan(lines, result, silent) {
   for (const line of lines) {
     if (!line.trim() || line.trim().length < 5) continue;
@@ -6411,15 +6456,7 @@ function mizanTextIsleMizan(lines, result, silent) {
       .filter(n => n !== null && isFinite(n) && n >= 0);
     if (!sayilar.length) continue;
 
-    let borcBak = 0, alacBak = 0;
-    if (sayilar.length >= 2) {
-      borcBak = sayilar[sayilar.length - 2];
-      alacBak = sayilar[sayilar.length - 1];
-    } else {
-      const v = sayilar[0];
-      if (kod >= 100 && kod <= 299) borcBak = v;
-      else alacBak = v;
-    }
+    const [borcBak, alacBak] = pdfMizanPickBakBorcAlacBak(sayilar, kod);
     if (borcBak === 0 && alacBak === 0) continue;
 
     const isMinus = MINUS_KODLAR.has(rawKod);
