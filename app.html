@@ -6453,7 +6453,9 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
     if (rawKod >= 100 && rawKod <= 591) {
       const net = hesapDeger(rawKod, borcBak, alacBak);
       if (Math.abs(net) > MIZAN_PDF_MAX_PLAUSIBLE_TL) continue;
-      result[key] = (result[key] || 0) + net;
+      // Geçmiş yıllar zararı (-) hesabı: sistemde tutar daima pozitif; özkaynakta düşülür
+      const deltaKoord = key === 'gecmisZarar' ? Math.abs(net) : net;
+      result[key] = (result[key] || 0) + deltaKoord;
     } else {
       if (Math.abs(katki) > MIZAN_PDF_MAX_PLAUSIBLE_TL) continue;
       result[key] = (result[key] || 0) + Math.abs(katki);
@@ -6672,7 +6674,8 @@ function mizanTextIsleMizan(lines, result, silent) {
     const absK = Math.abs(katki);
     if (absK > MIZAN_PDF_MAX_PLAUSIBLE_TL) continue;
     if (kod >= 100 && kod <= 591) {
-      result[key] = (result[key] || 0) + katki;
+      const deltaTxt = key === 'gecmisZarar' ? absK : katki;
+      result[key] = (result[key] || 0) + deltaTxt;
     } else {
       result[key] = (result[key] || 0) + absK;
       if (rawKod === 601) result['ihracat'] = (result['ihracat'] || 0) + absK;
