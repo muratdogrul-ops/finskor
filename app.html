@@ -5492,6 +5492,9 @@ const KOD_TO_KEY = {
   692:'donemNetKar',
 };
 
+/** PDF mizan: 120–129 özet satırları (harfle açıklama); rakamla devam eden satır alt hesap — ticAlacaklar’a tekrar eklenmez */
+const TICARI_ALACAK_OZET_KOD = new Set([120, 121, 122, 124, 126, 127, 128, 129]);
+
 // 2 haneli ana grup → key (2-pass için)
 const KOD_TO_KEY_2 = {
   10:'hazirDegerler', 11:'menkKiymetler',
@@ -6110,11 +6113,6 @@ function mizanTextIsle(text, structuredLines) {
     const fmt = Number(result.hazirDegerler).toLocaleString('tr-TR', { maximumFractionDigits: 0 });
     importLog(`📎 102 BANKALAR: koordinat <b>bak.borç</b> bandı ile hazır değerler tamamlandı → toplam <b>${fmt} ₺</b>`, 'ok');
   }
-  // Aynı mantık: 120 özet satırı (ALICILAR vb.) metinde kaçınca ticari alacaklar eksik kalıyor
-  if (!isBeyannameFormat && structuredLines && structuredLines.length && pdfMizanSupplementTicAlacak120FromKoord(result, structuredLines)) {
-    const fmt = Number(result.ticAlacaklar).toLocaleString('tr-TR', { maximumFractionDigits: 0 });
-    importLog(`📎 120 TİCARİ ALACAK: koordinat <b>bak.borç</b> bandı ile tamamlandı → toplam <b>${fmt} ₺</b>`, 'ok');
-  }
 
   return result;
 }
@@ -6372,6 +6370,14 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
     const key = KOD_TO_KEY[rawKod];
     if (!key) continue;
 
+    // 12 Ticari alacaklar: yalnız özet satırlar (120 ALICILAR); "120 01 02…" ana koda tekrar yazılmasın — çift sayım
+    if (key === 'ticAlacaklar' && TICARI_ALACAK_OZET_KOD.has(rawKod)) {
+      const head = trimmed.match(/^([1-6]\d{2})(?:[.\-]\d+)?\s+/);
+      if (!head) continue;
+      const afterKoord = trimmed.slice(head[0].length).trim();
+      if (!afterKoord.length || /^\d/.test(afterKoord)) continue;
+    }
+
     // BAK.BORÇ ve BAK.ALACAK sütunlarındaki değerleri koordinata göre topla
     let borcBak = 0, alacBak = 0;
     for (const item of sl.items) {
@@ -6389,8 +6395,15 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
     else                                      katki = alacBak || borcBak;
 
     if (katki === 0) continue;
-    result[key] = (result[key] || 0) + Math.abs(katki);
-    if (rawKod === 601) result['ihracat'] = (result['ihracat'] || 0) + Math.abs(katki);
+    if (rawKod >= 100 && rawKod <= 591) {
+      const net = hesapDeger(rawKod, borcBak, alacBak);
+      if (Math.abs(net) > MIZAN_PDF_MAX_PLAUSIBLE_TL) continue;
+      result[key] = (result[key] || 0) + net;
+    } else {
+      if (Math.abs(katki) > MIZAN_PDF_MAX_PLAUSIBLE_TL) continue;
+      result[key] = (result[key] || 0) + Math.abs(katki);
+      if (rawKod === 601) result['ihracat'] = (result['ihracat'] || 0) + Math.abs(katki);
+    }
   }
 
   const n = Object.keys(result).filter(k => result[k] !== 0).length;
@@ -6437,49 +6450,6 @@ function pdfMizanSupplementHazir102FromKoord(result, structuredLines) {
   const h = result.hazirDegerler || 0;
   if (h >= kb) return false;
   result.hazirDegerler = h + kb;
-  return true;
-}
-
-/** "120 …" özet satırı (102 ile aynı X bantları); alt satır 120 01… atlanır. */
-function pdfMizanKoord120BakBorcOzet(structuredLines) {
-  const COL_BAKBORC_MIN = 440;
-  const COL_BAKBORC_MAX = 513;
-  const COL_BAKALAC_MIN = 513;
-  const COL_BAKALAC_MAX = 600;
-  const rawKod = 120;
-  function parseNum(s) {
-    const v = parseFloat(String(s).replace(/[.]/g, '').replace(',', '.'));
-    return isNaN(v) ? 0 : v;
-  }
-  for (const sl of structuredLines) {
-    const trimmed = sl.text.trim();
-    if (!/^120(?:[.\-]\d+)?\s+/.test(trimmed)) continue;
-    const after = trimmed.replace(/^120(?:[.\-]\d+)?\s+/, '');
-    if (!after.length || /^\d/.test(after)) continue;
-    let borcBak = 0, alacBak = 0;
-    for (const item of sl.items) {
-      const v = parseNum(item.str);
-      if (v <= 0) continue;
-      const x = item.x;
-      if (x >= COL_BAKBORC_MIN && x < COL_BAKBORC_MAX) borcBak += v;
-      else if (x >= COL_BAKALAC_MIN && x < COL_BAKALAC_MAX) alacBak += v;
-    }
-    if (borcBak === 0 && alacBak === 0) continue;
-    const isM = MINUS_KODLAR.has(rawKod);
-    const katki = isM ? (alacBak - borcBak) : (borcBak - alacBak);
-    if (katki === 0) continue;
-    return Math.abs(katki);
-  }
-  return 0;
-}
-
-/** Metin ticari alacaklar 120 bakiyesinden küçükse, koordinat bak.borç ekle (102 ile aynı kural) */
-function pdfMizanSupplementTicAlacak120FromKoord(result, structuredLines) {
-  const kb = pdfMizanKoord120BakBorcOzet(structuredLines);
-  if (kb <= 0 || kb > MIZAN_PDF_MAX_PLAUSIBLE_TL) return false;
-  const t = result.ticAlacaklar || 0;
-  if (t >= kb) return false;
-  result.ticAlacaklar = t + kb;
   return true;
 }
 
@@ -6561,7 +6531,7 @@ function pdfMizanPickBakBorcAlacBak(sayilar, kod, rawKod) {
 function mizanTextIsleMizan(lines, result, silent) {
   // PDF mizan: çoğu dosyada 2 haneli özet satır yok → yalnızca 3 haneli satır başı kodlar.
   // Hazır değerler (100–103,108): yalnızca grup özet satırları (100 KASA, 102 BANKALAR…);
-  // "100 00 01 …" alt hesap satırları çift toplam yapmaması için atlanır.
+  // Ticari alacaklar (120–129): aynı kural — "120 01…" ile "120 ALICILAR" çift yazılmasın; 129 (-) nete düşer.
   const HAZIR_OZET_KOD = new Set([100, 101, 102, 103, 108]);
 
   function pdfMizanParaTokenlari(tail) {
@@ -6590,13 +6560,20 @@ function mizanTextIsleMizan(lines, result, silent) {
       const after = line.slice(kodMatch.index + kodMatch[0].length).trim();
       if (/^\d/.test(after)) continue;
     }
+    if (key === 'ticAlacaklar' && TICARI_ALACAK_OZET_KOD.has(rawKod)) {
+      const afterTa = line.slice(kodMatch.index + kodMatch[0].length).trim();
+      if (/^\d/.test(afterTa)) continue;
+    }
 
-    if (rawKod >= 100 && rawKod <= 599 && key !== 'hazirDegerler' && pdfMizanBilancoSatirAtla(line, kodMatch)) continue;
+    if (rawKod >= 100 && rawKod <= 599 && key !== 'hazirDegerler' &&
+        !(key === 'ticAlacaklar' && TICARI_ALACAK_OZET_KOD.has(rawKod)) &&
+        pdfMizanBilancoSatirAtla(line, kodMatch)) continue;
 
     let workLine = line;
     let extra = 0;
-    // PDF satır kırığı: "102 BANKALAR" bir satır, tutarlar hemen alt satırda — tek satırda para yoksa birleştir
-    if (key === 'hazirDegerler' && HAZIR_OZET_KOD.has(rawKod)) {
+    // PDF satır kırığı: hesap adı bir satır, tutarlar altta — hazır + 12 ticari özet için birleştir
+    if ((key === 'hazirDegerler' && HAZIR_OZET_KOD.has(rawKod)) ||
+        (key === 'ticAlacaklar' && TICARI_ALACAK_OZET_KOD.has(rawKod))) {
       let tailTry = workLine.slice(kodMatch.index + kodMatch[0].length);
       let toksTry = pdfMizanParaTokenlari(tailTry);
       let numsTry = toksTry.map(m => parseImportNumber(m)).filter(n => n !== null && isFinite(n) && n >= 0);
@@ -6639,8 +6616,12 @@ function mizanTextIsleMizan(lines, result, silent) {
     if (katki === 0) continue;
     const absK = Math.abs(katki);
     if (absK > MIZAN_PDF_MAX_PLAUSIBLE_TL) continue;
-    result[key] = (result[key] || 0) + absK;
-    if (rawKod === 601) result['ihracat'] = (result['ihracat'] || 0) + absK;
+    if (kod >= 100 && kod <= 591) {
+      result[key] = (result[key] || 0) + katki;
+    } else {
+      result[key] = (result[key] || 0) + absK;
+      if (rawKod === 601) result['ihracat'] = (result['ihracat'] || 0) + absK;
+    }
   }
 
   const n = Object.keys(result).filter(k => result[k] !== 0).length;
