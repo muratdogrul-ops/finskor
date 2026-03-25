@@ -5492,8 +5492,34 @@ const KOD_TO_KEY = {
   692:'donemNetKar',
 };
 
-/** PDF mizan: 120–129 özet satırları (harfle açıklama); rakamla devam eden satır alt hesap — ticAlacaklar’a tekrar eklenmez */
-const TICARI_ALACAK_OZET_KOD = new Set([120, 121, 122, 124, 126, 127, 128, 129]);
+/**
+ * Dönen varlık grupları 12–19 (KOD_TO_KEY): yalnız özet ana satır (150 STOKLAR gibi);
+ * kuyruk rakamla başlıyorsa alt hesap — anahtara tekrar yazılmaz (çift toplam önlenir).
+ */
+const PDF_MIZAN_GRUP_OZET_KEYS = new Set([
+  'ticAlacaklar',
+  'digerAlacaklar',
+  'stoklar',
+  'yilYayginMal',
+  'gelecekAyGider',
+  'digerDonen',
+]);
+
+const PDF_MIZAN_GRUP_OZET_KOD_BY_KEY = (function () {
+  const m = {};
+  for (const k of PDF_MIZAN_GRUP_OZET_KEYS) m[k] = new Set();
+  for (const [codeStr, key] of Object.entries(KOD_TO_KEY)) {
+    if (!PDF_MIZAN_GRUP_OZET_KEYS.has(key)) continue;
+    const n = parseInt(codeStr, 10);
+    if (Number.isFinite(n) && n >= 100 && n <= 599) m[key].add(n);
+  }
+  return m;
+})();
+
+function pdfMizanGrupOzetSatirMi(key, rawKod) {
+  const s = PDF_MIZAN_GRUP_OZET_KOD_BY_KEY[key];
+  return !!(s && s.has(rawKod));
+}
 
 // 2 haneli ana grup → key (2-pass için)
 const KOD_TO_KEY_2 = {
@@ -6370,8 +6396,8 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
     const key = KOD_TO_KEY[rawKod];
     if (!key) continue;
 
-    // 12 Ticari alacaklar: yalnız özet satırlar (120 ALICILAR); "120 01 02…" ana koda tekrar yazılmasın — çift sayım
-    if (key === 'ticAlacaklar' && TICARI_ALACAK_OZET_KOD.has(rawKod)) {
+    // 12–19 dönen varlık özetleri: yalnız "150 STOKLAR" gibi satırlar; "150 01…" atlanır
+    if (pdfMizanGrupOzetSatirMi(key, rawKod)) {
       const head = trimmed.match(/^([1-6]\d{2})(?:[.\-]\d+)?\s+/);
       if (!head) continue;
       const afterKoord = trimmed.slice(head[0].length).trim();
@@ -6531,7 +6557,7 @@ function pdfMizanPickBakBorcAlacBak(sayilar, kod, rawKod) {
 function mizanTextIsleMizan(lines, result, silent) {
   // PDF mizan: çoğu dosyada 2 haneli özet satır yok → yalnızca 3 haneli satır başı kodlar.
   // Hazır değerler (100–103,108): yalnızca grup özet satırları (100 KASA, 102 BANKALAR…);
-  // Ticari alacaklar (120–129): aynı kural — "120 01…" ile "120 ALICILAR" çift yazılmasın; 129 (-) nete düşer.
+  // Grup 12–19 (ticari/diğer alacak, stok, YYM, gelecek ay gider, diğer dönen): özet satır kuralı KOD_TO_KEY’den türetilir
   const HAZIR_OZET_KOD = new Set([100, 101, 102, 103, 108]);
 
   function pdfMizanParaTokenlari(tail) {
@@ -6560,20 +6586,20 @@ function mizanTextIsleMizan(lines, result, silent) {
       const after = line.slice(kodMatch.index + kodMatch[0].length).trim();
       if (/^\d/.test(after)) continue;
     }
-    if (key === 'ticAlacaklar' && TICARI_ALACAK_OZET_KOD.has(rawKod)) {
-      const afterTa = line.slice(kodMatch.index + kodMatch[0].length).trim();
-      if (/^\d/.test(afterTa)) continue;
+    if (pdfMizanGrupOzetSatirMi(key, rawKod)) {
+      const afterGr = line.slice(kodMatch.index + kodMatch[0].length).trim();
+      if (/^\d/.test(afterGr)) continue;
     }
 
     if (rawKod >= 100 && rawKod <= 599 && key !== 'hazirDegerler' &&
-        !(key === 'ticAlacaklar' && TICARI_ALACAK_OZET_KOD.has(rawKod)) &&
+        !pdfMizanGrupOzetSatirMi(key, rawKod) &&
         pdfMizanBilancoSatirAtla(line, kodMatch)) continue;
 
     let workLine = line;
     let extra = 0;
-    // PDF satır kırığı: hesap adı bir satır, tutarlar altta — hazır + 12 ticari özet için birleştir
+    // PDF satır kırığı: hesap adı bir satır, tutarlar altta — hazır + grup 12–19 özet satırları
     if ((key === 'hazirDegerler' && HAZIR_OZET_KOD.has(rawKod)) ||
-        (key === 'ticAlacaklar' && TICARI_ALACAK_OZET_KOD.has(rawKod))) {
+        pdfMizanGrupOzetSatirMi(key, rawKod)) {
       let tailTry = workLine.slice(kodMatch.index + kodMatch[0].length);
       let toksTry = pdfMizanParaTokenlari(tailTry);
       let numsTry = toksTry.map(m => parseImportNumber(m)).filter(n => n !== null && isFinite(n) && n >= 0);
