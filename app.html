@@ -6465,6 +6465,9 @@ function pdfMizanPickBakBorcAlacBak(sayilar, kod, rawKod) {
 }
 
 function mizanTextIsleMizan(lines, result, silent) {
+  // POYRAZ tipi PDFlerde 10. Hazır Değerler için doğrudan özet satırından (100/102/108 yaprak toplamı)
+  // yanlış sütun/tekrar toplam riskine karşı tek kaynak kullanılır.
+  let hazirDegerlerFromSummary = false;
   for (const line of lines) {
     if (!line.trim() || line.trim().length < 5) continue;
 
@@ -6480,7 +6483,29 @@ function mizanTextIsleMizan(lines, result, silent) {
     if (!key) continue;
 
     // İki haneli özet satır (10 HAZIR, 30 KV…) alt hesaplarla aynı key'e çift toplam yapar — sadece 3 haneli+ satırlar
-    if (rawKod < 100) continue;
+    if (rawKod < 100) {
+      // 10. Hazır Değerler: doğrudan özet satırındaki bakiye borç'u al
+      if (rawKod === 10 && key === 'hazirDegerler') {
+        // Tail'de para tokenlarını al
+        const tail = line.slice(kodMatch.index + kodMatch[0].length);
+        const moneyTokens = [...tail.matchAll(/[0-9][0-9.,]*/g)].map(m => m[0]).filter(tok => {
+          if (tok.includes(',')) return true;
+          if (tok.includes('.') && /^\d{1,3}(\.\d{3})+$/.test(tok.replace(/\s/g, ''))) return true;
+          return false;
+        });
+        const sayilar = moneyTokens
+          .map(m => parseImportNumber(m))
+          .filter(n => n !== null && isFinite(n) && n >= 0);
+        if (sayilar.length >= 3 && sayilar[2] !== 0) {
+          result['hazirDegerler'] = sayilar[2];
+          hazirDegerlerFromSummary = true;
+        }
+      }
+      continue;
+    }
+
+    // Hazır değerler özet satırından alındıysa yaprak satırları tekrar ekleme
+    if (hazirDegerlerFromSummary && key === 'hazirDegerler') continue;
 
     // Bilanço: sadece yaprak/derin alt hesap (… 01 01 001); özet ve ara kırılım satırlarını atla
     // Ancak 10. Hazır Değerler için doğrudan özet satırlardan (100/102/108) bakiye almak gerekiyor.
