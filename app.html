@@ -6218,14 +6218,15 @@ function mizanTextIsleBeyanname(lines, result, year) {
       if (pat.test(label)) { key = k; matched = true; break; }
     }
     if (!matched) {
-      if (/g\.?v\.?k\.?\s*113|hasiat\s+esasli|yurtici\s+satis|yurt\s*ici\s+satis/i.test(label)) continue;
+      const labChk = normTR(String(label).trim());
+      if (/g\.?v\.?k\.?\s*113|mad\.\s*kapsaminda|hasiat\s+esasli|yurtici\s+satis|yurt\s*ici\s+satis/i.test(labChk)) continue;
       importLog(`  ? Eşleşmedi: "${label.substring(0,40)}"`, 'warn');
       continue;
     }
     if (key === null) continue; // Hesaplanan satır (brüt satış karı vb.) — atla
 
-    // Özkaynak ". F. Dönem Net Karı" PDF sırası gelir tablosundan önce gelebilir; dönem karı tek kaynak: fonksiyon sonunda (gelir öncelikli)
-    if (key === 'donemNetKar' && bolum === 'OZKAYNAK') continue;
+    // Dönem net karı yalnızca applyDonemNetKarFinal ile (D./K. önekli gelir satırı ana döngüde += ile çift yazılıyordu)
+    if (key === 'donemNetKar') continue;
 
     // ── YILLARA YAYGIN BÖLÜM OVERRIDE ─────────────────────────────────────
     // PDF'de başlık kırpılır: ". F. Yıllara Yaygın İnşaat ve Onarım" (Maliyetleri/Hakedişleri yok)
@@ -6234,6 +6235,8 @@ function mizanTextIsleBeyanname(lines, result, year) {
     //   KV bölümü     → yilHakediş   (Hesap 35x, PASİF)
     if (key === 'yilYayginMal' && bolum === 'KV')     key = 'yilHakediş';
     if (key === 'yilHakediş'   && bolum === 'DONEN')  key = 'yilYayginMal';
+    // KV'de "Gelirler ve Gider Tahakkukları" (H.) yanlışlıkla gelecekAyGider ile eşleşirse düzelt
+    if (bolum === 'KV' && key === 'gelecekAyGider' && /gelirler.*ve.*gider|gelirler ve gider/i.test(label)) key = 'gelecekAyGelir';
     // ── Not: Alt rakam satırları yukarıda zaten filtrelendi ───────────────────
 
     // UV bölümünde key override
@@ -6278,17 +6281,24 @@ function mizanTextIsleBeyanname(lines, result, year) {
   // Dönem net karı: gelir tablosu "Dönem Net Karı veya Zararı" öncelikli (bilanço önce gelince çift sayım olmasın)
   (function applyDonemNetKarFinal() {
     const numRe = /(?<![\w\d])-?[\d]+[\d.]*,\d{2,4}/g;
+    // Gelir tablosu: "Dönem Net Karı veya Zararı" — bazen "D. Dönem Net Karı..." (başta harf+nokta)
+    function lineIsDonemNetKarVeyaZarar(t) {
+      const u = t.replace(/^[a-z]\.\s*/i, '').trim();
+      return /^donem net kar/i.test(u) && /veya\s+(zarar|kari)/i.test(u);
+    }
+    let inGelirTablosu = false;
     let dnk = null;
     for (const rawLine of lines) {
       const line = rawLine.trim();
-      if (!line || line.length < 5) continue;
+      if (!line) continue;
       const t = normTR(line);
-      if (/^donem net kar/i.test(t) && /veya\s+(zarar|kari)/i.test(t)) {
-        const sayilarDn = [...line.matchAll(numRe)]
-          .map(m => { const s = m[0].replace(/\./g,'').replace(',','.'); return parseFloat(s); })
-          .filter(n => !isNaN(n));
-        if (sayilarDn.length) { dnk = sayilarDn[sayilarDn.length - 1]; break; }
-      }
+      if (/\bkar\s+dagitim\s+tablosu\b/i.test(t)) inGelirTablosu = false;
+      if (/\bgelir tablosu\b/i.test(t) && !/\bgelir tablosu\s+dipnot/i.test(t)) inGelirTablosu = true;
+      if (!lineIsDonemNetKarVeyaZarar(t)) continue;
+      const sayilarDn = [...line.matchAll(numRe)]
+        .map(m => { const s = m[0].replace(/\./g,'').replace(',','.'); return parseFloat(s); })
+        .filter(n => !isNaN(n));
+      if (sayilarDn.length && inGelirTablosu) dnk = sayilarDn[sayilarDn.length - 1];
     }
     if (dnk !== null) {
       result['donemNetKar'] = dnk;
