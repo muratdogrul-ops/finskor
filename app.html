@@ -5492,19 +5492,6 @@ const KOD_TO_KEY = {
   692:'donemNetKar',
 };
 
-/** PDF koordinat tamamlama: her key için KOD_TO_KEY’deki 3 haneli kodlar (artan sırada) */
-const PDF_MIZAN_KOORD_SUPP_CODES_BY_KEY = (function () {
-  const m = {};
-  for (const [codeStr, key] of Object.entries(KOD_TO_KEY)) {
-    const rawKod = parseInt(codeStr, 10);
-    if (!Number.isFinite(rawKod) || rawKod < 100 || rawKod > 699) continue;
-    if (!m[key]) m[key] = [];
-    m[key].push(rawKod);
-  }
-  for (const k of Object.keys(m)) m[k].sort((a, b) => a - b);
-  return m;
-})();
-
 // 2 haneli ana grup → key (2-pass için)
 const KOD_TO_KEY_2 = {
   10:'hazirDegerler', 11:'menkKiymetler',
@@ -6118,10 +6105,10 @@ function mizanTextIsle(text, structuredLines) {
     importLog(`✅ Mizan PDF: ${nTxt} kalem eşleştirildi`, nTxt > 0 ? 'ok' : 'warn');
   }
 
-  // Metin satırı kaçırınca kalem eksik: tüm mizan key’leri için ana satır koordinat bakiyesi (h < kb → h += kb)
-  if (!isBeyannameFormat && structuredLines && structuredLines.length) {
-    const n = pdfMizanSupplementAllKeysFromKoord(result, structuredLines);
-    if (n > 0) importLog(`📎 PDF mizan: koordinat ile <b>${n}</b> kalem tamamlandı (metinde kaçan ana satırlar)`, 'ok');
+  // Metin özet satırı kaçırınca hazır değerler eksik: 100/101/102/103/108 ana satırda koordinat bakiye (mizan koord ile aynı mantık)
+  if (!isBeyannameFormat && structuredLines && structuredLines.length && pdfMizanSupplementHazirOzetFromKoord(result, structuredLines)) {
+    const fmt = Number(result.hazirDegerler).toLocaleString('tr-TR', { maximumFractionDigits: 0 });
+    importLog(`📎 Hazır değerler (100–108 özet): koordinat bakiye ile tamamlandı → toplam <b>${fmt} ₺</b>`, 'ok');
   }
 
   return result;
@@ -6406,11 +6393,14 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
   return result;
 }
 
+/** mizanTextIsleMizan ile aynı hazır özet kodları; ana satır (102 01… değil) */
+const PDF_MIZAN_HAZIR_OZET_KODLAR = [100, 101, 102, 103, 108];
+
 /**
- * Tek ana hesap satırı (örn. 102 BANKALAR, 320 SATICILAR): bak.borç / bak.alacak X bandı — mizanTextIsleMizanKoordinat ile uyumlu.
- * Açıklama rakamla başlıyorsa (102 01 …) alt hesap — atlanır.
+ * Tek bir ana hesap satırı (örn. 102 BANKALAR): bak.borç / bak.alacak X bandı — mizanTextIsleMizanKoordinat katkısı ile uyumlu.
+ * Alt özet (102 01 …) atlanır.
  */
-function pdfMizanKoordAnaSatirBakiye(structuredLines, rawKod) {
+function pdfMizanKoordHazirOzetBakForCode(structuredLines, rawKod) {
   const COL_BAKBORC_MIN = 440;
   const COL_BAKBORC_MAX = 513;
   const COL_BAKALAC_MIN = 513;
@@ -6445,25 +6435,20 @@ function pdfMizanKoordAnaSatirBakiye(structuredLines, rawKod) {
 }
 
 /**
- * KOD_TO_KEY’deki her key için: metin toplamı o ana satırın koordinat bakiyesinden küçükse ekle (h < kb → h += kb).
- * Dönen: kaç key güncellendi.
+ * Metin bir özet satırı kaçırdığında hazır toplamı o satırın koordinat bakiyesinden küçük kalabiliyor.
+ * Her özet kod için (sabit sıra): h < kb ise h += kb — çift sayım yok (h zaten kb üstündeyse atla).
  */
-function pdfMizanSupplementAllKeysFromKoord(result, structuredLines) {
-  let nKeys = 0;
-  for (const [key, codes] of Object.entries(PDF_MIZAN_KOORD_SUPP_CODES_BY_KEY)) {
-    let h = result[key] || 0;
-    const h0 = h;
-    for (const rawKod of codes) {
-      const kb = pdfMizanKoordAnaSatirBakiye(structuredLines, rawKod);
-      if (kb <= 0 || kb > MIZAN_PDF_MAX_PLAUSIBLE_TL) continue;
-      if (h < kb) h += kb;
-    }
-    if (h !== h0) {
-      result[key] = h;
-      nKeys++;
-    }
+function pdfMizanSupplementHazirOzetFromKoord(result, structuredLines) {
+  let h = result.hazirDegerler || 0;
+  const h0 = h;
+  for (const rawKod of PDF_MIZAN_HAZIR_OZET_KODLAR) {
+    const kb = pdfMizanKoordHazirOzetBakForCode(structuredLines, rawKod);
+    if (kb <= 0 || kb > MIZAN_PDF_MAX_PLAUSIBLE_TL) continue;
+    if (h < kb) h += kb;
   }
-  return nKeys;
+  if (h === h0) return false;
+  result.hazirDegerler = h;
+  return true;
 }
 
 /** PDF metin mizanı: satır içi 0059145 gibi küçük tamsayıları buda (4 sütundan önce gelen gürültü) */
