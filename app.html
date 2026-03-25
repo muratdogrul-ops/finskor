@@ -2439,9 +2439,10 @@ function applyParsedToYear(parsed, year) {
     }
   });
   // Gelir tablosu varsa donemNetKar sıfırla (hesapToplamlar yeniden hesaplasın)
-  // 2023 hariç: enflasyon düzeltmeli PDF'de dönem karı gelir tablosu satırından okunur; sıfırlama değeri siler
+  // SADECE 2023: dönem net karı gelir tablosundan alınmaz (parse da yazmaz); her durumda 0/boş
   const d0 = state.yearData[year];
   if ((d0.brutSatis || d0.satMaliyet || d0.faalGider) && year !== 2023) d0.donemNetKar = 0;
+  if (year === 2023) d0.donemNetKar = 0;
 
   hesapToplamlar(year);
   refreshInputs(year);
@@ -6279,7 +6280,9 @@ function mizanTextIsleBeyanname(lines, result, year) {
   }
 
   // Dönem net karı: gelir tablosu "Dönem Net Karı veya Zararı" öncelikli (bilanço önce gelince çift sayım olmasın)
+  // ── KRİTİK: SADECE 2023 yılı — dönem net kar/zararı gelir tablosundan OKUNMAZ, bu blok bilanço fallback de yazmaz; alan boş kalır (enflasyon düzeltmeli KV beyanı). Başka yıla kopyalama / birleştirme yapma.
   (function applyDonemNetKarFinal() {
+    if (year === 2023) return;
     const numRe = /(?<![\w\d])-?[\d]+[\d.]*,\d{2,4}/g;
     // Gelir tablosu: "Dönem Net Karı veya Zararı" — bazen "D. Dönem Net Karı..." (başta harf+nokta)
     function lineIsDonemNetKarVeyaZarar(t) {
@@ -6534,11 +6537,12 @@ function applyImport() {
     }
   });
 
-  // Gelir tablosu varsa donemNetKar sıfırla — 2023 PDF'de gelir tablosundan okunan değer korunur
+  // Gelir tablosu varsa donemNetKar sıfırla — SADECE 2023: dönem net karı kasıtlı boş (gelir tablosu kullanılmaz)
   const d0 = state.yearData[year];
   if ((d0.brutSatis || d0.satMaliyet || d0.faalGider) && year !== 2023) {
     d0.donemNetKar = 0;
   }
+  if (year === 2023) d0.donemNetKar = 0;
 
   // Önce eksik toplamları hesapla
   hesapToplamlar(year);
@@ -6607,8 +6611,7 @@ function hesapToplamlar(year) {
   d.donemKar = (d.olagan||0) + (d.olagandisiGelir||0) - (d.olagandisiGider||0);
 
   // Dönem Net Karı: gelir tablosu varsa oradan hesapla (bilanço değerini override et)
-  // Gelir tablosu verisi girildiyse (brutSatis > 0) her zaman hesapla
-  // SADECE 2023: PDF'den yazanı oku — gelir tablosundan hesaplama, donemNetKar'a dokunma
+  // SADECE 2023: dönem net karı gelir tablosundan hesaplanmaz; import da yazmaz — alan boş kalır (yukarıdaki blok donemNetKar'a dokunmaz)
   if (year !== 2023) {
     if (d.brutSatis || d.satMaliyet || d.faalGider) {
       d.donemNetKar = (d.donemKar||0) - (d.vergiKarsilik||0);
