@@ -6110,6 +6110,11 @@ function mizanTextIsle(text, structuredLines) {
     const fmt = Number(result.hazirDegerler).toLocaleString('tr-TR', { maximumFractionDigits: 0 });
     importLog(`📎 102 BANKALAR: koordinat <b>bak.borç</b> bandı ile hazır değerler tamamlandı → toplam <b>${fmt} ₺</b>`, 'ok');
   }
+  // Aynı mantık: 120 özet satırı (ALICILAR vb.) metinde kaçınca ticari alacaklar eksik kalıyor
+  if (!isBeyannameFormat && structuredLines && structuredLines.length && pdfMizanSupplementTicAlacak120FromKoord(result, structuredLines)) {
+    const fmt = Number(result.ticAlacaklar).toLocaleString('tr-TR', { maximumFractionDigits: 0 });
+    importLog(`📎 120 TİCARİ ALACAK: koordinat <b>bak.borç</b> bandı ile tamamlandı → toplam <b>${fmt} ₺</b>`, 'ok');
+  }
 
   return result;
 }
@@ -6432,6 +6437,49 @@ function pdfMizanSupplementHazir102FromKoord(result, structuredLines) {
   const h = result.hazirDegerler || 0;
   if (h >= kb) return false;
   result.hazirDegerler = h + kb;
+  return true;
+}
+
+/** "120 …" özet satırı (102 ile aynı X bantları); alt satır 120 01… atlanır. */
+function pdfMizanKoord120BakBorcOzet(structuredLines) {
+  const COL_BAKBORC_MIN = 440;
+  const COL_BAKBORC_MAX = 513;
+  const COL_BAKALAC_MIN = 513;
+  const COL_BAKALAC_MAX = 600;
+  const rawKod = 120;
+  function parseNum(s) {
+    const v = parseFloat(String(s).replace(/[.]/g, '').replace(',', '.'));
+    return isNaN(v) ? 0 : v;
+  }
+  for (const sl of structuredLines) {
+    const trimmed = sl.text.trim();
+    if (!/^120(?:[.\-]\d+)?\s+/.test(trimmed)) continue;
+    const after = trimmed.replace(/^120(?:[.\-]\d+)?\s+/, '');
+    if (!after.length || /^\d/.test(after)) continue;
+    let borcBak = 0, alacBak = 0;
+    for (const item of sl.items) {
+      const v = parseNum(item.str);
+      if (v <= 0) continue;
+      const x = item.x;
+      if (x >= COL_BAKBORC_MIN && x < COL_BAKBORC_MAX) borcBak += v;
+      else if (x >= COL_BAKALAC_MIN && x < COL_BAKALAC_MAX) alacBak += v;
+    }
+    if (borcBak === 0 && alacBak === 0) continue;
+    const isM = MINUS_KODLAR.has(rawKod);
+    const katki = isM ? (alacBak - borcBak) : (borcBak - alacBak);
+    if (katki === 0) continue;
+    return Math.abs(katki);
+  }
+  return 0;
+}
+
+/** Metin ticari alacaklar 120 bakiyesinden küçükse, koordinat bak.borç ekle (102 ile aynı kural) */
+function pdfMizanSupplementTicAlacak120FromKoord(result, structuredLines) {
+  const kb = pdfMizanKoord120BakBorcOzet(structuredLines);
+  if (kb <= 0 || kb > MIZAN_PDF_MAX_PLAUSIBLE_TL) return false;
+  const t = result.ticAlacaklar || 0;
+  if (t >= kb) return false;
+  result.ticAlacaklar = t + kb;
   return true;
 }
 
