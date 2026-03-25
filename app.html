@@ -5394,7 +5394,8 @@ const KOD_TO_KEY = {
   280:'gelecekYilGider', 281:'gelecekYilGider',
   // DİĞER DURAN VARLIKLAR
   291:'digerDuran', 292:'digerDuran', 293:'digerDuran',
-  294:'digerDuran', 295:'digerDuran', 296:'digerDuran',
+  294:'digerDuran', 295:'digerDuran',
+  296:'digerDuran', // 6736 sayılı kanun düzeltme hesabı vb.; PDF satırı sık: "296 6736 SAYILI KANUN…"
   297:'digerDuran', 298:'digerDuran', 299:'digerDuran',
   // KV MALİ BORÇLAR
   300:'kvMaliBorclar', 301:'kvMaliBorclar', 302:'kvMaliBorclar',
@@ -5559,6 +5560,18 @@ const PDF_MIZAN_GRUP_OZET_KOD_BY_KEY = (function () {
 function pdfMizanGrupOzetSatirMi(key, rawKod) {
   const s = PDF_MIZAN_GRUP_OZET_KOD_BY_KEY[key];
   return !!(s && s.has(rawKod));
+}
+
+/**
+ * Grup özet: kuyruk rakamla başlıyorsa çoğunlukla alt hesap (296 01…) → atla.
+ * İlk token 4+ hane ise çoğunlukla kanun/yıl no (296 6736 SAYILI KANUN…) → ana satır, atlama.
+ */
+function pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterTrim) {
+  if (!afterTrim.length) return true;
+  if (!/^\d/.test(afterTrim)) return false;
+  const m = afterTrim.match(/^(\d+)/);
+  if (m && m[1].length >= 4) return false;
+  return true;
 }
 
 // 2 haneli ana grup → key (2-pass için)
@@ -6441,7 +6454,7 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
       const head = trimmed.match(/^([1-6]\d{2})(?:[.\-]\d+)?\s+/);
       if (!head) continue;
       const afterKoord = trimmed.slice(head[0].length).trim();
-      if (!afterKoord.length || /^\d/.test(afterKoord)) continue;
+      if (!afterKoord.length || pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterKoord)) continue;
     }
 
     // BAK.BORÇ ve BAK.ALACAK sütunlarındaki değerleri koordinata göre topla
@@ -6621,7 +6634,7 @@ function mizanTextIsleMizan(lines, result, silent) {
     }
     if (pdfMizanGrupOzetSatirMi(key, rawKod)) {
       const afterGr = line.slice(kodMatch.index + kodMatch[0].length).trim();
-      if (/^\d/.test(afterGr)) continue;
+      if (!afterGr.length || pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterGr)) continue;
     }
 
     if (rawKod >= 100 && rawKod <= 599 && key !== 'hazirDegerler' &&
