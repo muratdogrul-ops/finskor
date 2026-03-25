@@ -5562,20 +5562,30 @@ function pdfMizanGrupOzetSatirMi(key, rawKod) {
   return !!(s && s.has(rawKod));
 }
 
-/** Dönen varlık 100–199 (KOD_TO_KEY): YOL BAK özet = kod + boşluk + harf; 110.01 / 170 01 / 159.A.01 atlanır */
-const _PDF_MIZAN_DONEN_1XX_ANA_RE = (function () {
+/** Aktif 100–299 (KOD_TO_KEY): YOL BAK özet = kod + boşluk + harf; 220.01 / 250 01 / 296 01 atlanır */
+const _PDF_MIZAN_AKTIF_ANA_RE = (function () {
   const m = new Map();
-  for (let c = 100; c <= 199; c++) {
+  for (let c = 100; c <= 299; c++) {
     const esc = String(c).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     m.set(c, new RegExp('^' + esc + '\\s+[A-Za-zÇĞİÖŞÜçğıöşü]'));
   }
   return m;
 })();
 
-function pdfMizanDonenVarlikAnaSatirMi(lineTrim, rawKod) {
-  if (rawKod < 100 || rawKod > 199) return true;
-  const re = _PDF_MIZAN_DONEN_1XX_ANA_RE.get(rawKod);
-  return !re || re.test(String(lineTrim).trim());
+function pdfMizanAktifAnaSatirMi(lineTrim, rawKod) {
+  if (rawKod < 100 || rawKod > 299) return true;
+  const t = String(lineTrim).trim();
+  const re = _PDF_MIZAN_AKTIF_ANA_RE.get(rawKod);
+  if (re && re.test(t)) return true;
+  if (rawKod === 296) {
+    const m = t.match(/^296\s+(\d.*)$/);
+    if (m) {
+      const rest = m[1].trim();
+      const mm = rest.match(/^(\d+)/);
+      if (mm && mm[1].length >= 4) return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -6458,14 +6468,14 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
     const trimmed = sl.text.trim();
     if (!trimmed || trimmed.length < 5) continue;
 
-    // Satır başı: 100 KASA (özet) veya 100.01 … (hazır özet kodlarında yalnız ana satır toplanır)
+    // Satır başı: 100 KASA / 250 BİNALAR (özet) veya 100.01 … (aktif 100–299 yalnız ana satır)
     const m = trimmed.match(/^([1-6]\d{2})(?:[.\-]\d+)?\s+\S/);
     if (!m) continue;
     const rawKod = parseInt(m[1], 10);
     const key = KOD_TO_KEY[rawKod];
     if (!key) continue;
 
-    if (rawKod >= 100 && rawKod <= 199 && !pdfMizanDonenVarlikAnaSatirMi(trimmed, rawKod)) continue;
+    if (rawKod >= 100 && rawKod <= 299 && !pdfMizanAktifAnaSatirMi(trimmed, rawKod)) continue;
 
     // Bilanço + gelir (100–699) grup özetleri: "620 SATMAL…" gibi; "620 01…" atlanır
     if (pdfMizanGrupOzetSatirMi(key, rawKod)) {
@@ -6501,7 +6511,7 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
   return result;
 }
 
-/** Yalnız "102 BANKALAR" (102 + boşluk + harf); 102.01… atlanır — pdfMizanDonenVarlikAnaSatirMi(102) ile uyumlu */
+/** Yalnız "102 BANKALAR" (102 + boşluk + harf); 102.01… atlanır — pdfMizanAktifAnaSatirMi(102) ile uyumlu */
 function pdfMizanKoord102BakBorcOzet(structuredLines) {
   const COL_BAKBORC_MIN = 440;
   const COL_BAKBORC_MAX = 513;
@@ -6620,7 +6630,7 @@ function pdfMizanPickBakBorcAlacBak(sayilar, kod, rawKod) {
 
 function mizanTextIsleMizan(lines, result, silent) {
   // PDF mizan: çoğu dosyada 2 haneli özet satır yok → yalnızca 3 haneli satır başı kodlar.
-  // Dönen varlık 100–199: YOL BAK kod+boşluk+harf ana satır (hazır, menkul, 12–19 grupları)
+  // Aktif 100–299: YOL BAK kod+boşluk+harf ana satır (dönen + duran 22–29; 296 6736 istisnası)
 
   function pdfMizanParaTokenlari(tail) {
     return [...tail.matchAll(/[0-9][0-9.,]*/g)].map(m => m[0]).filter(tok => {
@@ -6644,7 +6654,7 @@ function mizanTextIsleMizan(lines, result, silent) {
     if (!key) continue;
     const kod = rawKod;
 
-    if (rawKod >= 100 && rawKod <= 199 && !pdfMizanDonenVarlikAnaSatirMi(line, rawKod)) continue;
+    if (rawKod >= 100 && rawKod <= 299 && !pdfMizanAktifAnaSatirMi(line, rawKod)) continue;
     if (pdfMizanGrupOzetSatirMi(key, rawKod)) {
       const afterGr = line.slice(kodMatch.index + kodMatch[0].length).trim();
       if (!afterGr.length || pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterGr)) continue;
@@ -6657,7 +6667,7 @@ function mizanTextIsleMizan(lines, result, silent) {
     let workLine = line;
     let extra = 0;
     // PDF satır kırığı: hesap adı bir satır, tutarlar altta — hazır + grup özet (bilanço + gelir)
-    if ((rawKod >= 100 && rawKod <= 199) ||
+    if ((rawKod >= 100 && rawKod <= 299) ||
         pdfMizanGrupOzetSatirMi(key, rawKod)) {
       let tailTry = workLine.slice(kodMatch.index + kodMatch[0].length);
       let toksTry = pdfMizanParaTokenlari(tailTry);
