@@ -6476,20 +6476,16 @@ function pdfMizanTrimLeadingHesapNoise(sayilar) {
 }
 
 /**
- * Bilanço satırı: hesap kodundan sonra açıklama harfle başlıyorsa özet (100 KASA, 102 BANKALAR) — atla.
- * Ardından gelen ardışık 2–3 haneli alt kod adedi; 3'ten az ise ara özet (102 01 …), yaprak değil — çift toplamı önler.
+ * Kuyruk rakamla başlıyorsa: ardışık 2–3 haneli parça sayısı. ≥3 = yaprak satır (120 01 02 03 …); <3 = ara özet (102 01 …) atlanır.
  */
-function pdfMizanBilancoSatirAtla(line, kodMatch) {
-  const t = line.slice(kodMatch.index + kodMatch[0].length).trim();
-  if (!t.length) return true;
-  if (/^[A-Za-zÇĞİÖŞÜçğıöşü]/.test(t)) return true;
-  const parts = t.split(/\s+/);
+function pdfMizanAltHesapDerinligi(afterTrim) {
+  const parts = afterTrim.split(/\s+/);
   let depth = 0;
   for (const p of parts) {
     if (/^\d{2}$/.test(p) || /^\d{3}$/.test(p)) depth++;
     else break;
   }
-  return depth < 3;
+  return depth;
 }
 
 /**
@@ -6542,9 +6538,9 @@ function pdfMizanPickBakBorcAlacBak(sayilar, kod, rawKod) {
 }
 
 function mizanTextIsleMizan(lines, result, silent) {
-  // PDF mizan: çoğu dosyada 2 haneli özet satır yok → yalnızca 3 haneli satır başı kodlar.
-  // Hazır değerler (100–103,108): yalnızca grup özet satırları (100 KASA, 102 BANKALAR…);
-  // "100 00 01 …" alt hesap satırları çift toplam yapmaması için atlanır.
+  // PDF mizan: 3 haneli satır başı. Grup 10–59 ile aynı kural: "320 SATICILAR" (kuyruk harfle) = ana satır, işlenir.
+  // Önceki hata: hazır hariç tüm bilançoda harfle başlayan satır pdfMizanBilancoSatirAtla ile atlanıyordu → 11,12,32,50… boş kalıyordu.
+  // Rakamla başlayan kuyruk: 100–108 hazırda tamamı atlanır; diğer 100–599 ve 600–699’da yalnız derinlik≥3 yaprak alınır.
   const HAZIR_OZET_KOD = new Set([100, 101, 102, 103, 108]);
 
   function pdfMizanParaTokenlari(tail) {
@@ -6569,17 +6565,22 @@ function mizanTextIsleMizan(lines, result, silent) {
     if (!key) continue;
     const kod = rawKod;
 
-    if (key === 'hazirDegerler' && HAZIR_OZET_KOD.has(rawKod)) {
-      const after = line.slice(kodMatch.index + kodMatch[0].length).trim();
-      if (/^\d/.test(after)) continue;
-    }
+    const after0 = line.slice(kodMatch.index + kodMatch[0].length).trim();
+    if (!after0.length) continue;
 
-    if (rawKod >= 100 && rawKod <= 599 && key !== 'hazirDegerler' && pdfMizanBilancoSatirAtla(line, kodMatch)) continue;
+    if (rawKod >= 100 && rawKod <= 599) {
+      if (/^\d/.test(after0)) {
+        if (HAZIR_OZET_KOD.has(rawKod)) continue;
+        if (pdfMizanAltHesapDerinligi(after0) < 3) continue;
+      }
+    } else if (rawKod >= 600 && rawKod <= 699) {
+      if (/^\d/.test(after0) && pdfMizanAltHesapDerinligi(after0) < 3) continue;
+    }
 
     let workLine = line;
     let extra = 0;
-    // PDF satır kırığı: "102 BANKALAR" bir satır, tutarlar hemen alt satırda — tek satırda para yoksa birleştir
-    if (key === 'hazirDegerler' && HAZIR_OZET_KOD.has(rawKod)) {
+    // PDF satır kırığı: hesap adı bir satır, tutarlar altta — 100–699 ana/yaprak satırlarında birleştir (önceden yalnız hazırdı)
+    if (rawKod >= 100 && rawKod <= 699) {
       let tailTry = workLine.slice(kodMatch.index + kodMatch[0].length);
       let toksTry = pdfMizanParaTokenlari(tailTry);
       let numsTry = toksTry.map(m => parseImportNumber(m)).filter(n => n !== null && isFinite(n) && n >= 0);
