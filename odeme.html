@@ -701,18 +701,30 @@ function showToast(msg, err) {
   t._t = setTimeout(() => t.className = 'toast', 3500);
 }
 
-// Mail panoya kopyala
+// Mail panoya kopyala — çoklu fallback
 function copyMail(mail, el) {
-  navigator.clipboard.writeText(mail).then(() => {
-    showToast('📋 ' + mail + ' kopyalandı');
+  function goster(ok) {
+    showToast(ok ? ('📋 ' + mail + ' kopyalandı') : ('📧 ' + mail + ' — elle kopyalayın'));
     if (el) {
+      const orig = el.textContent;
       el.classList.add('copied');
-      el.textContent = '✓ kopyalandı';
-      setTimeout(() => { el.classList.remove('copied'); el.textContent = mail; }, 2500);
+      el.textContent = ok ? '✓ kopyalandı' : mail;
+      setTimeout(() => { el.classList.remove('copied'); el.textContent = orig; }, 3000);
     }
-  }).catch(() => {
-    showToast('Mail: ' + mail, false);
-  });
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(mail).then(() => goster(true)).catch(() => fallback());
+  } else { fallback(); }
+  function fallback() {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = mail; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      goster(ok);
+    } catch(e) { goster(false); }
+  }
 }
 </script>
 </body>

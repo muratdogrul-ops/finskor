@@ -978,8 +978,8 @@ footer {
 }
 .footer-links a:hover { color: var(--white-dim); }
 .footer-copy { font-size: 12px; color: var(--white-muted); }
-.copy-mail-footer { cursor: pointer; transition: color 0.2s; }
-.copy-mail-footer:hover { color: var(--white) !important; }
+.copy-mail-footer { cursor: pointer; color: var(--gold); text-decoration: underline; text-underline-offset: 3px; transition: color 0.2s; }
+.copy-mail-footer:hover { color: #f5c842; }
 
 /* ── ANIMATIONS ── */
 @keyframes fadeUp {
@@ -1766,32 +1766,54 @@ function toggleFaq(btn) {
   }
 }
 
-// Mail panoya kopyala
+// Mail kopyala — çoklu fallback
 function copyMailIndex(mail, el) {
-  navigator.clipboard.writeText(mail).then(() => {
-    const tip = document.getElementById('mailTip');
-    if (tip) { tip.style.opacity='1'; setTimeout(()=>tip.style.opacity='0',2500); }
-    if (el && el.tagName !== 'BUTTON') {
+  function goster(basarili) {
+    // Buton metnini güncelle
+    if (el) {
       const orig = el.textContent;
-      el.textContent = '✓ kopyalandı';
-      setTimeout(() => { el.textContent = orig; }, 2500);
-    } else if (el && el.tagName === 'BUTTON') {
-      const orig = el.textContent;
-      el.textContent = '✓ Kopyalandı!';
-      setTimeout(() => { el.textContent = orig; }, 2500);
+      el.textContent = basarili ? '✓ Kopyalandı!' : '📧 ' + mail;
+      setTimeout(() => { el.textContent = orig; }, 3000);
     }
-  }).catch(() => {
-    const tip = document.getElementById('mailTip');
-    if (tip) {
-      tip.textContent = '📧 info@finskor.tr';
-      tip.style.opacity='1';
-      setTimeout(()=>tip.style.opacity='0',3000);
-    }
-  });
+    // Merkezdeki toast
+    var tip = document.getElementById('mailTip');
+    if (!tip) return;
+    tip.textContent = basarili ? ('📋 ' + mail + ' kopyalandı') : ('📧 ' + mail + ' — elle kopyalayın');
+    tip.style.display = 'block';
+    tip.style.opacity = '1';
+    clearTimeout(tip._t);
+    tip._t = setTimeout(function() {
+      tip.style.opacity = '0';
+      setTimeout(function() { tip.style.display = 'none'; }, 400);
+    }, 3000);
+  }
+
+  // Yöntem 1: Clipboard API
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(mail).then(function() { goster(true); }).catch(function() { fallback(); });
+  } else {
+    fallback();
+  }
+
+  function fallback() {
+    // Yöntem 2: execCommand
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = mail; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      var ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      goster(ok);
+    } catch(e) { goster(false); }
+  }
 }
 </script>
-<div id="mailTip" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a2e4a;color:#C9A84C;border:1px solid rgba(201,168,76,0.3);padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:9999">
-  📋 info@finskor.tr kopyalandı
+
+<div id="mailTip" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:#0d1e35;color:#C9A84C;border:2px solid rgba(201,168,76,0.5);
+  padding:18px 32px;border-radius:12px;font-size:15px;font-weight:700;
+  opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:99999;
+  box-shadow:0 8px 40px rgba(0,0,0,0.6);text-align:center;min-width:280px">
 </div>
 
 </body>
