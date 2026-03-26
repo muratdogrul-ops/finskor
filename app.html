@@ -3598,14 +3598,16 @@ function saveFirm() {
 
   const r = calcRatios(refYear);
   const saved = JSON.parse(localStorage.getItem('kas_firms')||'[]');
-  const idx = saved.findIndex(f=>f.firma===firma);
   const entry = {
+    id: Date.now() + '_' + Math.random().toString(36).slice(2,7),
+    savedBy: localStorage.getItem('kas_access_code') || '',
     firma, refYear, period:state.period, firmType:state.firmType,
     date:new Date().toLocaleDateString('tr-TR'),
+    time:new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}),
     pct:r.pct, karar:r.pct>=70?'positive':r.pct>=45?'neutral':'negative',
     r, yearData:JSON.parse(JSON.stringify(state.yearData))
   };
-  if(idx>=0) saved[idx]=entry; else saved.push(entry);
+  saved.push(entry);
   localStorage.setItem('kas_firms', JSON.stringify(saved));
   showToast(`"${firma}" kaydedildi ✓`);
 }
@@ -3626,7 +3628,7 @@ function renderAdmin() {
     <div class="firm-item">
       <div>
         <div class="firm-name">${f.firma}</div>
-        <div class="firm-meta">${f.refYear} · ${f.firmType} · ${f.date}</div>
+        <div class="firm-meta">${f.refYear} · ${f.firmType} · ${f.date}${f.time?' · '+f.time:''}</div>
       </div>
       <div style="display:flex;align-items:center;gap:12px">
         <div>
