@@ -890,15 +890,15 @@ section { position: relative; z-index: 1; }
 }
 .ref-card:hover { border-color: rgba(201,168,76,0.4); transform: translateY(-3px); }
 .ref-logo {
-  width: 72px; height: 72px; border-radius: 14px;
-  background: linear-gradient(135deg, var(--navy2), #1a3a5c);
-  border: 1px solid rgba(201,168,76,0.25);
+  width: 120px; height: 64px; border-radius: 10px;
+  background: #fff;
+  border: 1px solid rgba(255,255,255,0.15);
   display: flex; align-items: center; justify-content: center;
-  font-family: var(--serif); font-size: 22px; font-weight: 700;
+  font-family: var(--serif); font-size: 20px; font-weight: 700;
   color: var(--gold); letter-spacing: 1px;
-  overflow: hidden;
+  overflow: hidden; padding: 8px;
 }
-.ref-logo img { width: 100%; height: 100%; object-fit: contain; padding: 10px; }
+.ref-logo img { width: 100%; height: 100%; object-fit: contain; }
 .ref-name { font-size: 14px; font-weight: 700; color: var(--white); line-height: 1.4; }
 .ref-sector { font-size: 11px; color: var(--white-muted); margin-top: 2px; letter-spacing: 0.5px; }
 @media(max-width:640px) { .ref-grid { grid-template-columns: 1fr; max-width: 360px; } }
@@ -1565,7 +1565,9 @@ footer {
     <div class="ref-grid">
 
       <div class="ref-card">
-        <div class="ref-logo" id="logo-reeder">RT</div>
+        <div class="ref-logo">
+          <img src="https://halkarz.com/wp-content/uploads/2023/09/reedr-reeder-teknoloji-san-ve-tic-a-s.jpg" alt="Reeder Teknoloji" onerror="this.parentElement.textContent='RT'">
+        </div>
         <div>
           <div class="ref-name">Reeder Teknoloji A.Ş.</div>
           <div class="ref-sector">Teknoloji &amp; Elektronik</div>
@@ -1573,7 +1575,9 @@ footer {
       </div>
 
       <div class="ref-card">
-        <div class="ref-logo" id="logo-karimex">KF</div>
+        <div class="ref-logo">
+          <img src="https://www.karimex.com.tr/tr/home/logo.png" alt="Karimex Fındık" onerror="this.parentElement.textContent='KF'">
+        </div>
         <div>
           <div class="ref-name">Karimex Fındık Ltd. Şti.</div>
           <div class="ref-sector">Gıda &amp; Tarım</div>
@@ -1581,7 +1585,9 @@ footer {
       </div>
 
       <div class="ref-card">
-        <div class="ref-logo" id="logo-dkc">DG</div>
+        <div class="ref-logo">
+          <img src="https://www.dkcgrup.com.tr/Content/logo2.jpg?v=0.8" alt="DKC Grup" onerror="this.parentElement.textContent='DG'">
+        </div>
         <div>
           <div class="ref-name">DKC Grup A.Ş.</div>
           <div class="ref-sector">Holding &amp; Yatırım</div>
