@@ -442,6 +442,10 @@ tbody td { padding:8px 13px; color:var(--text); }
   <!-- TAB 1: MALİ VERİLER -->
   <div id="tab-bilgi">
 
+  <!-- Kayıtlı Analizler butonu — ilk sayfada erişim -->
+  <div style="display:flex;justify-content:flex-end;padding:8px 0 4px">
+    <button onclick="showKayitliModal()" style="padding:7px 16px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.35);color:#34d399;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">📂 Kayıtlı Analizlerim</button>
+  </div>
 
   <div class="config-grid">
     <div class="card">
@@ -703,6 +707,7 @@ tbody td { padding:8px 13px; color:var(--text); }
     <div id="results">
       <div class="action-bar">
         <button class="action-btn" onclick="saveFirm()">💾 Kaydet</button>
+        <button class="action-btn" onclick="showKayitliModal()" style="background:rgba(16,185,129,0.12);border-color:rgba(16,185,129,0.35);color:#34d399">📂 Kayıtlı Analizler</button>
         <button class="action-btn" onclick="window.print()">🖨️ Yazdır</button>
         <button class="action-btn" onclick="showOtomSenaryo()" 
           style="background:rgba(99,102,241,0.15);border-color:rgba(99,102,241,0.4);color:#818cf8">
@@ -712,6 +717,17 @@ tbody td { padding:8px 13px; color:var(--text); }
       </div>
 
       <!-- KREDİ ANALİZ ASISTANI -->
+
+      <!-- KAYITLI ANALİZLER MODAL -->
+      <div id="kayitliModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;overflow-y:auto;padding:24px">
+        <div style="max-width:700px;margin:0 auto;background:var(--surface);border-radius:16px;border:1px solid var(--border);overflow:hidden">
+          <div style="background:linear-gradient(135deg,#0f2a1a,#0a2018);padding:18px 24px;display:flex;justify-content:space-between;align-items:center">
+            <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:#34d399;letter-spacing:2px">📂 KAYITLI ANALİZLER</div>
+            <button onclick="closeKayitliModal()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1">✕</button>
+          </div>
+          <div id="kayitliModalIcerik" style="padding:20px;max-height:70vh;overflow-y:auto"></div>
+        </div>
+      </div>
 
       <!-- SENARYO ANALİZİ MODAL -->
       <div id="senaryoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;overflow-y:auto;padding:20px">
@@ -1821,7 +1837,8 @@ function doLogout() {
 
   localStorage.removeItem('kas_logged');
   localStorage.removeItem('kas_role');
-  localStorage.removeItem('kas_access_code');
+  // kas_access_code kasıtlı olarak silinmiyor —
+  // login sırasında "farklı kod" karşılaştırması çalışsın ve kas_firms temizlensin
   localStorage.removeItem('kas_client_name');
   localStorage.removeItem('kas_credits');
   localStorage.removeItem(AUTOSAVE_KEY);
@@ -2888,6 +2905,8 @@ function _doRunAnalysis() {
   const rating   = getRating(toplam);
   // Senaryo analizi için global cache
   window._lastR = r;
+  window._lastRating = rating;
+  window._lastToplam = toplam;
   window._lastSubjPuan = subjPuan;
   // Gerçek kullanıcı: senaryo/otomatik öneri ofseti analiz bilançosuna sabitlenir (r2 ikinci kademede kayma olmaz)
   if (!window._demoMod) {
@@ -3596,18 +3615,90 @@ function saveFirm() {
   const d = state.yearData[refYear];
   if (!d||!d.aktifToplam||d.aktifToplam===0) { showToast('Önce analizi çalıştırın!', true); return; }
 
-  const r = calcRatios(refYear);
+  // _lastRating ve _lastToplam runAnalysis tarafından set edilir — ekrandaki ile aynı
+  const note = window._lastRating ? window._lastRating.note : _pctToNote(window._lastToplam || 0);
+  const pct  = window._lastToplam || 0;
   const saved = JSON.parse(localStorage.getItem('kas_firms')||'[]');
-  const idx = saved.findIndex(f=>f.firma===firma);
   const entry = {
+    id: Date.now() + '_' + Math.random().toString(36).slice(2,7),
+    savedBy: localStorage.getItem('kas_access_code') || '',
     firma, refYear, period:state.period, firmType:state.firmType,
     date:new Date().toLocaleDateString('tr-TR'),
-    pct:r.pct, karar:r.pct>=70?'positive':r.pct>=45?'neutral':'negative',
-    r, yearData:JSON.parse(JSON.stringify(state.yearData))
+    time:new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}),
+    note,
+    pct, karar:pct>=68?'positive':pct>=52?'neutral':'negative',
+    yearData:JSON.parse(JSON.stringify(state.yearData))
+    // r objesi kasıtlı olarak kaydedilmiyor — yearData yeterli, r localStorage kotasını zorlar
   };
-  if(idx>=0) saved[idx]=entry; else saved.push(entry);
-  localStorage.setItem('kas_firms', JSON.stringify(saved));
-  showToast(`"${firma}" kaydedildi ✓`);
+  saved.push(entry);
+  try {
+    localStorage.setItem('kas_firms', JSON.stringify(saved));
+    showToast(`"${firma}" kaydedildi ✓ (${note})`);
+  } catch(e) {
+    showToast('Kayıt hatası: depolama alanı dolu olabilir', true);
+    console.error('saveFirm localStorage hatası:', e);
+  }
+}
+
+function _pctToNote(pct) {
+  if (pct >= 93) return 'AAA';
+  if (pct >= 84) return 'AA';
+  if (pct >= 76) return 'A';
+  if (pct >= 68) return 'BBB';
+  if (pct >= 60) return 'BB';
+  if (pct >= 52) return 'B';
+  if (pct >= 44) return 'CCC';
+  if (pct >= 36) return 'CC';
+  if (pct >= 30) return 'C';
+  return 'D';
+}
+
+function _noteToRenk(note) {
+  const map = {AAA:'#22c55e',AA:'#4ade80',A:'#86efac',BBB:'#fbbf24',BB:'#f59e0b',B:'#d97706',CCC:'#fb923c',CC:'#f87171',C:'#ef4444',D:'#dc2626'};
+  return map[note] || '#94a3b8';
+}
+
+function showKayitliModal() {
+  const saved = JSON.parse(localStorage.getItem('kas_firms')||'[]');
+  const el = document.getElementById('kayitliModalIcerik');
+  if (!saved.length) {
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)"><div style="font-size:36px;margin-bottom:12px">📂</div><div>Henüz kayıtlı analiz yok.</div><div style="font-size:12px;margin-top:8px">Analiz yaptıktan sonra "Kaydet" butonuna tıklayın.</div></div>';
+  } else {
+    el.innerHTML = saved.map((f,i) => {
+      const not = f.note || (f.r && f.r.rating && f.r.rating.note) || _pctToNote(f.pct);
+      const renk = _noteToRenk(not);
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);gap:12px">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🏢 ${f.firma}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:3px">${f.refYear} · ${f.period||''} · <span style="color:${renk};font-weight:700">${not}</span> · ${f.date}${f.time?' · '+f.time:''}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0">
+          <button onclick="loadFirmModal(${i})" style="padding:6px 14px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.35);color:#34d399;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">Dışarı Çıkart</button>
+          <button onclick="deleteFirmModal(${i})" style="padding:6px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:8px;cursor:pointer;font-size:14px">🗑</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('kayitliModal').style.display = 'block';
+}
+
+function closeKayitliModal() {
+  document.getElementById('kayitliModal').style.display = 'none';
+}
+
+function loadFirmModal(i) {
+  closeKayitliModal();
+  loadFirm(i);
+}
+
+function deleteFirmModal(i) {
+  const saved = JSON.parse(localStorage.getItem('kas_firms')||'[]');
+  const name = saved[i].firma;
+  if (!confirm(`"${name}" silinsin mi?`)) return;
+  saved.splice(i,1);
+  localStorage.setItem('kas_firms',JSON.stringify(saved));
+  showToast(`"${name}" silindi`);
+  showKayitliModal();
 }
 
 function renderAdmin() {
@@ -3626,7 +3717,7 @@ function renderAdmin() {
     <div class="firm-item">
       <div>
         <div class="firm-name">${f.firma}</div>
-        <div class="firm-meta">${f.refYear} · ${f.firmType} · ${f.date}</div>
+        <div class="firm-meta">${f.refYear} · ${f.firmType} · ${f.date}${f.time?' · '+f.time:''}</div>
       </div>
       <div style="display:flex;align-items:center;gap:12px">
         <div>
@@ -6292,14 +6383,24 @@ function mizanTextIsleBeyanname(lines, result, year) {
   let bolum = null;  // DONEN | DURAN | KV | UV | OZKAYNAK | GELIR
   let unvan1 = '', unvan2 = '';
   let expectUnvan1 = false, expectUnvan2 = false;
+  let inDuzenleyenSection = false; // Mali müşavir bölümüne girince firma adı yazmayı durdur
 
   for (const rawLine of lines) {
     const rawTrim = rawLine.trim();
     const rawNorm = normTR(rawTrim);
 
+    // "Beyannameyi Düzenleyen" bölümüne giriş tespiti — sonraki unvan1/unvan2 müşavire ait
+    if (/beyannameyi duzenleyen/.test(rawNorm)) { inDuzenleyenSection = true; }
+
     // Etiket ayrı satırdaysa takip eden satır(lar)dan ünvanı al
-    if (/^soyadi \(unvani\)$/.test(rawNorm) || /^soyadi, adi \(unvani\)$/.test(rawNorm)) { expectUnvan1 = true; continue; }
-    if (/^adi \(unvanin devami\)$/.test(rawNorm)) { expectUnvan2 = true; continue; }
+    if (/^soyadi \(unvani\)$/.test(rawNorm) || /^soyadi, adi \(unvani\)$/.test(rawNorm)) {
+      if (!inDuzenleyenSection) expectUnvan1 = true;
+      continue;
+    }
+    if (/^adi \(unvanin devami\)$/.test(rawNorm)) {
+      if (!inDuzenleyenSection) expectUnvan2 = true;
+      continue;
+    }
     if (expectUnvan1 && rawTrim) {
       if (!/^(adi \(unvanin devami\)|ticaret sicil no|irtibat tel no|e-posta adresi|vergi kimlik numarasi|mukellef|beyannameyi duzenleyen)/.test(rawNorm)) {
         unvan1 = rawTrim;
@@ -6315,11 +6416,13 @@ function mizanTextIsleBeyanname(lines, result, year) {
       continue;
     }
 
-    // Firma ünvanını yakala
-    const unvanM1 = rawLine.match(/Soyadı \(Unvanı\)\s+(.+)/);
-    if (unvanM1) { unvan1 = unvanM1[1].trim(); }
-    const unvanM2 = rawLine.match(/Adı \(Unvanın Devamı\)\s+(.+)/);
-    if (unvanM2) { unvan2 = unvanM2[1].trim(); }
+    // Firma ünvanını yakala — sadece müşavir bölümüne girmemişsek
+    if (!inDuzenleyenSection) {
+      const unvanM1 = rawLine.match(/Soyadı \(Unvanı\)\s+(.+)/);
+      if (unvanM1) { unvan1 = unvanM1[1].trim(); }
+      const unvanM2 = rawLine.match(/Adı \(Unvanın Devamı\)\s+(.+)/);
+      if (unvanM2) { unvan2 = unvanM2[1].trim(); }
+    }
     const line = rawLine.trim();
     if (!line || line.length < 5) continue;
     const ln = normTR(line);
@@ -9152,17 +9255,16 @@ window.onload = () => {
     return;
   }
 
-  // GÜVENLİK: Otomatik giriş yok.
-  // Her app.html açılışında localStorage tamamen temizlenir.
-  // Her kullanıcı kendi erişim kodunu girmek zorunda.
+  // GÜVENLİK: Otomatik giriş yok — her açılışta oturum bilgisi temizlenir.
+  // kas_access_code ve kas_firms KORUNUYOR:
+  //   - login sırasında farklı kod girilirse login fonksiyonu kas_firms'i temizler
+  //   - aynı kodla tekrar girişte önceki firma kayıtları korunur
   localStorage.removeItem('kas_logged');
   localStorage.removeItem('kas_role');
-  localStorage.removeItem('kas_access_code');
   localStorage.removeItem('kas_client_name');
   localStorage.removeItem('kas_credits');
   localStorage.removeItem('kas_code_id');
   localStorage.removeItem('kas_autosave');
-  localStorage.removeItem('kas_firms');
   // Login ekranı her zaman gösterilir
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
