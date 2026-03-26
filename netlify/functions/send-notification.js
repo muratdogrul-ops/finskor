@@ -1,10 +1,28 @@
-// FinSkor Ödeme Bildirimi — Zoho SMTP
-// Tetiklenince: müşteriye onay maili + yöneticiye bildirim maili gönderir
+// FinSkor Ödeme Bildirimi — Zoho SMTP + CallMeBot WhatsApp
+// Tetiklenince: müşteriye onay maili + yöneticiye bildirim maili + yöneticiye WA mesajı
 
 const nodemailer = require('nodemailer');
 
-const ADMIN_MAIL  = 'info@finskor.tr';
-const ADMIN_WHATSAPP = '905308943775'; // WhatsApp numarası (başında 0 olmadan, 90 ile)
+const ADMIN_MAIL      = 'info@finskor.tr';
+const ADMIN_WHATSAPP  = '905308943775'; // WhatsApp numarası (başında 0 olmadan, 90 ile)
+
+// CallMeBot ile yöneticiye WhatsApp bildirimi gönder
+async function sendAdminWhatsApp(message) {
+  const apiKey = process.env.CALLMEBOT_API_KEY;
+  if (!apiKey) return; // env yoksa sessizce atla
+  const url = `https://api.callmebot.com/whatsapp.php?phone=${ADMIN_WHATSAPP}&text=${encodeURIComponent(message)}&apikey=${apiKey}`;
+  try {
+    const https = require('https');
+    await new Promise((resolve, reject) => {
+      https.get(url, (res) => {
+        res.resume();
+        res.on('end', resolve);
+      }).on('error', reject);
+    });
+  } catch (e) {
+    console.warn('CallMeBot WA hatası:', e.message);
+  }
+}
 
 // Zoho SMTP transporter
 function createTransporter() {
@@ -84,7 +102,7 @@ exports.handler = async (event) => {
       </div>
       <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:8px;padding:14px 18px;margin-bottom:24px;font-size:13px;color:rgba(244,246,249,0.6);line-height:1.7">
         <strong style="color:#C9A84C">Önemli:</strong> Havale/EFT yapıyorsanız açıklama kısmına <strong style="color:#F4F6F9">${email}</strong> adresinizi yazmayı unutmayınız.
-        Ödeme teyidinden sonra <strong style="color:#F4F6F9">24 saat içinde</strong> erişim kodunuz iletilecektir.
+        Ödemeniz teyit edildikten sonra dakikalar içinde erişim kodunuz iletilecektir.
       </div>
       <div style="text-align:center;margin-bottom:24px">
         <a href="${waLink}" style="display:inline-block;padding:12px 28px;background:#25D366;color:#fff;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600">
@@ -98,7 +116,7 @@ exports.handler = async (event) => {
   </div>`;
 
   try {
-    // Yöneticiye bildirim
+    // Yöneticiye bildirim maili
     await transporter.sendMail({
       from: `"FinSkor" <${ADMIN_MAIL}>`,
       to:   ADMIN_MAIL,
@@ -106,13 +124,17 @@ exports.handler = async (event) => {
       html: adminHtml,
     });
 
-    // Müşteriye onay
+    // Müşteriye onay maili
     await transporter.sendMail({
       from: `"FinSkor" <${ADMIN_MAIL}>`,
       to:   email,
       subject: 'FinSkor — Ödeme Talebiniz Alındı',
       html: customerHtml,
     });
+
+    // Yöneticiye WhatsApp bildirimi (CallMeBot)
+    const waMsg = `🔔 FinSkor Yeni Ödeme Talebi\n\nAd Soyad: ${adSoyad}\nTelefon: ${telefon}\nE-posta: ${email}\nFirma: ${firmaAdi || '—'}\nYöntem: ${odemeYontemi || 'EFT'}\nTarih: ${tarih}`;
+    await sendAdminWhatsApp(waMsg);
 
     return {
       statusCode: 200,
