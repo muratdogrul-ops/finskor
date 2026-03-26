@@ -1702,9 +1702,30 @@ async function doLogin() {
   }
 }
 
+// Admin panelden kaydedilen ÜFE oranlarını Supabase'den çek ve DOM'a yaz
+async function loadUfeFromSupabase() {
+  try {
+    const { data } = await _sb.from('ufe_rates').select('yil,oran').eq('donem','Aralik').order('yil');
+    if (!data || !data.length) return;
+    data.forEach(row => {
+      const inp = document.getElementById('ufe_' + row.yil);
+      const pct = document.getElementById('ufe_pct_' + row.yil);
+      if (inp) {
+        inp.value = row.oran;
+        if (pct) pct.textContent = (row.oran * 100).toFixed(2) + '%';
+      }
+    });
+  } catch(e) {
+    // Hata olursa hardcoded default'lar kalır — sessiz geç
+  }
+}
+
 function loginSuccess(userData) {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
+
+  // Admin panelde güncellenen ÜFE oranlarını çek
+  loadUfeFromSupabase();
 
   // Kontör göstergesi
   const credits = localStorage.getItem('kas_credits');
