@@ -1087,20 +1087,18 @@ const DEFAULT_UFE = {
 let ufeData = {};
 
 async function loadUfe() {
-  const grid = document.getElementById('ufe-grid');
+  // Her zaman DEFAULT_UFE ile başla — yeni yıllar (2027 gibi) hep görünsün
+  ufeData = JSON.parse(JSON.stringify(DEFAULT_UFE));
   try {
     const { data } = await sb.from('ufe_rates').select('*').order('yil');
     if (data && data.length) {
+      // Supabase'deki kayıtlar default'ların üzerine yaz
       data.forEach(r => {
         if (!ufeData[r.yil]) ufeData[r.yil] = {};
         ufeData[r.yil][r.donem] = r.oran;
       });
-    } else {
-      ufeData = JSON.parse(JSON.stringify(DEFAULT_UFE));
     }
-  } catch(e) {
-    ufeData = JSON.parse(JSON.stringify(DEFAULT_UFE));
-  }
+  } catch(e) { /* bağlantı hatası — default'lar kalır */ }
   renderUfe();
 }
 

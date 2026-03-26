@@ -1706,7 +1706,21 @@ async function doLogin() {
 async function loadUfeFromSupabase() {
   try {
     const { data } = await _sb.from('ufe_rates').select('yil,oran').eq('donem','Aralik').order('yil');
+
+    // Önce tüm ÜFE input'larını UFE_DEFAULTS ile sıfırla
+    // (admin'de silinen yıl uygulamadan da kalksın)
+    Object.entries(UFE_DEFAULTS).forEach(([yr, val]) => {
+      const inp = document.getElementById('ufe_' + yr);
+      const pct = document.getElementById('ufe_pct_' + yr);
+      if (inp) {
+        inp.value = val;
+        if (pct) pct.textContent = (val * 100).toFixed(2) + '%';
+      }
+    });
+
     if (!data || !data.length) return;
+
+    // Supabase'deki değerleri uygula (admin'de ne yazılıysa o geçerli)
     data.forEach(row => {
       const inp = document.getElementById('ufe_' + row.yil);
       const pct = document.getElementById('ufe_pct_' + row.yil);
@@ -1716,7 +1730,7 @@ async function loadUfeFromSupabase() {
       }
     });
   } catch(e) {
-    // Hata olursa hardcoded default'lar kalır — sessiz geç
+    // Bağlantı hatası — hardcoded default'lar kalır, analiz çalışmaya devam eder
   }
 }
 
