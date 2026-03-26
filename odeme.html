@@ -279,6 +279,9 @@ nav {
 .contact-title { font-size: 11px; color: var(--white-muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; }
 .contact-item { font-size: 12px; color: var(--white-dim); margin-bottom: 4px; }
 .contact-item a { color: var(--gold); text-decoration: none; }
+.copy-mail { color: var(--gold); cursor: pointer; border-bottom: 1px dashed rgba(201,168,76,0.5); transition: color 0.2s; }
+.copy-mail:hover { color: #f5c842; }
+.copy-mail.copied { color: #2ECC9A; border-bottom-color: rgba(46,204,154,0.5); }
 
 /* SUCCESS STATE */
 .success-state {
@@ -523,7 +526,7 @@ nav {
 
           <div class="contact-box">
             <div class="contact-title">Sorularınız için</div>
-            <div class="contact-item">📧 <a href="mailto:info@finskor.tr?subject=FinSkor%20Hakkında%20Sorum%20Var" onclick="copyMail(event,'info@finskor.tr')">info@finskor.tr</a></div>
+            <div class="contact-item">📧 <span class="copy-mail" onclick="copyMail('info@finskor.tr',this)" title="Tıkla — kopyala">info@finskor.tr</span></div>
             <div class="contact-item">📱 <a href="tel:+90XXXXXXXXXX" id="contactPhone">+90 — — — — — —</a></div>
           </div>
 
@@ -698,14 +701,18 @@ function showToast(msg, err) {
   t._t = setTimeout(() => t.className = 'toast', 3500);
 }
 
-// Mail kopyala — mailto açılamazsa panoya kopyalar
-function copyMail(e, mail) {
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(mail).then(() => {
-      showToast('📋 ' + mail + ' kopyalandı');
-    }).catch(() => {});
-  }
-  // mailto bağlantısı da normal açılmaya devam eder
+// Mail panoya kopyala
+function copyMail(mail, el) {
+  navigator.clipboard.writeText(mail).then(() => {
+    showToast('📋 ' + mail + ' kopyalandı');
+    if (el) {
+      el.classList.add('copied');
+      el.textContent = '✓ kopyalandı';
+      setTimeout(() => { el.classList.remove('copied'); el.textContent = mail; }, 2500);
+    }
+  }).catch(() => {
+    showToast('Mail: ' + mail, false);
+  });
 }
 </script>
 </body>

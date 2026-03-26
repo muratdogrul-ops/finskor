@@ -978,6 +978,8 @@ footer {
 }
 .footer-links a:hover { color: var(--white-dim); }
 .footer-copy { font-size: 12px; color: var(--white-muted); }
+.copy-mail-footer { cursor: pointer; transition: color 0.2s; }
+.copy-mail-footer:hover { color: var(--white) !important; }
 
 /* ── ANIMATIONS ── */
 @keyframes fadeUp {
@@ -1548,7 +1550,7 @@ footer {
           <li>Özelleştirilmiş raporlama</li>
           <li>1 yıllık finansal danışmanlık</li>
         </ul>
-        <a href="mailto:info@finskor.tr?subject=FinSkor%20Kurumsal%20Paket%20Teklif%20Talebi" class="pricing-btn pricing-btn-outline">İletişime Geçin</a>
+        <button class="pricing-btn pricing-btn-outline" onclick="copyMailIndex('info@finskor.tr',this)" style="cursor:pointer">İletişime Geçin</button>
       </div>
     </div>
   </div>
@@ -1595,7 +1597,7 @@ footer {
   <div class="section-inner">
     <div class="section-tag">SSS</div>
     <h2 class="section-title">Sıkça Sorulan Sorular</h2>
-    <p class="section-desc">Aklınızdaki soruların cevabı burada. Bulamazsanız <a href="mailto:info@finskor.tr?subject=FinSkor%20Sorum%20Var" style="color:var(--gold);text-decoration:none">bize yazın</a>.</p>
+    <p class="section-desc">Aklınızdaki soruların cevabı burada. Bulamazsanız <span class="copy-mail-footer" onclick="copyMailIndex('info@finskor.tr',this)" style="color:var(--gold);cursor:pointer;border-bottom:1px dashed rgba(201,168,76,0.4)">bize yazın</span>.</p>
     <div class="faq-list">
 
       <div class="faq-item">
@@ -1684,7 +1686,7 @@ footer {
           <span class="faq-icon">+</span>
         </button>
         <div class="faq-a">
-          Profesyonel paket bireysel kullanım için uygundur; 4 analiz kontörü içerir. Kurumsal paket ise birden fazla kullanıcı, özelleştirilmiş raporlama ve 1 yıllık finansal danışmanlık desteği sunar. Kurumsal fiyatlandırma için <a href="mailto:info@finskor.tr?subject=FinSkor%20Kurumsal%20Teklif" style="color:var(--gold)">info@finskor.tr</a> adresine yazabilirsiniz.
+          Profesyonel paket bireysel kullanım için uygundur; 4 analiz kontörü içerir. Kurumsal paket ise birden fazla kullanıcı, özelleştirilmiş raporlama ve 1 yıllık finansal danışmanlık desteği sunar. Kurumsal fiyatlandırma için <span class="copy-mail-footer" onclick="copyMailIndex('info@finskor.tr',this)" style="color:var(--gold);cursor:pointer;border-bottom:1px dashed rgba(201,168,76,0.4)">info@finskor.tr</span> adresine yazabilirsiniz.
         </div>
       </div>
 
@@ -1702,7 +1704,7 @@ footer {
     </p>
     <div class="cta-actions">
       <a href="app.html" class="btn-hero-primary">Demo Yap — Ücretsiz</a>
-      <a href="mailto:info@finskor.tr?subject=FinSkor%20Hakkında%20Bilgi%20Almak%20İstiyorum" class="btn-hero-outline">Bize Yazın</a>
+      <button class="btn-hero-outline" onclick="copyMailIndex('info@finskor.tr',this)" style="cursor:pointer">Bize Yazın</button>
     </div>
   </div>
 </section>
@@ -1715,7 +1717,7 @@ footer {
       <a href="#">Gizlilik</a>
       <a href="#">KVKK</a>
       <a href="#">Sorumluluk Reddi</a>
-      <a href="mailto:info@finskor.tr" onclick="copyMail(event,'info@finskor.tr')">info@finskor.tr</a>
+      <span class="copy-mail-footer" onclick="copyMailIndex('info@finskor.tr',this)" title="Tıkla — kopyala">info@finskor.tr</span>
     </div>
     <div class="footer-copy">© 2026 FinSkor. Tüm hakları saklıdır.</div>
   </div>
@@ -1758,14 +1760,28 @@ function toggleFaq(btn) {
   }
 }
 
-// Mail kopyala — mailto açılamazsa panoya kopyalar
-function copyMail(e, mail) {
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(mail).then(() => {
-      const tip = document.getElementById('mailTip');
-      if (tip) { tip.style.opacity='1'; setTimeout(()=>tip.style.opacity='0',2000); }
-    }).catch(()=>{});
-  }
+// Mail panoya kopyala
+function copyMailIndex(mail, el) {
+  navigator.clipboard.writeText(mail).then(() => {
+    const tip = document.getElementById('mailTip');
+    if (tip) { tip.style.opacity='1'; setTimeout(()=>tip.style.opacity='0',2500); }
+    if (el && el.tagName !== 'BUTTON') {
+      const orig = el.textContent;
+      el.textContent = '✓ kopyalandı';
+      setTimeout(() => { el.textContent = orig; }, 2500);
+    } else if (el && el.tagName === 'BUTTON') {
+      const orig = el.textContent;
+      el.textContent = '✓ Kopyalandı!';
+      setTimeout(() => { el.textContent = orig; }, 2500);
+    }
+  }).catch(() => {
+    const tip = document.getElementById('mailTip');
+    if (tip) {
+      tip.textContent = '📧 info@finskor.tr';
+      tip.style.opacity='1';
+      setTimeout(()=>tip.style.opacity='0',3000);
+    }
+  });
 }
 </script>
 <div id="mailTip" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a2e4a;color:#C9A84C;border:1px solid rgba(201,168,76,0.3);padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:9999">
