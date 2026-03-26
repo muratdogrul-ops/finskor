@@ -2904,6 +2904,8 @@ function _doRunAnalysis() {
   const rating   = getRating(toplam);
   // Senaryo analizi için global cache
   window._lastR = r;
+  window._lastRating = rating;
+  window._lastToplam = toplam;
   window._lastSubjPuan = subjPuan;
   // Gerçek kullanıcı: senaryo/otomatik öneri ofseti analiz bilançosuna sabitlenir (r2 ikinci kademede kayma olmaz)
   if (!window._demoMod) {
@@ -3612,8 +3614,10 @@ function saveFirm() {
   const d = state.yearData[refYear];
   if (!d||!d.aktifToplam||d.aktifToplam===0) { showToast('Önce analizi çalıştırın!', true); return; }
 
-  const r = calcRatios(refYear);
-  const note = (r.rating && r.rating.note) ? r.rating.note : _pctToNote(r.pct);
+  // _lastRating ve _lastToplam runAnalysis tarafından set edilir — ekrandaki ile aynı
+  const note = window._lastRating ? window._lastRating.note : _pctToNote(window._lastToplam || 0);
+  const pct  = window._lastToplam || 0;
+  const r    = window._lastR || calcRatios(refYear);
   const saved = JSON.parse(localStorage.getItem('kas_firms')||'[]');
   const entry = {
     id: Date.now() + '_' + Math.random().toString(36).slice(2,7),
@@ -3622,7 +3626,7 @@ function saveFirm() {
     date:new Date().toLocaleDateString('tr-TR'),
     time:new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}),
     note,
-    pct:r.pct, karar:r.pct>=68?'positive':r.pct>=52?'neutral':'negative',
+    pct, karar:pct>=68?'positive':pct>=52?'neutral':'negative',
     r, yearData:JSON.parse(JSON.stringify(state.yearData))
   };
   saved.push(entry);
