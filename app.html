@@ -703,6 +703,7 @@ tbody td { padding:8px 13px; color:var(--text); }
     <div id="results">
       <div class="action-bar">
         <button class="action-btn" onclick="saveFirm()">💾 Kaydet</button>
+        <button class="action-btn" onclick="showKayitliModal()" style="background:rgba(16,185,129,0.12);border-color:rgba(16,185,129,0.35);color:#34d399">📂 Kayıtlı Analizler</button>
         <button class="action-btn" onclick="window.print()">🖨️ Yazdır</button>
         <button class="action-btn" onclick="showOtomSenaryo()" 
           style="background:rgba(99,102,241,0.15);border-color:rgba(99,102,241,0.4);color:#818cf8">
@@ -712,6 +713,17 @@ tbody td { padding:8px 13px; color:var(--text); }
       </div>
 
       <!-- KREDİ ANALİZ ASISTANI -->
+
+      <!-- KAYITLI ANALİZLER MODAL -->
+      <div id="kayitliModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;overflow-y:auto;padding:24px">
+        <div style="max-width:700px;margin:0 auto;background:var(--surface);border-radius:16px;border:1px solid var(--border);overflow:hidden">
+          <div style="background:linear-gradient(135deg,#0f2a1a,#0a2018);padding:18px 24px;display:flex;justify-content:space-between;align-items:center">
+            <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:#34d399;letter-spacing:2px">📂 KAYITLI ANALİZLER</div>
+            <button onclick="closeKayitliModal()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1">✕</button>
+          </div>
+          <div id="kayitliModalIcerik" style="padding:20px;max-height:70vh;overflow-y:auto"></div>
+        </div>
+      </div>
 
       <!-- SENARYO ANALİZİ MODAL -->
       <div id="senaryoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;overflow-y:auto;padding:20px">
@@ -3610,6 +3622,49 @@ function saveFirm() {
   saved.push(entry);
   localStorage.setItem('kas_firms', JSON.stringify(saved));
   showToast(`"${firma}" kaydedildi ✓`);
+}
+
+function showKayitliModal() {
+  const saved = JSON.parse(localStorage.getItem('kas_firms')||'[]');
+  const el = document.getElementById('kayitliModalIcerik');
+  if (!saved.length) {
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)"><div style="font-size:36px;margin-bottom:12px">📂</div><div>Henüz kayıtlı analiz yok.</div><div style="font-size:12px;margin-top:8px">Analiz yaptıktan sonra "Kaydet" butonuna tıklayın.</div></div>';
+  } else {
+    el.innerHTML = saved.map((f,i) => {
+      const not = f.r && f.r.note ? f.r.note : (f.pct>=70?'BB':'CCC');
+      const renk = f.karar==='positive'?'#22c55e':f.karar==='neutral'?'#f59e0b':'#ef4444';
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);gap:12px">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🏢 ${f.firma}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:3px">${f.refYear} · ${f.period||''} · <span style="color:${renk};font-weight:700">${not}</span> · ${f.date}${f.time?' · '+f.time:''}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0">
+          <button onclick="loadFirmModal(${i})" style="padding:6px 14px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.35);color:#34d399;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">📂 Yükle</button>
+          <button onclick="deleteFirmModal(${i})" style="padding:6px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:8px;cursor:pointer;font-size:14px">🗑</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('kayitliModal').style.display = 'block';
+}
+
+function closeKayitliModal() {
+  document.getElementById('kayitliModal').style.display = 'none';
+}
+
+function loadFirmModal(i) {
+  closeKayitliModal();
+  loadFirm(i);
+}
+
+function deleteFirmModal(i) {
+  const saved = JSON.parse(localStorage.getItem('kas_firms')||'[]');
+  const name = saved[i].firma;
+  if (!confirm(`"${name}" silinsin mi?`)) return;
+  saved.splice(i,1);
+  localStorage.setItem('kas_firms',JSON.stringify(saved));
+  showToast(`"${name}" silindi`);
+  showKayitliModal();
 }
 
 function renderAdmin() {
