@@ -5562,48 +5562,30 @@ function pdfMizanGrupOzetSatirMi(key, rawKod) {
   return !!(s && s.has(rawKod));
 }
 
-/** Aktif 100–299 (KOD_TO_KEY): YOL BAK özet = kod + boşluk + harf; 220.01 / 250 01 / 296 01 atlanır */
-const _PDF_MIZAN_AKTIF_ANA_RE = (function () {
+/** Dönen varlık 100–199 (KOD_TO_KEY): YOL BAK özet = kod + boşluk + harf; 110.01 / 170 01 / 159.A.01 atlanır */
+const _PDF_MIZAN_DONEN_1XX_ANA_RE = (function () {
   const m = new Map();
-  for (let c = 100; c <= 299; c++) {
+  for (let c = 100; c <= 199; c++) {
     const esc = String(c).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     m.set(c, new RegExp('^' + esc + '\\s+[A-Za-zÇĞİÖŞÜçğıöşü]'));
   }
   return m;
 })();
 
-function pdfMizanAktifAnaSatirMi(lineTrim, rawKod) {
-  if (rawKod < 100 || rawKod > 299) return true;
-  const t = String(lineTrim).trim();
-  // 24–25 (240–259): özet sık "250 1. SINIF", "240 %50 İŞTİRAK" — harf zorunlu değil; yalnız "250.01" noktalı alt elenir
-  if (rawKod >= 240 && rawKod <= 259) {
-    const esc = String(rawKod).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return !new RegExp('^' + esc + '\\.').test(t);
-  }
-  const re = _PDF_MIZAN_AKTIF_ANA_RE.get(rawKod);
-  if (re && re.test(t)) return true;
-  if (rawKod === 296) {
-    const m = t.match(/^296\s+(\d.*)$/);
-    if (m) {
-      const rest = m[1].trim();
-      const mm = rest.match(/^(\d+)/);
-      if (mm && mm[1].length >= 4) return true;
-    }
-  }
-  return false;
+function pdfMizanDonenVarlikAnaSatirMi(lineTrim, rawKod) {
+  if (rawKod < 100 || rawKod > 199) return true;
+  const re = _PDF_MIZAN_DONEN_1XX_ANA_RE.get(rawKod);
+  return !re || re.test(String(lineTrim).trim());
 }
 
 /**
  * Grup özet: kuyruk rakamla başlıyorsa çoğunlukla alt hesap (296 01…) → atla.
  * İlk token 4+ hane ise çoğunlukla kanun/yıl no (296 6736 SAYILI KANUN…) → ana satır, atlama.
- * 240–259: "250 1. SINIF ARAZİ" gibi sınıf satırları rakamla başlar ama özet — atlama.
  */
-function pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterTrim, rawKod) {
-  const a = String(afterTrim).trim();
-  if (!a.length) return true;
-  if (rawKod >= 240 && rawKod <= 259 && /^\d{1,3}\. ?[A-Za-zÇĞİÖŞÜçğıöşü]/.test(a)) return false;
-  if (!/^\d/.test(a)) return false;
-  const m = a.match(/^(\d+)/);
+function pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterTrim) {
+  if (!afterTrim.length) return true;
+  if (!/^\d/.test(afterTrim)) return false;
+  const m = afterTrim.match(/^(\d+)/);
   if (m && m[1].length >= 4) return false;
   return true;
 }
@@ -6476,21 +6458,21 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
     const trimmed = sl.text.trim();
     if (!trimmed || trimmed.length < 5) continue;
 
-    // Satır başı: 100 KASA / 250 BİNALAR (özet) veya 100.01 … (aktif 100–299 yalnız ana satır)
+    // Satır başı: 100 KASA (özet) veya 100.01 … (hazır özet kodlarında yalnız ana satır toplanır)
     const m = trimmed.match(/^([1-6]\d{2})(?:[.\-]\d+)?\s+\S/);
     if (!m) continue;
     const rawKod = parseInt(m[1], 10);
     const key = KOD_TO_KEY[rawKod];
     if (!key) continue;
 
-    if (rawKod >= 100 && rawKod <= 299 && !pdfMizanAktifAnaSatirMi(trimmed, rawKod)) continue;
+    if (rawKod >= 100 && rawKod <= 199 && !pdfMizanDonenVarlikAnaSatirMi(trimmed, rawKod)) continue;
 
     // Bilanço + gelir (100–699) grup özetleri: "620 SATMAL…" gibi; "620 01…" atlanır
     if (pdfMizanGrupOzetSatirMi(key, rawKod)) {
       const head = trimmed.match(/^([1-6]\d{2})(?:[.\-]\d+)?\s+/);
       if (!head) continue;
       const afterKoord = trimmed.slice(head[0].length).trim();
-      if (!afterKoord.length || pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterKoord, rawKod)) continue;
+      if (!afterKoord.length || pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterKoord)) continue;
     }
 
     // BAK.BORÇ ve BAK.ALACAK sütunlarındaki değerleri koordinata göre topla
@@ -6519,7 +6501,7 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
   return result;
 }
 
-/** Yalnız "102 BANKALAR" (102 + boşluk + harf); 102.01… atlanır — pdfMizanAktifAnaSatirMi(102) ile uyumlu */
+/** Yalnız "102 BANKALAR" (102 + boşluk + harf); 102.01… atlanır — pdfMizanDonenVarlikAnaSatirMi(102) ile uyumlu */
 function pdfMizanKoord102BakBorcOzet(structuredLines) {
   const COL_BAKBORC_MIN = 440;
   const COL_BAKBORC_MAX = 513;
@@ -6592,7 +6574,7 @@ function pdfMizanBilancoSatirAtla(line, kodMatch) {
  * - n≥4: son iki = bakiye borç, bakiye alacak (önceki ikisi dönem toplamı — katkıya girmez).
  * - n=3: dönem borç, dönem alacak, üçüncü = tek bakiye sütunu — aktifte bak.borç, pasifte bak.alacak.
  * - 600–699 n=3: gider (MINUS_KODLAR) → üçüncü = bak.borç; gelir → üçüncü = bak.alacak (pasif ile aynı taraf).
- * - n=2: çoğu PDF’te dönem borç|alacak (bakiye yok) → [0,0]. Aktifte iki tutar eşitse (ör. 245 satırı iki kez aynı bakiye) bak.borç|bak.alacak yinelenmiş kabul edilir.
+ * - n=2: PDF geniş mizanda neredeyse daima sadece DÖNEM borç|alacak; bakiye yok → [0,0] (aktarma yok).
  * Excel mizan bu fonksiyonu kullanmaz.
  */
 function pdfMizanPickBakBorcAlacBak(sayilar, kod, rawKod) {
@@ -6623,11 +6605,6 @@ function pdfMizanPickBakBorcAlacBak(sayilar, kod, rawKod) {
       alacBak = 0;
     }
   } else if (n === 2) {
-    if (kod >= 100 && kod <= 299) {
-      const a = s[0], b = s[1];
-      const mx = Math.max(a, b);
-      if (mx > 0 && Math.abs(a - b) / mx < 1e-9) return [a, b];
-    }
     return [0, 0];
   } else {
     const v = s[0];
@@ -6643,7 +6620,7 @@ function pdfMizanPickBakBorcAlacBak(sayilar, kod, rawKod) {
 
 function mizanTextIsleMizan(lines, result, silent) {
   // PDF mizan: çoğu dosyada 2 haneli özet satır yok → yalnızca 3 haneli satır başı kodlar.
-  // Aktif 100–299: YOL BAK kod+boşluk+harf ana satır (dönen + duran 22–29; 296 6736 istisnası)
+  // Dönen varlık 100–199: YOL BAK kod+boşluk+harf ana satır (hazır, menkul, 12–19 grupları)
 
   function pdfMizanParaTokenlari(tail) {
     return [...tail.matchAll(/[0-9][0-9.,]*/g)].map(m => m[0]).filter(tok => {
@@ -6667,10 +6644,10 @@ function mizanTextIsleMizan(lines, result, silent) {
     if (!key) continue;
     const kod = rawKod;
 
-    if (rawKod >= 100 && rawKod <= 299 && !pdfMizanAktifAnaSatirMi(line, rawKod)) continue;
+    if (rawKod >= 100 && rawKod <= 199 && !pdfMizanDonenVarlikAnaSatirMi(line, rawKod)) continue;
     if (pdfMizanGrupOzetSatirMi(key, rawKod)) {
       const afterGr = line.slice(kodMatch.index + kodMatch[0].length).trim();
-      if (!afterGr.length || pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterGr, rawKod)) continue;
+      if (!afterGr.length || pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterGr)) continue;
     }
 
     if (rawKod >= 100 && rawKod <= 599 && key !== 'hazirDegerler' &&
@@ -6680,7 +6657,7 @@ function mizanTextIsleMizan(lines, result, silent) {
     let workLine = line;
     let extra = 0;
     // PDF satır kırığı: hesap adı bir satır, tutarlar altta — hazır + grup özet (bilanço + gelir)
-    if ((rawKod >= 100 && rawKod <= 299) ||
+    if ((rawKod >= 100 && rawKod <= 199) ||
         pdfMizanGrupOzetSatirMi(key, rawKod)) {
       let tailTry = workLine.slice(kodMatch.index + kodMatch[0].length);
       let toksTry = pdfMizanParaTokenlari(tailTry);
