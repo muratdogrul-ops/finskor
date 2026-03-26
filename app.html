@@ -5575,6 +5575,11 @@ const _PDF_MIZAN_AKTIF_ANA_RE = (function () {
 function pdfMizanAktifAnaSatirMi(lineTrim, rawKod) {
   if (rawKod < 100 || rawKod > 299) return true;
   const t = String(lineTrim).trim();
+  // 24–25 (240–259): özet sık "250 1. SINIF", "240 %50 İŞTİRAK" — harf zorunlu değil; yalnız "250.01" noktalı alt elenir
+  if (rawKod >= 240 && rawKod <= 259) {
+    const esc = String(rawKod).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return !new RegExp('^' + esc + '\\.').test(t);
+  }
   const re = _PDF_MIZAN_AKTIF_ANA_RE.get(rawKod);
   if (re && re.test(t)) return true;
   if (rawKod === 296) {
@@ -5591,11 +5596,14 @@ function pdfMizanAktifAnaSatirMi(lineTrim, rawKod) {
 /**
  * Grup özet: kuyruk rakamla başlıyorsa çoğunlukla alt hesap (296 01…) → atla.
  * İlk token 4+ hane ise çoğunlukla kanun/yıl no (296 6736 SAYILI KANUN…) → ana satır, atlama.
+ * 240–259: "250 1. SINIF ARAZİ" gibi sınıf satırları rakamla başlar ama özet — atlama.
  */
-function pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterTrim) {
-  if (!afterTrim.length) return true;
-  if (!/^\d/.test(afterTrim)) return false;
-  const m = afterTrim.match(/^(\d+)/);
+function pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterTrim, rawKod) {
+  const a = String(afterTrim).trim();
+  if (!a.length) return true;
+  if (rawKod >= 240 && rawKod <= 259 && /^\d{1,3}\. ?[A-Za-zÇĞİÖŞÜçğıöşü]/.test(a)) return false;
+  if (!/^\d/.test(a)) return false;
+  const m = a.match(/^(\d+)/);
   if (m && m[1].length >= 4) return false;
   return true;
 }
@@ -6482,7 +6490,7 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
       const head = trimmed.match(/^([1-6]\d{2})(?:[.\-]\d+)?\s+/);
       if (!head) continue;
       const afterKoord = trimmed.slice(head[0].length).trim();
-      if (!afterKoord.length || pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterKoord)) continue;
+      if (!afterKoord.length || pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterKoord, rawKod)) continue;
     }
 
     // BAK.BORÇ ve BAK.ALACAK sütunlarındaki değerleri koordinata göre topla
@@ -6657,7 +6665,7 @@ function mizanTextIsleMizan(lines, result, silent) {
     if (rawKod >= 100 && rawKod <= 299 && !pdfMizanAktifAnaSatirMi(line, rawKod)) continue;
     if (pdfMizanGrupOzetSatirMi(key, rawKod)) {
       const afterGr = line.slice(kodMatch.index + kodMatch[0].length).trim();
-      if (!afterGr.length || pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterGr)) continue;
+      if (!afterGr.length || pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterGr, rawKod)) continue;
     }
 
     if (rawKod >= 100 && rawKod <= 599 && key !== 'hazirDegerler' &&
