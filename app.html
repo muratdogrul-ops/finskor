@@ -560,48 +560,7 @@ tbody td { padding:8px 13px; color:var(--text); }
   <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;padding-left:2px">
     ☑ Tabloda görmek istediğiniz yılları seçin
   </div>
-  <div class="years-grid">
-    <div id="year-2022" class="year-card yr-secili">
-      <div class="yr-check" onclick="toggleYr(2022)" title="Tabloya dahil/çıkar">✓</div>
-      <button class="clear-btn" onclick="clearYear(2022)">✕</button>
-      <div class="year-label" id="label-2022">2022</div>
-      <label class="upload-btn" for="file2022">📎 Excel / PDF Yükle</label>
-      <input type="file" id="file2022" accept=".xlsx,.xls,.pdf,application/pdf" style="display:none" onchange="handleFile(event,2022)">
-      <div class="file-info" id="info2022"></div>
-    </div>
-    <div id="year-2023" class="year-card yr-secili">
-      <div class="yr-check" onclick="toggleYr(2023)" title="Tabloya dahil/çıkar">✓</div>
-      <button class="clear-btn" onclick="clearYear(2023)">✕</button>
-      <div class="year-label" id="label-2023">2023</div>
-      <label class="upload-btn" for="file2023">📎 Excel / PDF Yükle</label>
-      <input type="file" id="file2023" accept=".xlsx,.xls,.pdf,application/pdf" style="display:none" onchange="handleFile(event,2023)">
-      <div class="file-info" id="info2023"></div>
-    </div>
-    <div id="year-2024" class="year-card yr-secili">
-      <div class="yr-check" onclick="toggleYr(2024)" title="Tabloya dahil/çıkar">✓</div>
-      <button class="clear-btn" onclick="clearYear(2024)">✕</button>
-      <div class="year-label" id="label-2024">2024</div>
-      <label class="upload-btn" for="file2024">📎 Excel / PDF Yükle</label>
-      <input type="file" id="file2024" accept=".xlsx,.xls,.pdf,application/pdf" style="display:none" onchange="handleFile(event,2024)">
-      <div class="file-info" id="info2024"></div>
-    </div>
-    <div id="year-2025" class="year-card yr-secili">
-      <div class="yr-check" onclick="toggleYr(2025)" title="Tabloya dahil/çıkar">✓</div>
-      <button class="clear-btn" onclick="clearYear(2025)">✕</button>
-      <div class="year-label" id="label-2025">2025</div>
-      <label class="upload-btn" for="file2025">📎 Excel / PDF Yükle</label>
-      <input type="file" id="file2025" accept=".xlsx,.xls,.pdf,application/pdf" style="display:none" onchange="handleFile(event,2025)">
-      <div class="file-info" id="info2025"></div>
-    </div>
-    <div id="year-2026" class="year-card yr-secili">
-      <div class="yr-check" onclick="toggleYr(2026)" title="Tabloya dahil/çıkar"></div>
-      <button class="clear-btn" onclick="clearYear(2026)">✕</button>
-      <div class="year-label" id="label-2026">2026</div>
-      <label class="upload-btn" for="file2026">📎 Excel / PDF Yükle</label>
-      <input type="file" id="file2026" accept=".xlsx,.xls,.pdf,application/pdf" style="display:none" onchange="handleFile(event,2026)">
-      <div class="file-info" id="info2026"></div>
-    </div>
-  </div>
+  <div class="years-grid" id="yearsGrid"></div>
 
   <div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
@@ -1702,6 +1661,22 @@ async function doLogin() {
   }
 }
 
+// Yıl kartlarını state.activeYears'a göre dinamik oluştur
+function buildYearCards() {
+  const grid = document.getElementById('yearsGrid');
+  if (!grid) return;
+  const years = state.activeYears.slice().sort((a,b)=>a-b);
+  grid.innerHTML = years.map(y => `
+    <div id="year-${y}" class="year-card yr-secili">
+      <div class="yr-check" onclick="toggleYr(${y})" title="Tabloya dahil/çıkar">✓</div>
+      <button class="clear-btn" onclick="clearYear(${y})">✕</button>
+      <div class="year-label" id="label-${y}">${y}</div>
+      <label class="upload-btn" for="file${y}">📎 Excel / PDF Yükle</label>
+      <input type="file" id="file${y}" accept=".xlsx,.xls,.pdf,application/pdf" style="display:none" onchange="handleFile(event,${y})">
+      <div class="file-info" id="info${y}"></div>
+    </div>`).join('');
+}
+
 // Admin panelden kaydedilen Mali Yıllar ve Dönemleri Supabase'den çek ve uygula
 async function loadSettingsFromSupabase() {
   try {
@@ -1721,6 +1696,7 @@ async function loadSettingsFromSupabase() {
           // Seçili yıl artık listede yoksa en büyüğü seç
           if (!yillar.includes(current)) sel.value = Math.max(...yillar);
         }
+        buildYearCards();
         buildTable();
         // Yeni yılların input toplamlarını hesapla
         state.activeYears.forEach(y => { if (typeof refreshInputs==='function') refreshInputs(y); });
@@ -5437,22 +5413,23 @@ function init() {
   // 2024 verileri
 
   document.getElementById('firmaAdi').value='';  // autoLoad kendi firmasını yazar
-  // Yıl kartlarını sıfırla — eski DOM state'i veya statik HTML kalıntıları temizle
-  [2022,2023,2024,2025,2026].forEach(y => {
+  // Yıl kartlarını ve tabloyu state.activeYears'a göre oluştur
+  buildYearCards();
+  state.activeYears.forEach(y => {
     const infoEl = document.getElementById('info'+y);
     if (infoEl) { infoEl.className='file-info'; infoEl.textContent=''; }
     const yearEl = document.getElementById('year-'+y);
     if (yearEl) yearEl.classList.remove('has-data');
   });
   buildTable();
-  [2022,2023,2024,2025,2026].forEach(y=>refreshInputs(y));
+  state.activeYears.forEach(y=>refreshInputs(y));
 
   // autoLoad ÖNCE — sonra recalc (tek seferlik)
   // _initDone=false iken autoSave çalışmaz → döngü yok
   window._initDone = false;
   const loaded = autoLoad();
   if (loaded) {
-    [2022,2023,2024,2025,2026].forEach(y=>refreshInputs(y));
+    state.activeYears.forEach(y=>refreshInputs(y));
     const firma = document.getElementById('firmaAdi')?.value;
     showToast(firma ? `"${firma}" verileri geri yüklendi ✓` : 'Kaydedilen veriler geri yüklendi ✓');
   } else {
