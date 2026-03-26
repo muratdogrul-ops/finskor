@@ -1702,6 +1702,47 @@ async function doLogin() {
   }
 }
 
+// Admin panelden kaydedilen Mali Yıllar ve Dönemleri Supabase'den çek ve uygula
+async function loadSettingsFromSupabase() {
+  try {
+    // ── Mali Yıllar ──
+    const { data: yilData } = await _sb.from('settings').select('value').eq('key','mali_yillar').maybeSingle();
+    if (yilData?.value) {
+      const yillar = JSON.parse(yilData.value);
+      if (yillar && yillar.length) {
+        state.activeYears = yillar.map(Number);
+        // refYear select'i güncelle
+        const sel = document.getElementById('refYear');
+        if (sel) {
+          const current = parseInt(sel.value);
+          sel.innerHTML = yillar.slice().sort((a,b)=>b-a).map(y =>
+            `<option value="${y}"${y===current?' selected':''}>${y}</option>`
+          ).join('');
+          // Seçili yıl artık listede yoksa en büyüğü seç
+          if (!yillar.includes(current)) sel.value = Math.max(...yillar);
+        }
+        buildTable();
+      }
+    }
+
+    // ── Mali Dönemler ──
+    const { data: donemData } = await _sb.from('settings').select('value').eq('key','mali_donemler').maybeSingle();
+    if (donemData?.value) {
+      const aktifDonemler = JSON.parse(donemData.value).map(Number);
+      document.querySelectorAll('.btn-period').forEach(btn => {
+        const val = parseInt(btn.dataset.val);
+        btn.style.display = aktifDonemler.includes(val) ? '' : 'none';
+      });
+      // Aktif dönem gizlendiyse ilk görünür dönemi seç
+      const aktifBtn = document.querySelector('.btn-period.active');
+      if (aktifBtn && aktifBtn.style.display === 'none') {
+        const ilk = document.querySelector('.btn-period:not([style*="none"])');
+        if (ilk) ilk.click();
+      }
+    }
+  } catch(e) { /* bağlantı hatası — hardcoded değerler kalır */ }
+}
+
 // Admin panelden kaydedilen ÜFE oranlarını Supabase'den çek ve DOM'a yaz
 async function loadUfeFromSupabase() {
   try {
@@ -1738,8 +1779,9 @@ function loginSuccess(userData) {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
 
-  // Admin panelde güncellenen ÜFE oranlarını çek
+  // Admin panelde güncellenen ayarları çek (ÜFE, mali yıllar, dönemler)
   loadUfeFromSupabase();
+  loadSettingsFromSupabase();
 
   // Kontör göstergesi
   const credits = localStorage.getItem('kas_credits');
