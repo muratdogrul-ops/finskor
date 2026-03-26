@@ -865,6 +865,27 @@ section { position: relative; z-index: 1; }
 }
 .pricing-btn-gold:hover { background: var(--gold2); transform: translateY(-1px); }
 
+/* ── FAQ ── */
+.faq-section { padding: 100px 0; }
+.faq-list { margin-top: 56px; max-width: 760px; margin-left: auto; margin-right: auto; display: flex; flex-direction: column; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.faq-item { background: var(--navy); }
+.faq-q {
+  width: 100%; text-align: left; background: none; border: none; padding: 22px 28px;
+  display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  font-family: var(--sans); font-size: 15px; font-weight: 600; color: var(--white);
+  cursor: pointer; transition: background 0.2s;
+}
+.faq-q:hover { background: rgba(201,168,76,0.05); }
+.faq-q.open { color: var(--gold); }
+.faq-icon { flex-shrink: 0; font-size: 18px; color: var(--gold); transition: transform 0.25s; }
+.faq-q.open .faq-icon { transform: rotate(45deg); }
+.faq-a {
+  display: none; padding: 0 28px 22px;
+  font-size: 14px; color: var(--white-dim); line-height: 1.75;
+  border-top: 1px solid var(--border);
+}
+.faq-a.open { display: block; }
+
 /* ── CTA SECTION ── */
 .cta-section {
   padding: 100px 0;
@@ -986,6 +1007,7 @@ footer {
     <li><a href="#baykus">Baykuş AI</a></li>
     <li><a href="#nasil">Nasıl Çalışır</a></li>
     <li><a href="#fiyat">Fiyatlar</a></li>
+    <li><a href="#sss">SSS</a></li>
   </ul>
   <div class="nav-cta">
     <a href="app.html" class="btn-primary">Platforma Giriş →</a>
@@ -1493,6 +1515,108 @@ footer {
   </div>
 </section>
 
+<!-- FAQ -->
+<section class="faq-section" id="sss">
+  <div class="section-inner">
+    <div class="section-tag">SSS</div>
+    <h2 class="section-title">Sıkça Sorulan Sorular</h2>
+    <p class="section-desc">Aklınızdaki soruların cevabı burada. Bulamazsanız <a href="mailto:info@finskor.tr?subject=FinSkor%20Sorum%20Var" style="color:var(--gold);text-decoration:none">bize yazın</a>.</p>
+    <div class="faq-list">
+
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          FinSkor nedir, ne işe yarar?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          FinSkor, firmaların kredi notunu 105 puan üzerinden hesaplayan ve bu notu nasıl artırabileceğini gösteren bir kredi analiz platformudur. Finansal tablolarınızı (mizan, beyanname) yükleyerek dakikalar içinde firmanızın bankalar nezdindeki kredi değerliliğini öğrenebilirsiniz.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          Kontör sistemi nasıl çalışır?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          Her analiz 1 kontör tüketir. Profesyonel pakette 4 kontör bulunur; yani 4 farklı firma için analiz yapabilirsiniz. Aynı firma için yeni yıl verileriyle tekrar analiz yapmak da 1 kontör kullanır. Kontörler satın alma tarihinden itibaren geçerlidir.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          Hangi dosya formatlarını yükleyebilirim?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          Excel (.xlsx / .xls) ve PDF formatındaki mizan dosyalarını yükleyebilirsiniz. Sistem, muhasebe programlarından alınan standart mizan çıktılarını otomatik olarak okur ve finansal oranları hesaplar. Aynı anda birden fazla yıla ait veri yükleyerek trend analizi yapabilirsiniz.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          Kredi notu nasıl hesaplanıyor?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          Analiz iki bölümden oluşur: <strong>Finansal kriterler</strong> (likidite, kaldıraç, kârlılık, büyüme oranları gibi nesnel göstergeler) ve <strong>subjektif kriterler</strong> (sektör riski, yönetim kalitesi, müşteri çeşitlendirmesi gibi nitel faktörler). Her iki bölüm birlikte değerlendirilerek 105 üzerinden bir puan hesaplanır ve AAA'dan D'ye kadar bir nota dönüştürülür.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          Senaryo analizi ne işe yarar?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          Senaryo analizi, firmanızın kredi notunu artırmak için hangi finansal adımları atması gerektiğini somut olarak gösterir. Örneğin "FAVÖK marjını %5 artırırsanız notunuz BB'den BBB'ye yükselir" gibi öneriler sunar. FinSkor ayrıca otomatik olarak en verimli senaryo kombinasyonunu da hesaplar.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          Verilerim güvende mi, sunucuda saklanıyor mu?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          Yüklediğiniz mizan ve beyanname dosyaları sunucuya gönderilmez; tüm hesaplamalar doğrudan tarayıcınızda gerçekleşir. Sadece firma adı, analiz notu ve tarih gibi özet bilgiler, siz kaydetmek istediğinizde yerel depolama alanınıza kaydedilir. Finansal verileriniz hiçbir zaman sistemimizde saklanmaz.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          Ödeme yaptıktan sonra erişim kodum ne zaman gelir?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          EFT / Havale ödemeleriniz teyit edildikten sonra dakikalar içinde erişim kodunuz hem e-posta adresinize hem de WhatsApp'ınıza iletilir. Ödeme açıklamasına e-posta adresinizi yazmayı unutmamanızı öneririz; bu sayede eşleştirme hızlanır.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          Kim kullanabilir? Teknik bilgi gerekiyor mu?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          FinSkor; mali müşavirler, KOBİ sahipleri, CFO'lar ve banka kredi analistleri için tasarlanmıştır. Muhasebe programınızdan aldığınız mizan dosyasını yüklemek yeterlidir; herhangi bir teknik bilgiye gerek yoktur. Baykuş AI asistanı tüm analiz sürecinde size rehberlik eder.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          Kurumsal paket bireysel paketten ne farkı var?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          Profesyonel paket bireysel kullanım için uygundur; 4 analiz kontörü içerir. Kurumsal paket ise birden fazla kullanıcı, özelleştirilmiş raporlama ve 1 yıllık finansal danışmanlık desteği sunar. Kurumsal fiyatlandırma için <a href="mailto:info@finskor.tr?subject=FinSkor%20Kurumsal%20Teklif" style="color:var(--gold)">info@finskor.tr</a> adresine yazabilirsiniz.
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
 <!-- CTA -->
 <section class="cta-section" id="cta">
   <div class="cta-inner">
@@ -1544,6 +1668,21 @@ document.querySelectorAll('.feature-card, .how-step, .pricing-card, .scenario-ca
 document.querySelectorAll('.features-grid .feature-card').forEach((el, i) => el.style.transitionDelay = (i * 0.08) + 's');
 document.querySelectorAll('.how-steps .how-step').forEach((el, i) => el.style.transitionDelay = (i * 0.1) + 's');
 document.querySelectorAll('.rating-row').forEach((el, i) => el.style.transitionDelay = (i * 0.05) + 's');
+
+// FAQ accordion
+function toggleFaq(btn) {
+  const answer = btn.nextElementSibling;
+  const isOpen = btn.classList.contains('open');
+  // hepsini kapat
+  document.querySelectorAll('.faq-q.open').forEach(b => {
+    b.classList.remove('open');
+    b.nextElementSibling.classList.remove('open');
+  });
+  if (!isOpen) {
+    btn.classList.add('open');
+    answer.classList.add('open');
+  }
+}
 </script>
 
 </body>
