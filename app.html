@@ -1722,6 +1722,8 @@ async function loadSettingsFromSupabase() {
           if (!yillar.includes(current)) sel.value = Math.max(...yillar);
         }
         buildTable();
+        // Yeni yılların input toplamlarını hesapla
+        state.activeYears.forEach(y => { if (typeof refreshInputs==='function') refreshInputs(y); });
       }
     }
 
@@ -1779,10 +1781,6 @@ function loginSuccess(userData) {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
 
-  // Admin panelde güncellenen ayarları çek (ÜFE, mali yıllar, dönemler)
-  loadUfeFromSupabase();
-  loadSettingsFromSupabase();
-
   // Kontör göstergesi
   const credits = localStorage.getItem('kas_credits');
   if (credits && credits !== '999') {
@@ -1796,7 +1794,11 @@ function loginSuccess(userData) {
     }
   }
 
-  init();
+  init(); // Önce sync init — kendi default yıllarıyla tabloyu kur
+
+  // init() bittikten SONRA admin ayarlarını uygula (race condition önlenir)
+  loadUfeFromSupabase();
+  loadSettingsFromSupabase();
 
   // Baykuş butonu her zaman görünür
   const ab = document.getElementById('avatarBtn');
