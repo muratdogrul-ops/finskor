@@ -6592,7 +6592,7 @@ function pdfMizanBilancoSatirAtla(line, kodMatch) {
  * - n≥4: son iki = bakiye borç, bakiye alacak (önceki ikisi dönem toplamı — katkıya girmez).
  * - n=3: dönem borç, dönem alacak, üçüncü = tek bakiye sütunu — aktifte bak.borç, pasifte bak.alacak.
  * - 600–699 n=3: gider (MINUS_KODLAR) → üçüncü = bak.borç; gelir → üçüncü = bak.alacak (pasif ile aynı taraf).
- * - n=2: PDF geniş mizanda neredeyse daima sadece DÖNEM borç|alacak; bakiye yok → [0,0] (aktarma yok).
+ * - n=2: çoğu PDF’te dönem borç|alacak (bakiye yok) → [0,0]. Aktifte iki tutar eşitse (ör. 245 satırı iki kez aynı bakiye) bak.borç|bak.alacak yinelenmiş kabul edilir.
  * Excel mizan bu fonksiyonu kullanmaz.
  */
 function pdfMizanPickBakBorcAlacBak(sayilar, kod, rawKod) {
@@ -6623,6 +6623,11 @@ function pdfMizanPickBakBorcAlacBak(sayilar, kod, rawKod) {
       alacBak = 0;
     }
   } else if (n === 2) {
+    if (kod >= 100 && kod <= 299) {
+      const a = s[0], b = s[1];
+      const mx = Math.max(a, b);
+      if (mx > 0 && Math.abs(a - b) / mx < 1e-9) return [a, b];
+    }
     return [0, 0];
   } else {
     const v = s[0];
