@@ -523,7 +523,7 @@ nav {
 
           <div class="contact-box">
             <div class="contact-title">Sorularınız için</div>
-            <div class="contact-item">📧 <a href="mailto:info@finskor.tr?subject=FinSkor%20Hakkında%20Sorum%20Var">info@finskor.tr</a></div>
+            <div class="contact-item">📧 <a href="mailto:info@finskor.tr?subject=FinSkor%20Hakkında%20Sorum%20Var" onclick="copyMail(event,'info@finskor.tr')">info@finskor.tr</a></div>
             <div class="contact-item">📱 <a href="tel:+90XXXXXXXXXX" id="contactPhone">+90 — — — — — —</a></div>
           </div>
 
@@ -696,6 +696,16 @@ function showToast(msg, err) {
   t.className = 'toast show' + (err ? ' err' : '');
   clearTimeout(t._t);
   t._t = setTimeout(() => t.className = 'toast', 3500);
+}
+
+// Mail kopyala — mailto açılamazsa panoya kopyalar
+function copyMail(e, mail) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(mail).then(() => {
+      showToast('📋 ' + mail + ' kopyalandı');
+    }).catch(() => {});
+  }
+  // mailto bağlantısı da normal açılmaya devam eder
 }
 </script>
 </body>

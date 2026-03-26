@@ -1640,7 +1640,7 @@ footer {
       <a href="#">Gizlilik</a>
       <a href="#">KVKK</a>
       <a href="#">Sorumluluk Reddi</a>
-      <a href="mailto:info@finskor.tr">info@finskor.tr</a>
+      <a href="mailto:info@finskor.tr" onclick="copyMail(event,'info@finskor.tr')">info@finskor.tr</a>
     </div>
     <div class="footer-copy">© 2026 FinSkor. Tüm hakları saklıdır.</div>
   </div>
@@ -1673,7 +1673,6 @@ document.querySelectorAll('.rating-row').forEach((el, i) => el.style.transitionD
 function toggleFaq(btn) {
   const answer = btn.nextElementSibling;
   const isOpen = btn.classList.contains('open');
-  // hepsini kapat
   document.querySelectorAll('.faq-q.open').forEach(b => {
     b.classList.remove('open');
     b.nextElementSibling.classList.remove('open');
@@ -1683,7 +1682,20 @@ function toggleFaq(btn) {
     answer.classList.add('open');
   }
 }
+
+// Mail kopyala — mailto açılamazsa panoya kopyalar
+function copyMail(e, mail) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(mail).then(() => {
+      const tip = document.getElementById('mailTip');
+      if (tip) { tip.style.opacity='1'; setTimeout(()=>tip.style.opacity='0',2000); }
+    }).catch(()=>{});
+  }
+}
 </script>
+<div id="mailTip" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a2e4a;color:#C9A84C;border:1px solid rgba(201,168,76,0.3);padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:9999">
+  📋 info@finskor.tr kopyalandı
+</div>
 
 </body>
 </html>
