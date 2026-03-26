@@ -5600,14 +5600,48 @@ function pdfMizanStokAnaSatirMi(lineTrim) {
   return /^(150|151|152|153|157|158|159)\s+[A-Za-zÇĞİÖŞÜçğıöşü]/.test(String(lineTrim).trim());
 }
 
+/** 25–29 duran (KOD_TO_KEY) — grup 24 (240–249) dahil değil; dönen 100–199’a dokunulmaz */
+const PDF_MIZAN_DURAN_2529_OZET_KOD = new Set([
+  250, 251, 252, 253, 254, 255, 256, 257, 258, 259,
+  260, 261, 262, 263, 264, 267, 268, 269,
+  271, 272, 277, 278, 279,
+  280, 281,
+  291, 292, 293, 294, 295, 296, 297, 298, 299,
+]);
+
+/**
+ * PDF mizan 25–29: özet satır kabul; "250.01" red; "250 1. SINIF", "%…", "296 6736…" kabul.
+ * Geniş aktif 100–299 / 100–199 tek regex döngüsü kullanılmaz (dönen bozulmasın).
+ */
+function pdfMizanDuran2529AnaSatirMi(lineTrim, rawKod) {
+  if (!PDF_MIZAN_DURAN_2529_OZET_KOD.has(rawKod)) return true;
+  const t = String(lineTrim).trim();
+  const esc = String(rawKod).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (new RegExp('^' + esc + '\\.').test(t)) return false;
+  if (new RegExp('^' + esc + '\\s+[A-Za-zÇĞİÖŞÜçğıöşü]').test(t)) return true;
+  if (new RegExp('^' + esc + '\\s+%').test(t)) return true;
+  if (new RegExp('^' + esc + '\\s+\\d{1,3}\\. ?[A-Za-zÇĞİÖŞÜçğıöşü]').test(t)) return true;
+  if (rawKod === 296) {
+    const m = t.match(new RegExp('^296\\s+(\\d.*)$'));
+    if (m) {
+      const mm = m[1].trim().match(/^(\d+)/);
+      if (mm && mm[1].length >= 4) return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Grup özet: kuyruk rakamla başlıyorsa çoğunlukla alt hesap (296 01…) → atla.
  * İlk token 4+ hane ise çoğunlukla kanun/yıl no (296 6736 SAYILI KANUN…) → ana satır, atlama.
+ * 25–29 (250–299): "250 1. SINIF" özet — atlama.
  */
-function pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterTrim) {
-  if (!afterTrim.length) return true;
-  if (!/^\d/.test(afterTrim)) return false;
-  const m = afterTrim.match(/^(\d+)/);
+function pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterTrim, rawKod) {
+  const a = String(afterTrim).trim();
+  if (!a.length) return true;
+  if (PDF_MIZAN_DURAN_2529_OZET_KOD.has(rawKod) && /^\d{1,3}\. ?[A-Za-zÇĞİÖŞÜçğıöşü]/.test(a)) return false;
+  if (!/^\d/.test(a)) return false;
+  const m = a.match(/^(\d+)/);
   if (m && m[1].length >= 4) return false;
   return true;
 }
@@ -6491,13 +6525,14 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
     if (key === 'ticAlacaklar' && PDF_MIZAN_TICARI_OZET_KOD.has(rawKod) && !pdfMizanTicariAlacakAnaSatirMi(trimmed)) continue;
     if (key === 'digerAlacaklar' && PDF_MIZAN_DIGER_OZET_KOD.has(rawKod) && !pdfMizanDigerAlacakAnaSatirMi(trimmed)) continue;
     if (key === 'stoklar' && PDF_MIZAN_STOK_OZET_KOD.has(rawKod) && !pdfMizanStokAnaSatirMi(trimmed)) continue;
+    if (PDF_MIZAN_DURAN_2529_OZET_KOD.has(rawKod) && !pdfMizanDuran2529AnaSatirMi(trimmed, rawKod)) continue;
 
     // Bilanço + gelir (100–699) grup özetleri: "620 SATMAL…" gibi; "620 01…" atlanır
     if (pdfMizanGrupOzetSatirMi(key, rawKod)) {
       const head = trimmed.match(/^([1-6]\d{2})(?:[.\-]\d+)?\s+/);
       if (!head) continue;
       const afterKoord = trimmed.slice(head[0].length).trim();
-      if (!afterKoord.length || pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterKoord)) continue;
+      if (!afterKoord.length || pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterKoord, rawKod)) continue;
     }
 
     // BAK.BORÇ ve BAK.ALACAK sütunlarındaki değerleri koordinata göre topla
@@ -6599,7 +6634,7 @@ function pdfMizanBilancoSatirAtla(line, kodMatch) {
  * - n≥4: son iki = bakiye borç, bakiye alacak (önceki ikisi dönem toplamı — katkıya girmez).
  * - n=3: dönem borç, dönem alacak, üçüncü = tek bakiye sütunu — aktifte bak.borç, pasifte bak.alacak.
  * - 600–699 n=3: gider (MINUS_KODLAR) → üçüncü = bak.borç; gelir → üçüncü = bak.alacak (pasif ile aynı taraf).
- * - n=2: PDF geniş mizanda neredeyse daima sadece DÖNEM borç|alacak; bakiye yok → [0,0] (aktarma yok).
+ * - n=2: çoğu PDF dönem borç|alacak → [0,0]. 25–29 duran (250–299) iki eşit tutar = yinelenen bakiye sütunu.
  * Excel mizan bu fonksiyonu kullanmaz.
  */
 function pdfMizanPickBakBorcAlacBak(sayilar, kod, rawKod) {
@@ -6630,6 +6665,11 @@ function pdfMizanPickBakBorcAlacBak(sayilar, kod, rawKod) {
       alacBak = 0;
     }
   } else if (n === 2) {
+    if (PDF_MIZAN_DURAN_2529_OZET_KOD.has(rawKod)) {
+      const a = s[0], b = s[1];
+      const mx = Math.max(a, b);
+      if (mx > 0 && Math.abs(a - b) / mx < 1e-9) return [a, b];
+    }
     return [0, 0];
   } else {
     const v = s[0];
@@ -6645,7 +6685,7 @@ function pdfMizanPickBakBorcAlacBak(sayilar, kod, rawKod) {
 
 function mizanTextIsleMizan(lines, result, silent) {
   // PDF mizan: çoğu dosyada 2 haneli özet satır yok → yalnızca 3 haneli satır başı kodlar.
-  // Hazır / 12 ticari / 13 diğer alacak / 15 stok: YOL BAK kod+boşluk+harf ana satır (noktalı alt atlanır)
+  // Hazır / 12–13–15 + duran 25–29 (250–299): YOL BAK; dönen 17–19 ve grup 24 genişletme yok
 
   function pdfMizanParaTokenlari(tail) {
     return [...tail.matchAll(/[0-9][0-9.,]*/g)].map(m => m[0]).filter(tok => {
@@ -6677,9 +6717,10 @@ function mizanTextIsleMizan(lines, result, silent) {
     if (key === 'ticAlacaklar' && PDF_MIZAN_TICARI_OZET_KOD.has(rawKod) && !pdfMizanTicariAlacakAnaSatirMi(line)) continue;
     if (key === 'digerAlacaklar' && PDF_MIZAN_DIGER_OZET_KOD.has(rawKod) && !pdfMizanDigerAlacakAnaSatirMi(line)) continue;
     if (key === 'stoklar' && PDF_MIZAN_STOK_OZET_KOD.has(rawKod) && !pdfMizanStokAnaSatirMi(line)) continue;
+    if (PDF_MIZAN_DURAN_2529_OZET_KOD.has(rawKod) && !pdfMizanDuran2529AnaSatirMi(line, rawKod)) continue;
     if (pdfMizanGrupOzetSatirMi(key, rawKod)) {
       const afterGr = line.slice(kodMatch.index + kodMatch[0].length).trim();
-      if (!afterGr.length || pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterGr)) continue;
+      if (!afterGr.length || pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterGr, rawKod)) continue;
     }
 
     if (rawKod >= 100 && rawKod <= 599 && key !== 'hazirDegerler' &&
