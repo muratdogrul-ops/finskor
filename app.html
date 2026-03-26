@@ -442,6 +442,10 @@ tbody td { padding:8px 13px; color:var(--text); }
   <!-- TAB 1: MALİ VERİLER -->
   <div id="tab-bilgi">
 
+  <!-- Kayıtlı Analizler butonu — ilk sayfada erişim -->
+  <div style="display:flex;justify-content:flex-end;padding:8px 0 4px">
+    <button onclick="showKayitliModal()" style="padding:7px 16px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.35);color:#34d399;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">📂 Kayıtlı Analizlerim</button>
+  </div>
 
   <div class="config-grid">
     <div class="card">
@@ -3609,6 +3613,7 @@ function saveFirm() {
   if (!d||!d.aktifToplam||d.aktifToplam===0) { showToast('Önce analizi çalıştırın!', true); return; }
 
   const r = calcRatios(refYear);
+  const note = (r.rating && r.rating.note) ? r.rating.note : _pctToNote(r.pct);
   const saved = JSON.parse(localStorage.getItem('kas_firms')||'[]');
   const entry = {
     id: Date.now() + '_' + Math.random().toString(36).slice(2,7),
@@ -3616,12 +3621,31 @@ function saveFirm() {
     firma, refYear, period:state.period, firmType:state.firmType,
     date:new Date().toLocaleDateString('tr-TR'),
     time:new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}),
-    pct:r.pct, karar:r.pct>=70?'positive':r.pct>=45?'neutral':'negative',
+    note,
+    pct:r.pct, karar:r.pct>=68?'positive':r.pct>=52?'neutral':'negative',
     r, yearData:JSON.parse(JSON.stringify(state.yearData))
   };
   saved.push(entry);
   localStorage.setItem('kas_firms', JSON.stringify(saved));
-  showToast(`"${firma}" kaydedildi ✓`);
+  showToast(`"${firma}" kaydedildi ✓ (${note})`);
+}
+
+function _pctToNote(pct) {
+  if (pct >= 93) return 'AAA';
+  if (pct >= 84) return 'AA';
+  if (pct >= 76) return 'A';
+  if (pct >= 68) return 'BBB';
+  if (pct >= 60) return 'BB';
+  if (pct >= 52) return 'B';
+  if (pct >= 44) return 'CCC';
+  if (pct >= 36) return 'CC';
+  if (pct >= 30) return 'C';
+  return 'D';
+}
+
+function _noteToRenk(note) {
+  const map = {AAA:'#22c55e',AA:'#4ade80',A:'#86efac',BBB:'#fbbf24',BB:'#f59e0b',B:'#d97706',CCC:'#fb923c',CC:'#f87171',C:'#ef4444',D:'#dc2626'};
+  return map[note] || '#94a3b8';
 }
 
 function showKayitliModal() {
@@ -3631,15 +3655,15 @@ function showKayitliModal() {
     el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)"><div style="font-size:36px;margin-bottom:12px">📂</div><div>Henüz kayıtlı analiz yok.</div><div style="font-size:12px;margin-top:8px">Analiz yaptıktan sonra "Kaydet" butonuna tıklayın.</div></div>';
   } else {
     el.innerHTML = saved.map((f,i) => {
-      const not = f.r && f.r.note ? f.r.note : (f.pct>=70?'BB':'CCC');
-      const renk = f.karar==='positive'?'#22c55e':f.karar==='neutral'?'#f59e0b':'#ef4444';
+      const not = f.note || (f.r && f.r.rating && f.r.rating.note) || _pctToNote(f.pct);
+      const renk = _noteToRenk(not);
       return `<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);gap:12px">
         <div style="flex:1;min-width:0">
           <div style="font-weight:600;font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🏢 ${f.firma}</div>
           <div style="font-size:11px;color:var(--text-muted);margin-top:3px">${f.refYear} · ${f.period||''} · <span style="color:${renk};font-weight:700">${not}</span> · ${f.date}${f.time?' · '+f.time:''}</div>
         </div>
         <div style="display:flex;gap:8px;flex-shrink:0">
-          <button onclick="loadFirmModal(${i})" style="padding:6px 14px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.35);color:#34d399;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">📂 Yükle</button>
+          <button onclick="loadFirmModal(${i})" style="padding:6px 14px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.35);color:#34d399;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">Dışarı Çıkart</button>
           <button onclick="deleteFirmModal(${i})" style="padding:6px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:8px;cursor:pointer;font-size:14px">🗑</button>
         </div>
       </div>`;
