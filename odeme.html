@@ -475,7 +475,10 @@ nav {
           </div>
 
           <div class="total-row">
-            <div class="total-label">Toplam (KDV dahil)</div>
+            <div>
+              <div class="total-label">Toplam</div>
+              <div style="font-size:10px;color:var(--white-muted);margin-top:2px">KDV Dahil</div>
+            </div>
             <div class="total-price" id="totalVal">₺ —</div>
           </div>
 
@@ -529,11 +532,11 @@ nav {
 // AYARLAR — Buraya IBAN ve fiyat girin
 // ═══════════════════════════════════════
 const CONFIG = {
-  iban:    'TR00 0000 0000 0000 0000 0000 00',  // ← IBAN'ınızı buraya girin
-  banka:   'Banka Adı',                          // ← Banka adını buraya girin
+  iban:    'TR41 0001 5001 5800 7308 0678 62',
+  banka:   'Vakıfbank',
   telefon: '+90 530 894 37 75',
-  fiyat:   '—',                                  // ← Fiyatı buraya girin (örn: 3.500)
-  toplamFiyat: '—',                              // ← KDV dahil toplam (örn: 4.130)
+  fiyat:   '—',        // ← Fiyatı buraya girin (KDV dahil tutar)
+  toplamFiyat: '—',    // ← Aynı tutar (KDV dahil)
 };
 
 const SUPABASE_URL = 'https://clmqfckposcaqjmbrmuq.supabase.co';
