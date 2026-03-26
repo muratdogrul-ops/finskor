@@ -2211,6 +2211,11 @@ function showPage(p) {
   const nb = document.getElementById('nav' + p.charAt(0).toUpperCase() + p.slice(1));
   if (nb) nb.classList.add('active');
   if (p === 'admin') renderAdmin();
+  // Analiz sayfasına her geçişte admin ayarlarını tazele (yıl/dönem/ÜFE)
+  if (p === 'analiz' && typeof loadSettingsFromSupabase === 'function') {
+    loadUfeFromSupabase();
+    loadSettingsFromSupabase();
+  }
 }
 
 // ══════════════════════════════════════════
