@@ -1191,15 +1191,15 @@ function sendCodeWhatsApp() {
 // ══════════════════════════════════════════
 async function loadMaliYil() {
   try {
-    const { data } = await sb.from('settings').select('value').eq('key', 'mali_yillar').single();
-    const yillar = data?.value ? JSON.parse(data.value) : [2022,2023,2024,2025,2026];
+    const { data } = await sb.from('settings').select('value').eq('key', 'mali_yillar').maybeSingle();
+    const yillar = (data?.value) ? JSON.parse(data.value) : [2022,2023,2024,2025,2026];
     renderMaliYillar(yillar);
   } catch(e) {
     renderMaliYillar([2022,2023,2024,2025,2026]);
   }
   try {
-    const { data } = await sb.from('settings').select('value').eq('key', 'mali_donemler').single();
-    const donemler = data?.value ? JSON.parse(data.value) : [12];
+    const { data } = await sb.from('settings').select('value').eq('key', 'mali_donemler').maybeSingle();
+    const donemler = (data?.value) ? JSON.parse(data.value) : [12];
     [3,6,9,12].forEach(d => {
       const el = document.getElementById('d'+d);
       if (el) el.checked = donemler.includes(d);
@@ -1225,10 +1225,9 @@ async function addMaliYil() {
   const val = parseInt(document.getElementById('new-maliyil').value);
   if (!val || val < 2000 || val > 2099) { toast('Geçerli bir yıl girin (2000-2099)', 'error'); return; }
   try {
-    const { data } = await sb.from('settings').select('value').eq('key', 'mali_yillar').single();
-    // data gelmezse güvenli default kullan
+    const { data } = await sb.from('settings').select('value').eq('key', 'mali_yillar').maybeSingle();
     let yillar = (data?.value) ? JSON.parse(data.value) : [2022,2023,2024,2025,2026];
-    if (!yillar.length) yillar = [2022,2023,2024,2025,2026]; // boş array koruması
+    if (!yillar.length) yillar = [2022,2023,2024,2025,2026];
     if (yillar.includes(val)) { toast('Bu yıl zaten var', 'error'); return; }
     yillar.push(val);
     const { error } = await sb.from('settings').upsert({ key: 'mali_yillar', value: JSON.stringify(yillar) }, { onConflict: 'key' });
@@ -1242,16 +1241,12 @@ async function addMaliYil() {
 async function removeMaliYil(yil) {
   if (!confirm(yil + " yılını kaldırmak istediğinizden emin misiniz?")) return;
   try {
-    const { data, error } = await sb.from('settings').select('value').eq('key', 'mali_yillar').single();
-    // RLS veya bağlantı hatası varsa işlemi durdur — boş liste kaydedilmesin
-    if (error || !data?.value) {
-      toast('Yıllar okunamadı, işlem iptal edildi. RLS politikası kontrol edin.', 'error');
-      return;
-    }
-    let yillar = JSON.parse(data.value);
+    const { data } = await sb.from('settings').select('value').eq('key', 'mali_yillar').maybeSingle();
+    let yillar = (data?.value) ? JSON.parse(data.value) : [2022,2023,2024,2025,2026];
+    if (!yillar.length) yillar = [2022,2023,2024,2025,2026];
     yillar = yillar.filter(y => y !== yil);
-    const { error: writeErr } = await sb.from('settings').upsert({ key: 'mali_yillar', value: JSON.stringify(yillar) }, { onConflict: 'key' });
-    if (writeErr) throw writeErr;
+    const { error } = await sb.from('settings').upsert({ key: 'mali_yillar', value: JSON.stringify(yillar) }, { onConflict: 'key' });
+    if (error) throw error;
     toast('Yıl kaldırıldı: ' + yil);
     renderMaliYillar(yillar);
   } catch(e) { toast(e.message, 'error'); }
