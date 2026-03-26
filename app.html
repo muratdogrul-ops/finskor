@@ -5653,6 +5653,17 @@ function pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterTrim, rawKod) {
   return true;
 }
 
+/**
+ * Pasif + gelir tablosu (300–699) grup özet: "320.01 …" / "620.01 …" alt satır — ana özetle çift toplam önlenir.
+ * Yalnız pdfMizanGrupOzetSatirMi ile birlikte; 100–299 dönen/duran ayrı kurallara dokunulmaz.
+ */
+function pdfMizanGrupOzetPasifGelirNoktaliAltMi(lineTrim, rawKod) {
+  if (rawKod < 300 || rawKod > 699) return false;
+  const t = String(lineTrim).trim();
+  const esc = String(rawKod).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp('^' + esc + '\\.').test(t);
+}
+
 // 2 haneli ana grup → key (2-pass için)
 const KOD_TO_KEY_2 = {
   10:'hazirDegerler', 11:'menkKiymetler',
@@ -6534,6 +6545,7 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
     if (key === 'stoklar' && PDF_MIZAN_STOK_OZET_KOD.has(rawKod) && !pdfMizanStokAnaSatirMi(trimmed)) continue;
     if (key === 'digerDonen' && PDF_MIZAN_DIGER_DONEN_OZET_KOD.has(rawKod) && !pdfMizanDigerDonenAnaSatirMi(trimmed)) continue;
     if (PDF_MIZAN_DURAN_2529_OZET_KOD.has(rawKod) && !pdfMizanDuran2529AnaSatirMi(trimmed, rawKod)) continue;
+    if (pdfMizanGrupOzetSatirMi(key, rawKod) && pdfMizanGrupOzetPasifGelirNoktaliAltMi(trimmed, rawKod)) continue;
 
     // Bilanço + gelir (100–699) grup özetleri: "620 SATMAL…" gibi; "620 01…" atlanır
     if (pdfMizanGrupOzetSatirMi(key, rawKod)) {
@@ -6727,6 +6739,7 @@ function mizanTextIsleMizan(lines, result, silent) {
     if (key === 'stoklar' && PDF_MIZAN_STOK_OZET_KOD.has(rawKod) && !pdfMizanStokAnaSatirMi(line)) continue;
     if (key === 'digerDonen' && PDF_MIZAN_DIGER_DONEN_OZET_KOD.has(rawKod) && !pdfMizanDigerDonenAnaSatirMi(line)) continue;
     if (PDF_MIZAN_DURAN_2529_OZET_KOD.has(rawKod) && !pdfMizanDuran2529AnaSatirMi(line, rawKod)) continue;
+    if (pdfMizanGrupOzetSatirMi(key, rawKod) && pdfMizanGrupOzetPasifGelirNoktaliAltMi(line, rawKod)) continue;
     if (pdfMizanGrupOzetSatirMi(key, rawKod)) {
       const afterGr = line.slice(kodMatch.index + kodMatch[0].length).trim();
       if (!afterGr.length || pdfMizanGrupOzetRakamKuyrukAtlansinMi(afterGr, rawKod)) continue;
