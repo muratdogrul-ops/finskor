@@ -6292,14 +6292,24 @@ function mizanTextIsleBeyanname(lines, result, year) {
   let bolum = null;  // DONEN | DURAN | KV | UV | OZKAYNAK | GELIR
   let unvan1 = '', unvan2 = '';
   let expectUnvan1 = false, expectUnvan2 = false;
+  let inDuzenleyenSection = false; // Mali müşavir bölümüne girince firma adı yazmayı durdur
 
   for (const rawLine of lines) {
     const rawTrim = rawLine.trim();
     const rawNorm = normTR(rawTrim);
 
+    // "Beyannameyi Düzenleyen" bölümüne giriş tespiti — sonraki unvan1/unvan2 müşavire ait
+    if (/beyannameyi duzenleyen/.test(rawNorm)) { inDuzenleyenSection = true; }
+
     // Etiket ayrı satırdaysa takip eden satır(lar)dan ünvanı al
-    if (/^soyadi \(unvani\)$/.test(rawNorm) || /^soyadi, adi \(unvani\)$/.test(rawNorm)) { expectUnvan1 = true; continue; }
-    if (/^adi \(unvanin devami\)$/.test(rawNorm)) { expectUnvan2 = true; continue; }
+    if (/^soyadi \(unvani\)$/.test(rawNorm) || /^soyadi, adi \(unvani\)$/.test(rawNorm)) {
+      if (!inDuzenleyenSection) expectUnvan1 = true;
+      continue;
+    }
+    if (/^adi \(unvanin devami\)$/.test(rawNorm)) {
+      if (!inDuzenleyenSection) expectUnvan2 = true;
+      continue;
+    }
     if (expectUnvan1 && rawTrim) {
       if (!/^(adi \(unvanin devami\)|ticaret sicil no|irtibat tel no|e-posta adresi|vergi kimlik numarasi|mukellef|beyannameyi duzenleyen)/.test(rawNorm)) {
         unvan1 = rawTrim;
@@ -6315,11 +6325,13 @@ function mizanTextIsleBeyanname(lines, result, year) {
       continue;
     }
 
-    // Firma ünvanını yakala
-    const unvanM1 = rawLine.match(/Soyadı \(Unvanı\)\s+(.+)/);
-    if (unvanM1) { unvan1 = unvanM1[1].trim(); }
-    const unvanM2 = rawLine.match(/Adı \(Unvanın Devamı\)\s+(.+)/);
-    if (unvanM2) { unvan2 = unvanM2[1].trim(); }
+    // Firma ünvanını yakala — sadece müşavir bölümüne girmemişsek
+    if (!inDuzenleyenSection) {
+      const unvanM1 = rawLine.match(/Soyadı \(Unvanı\)\s+(.+)/);
+      if (unvanM1) { unvan1 = unvanM1[1].trim(); }
+      const unvanM2 = rawLine.match(/Adı \(Unvanın Devamı\)\s+(.+)/);
+      if (unvanM2) { unvan2 = unvanM2[1].trim(); }
+    }
     const line = rawLine.trim();
     if (!line || line.length < 5) continue;
     const ln = normTR(line);
