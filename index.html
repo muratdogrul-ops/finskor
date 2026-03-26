@@ -865,6 +865,44 @@ section { position: relative; z-index: 1; }
 }
 .pricing-btn-gold:hover { background: var(--gold2); transform: translateY(-1px); }
 
+/* ── REFERANSLAR ── */
+.ref-section { padding: 80px 0; }
+.ref-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-top: 56px;
+  max-width: 860px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.ref-card {
+  background: var(--navy);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+  transition: border-color 0.25s, transform 0.25s;
+}
+.ref-card:hover { border-color: rgba(201,168,76,0.4); transform: translateY(-3px); }
+.ref-logo {
+  width: 72px; height: 72px; border-radius: 14px;
+  background: linear-gradient(135deg, var(--navy2), #1a3a5c);
+  border: 1px solid rgba(201,168,76,0.25);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--serif); font-size: 22px; font-weight: 700;
+  color: var(--gold); letter-spacing: 1px;
+  overflow: hidden;
+}
+.ref-logo img { width: 100%; height: 100%; object-fit: contain; padding: 10px; }
+.ref-name { font-size: 14px; font-weight: 700; color: var(--white); line-height: 1.4; }
+.ref-sector { font-size: 11px; color: var(--white-muted); margin-top: 2px; letter-spacing: 0.5px; }
+@media(max-width:640px) { .ref-grid { grid-template-columns: 1fr; max-width: 360px; } }
+
 /* ── FAQ ── */
 .faq-section { padding: 100px 0; }
 .faq-list { margin-top: 56px; max-width: 760px; margin-left: auto; margin-right: auto; display: flex; flex-direction: column; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
@@ -1007,6 +1045,7 @@ footer {
     <li><a href="#baykus">Baykuş AI</a></li>
     <li><a href="#nasil">Nasıl Çalışır</a></li>
     <li><a href="#fiyat">Fiyatlar</a></li>
+    <li><a href="#referanslar">Referanslar</a></li>
     <li><a href="#sss">SSS</a></li>
   </ul>
   <div class="nav-cta">
@@ -1511,6 +1550,42 @@ footer {
         </ul>
         <a href="mailto:info@finskor.tr?subject=FinSkor%20Kurumsal%20Paket%20Teklif%20Talebi" class="pricing-btn pricing-btn-outline">İletişime Geçin</a>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- REFERANSLAR -->
+<section class="ref-section" id="referanslar">
+  <div class="section-inner">
+    <div class="section-tag">Referanslar</div>
+    <h2 class="section-title">Bize Güvenen Firmalar</h2>
+    <p class="section-desc">Farklı sektörlerden firmalar FinSkor ile kredi notlarını analiz ediyor.</p>
+    <div class="ref-grid">
+
+      <div class="ref-card">
+        <div class="ref-logo" id="logo-reeder">RT</div>
+        <div>
+          <div class="ref-name">Reeder Teknoloji A.Ş.</div>
+          <div class="ref-sector">Teknoloji &amp; Elektronik</div>
+        </div>
+      </div>
+
+      <div class="ref-card">
+        <div class="ref-logo" id="logo-karimex">KF</div>
+        <div>
+          <div class="ref-name">Karimex Fındık Ltd. Şti.</div>
+          <div class="ref-sector">Gıda &amp; Tarım</div>
+        </div>
+      </div>
+
+      <div class="ref-card">
+        <div class="ref-logo" id="logo-dkc">DG</div>
+        <div>
+          <div class="ref-name">DKC Grup A.Ş.</div>
+          <div class="ref-sector">Holding &amp; Yatırım</div>
+        </div>
+      </div>
+
     </div>
   </div>
 </section>
