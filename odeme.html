@@ -511,7 +511,13 @@ nav {
   <p style="font-size:13px; color:var(--white-muted); margin-bottom:28px;">
     Havale/EFT açıklamasına e-posta adresinizi yazmayı unutmayınız.
   </p>
-  <a href="/" class="btn-home">← Ana Sayfaya Dön</a>
+  <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:16px">
+    <a href="https://wa.me/905308943775" id="waContactBtn" target="_blank"
+       style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:#25D366;color:#fff;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600">
+      📱 WhatsApp ile Ulaşın
+    </a>
+    <a href="/" class="btn-home">← Ana Sayfaya Dön</a>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -525,7 +531,7 @@ nav {
 const CONFIG = {
   iban:    'TR00 0000 0000 0000 0000 0000 00',  // ← IBAN'ınızı buraya girin
   banka:   'Banka Adı',                          // ← Banka adını buraya girin
-  telefon: '+90 5XX XXX XX XX',                  // ← Telefon numaranızı buraya girin
+  telefon: '+90 530 894 37 75',
   fiyat:   '—',                                  // ← Fiyatı buraya girin (örn: 3.500)
   toplamFiyat: '—',                              // ← KDV dahil toplam (örn: 4.130)
 };
@@ -594,28 +600,49 @@ async function submitPayment() {
   btn.disabled = true;
   btn.textContent = '⏳ Kaydediliyor...';
 
+  const odemeYontemi = document.querySelector('.method-tab.active .tab-icon')?.nextSibling?.textContent?.trim() || 'EFT';
+
   try {
+    // 1. Supabase'e kaydet
     const { error } = await _sb.from('payments').insert([{
-      ad_soyad:    adSoyad,
-      email:       email,
-      telefon:     telefon,
-      firma_adi:   firmaAdi || null,
-      vkn:         vkn || null,
+      ad_soyad:      adSoyad,
+      email:         email,
+      telefon:       telefon,
+      firma_adi:     firmaAdi || null,
+      vkn:           vkn || null,
       vergi_dairesi: vd || null,
-      fatura_tipi: bireysel ? 'bireysel' : 'kurumsal',
-      odeme_yontemi: document.querySelector('.method-tab.active')?.textContent?.trim()?.split('\n')[0]?.trim() || 'EFT',
-      durum:       'bekliyor',
-      created_at:  new Date().toISOString()
+      fatura_tipi:   bireysel ? 'bireysel' : 'kurumsal',
+      odeme_yontemi: odemeYontemi,
+      durum:         'bekliyor',
+      created_at:    new Date().toISOString()
     }]);
+    if (error) console.warn('Supabase kayıt hatası:', error.message);
 
-    if (error) throw error;
+    // 2. Mail bildirimleri gönder (Zoho SMTP)
+    try {
+      await fetch('/.netlify/functions/send-notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adSoyad, email, telefon, firmaAdi, vkn, vd,
+          faturaTipi: bireysel ? 'bireysel' : 'kurumsal', odemeYontemi })
+      });
+    } catch(mailErr) {
+      console.warn('Mail gönderilemedi:', mailErr.message);
+      // Mail hatası formu durdurmaz
+    }
 
-    // Başarı ekranı
+    // 3. Başarı ekranı
     document.getElementById('mainContent').style.display = 'none';
     const suc = document.getElementById('successState');
     suc.style.display = 'block';
     document.getElementById('successEmail').textContent = email;
     document.getElementById('successPhone').textContent = telefon;
+    // WhatsApp linkini güncelle
+    const waBtn = document.getElementById('waContactBtn');
+    if (waBtn) {
+      const msg = encodeURIComponent(`Merhaba, FinSkor ödeme talebinde bulundum.\nAd Soyad: ${adSoyad}\nE-posta: ${email}`);
+      waBtn.href = `https://wa.me/905308943775?text=${msg}`;
+    }
 
   } catch(e) {
     console.error(e);
