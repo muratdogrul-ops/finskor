@@ -526,7 +526,7 @@ nav {
 
           <div class="contact-box">
             <div class="contact-title">Sorularınız için</div>
-            <div class="contact-item">📧 <span class="copy-mail" onclick="copyMail('info@finskor.tr',this)" title="Tıkla — kopyala">info@finskor.tr</span></div>
+            <div class="contact-item">📧 <span class="copy-mail" onclick="openContactModal()" style="cursor:pointer" title="Bize ulaşın">info@finskor.tr</span></div>
             <div class="contact-item">📱 <a href="tel:+90XXXXXXXXXX" id="contactPhone">+90 — — — — — —</a></div>
           </div>
 
@@ -725,6 +725,79 @@ function copyMail(mail, el) {
       goster(ok);
     } catch(e) { goster(false); }
   }
+}
+</script>
+
+<!-- İLETİŞİM MODAL -->
+<div id="contactModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeContactModal()">
+  <div style="background:#0d1e35;border:1px solid rgba(201,168,76,0.3);border-radius:16px;padding:36px 32px;width:100%;max-width:440px;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+    <button onclick="closeContactModal()" style="position:absolute;top:14px;right:16px;background:none;border:none;color:rgba(255,255,255,0.4);font-size:22px;cursor:pointer;line-height:1">✕</button>
+    <div style="font-size:11px;letter-spacing:2px;color:#C9A84C;font-weight:700;margin-bottom:10px">İLETİŞİM</div>
+    <h3 style="font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;color:#fff;margin:0 0 6px">Bize Ulaşın</h3>
+    <p style="font-size:13px;color:rgba(244,246,249,0.55);margin:0 0 28px;line-height:1.6">Sizi arayalım veya bilgi verelim. Bilgilerinizi bırakın, en kısa sürede dönüş yapalım.</p>
+    <div id="contactForm2">
+      <div style="margin-bottom:16px">
+        <label style="font-size:12px;font-weight:600;color:rgba(244,246,249,0.7);display:block;margin-bottom:6px">Ad Soyad <span style="color:#e74c3c">*</span></label>
+        <input id="cAdSoyad2" type="text" placeholder="Adınız Soyadınız" style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;outline:none;font-family:'Plus Jakarta Sans',sans-serif" onfocus="this.style.borderColor='rgba(201,168,76,0.6)'" onblur="this.style.borderColor='rgba(255,255,255,0.12)'">
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="font-size:12px;font-weight:600;color:rgba(244,246,249,0.7);display:block;margin-bottom:6px">Cep Telefonu <span style="color:#e74c3c">*</span></label>
+        <input id="cTelefon2" type="tel" placeholder="05xx xxx xx xx" style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;outline:none;font-family:'Plus Jakarta Sans',sans-serif" onfocus="this.style.borderColor='rgba(201,168,76,0.6)'" onblur="this.style.borderColor='rgba(255,255,255,0.12)'">
+      </div>
+      <div style="margin-bottom:24px">
+        <label style="font-size:12px;font-weight:600;color:rgba(244,246,249,0.7);display:block;margin-bottom:6px">Konu</label>
+        <select id="cKonu2" style="width:100%;padding:11px 14px;background:#0d1e35;border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;outline:none;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer" onfocus="this.style.borderColor='rgba(201,168,76,0.6)'" onblur="this.style.borderColor='rgba(255,255,255,0.12)'">
+          <option value="Ödeme ve Erişim">Ödeme ve Erişim</option>
+          <option value="Fiyat Bilgisi">Fiyat Bilgisi</option>
+          <option value="Teknik Destek">Teknik Destek</option>
+          <option value="Diğer">Diğer</option>
+        </select>
+      </div>
+      <button onclick="submitContact2()" style="width:100%;padding:13px;background:linear-gradient(135deg,#C9A84C,#f5c842);color:#0d1e35;font-weight:700;font-size:15px;border:none;border-radius:10px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif">Gönder →</button>
+      <div id="cHata2" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(231,76,60,0.1);border:1px solid rgba(231,76,60,0.3);border-radius:8px;font-size:13px;color:#e74c3c;text-align:center"></div>
+    </div>
+    <div id="contactSuccess2" style="display:none;text-align:center;padding:20px 0">
+      <div style="font-size:48px;margin-bottom:16px">✅</div>
+      <h4 style="color:#2ECC9A;font-size:18px;margin:0 0 10px">Mesajınız Alındı!</h4>
+      <p style="color:rgba(244,246,249,0.6);font-size:14px;line-height:1.6">En kısa sürede sizi arayacağız.<br>İyi günler dileriz.</p>
+      <button onclick="closeContactModal()" style="margin-top:20px;padding:10px 28px;background:rgba(46,204,154,0.15);border:1px solid rgba(46,204,154,0.3);color:#2ECC9A;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Kapat</button>
+    </div>
+  </div>
+</div>
+<script>
+function openContactModal() {
+  const m = document.getElementById('contactModal');
+  m.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => { document.getElementById('cAdSoyad2').focus(); }, 100);
+}
+function closeContactModal() {
+  const m = document.getElementById('contactModal');
+  m.style.display = 'none';
+  document.body.style.overflow = '';
+  document.getElementById('cAdSoyad2').value = '';
+  document.getElementById('cTelefon2').value = '';
+  document.getElementById('cKonu2').value = 'Ödeme ve Erişim';
+  document.getElementById('cHata2').style.display = 'none';
+  document.getElementById('contactForm2').style.display = 'block';
+  document.getElementById('contactSuccess2').style.display = 'none';
+}
+async function submitContact2() {
+  const ad = document.getElementById('cAdSoyad2').value.trim();
+  const tel = document.getElementById('cTelefon2').value.trim();
+  const konu = document.getElementById('cKonu2').value;
+  const hata = document.getElementById('cHata2');
+  if (!ad) { hata.textContent = 'Ad Soyad zorunludur.'; hata.style.display='block'; return; }
+  if (!tel || tel.length < 10) { hata.textContent = 'Geçerli bir telefon numarası giriniz.'; hata.style.display='block'; return; }
+  hata.style.display = 'none';
+  try {
+    await fetch('/.netlify/functions/contact-form', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adSoyad: ad, telefon: tel, konu })
+    });
+  } catch(e) {}
+  document.getElementById('contactForm2').style.display = 'none';
+  document.getElementById('contactSuccess2').style.display = 'block';
 }
 </script>
 </body>
