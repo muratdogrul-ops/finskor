@@ -1232,51 +1232,87 @@ async function deletePayment(id) {
 async function confirmPayment(paymentId) {
   const p = allPayments.find(x => x.id === paymentId);
   if (!p) return;
-  if (!confirm('Ödemeyi onaylayın — erişim kodu otomatik oluşturulup müşteriye mail gönderilecek.')) return;
+  if (!confirm('Ödemeyi onaylayın — müşteri oluşturulacak, erişim kodu üretilecek, mail gönderilecek.')) return;
 
-  // Notlardan email ve telefonu çıkar
-  const notlar = p.notlar || '';
-  const emailMatch = notlar.match(/E-posta:\s*([^\s|]+)/);
-  const telMatch = notlar.match(/Tel:\s*([^\s|]+)/);
-  const email = emailMatch ? emailMatch[1] : null;
-  const telefon = telMatch ? telMatch[1] : null;
-  const firma = p.customers?.firma_adi || '';
+  const info = parsePaymentInfo(p);
+  const email   = info.email;
+  const telefon = info.telefon;
+  const firma   = info.firma || 'Müşteri';
+  const credits = 10;
 
-  toast('Onaylanıyor, kod oluşturuluyor...', 'info');
+  toast('Onaylanıyor...', 'info');
   try {
-    const resp = await fetch('/.netlify/functions/confirm-payment', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        paymentId,
-        customerId: p.customer_id || null,
-        email,
-        telefon,
-        firma,
-        credits: 10
-      })
+    // 1. Müşteri oluştur (yoksa)
+    let customerId = p.customer_id || null;
+    if (!customerId) {
+      const { data: custData, error: custErr } = await sb.from('customers').insert({
+        firma_adi: firma,
+        email: email || null,
+        telefon: telefon || null
+      }).select('id').single();
+      if (custErr) throw new Error('Müşteri oluşturulamadı: ' + custErr.message);
+      customerId = custData.id;
+    }
+
+    // 2. Erişim kodu üret (çakışma olursa tekrar dene)
+    let code;
+    for (let i = 0; i < 5; i++) {
+      const yr = new Date().getFullYear();
+      const n = String(Math.floor(Math.random() * 999) + 1).padStart(3, '0');
+      const candidate = `KA-${yr}-${n}`;
+      const { data: existing } = await sb.from('access_codes').select('id').eq('code', candidate).maybeSingle();
+      if (!existing) { code = candidate; break; }
+    }
+    if (!code) throw new Error('Benzersiz kod üretilemedi, tekrar deneyin.');
+
+    // 3. access_codes tablosuna ekle
+    const { error: codeErr } = await sb.from('access_codes').insert({
+      code,
+      customer_id: customerId,
+      client_name: firma,
+      email: email || null,
+      credits,
+      active: true,
+      usage_count: 0
     });
-    const result = await resp.json();
-    if (!result.ok) { toast('Hata: ' + (result.error || 'Bilinmeyen hata'), 'error'); return; }
+    if (codeErr) throw new Error('Kod kaydedilemedi: ' + codeErr.message);
 
-    toast('✅ Ödeme onaylandı! Kod: ' + result.code + (email ? ' · Mail gönderildi' : ''));
+    // 4. Ödeme durumunu "onaylandi" yap
+    await sb.from('payments').update({ durum: 'onaylandi' }).eq('id', paymentId);
+
+    // 5. Mail gönder (Netlify sadece mail atıyor)
+    let mailSent = false;
+    if (email) {
+      try {
+        const resp = await fetch('/.netlify/functions/send-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, email, phone: '', firma, credits })
+        });
+        const r = await resp.json();
+        mailSent = r.ok;
+      } catch(e) { console.warn('Mail hatası:', e.message); }
+    }
+
+    toast('✅ Onaylandı! Kod: ' + code + (mailSent ? ' · Mail gönderildi' : ''));
     loadPayments();
-    loadDashboard();
+    loadCustomers();
     loadCodes();
+    loadDashboard();
 
-    // WhatsApp 1-tık butonu göster
-    if (result.telefon) {
-      const tel = result.telefon.replace(/\D/g,'').replace(/^0/,'');
+    // 6. WhatsApp 1-tık butonu
+    if (telefon) {
+      const tel = telefon.replace(/\D/g,'').replace(/^0/,'');
       const waPhone = tel.startsWith('90') ? tel : '90' + tel;
       const waMsg = encodeURIComponent(
         '🦉 *FinSkor Erişim Kodunuz*\n\n' +
-        (result.firma ? result.firma + ' için erişim kodunuz:\n\n' : 'Erişim kodunuz:\n\n') +
-        '🔑 *' + result.code + '*\n📊 10 kontör\n\n' +
+        firma + ' için erişim kodunuz:\n\n' +
+        '🔑 *' + code + '*\n📊 ' + credits + ' kontör\n\n' +
         '🌐 Giriş: https://finskor.tr/app.html\n\nSorularınız için: info@finskor.tr'
       );
       showWaButton(waPhone, waMsg);
     }
-  } catch(e) { toast('Bağlantı hatası: ' + e.message, 'error'); }
+  } catch(e) { toast('Hata: ' + e.message, 'error'); }
 }
 
 // ══════════════════════════════════════════
