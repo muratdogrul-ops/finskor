@@ -9083,12 +9083,16 @@ function _demoAnalizSunumu() {
       const text = tmp.textContent.trim();
       if (text) {
         speechSynthesis.cancel();
-        const utt = new SpeechSynthesisUtterance(text);
-        const voices = speechSynthesis.getVoices();
-        const trSes = voices.find(v => v.lang.startsWith('tr'));
-        if (trSes) utt.voice = trSes;
-        utt.lang='tr-TR'; utt.rate=1.05;
-        speechSynthesis.speak(utt);
+        // 150ms bekle: Chrome'da cancel()+speak() zincirlenmesi "echo" stutterına yol açar
+        setTimeout(() => {
+          if (!window._demoMod) return;
+          const utt = new SpeechSynthesisUtterance(text);
+          const voices = speechSynthesis.getVoices();
+          const trSes = voices.find(v => v.lang.startsWith('tr'));
+          if (trSes) utt.voice = trSes;
+          utt.lang='tr-TR'; utt.rate=1.05;
+          speechSynthesis.speak(utt);
+        }, 150);
       }
     }
   }
@@ -9129,7 +9133,7 @@ function _demoAnalizSunumu() {
       'Her kademenin teminat koşulları farklıdır. Üst notlarda teminatsız çalışılabilir.');
   }, 20000);
 
-  // ADIM 3 — Finansal oranlar | 28000ms
+  // ADIM 3 — Finansal oranlar | 35000ms (ADIM 2 ~12sn konuşma → 20+12+3 buffer)
   setTimeout(() => {
     if (!window._demoMod) return;
     const oran = document.getElementById('liquidityRatios');
@@ -9137,18 +9141,18 @@ function _demoAnalizSunumu() {
     _bsoy('Finansal oranlar bölümünde 18 oran hesaplanmış. ' +
       'Her oran için referans aralığı gösterilir. ' +
       'Yeşil iyi, sarı kabul edilebilir, kırmızı riskli demektir.');
-  }, 31000);
+  }, 35000);
 
-  // ADIM 4 — Rating artırıcı öneriler | 39000ms
+  // ADIM 4 — Rating artırıcı öneriler | 46000ms (ADIM 3 ~8sn konuşma → 35+8+3 buffer)
   setTimeout(() => {
     if (!window._demoMod) return;
     const oneri = document.getElementById('i18nOneri');
     if (oneri) { oneri.scrollIntoView({behavior:'smooth', block:'center'}); _vurgula(oneri, 8000); }
     _bsoy('Rating artırıcı öneriler bölümünde firmanın zayıf noktaları ve iyileştirme adımları yer alır. ' +
       'Bu öneriler PDF raporda da bulunur.');
-  }, 42000);
+  }, 46000);
 
-  // ADIM 5 — Özet bilanço | 49000ms
+  // ADIM 5 — Özet bilanço | 57000ms (ADIM 4 ~8sn konuşma → 46+8+3 buffer)
   setTimeout(() => {
     if (!window._demoMod) return;
     const ozet = document.getElementById('ozetTabloGrid');
@@ -9159,9 +9163,9 @@ function _demoAnalizSunumu() {
     }
     _bsoy('Özet bilanço ve gelir tablosu bölümünde aktif ve pasif toplamı birbirine eşittir. ' +
       'Aktif pasif dengesi sağlıklı bir bilançonun temelidir.');
-  }, 52000);
+  }, 57000);
 
-  // ADIM 6 — Senaryo analizi | 60000ms
+  // ADIM 6 — Senaryo analizi | 69000ms (ADIM 5 ~9sn konuşma → 57+9+3 buffer)
   setTimeout(() => {
     if (!window._demoMod) return;
     window.scrollTo({top:0, behavior:'smooth'});
@@ -9187,9 +9191,9 @@ function _demoAnalizSunumu() {
     _bsoy('Kredi notu artırma senaryo analizi. Sermaye, borç vadesi, kârlılık ve ciro ' +
       'parametreleriyle simülasyon yapılır. ' +
       'Bu ekranda gördüğünüz puan ve kredi notu, o anki senaryo değerlerine göre canlı hesaplanır.');
-  }, 63000);
+  }, 69000);
 
-  // ADIM 7 — KV→UV taşıma ek senaryo ve simülasyon | 78000ms (+6sn: ADIM 6 metni 18sn)
+  // ADIM 7 — KV→UV taşıma ek senaryo ve simülasyon | 91000ms (ADIM 6 ~19sn konuşma → 69+19+3 buffer)
   setTimeout(() => {
     if (!window._demoMod) return;
     // KV taşıma oranını %75 yap, vade 48 ay
@@ -9213,9 +9217,9 @@ function _demoAnalizSunumu() {
     _bsoy('Kısa vadeli banka borcunun yüzde 75 i 48 ay vadeli taksitli kredi kullanılarak kapatıldığında, ' +
       'senaryo puanı ve kredi notu anlık olarak güncellenir. Ekranda gördüğünüz değerler geçerlidir. ' +
       'Bu şekilde birçok simülasyon yapılabilir.');
-  }, 81000);
+  }, 91000);
 
-  // ADIM 8 — FinSkor Otomatik Senaryo Önerisi | 96000ms (+18sn: ADIM 7 metni)
+  // ADIM 8 — FinSkor Otomatik Senaryo Önerisi | 113000ms (ADIM 7 ~19sn konuşma → 91+19+3 buffer)
   setTimeout(() => {
     if (!window._demoMod) return;
     const sen = document.getElementById('senaryoModal');
@@ -9229,9 +9233,9 @@ function _demoAnalizSunumu() {
     _bsoy('FinSkor otomatik senaryo önerisi, notunuzu bir ve iki kademe artırmak için ' +
       'en uygun kombinasyonu hesaplar. Sermaye artışı, kısa vadeden uzun vadeye taşıma ve satış büyümesi ' +
       'kombinasyonları denenir. Bu öneri PDF raporda da yer alır.');
-  }, 99000);
+  }, 113000);
 
-  // ADIM 9 — Kapanış | 114000ms (+18sn)
+  // ADIM 9 — Kapanış | 130000ms (ADIM 8 ~14sn konuşma → 113+14+3 buffer)
   setTimeout(() => {
     if (!window._demoMod) return;
     window.scrollTo({top:0, behavior:'smooth'});
@@ -9241,7 +9245,7 @@ function _demoAnalizSunumu() {
       'Kredi başvurusundan önce notunuzu öğrenin, zayıf noktaları güçlendirin, ' +
       'bankaya hazırlıklı gidin. Daha az teminat, daha iyi faiz, daha hızlı onay. ' +
       'FinSkor, kredide güç dengesi artık sizin tarafınızda.');
-  }, 117000);
+  }, 130000);
 }
 
 
