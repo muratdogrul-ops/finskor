@@ -1,0 +1,3321 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NakitFlow v3 — 60 Aylık Nakit Akış</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
+// ═══════════════════════════════════════════════════════
+// BAYKUŞ AVATAR — Sayfa bazlı yardım sistemi
+// ═══════════════════════════════════════════════════════
+const OWL_TIPS = {
+  home: {
+    title: 'Hoş Geldiniz!',
+    text: `Bu uygulama ile <b>60 aylık nakit akış projeksiyonu</b> oluşturabilirsin. Başlamak çok kolay:
+    <ul>
+      <li>Bu sayfada <b>+ Yeni Firma</b> butonuna bas ve firmanı oluştur</li>
+      <li>Firma oluşturulduktan sonra <b>sol menü otomatik açılır</b> — hemen Açılış sayfasına geçersin</li>
+      <li>Adım adım ilerle: <b>Açılış → Gelir → Varsayımlar → Giderler → Krediler → Projeksiyon</b></li>
+      <li>Her sayfada seni yönlendireceğim 😊</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> Mevcut firmaya dönmek için firma kartındaki <b>✎ Düzenle</b> butonuna bas.</div>`
+  },
+  opening: {
+    title: 'Açılış Bilanço',
+    text: `<b>Projeksiyon başlangıç değerlerini</b> buraya girin.
+    <ul>
+      <li><b>Nakit:</b> Başlangıç kasası (TL)</li>
+      <li><b>Alacaklar / Borçlar:</b> Mevcut stok bakiyeleri</li>
+      <li><b>Kredi bakiyeleri:</b> Mevcut taksitli kredi ve BCH borcu</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> Tüm değerler KDV hariç girilmelidir.</div>`
+  },
+  income: {
+    title: 'Referans Gelir Tablosu',
+    text: `<b>Yıl 1 bazlı gelir ve maliyet</b> verilerini girin.
+    <ul>
+      <li><b>Net Satış:</b> Yıllık toplam ciro (KDV hariç)</li>
+      <li><b>COGS %:</b> Satış maliyeti oranı</li>
+      <li><b>DSO / DPO:</b> Tahsilat ve ödeme günleri</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> Büyüme oranı "Varsayımlar" sayfasından Y2–Y5 için uygulanır.</div>`
+  },
+  ciro: {
+    title: 'Ciro Dağılımı',
+    text: `<b>Sezonsal firmalar için</b> aylık % dağılım tanımlayın.
+    <ul>
+      <li>12 ayın toplamı <b>%100</b> olmalı</li>
+      <li>Dağılım tüm 5 yıla uygulanır</li>
+      <li>Eşit dağılım için "Eşit Dağıt" kullanın</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> Yaz sezonu yoğun sektörler için Haziran–Ağustos aylarını artırın.</div>`
+  },
+  assumptions: {
+    title: 'Varsayımlar',
+    text: `<b>5 yıllık projeksiyon parametreleri</b> bu sayfadan yönetilir.
+    <ul>
+      <li><b>BCH Faiz:</b> Yıl bazında TL/USD/EUR oranları — TCMB butonu ile otomatik doldurulur</li>
+      <li><b>Mevduat Faizi:</b> Yıl bazında getiri oranı</li>
+      <li><b>Kur Artışı:</b> "⚡ Döviz Kurlarına Otomatik Uygula" butonu ile Döviz Kurları sayfasını doldurur</li>
+      <li><b>Vergi:</b> Kurumlar vergisi oranı ve ödeme ayları</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> BCH bölümündeki "⚡ TCMB Bazlı Otomatik Doldur" butonu güncel politika faizine +3 puan ekleyerek 5 yılı doldurur.</div>`
+  },
+  expenses: {
+    title: 'Giderler',
+    text: `<b>Aylık sabit giderleri</b> kalem kalem veya toplu girin.
+    <ul>
+      <li><b>Toplu Giriş:</b> Üstteki ⚡ kutuya aylık toplam yazın, kalem seçin</li>
+      <li><b>Kalem kalem:</b> Her grubu ayrı ayrı doldurun</li>
+      <li>Gider artışı "Varsayımlar" → Gider Büyümesi ile uygulanır</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> Personel maliyetleri için "Ücret ve Faydalar" + "Resmi Yükümlülükler" kalemlerini kullanın.</div>`
+  },
+  loans: {
+    title: 'Krediler',
+    text: `<b>Taksitli, Spot ve BCH</b> kredileri buradan ekleyin.
+    <ul>
+      <li><b>Taksitli:</b> Eşit taksit — anapara + faiz + %5 BSMV ayrı izlenir (KKDF yok)</li>
+      <li><b>Spot — Toplu:</b> Vade sonunda tüm anapara + basit faiz bir seferde ödenir</li>
+      <li><b>Spot — Sadece Faiz:</b> Her ay faiz, vade sonunda anapara ödenir</li>
+      <li><b>BCH:</b> Limit dahilinde döner kredi; nakit açığında otomatik çekilir</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> Taksitli kredide kullanım tarihi = nakit girişi, ilk taksit bir ay sonra başlar.</div>`
+  },
+  fx: {
+    title: 'Döviz Kurları',
+    text: `<b>USD ve EUR kurlarını</b> aylık bazda girin.
+    <ul>
+      <li><b>Açılış Kuru:</b> Projeksiyon başlangıç kuru</li>
+      <li><b>⚡ Otomatik Hesapla:</b> Yıllık büyüme oranına göre 60 ayı doldurur</li>
+      <li><b>📋 Sadece Açılış:</b> Boş aylara açılış kurunu uygular</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> "Varsayımlar" sayfasındaki ⚡ buton USD %7, EUR %6 büyüme ile tüm tabloyu otomatik doldurur ve kaydeder.</div>`
+  },
+  manual: {
+    title: 'Manuel Nakit Satırları',
+    text: `<b>Üç tip manuel kalem</b> eklenebilir:
+    <ul>
+      <li><b>📋 Diğer:</b> Hem nakit akışına hem gelir tablosuna girer</li>
+      <li><b>🏭 Yatırım / MDV:</b> Nakit çıkışı + bilançoda duran varlık (gelir tablosuna girmez)</li>
+      <li><b>💼 Sermaye Artışı:</b> Nakit girişi + bilançoda özkaynak (gelir tablosuna girmez)</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> Makine alımı için "Yatırım/MDV", ortak sermaye koyması için "Sermaye Artışı" seçin.</div>`
+  },
+  projection: {
+    title: 'Nakit Akış Tablosu',
+    text: `<b>60 aylık aylık nakit akış</b> projeksiyonu.
+    <ul>
+      <li>Yeşil = nakit girişi, Kırmızı = nakit çıkışı</li>
+      <li><b>Kapanış Bakiyesi</b> negatife düşerse BCH devreye girer</li>
+      <li>Excel ve PDF ile dışa aktarabilirsiniz</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> Tablo başlığına tıklayarak sütunları sabitleyebilirsiniz.</div>`
+  },
+  income5y: {
+    title: '5 Yıllık Gelir Tablosu',
+    text: `<b>Yıllık bazda gelir tablosu</b> özeti.
+    <ul>
+      <li>Brüt Kâr, EBITDA, EBT ve Net Kâr her yıl ayrı gösterilir</li>
+      <li>Taksit faizi + BSMV gelir tablosuna girer; <b>anapara girmez</b></li>
+      <li>Yatırım harcamaları ve sermaye artışı gelir tablosuna yansımaz</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> Net zarar 5 yıl devredilir ve sonraki yılların vergisini azaltır.</div>`
+  },
+  balance5y: {
+    title: '5 Yıllık Bilanço',
+    text: `<b>Yıl sonu bilanço</b> değerleri.
+    <ul>
+      <li><b>Dönen Varlıklar:</b> Nakit, Mevduat, Alacak, Stok</li>
+      <li><b>Duran Varlıklar:</b> Kümülatif MDV yatırımları</li>
+      <li><b>Özkaynak:</b> Açılış + Sermaye Artışı + Birikimli Net K/Z</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> Aktif ≠ Pasif ise açılış bilanço veya gelir/bilanço bağlantısını kontrol edin.</div>`
+  }
+};
+
+let owlOpen = false;
+
+function owlToggle(){
+  owlOpen = !owlOpen;
+  const panel = document.getElementById('owl-panel');
+  if(owlOpen){ panel.classList.add('open'); owlUpdate(); }
+  else        { panel.classList.remove('open'); }
+}
+function owlClose(){
+  owlOpen = false;
+  document.getElementById('owl-panel').classList.remove('open');
+}
+function owlUpdate(){
+  // Aktif sayfayı bul
+  const activePage = document.querySelector('.page.active');
+  if(!activePage) return;
+  const pageId = activePage.id.replace('page-','');
+  const tip = OWL_TIPS[pageId];
+  if(tip){
+    document.getElementById('owl-content').innerHTML =
+      '<b style="font-size:.78rem;color:var(--acc2)">📌 '+tip.title+'</b><br><br>' + tip.text;
+  }
+}
+// Sayfa değiştiğinde baykuş paneli güncelle
+const _origNavTo = typeof navTo === 'function' ? navTo : null;
+// navTo'yu wrap et — sayfa geçişlerinde owl güncelle
+document.addEventListener('DOMContentLoaded', ()=>{
+  // navTo zaten tanımlandıktan sonra wrap et
+  const origNav = window.navTo;
+  if(origNav){
+    window.navTo = function(page){
+      origNav(page);
+      if(owlOpen) setTimeout(owlUpdate, 60);
+    };
+  }
+  // Başlangıçta aktif sayfa için güncelle + home'da otomatik aç
+  setTimeout(()=>{
+    owlUpdate();
+    const activePage = document.querySelector('.page.active');
+    if(activePage && activePage.id === 'page-home'){
+      owlOpen = true;
+      document.getElementById('owl-panel').classList.add('open');
+    }
+  }, 400);
+});
+
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root{
+  --bg:#060810;--s1:#0c0f1a;--s2:#111827;--s3:#1a2236;
+  --bd:#1e2d4a;--bd2:#253552;
+  --acc:#0ea5e9;--acc2:#38bdf8;--acc3:#7dd3fc;
+  --grn:#10b981;--red:#f43f5e;--amb:#f59e0b;--pur:#818cf8;
+  --tx:#e2e8f0;--tx2:#94a3b8;--tx3:#475569;
+  --r:6px;--r2:12px;--r3:20px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:13px;scroll-behavior:smooth}
+body{background:var(--bg);color:var(--tx);font-family:'Syne',sans-serif;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.4;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.03'/%3E%3C/svg%3E")}
+#sidebar{position:fixed;left:0;top:0;bottom:0;width:232px;background:var(--s1);border-right:1px solid var(--bd);display:flex;flex-direction:column;z-index:50;overflow-y:auto;transition:transform .25s}
+.sidebar-logo{padding:20px 20px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px;flex-shrink:0}
+.logo-mark{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--acc),var(--pur));display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;flex-shrink:0;box-shadow:0 0 20px rgba(14,165,233,.3)}
+.logo-text{font-size:1rem;font-weight:700;letter-spacing:-.3px}
+.logo-sub{font-size:.65rem;color:var(--tx3);font-family:'JetBrains Mono',monospace;margin-top:1px}
+.nav-section{padding:12px 10px 4px;font-size:.6rem;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.12em}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 14px;margin:1px 8px;border-radius:var(--r);color:var(--tx2);font-size:.82rem;font-weight:500;cursor:pointer;transition:all .15s;border:none;background:none;width:calc(100% - 16px);text-align:left}
+.nav-item:hover{background:var(--s3);color:var(--tx)}
+.nav-item.active{background:rgba(14,165,233,.12);color:var(--acc);font-weight:600}
+.nav-item .icon{font-size:15px;width:18px;text-align:center;flex-shrink:0}
+.nav-divider{height:1px;background:var(--bd);margin:8px 16px}
+.sidebar-footer{margin-top:auto;padding:8px 12px 14px;border-top:1px solid var(--bd);flex-shrink:0}
+.ver-badge{font-size:.65rem;color:var(--tx3);font-family:'JetBrains Mono',monospace;text-align:center}
+#main{margin-left:232px;min-height:100vh;position:relative;z-index:1;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:40;background:rgba(6,8,16,.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:52px;flex-shrink:0}
+.topbar-title{font-size:.9rem;font-weight:600;color:var(--tx)}
+.topbar-actions{display:flex;gap:8px;align-items:center}
+.content{padding:24px;max-width:1440px}
+.page{display:none;animation:fadeIn .2s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.page-header{margin-bottom:24px}
+.page-header h1{font-size:1.6rem;font-weight:800;letter-spacing:-.5px;line-height:1.2}
+.page-header p{color:var(--tx2);font-size:.82rem;margin-top:5px}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px;margin-bottom:20px}
+.kpi{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r2);padding:16px 18px;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(14,165,233,.05),transparent);pointer-events:none}
+.kpi-label{font-size:.65rem;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px}
+.kpi-val{font-size:1.2rem;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--tx)}
+.kpi-val.blue{color:var(--acc)}.kpi-val.green{color:var(--grn)}.kpi-val.red{color:var(--red)}.kpi-val.amber{color:var(--amb)}
+.card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r2);padding:20px 22px;margin-bottom:16px}
+.card.glow{border-color:rgba(14,165,233,.25);box-shadow:0 0 30px rgba(14,165,233,.06)}
+.card-header{display:flex;align-items:center;gap:10px;padding-bottom:14px;margin-bottom:18px;border-bottom:1px solid var(--bd)}
+.card-icon{width:30px;height:30px;border-radius:8px;background:rgba(14,165,233,.1);border:1px solid rgba(14,165,233,.2);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.card-title{font-size:.9rem;font-weight:700}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.form-grid.cols2{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:.65rem;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.08em}
+input,select{background:var(--s3);border:1px solid var(--bd);border-radius:var(--r);color:var(--tx);padding:8px 11px;font-family:'JetBrains Mono',monospace;font-size:.85rem;width:100%;outline:none;transition:border-color .15s,box-shadow .15s;-webkit-locale:"tr";}
+input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(14,165,233,.12)}
+input::placeholder{color:var(--tx3)}
+hr.divider{border:none;border-top:1px solid var(--bd);margin:18px 0}
+.section-sep{font-size:.65rem;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.12em;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--bd)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--r);font-family:'Syne',sans-serif;font-size:.8rem;font-weight:600;cursor:pointer;border:none;transition:all .15s;white-space:nowrap}
+.btn-primary{background:var(--acc);color:#fff}
+.btn-primary:hover{background:var(--acc2);box-shadow:0 4px 16px rgba(14,165,233,.3)}
+.btn-secondary{background:var(--s3);color:var(--tx);border:1px solid var(--bd)}
+.btn-secondary:hover{border-color:var(--acc);color:var(--acc)}
+.btn-danger{background:rgba(244,63,94,.1);color:var(--red);border:1px solid rgba(244,63,94,.2)}
+.btn-danger:hover{background:rgba(244,63,94,.2)}
+.btn-ghost{background:transparent;color:var(--tx2)}
+.btn-ghost:hover{color:var(--tx)}
+.btn-sm{padding:5px 11px;font-size:.75rem}
+.btn-xs{padding:3px 8px;font-size:.7rem}
+.btn-group{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}
+.mult-btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.mult-btn{padding:6px 14px;border-radius:var(--r);font-family:'JetBrains Mono',monospace;font-size:.8rem;font-weight:600;cursor:pointer;border:1px solid var(--bd);background:var(--s3);color:var(--tx2);transition:all .15s}
+.mult-btn:hover{border-color:var(--acc);color:var(--acc)}
+.mult-btn.selected{background:var(--acc);color:#fff;border-color:var(--acc)}
+.mult-custom{width:90px!important;padding:6px 10px;text-align:center}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--bd);border-radius:var(--r2)}
+/* Scroll kendi içinde — header sabit kalır */
+.tbl-scroll{overflow-x:auto;overflow-y:auto;max-height:420px;border:1px solid var(--bd);border-radius:var(--r2)}
+table{width:100%;border-collapse:collapse;font-size:.78rem}
+thead th{background:var(--s2);color:var(--tx3);font-weight:700;font-size:.63rem;text-transform:uppercase;letter-spacing:.07em;padding:9px 12px;text-align:right;border-bottom:2px solid var(--bd2);white-space:nowrap;position:sticky;top:0;z-index:3}
+thead th:first-child{text-align:left;min-width:100px}
+tbody td{padding:7px 12px;text-align:right;border-bottom:1px solid rgba(30,45,74,.6);font-family:'JetBrains Mono',monospace;white-space:nowrap;color:var(--tx)}
+tbody td:first-child{text-align:left;font-family:'Syne',sans-serif;font-weight:500;color:var(--tx2)}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:rgba(14,165,233,.04)}
+.pos{color:var(--grn)!important}.neg{color:var(--red)!important}
+.muted-row td{background:var(--s2)!important;color:var(--tx3)!important;font-family:'Syne',sans-serif!important;font-size:.65rem;text-transform:uppercase;letter-spacing:.1em}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.63rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.badge-blue{background:rgba(14,165,233,.15);color:var(--acc)}
+.badge-green{background:rgba(16,185,129,.15);color:var(--grn)}
+.badge-red{background:rgba(244,63,94,.15);color:var(--red)}
+.badge-amber{background:rgba(245,158,11,.15);color:var(--amb)}
+.badge-pur{background:rgba(129,140,248,.15);color:var(--pur)}
+.alert{padding:10px 14px;border-radius:var(--r);font-size:.8rem;display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.alert-ok{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);color:#4ade80}
+.alert-err{background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.25);color:#f87171}
+.firm-item{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--bd);gap:12px;flex-wrap:wrap}
+.firm-item:last-child{border-bottom:none}
+.firm-name{font-weight:700;font-size:.95rem}
+.firm-date{font-size:.72rem;color:var(--tx3);font-family:'JetBrains Mono',monospace;margin-top:2px}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--s1);border:1px solid var(--bd2);border-radius:var(--r3);padding:28px;width:90%;max-width:600px;max-height:90vh;overflow-y:auto}
+@keyframes modalIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+.modal-title{font-size:1.1rem;font-weight:700;margin-bottom:20px}
+.notice{background:rgba(129,140,248,.07);border:1px solid rgba(129,140,248,.18);border-radius:var(--r);padding:9px 13px;font-size:.75rem;color:#a5b4fc;margin-top:10px}
+.empty{text-align:center;padding:40px 20px;color:var(--tx3)}
+.season-table{width:100%;border-collapse:collapse;margin-top:10px}
+.season-table td,.season-table th{padding:6px 10px;border:1px solid var(--bd);text-align:center}
+.season-table th{background:var(--s2);font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3)}
+.season-pct-input{width:80px!important;text-align:center;padding:5px 8px;font-size:.82rem}
+.season-ok{color:var(--grn);font-weight:700}.season-err{color:var(--red);font-weight:700}
+.fx-wrap{max-height:320px;overflow-y:auto;border:1px solid var(--bd);border-radius:var(--r);margin-top:8px}
+.fx-tbl{width:100%;border-collapse:collapse;font-size:.78rem}
+.fx-tbl th{background:var(--s2);padding:7px 10px;text-align:center;position:sticky;top:0;z-index:2;font-size:.63rem;text-transform:uppercase;color:var(--tx3);border-bottom:1px solid var(--bd)}
+.fx-tbl td{padding:5px 8px;border-bottom:1px solid rgba(30,45,74,.5);text-align:center}
+.fx-inp{width:100px!important;padding:4px 8px;font-size:.78rem;text-align:right}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--s1)}
+::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:3px}
+
+/* ── YILLIK PROJEKSIYON TABLOSU ── */
+.yr-block{margin-bottom:32px}
+.yr-header{display:flex;align-items:center;gap:14px;margin-bottom:0;padding:12px 18px;background:linear-gradient(135deg,rgba(14,165,233,.1),rgba(129,140,248,.06));border:1px solid rgba(14,165,233,.25);border-bottom:none;border-radius:var(--r2) var(--r2) 0 0;position:sticky;top:52px;z-index:10}
+.yr-num{font-size:1.5rem;font-weight:800;color:var(--acc);font-family:'JetBrains Mono',monospace;min-width:52px}
+.yr-period{font-size:.72rem;color:var(--tx3);font-family:'JetBrains Mono',monospace}
+.yr-try{font-size:.65rem;font-weight:700;color:var(--tx3);background:rgba(14,165,233,.1);border:1px solid rgba(14,165,233,.15);border-radius:4px;padding:2px 8px}
+.proj-tbl-wrap{overflow-x:auto;overflow-y:auto;max-height:70vh;border:1px solid var(--bd);border-radius:var(--r2)}
+.proj-tbl{width:100%;border-collapse:collapse;font-size:.75rem;min-width:1200px}
+.proj-tbl thead th{background:var(--s2);color:var(--tx3);font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;text-align:right;border-bottom:2px solid var(--bd);white-space:nowrap;position:sticky;top:0;z-index:3}
+.proj-tbl thead th.lbl-col{text-align:left;min-width:200px;position:sticky;left:0;top:0;z-index:5;background:var(--s2)}
+.proj-tbl tbody td{padding:6px 10px;text-align:right;border-bottom:1px solid rgba(30,45,74,.5);font-family:'JetBrains Mono',monospace;white-space:nowrap;font-size:.74rem}
+.proj-tbl tbody td.lbl-col{text-align:left;font-family:'Syne',sans-serif;font-weight:500;color:var(--tx2);position:sticky;left:0;z-index:2;background:var(--s1);min-width:200px;max-width:240px;white-space:normal;line-height:1.3;border-right:1px solid var(--bd)}
+.proj-tbl tbody td.lbl-col.grp{font-weight:700;color:var(--tx);background:var(--s2)!important;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;border-right:1px solid var(--bd)}
+.proj-tbl tbody td.lbl-col.sub{padding-left:24px;font-size:.72rem;background:var(--s1)!important}
+.proj-tbl tbody td.lbl-col.total{font-weight:700;color:var(--acc);background:var(--s1)!important}
+.proj-tbl tbody tr.row-grp td{background:rgba(14,165,233,.04)!important}
+.proj-tbl tbody tr.row-grp td.lbl-col{background:var(--s2)!important}
+.proj-tbl tbody tr.row-total td{background:rgba(14,165,233,.08)!important;font-weight:700}
+.proj-tbl tbody tr.row-total td.lbl-col{color:var(--acc);background:rgba(14,165,233,.08)!important}
+.proj-tbl tbody tr.row-kapanış td{background:rgba(16,185,129,.08)!important;font-weight:700}
+.proj-tbl tbody tr.row-kapanış td.lbl-col{color:var(--grn);background:rgba(16,185,129,.08)!important}
+.proj-tbl tbody tr:hover td{background:rgba(14,165,233,.04)}
+.proj-tbl .toplam-col{border-left:2px solid var(--bd);font-weight:700;color:var(--tx)}
+
+/* ══════════════════════════════════════════
+   AVATAR REHBER SİSTEMİ
+══════════════════════════════════════════ */
+.avatar-guide{
+  display:flex;align-items:flex-start;gap:14px;
+  background:linear-gradient(135deg,rgba(14,165,233,.07),rgba(129,140,248,.05));
+  border:1px solid rgba(14,165,233,.2);border-radius:14px;
+  padding:14px 16px;margin-bottom:18px;position:relative;
+  animation:avatarIn .4s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes avatarIn{from{opacity:0;transform:translateY(-8px) scale(.97)}to{opacity:1;transform:none}}
+.avatar-face{
+  flex-shrink:0;width:54px;height:54px;border-radius:50%;
+  background:linear-gradient(135deg,#0ea5e9,#818cf8);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.6rem;box-shadow:0 4px 14px rgba(14,165,233,.35);
+  position:relative;animation:avatarBob 3s ease-in-out infinite;
+}
+@keyframes avatarBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.avatar-face::after{
+  content:'';position:absolute;bottom:-3px;right:-2px;
+  width:16px;height:16px;border-radius:50%;
+  background:#10b981;border:2px solid var(--s1);
+}
+.avatar-bubble{flex:1}
+.avatar-bubble h3{
+  font-size:.8rem;font-weight:700;color:var(--acc);
+  margin:0 0 4px;text-transform:uppercase;letter-spacing:.06em;
+}
+.avatar-bubble p{font-size:.78rem;color:var(--tx2);margin:0;line-height:1.55}
+.avatar-bubble ul{margin:5px 0 0;padding-left:16px}
+.avatar-bubble ul li{font-size:.76rem;color:var(--tx2);line-height:1.6}
+.avatar-bubble strong{color:var(--tx)}
+.avatar-bubble .avatar-tip{
+  display:inline-block;margin-top:6px;font-size:.72rem;
+  color:var(--acc);background:rgba(14,165,233,.1);
+  border-radius:20px;padding:2px 10px;border:1px solid rgba(14,165,233,.2);
+}
+
+
+/* ═══════════════════════════════════════════
+   BAYKUŞ AVATAR — Sayfa Yardımcısı
+════════════════════════════════════════════ */
+.owl-bubble{
+  position:fixed;bottom:28px;right:28px;z-index:999;
+  display:flex;flex-direction:column;align-items:flex-end;gap:10px;
+}
+.owl-btn{
+  width:54px;height:54px;border-radius:50%;border:none;cursor:pointer;
+  background:linear-gradient(135deg,#0ea5e9,#38bdf8,#7dd3fc);
+  box-shadow:0 0 0 3px rgba(14,165,233,.25),0 8px 32px rgba(14,165,233,.35);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.55rem;transition:transform .2s,box-shadow .2s;
+  animation:owlPulse 3s ease-in-out infinite;
+  flex-shrink:0;
+}
+.owl-btn:hover{transform:scale(1.12);box-shadow:0 0 0 5px rgba(14,165,233,.35),0 12px 40px rgba(14,165,233,.5);}
+@keyframes owlPulse{
+  0%,100%{box-shadow:0 0 0 3px rgba(14,165,233,.25),0 8px 32px rgba(14,165,233,.35);}
+  50%{box-shadow:0 0 0 7px rgba(14,165,233,.15),0 8px 40px rgba(56,189,248,.5);}
+}
+.owl-panel{
+  background:var(--s2);border:1px solid var(--bd2);border-radius:16px;
+  padding:16px 18px;max-width:300px;min-width:220px;
+  box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 0 1px rgba(14,165,233,.08);
+  animation:owlSlideIn .25s cubic-bezier(.34,1.56,.64,1);
+  display:none;
+}
+.owl-panel.open{display:block;}
+@keyframes owlSlideIn{
+  from{opacity:0;transform:translateY(12px) scale(.95);}
+  to{opacity:1;transform:translateY(0) scale(1);}
+}
+.owl-panel-head{
+  display:flex;align-items:center;gap:10px;margin-bottom:12px;
+  padding-bottom:10px;border-bottom:1px solid var(--bd);
+}
+.owl-avatar-sm{
+  width:36px;height:36px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,#0ea5e9,#7dd3fc);
+  display:flex;align-items:center;justify-content:center;font-size:1.2rem;
+  box-shadow:0 0 12px rgba(14,165,233,.4);
+}
+.owl-name{font-weight:700;font-size:.82rem;color:var(--acc2);}
+.owl-title{font-size:.68rem;color:var(--tx3);margin-top:1px;}
+.owl-close{
+  margin-left:auto;background:none;border:none;color:var(--tx3);
+  font-size:1.1rem;cursor:pointer;padding:2px 5px;border-radius:4px;transition:color .15s;
+}
+.owl-close:hover{color:var(--tx);}
+.owl-content{font-size:.76rem;color:var(--tx2);line-height:1.65;}
+.owl-content b{color:var(--acc3);}
+.owl-content ul{margin:8px 0 4px 14px;}
+.owl-content li{margin-bottom:5px;}
+.owl-tip{
+  margin-top:10px;padding:8px 10px;border-radius:8px;
+  background:rgba(14,165,233,.08);border-left:3px solid var(--acc);
+  font-size:.72rem;color:var(--tx2);
+}
+.owl-tip b{color:var(--acc2);}
+
+</style>
+</head>
+<body translate="no" spellcheck="false">
+
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">N</div>
+    <div><div class="logo-text">NakitFlow</div><div class="logo-sub">v3.0 — Projeksiyon</div></div>
+  </div>
+  <div class="nav-section">Genel</div>
+  <button class="nav-item active" data-page="home" onclick="navTo('home')"><span class="icon">🏠</span> Firmalar</button>
+  <div class="nav-divider"></div>
+  <div class="nav-section" id="firm-nav-label" style="display:none">Firma İşlemleri</div>
+  <div id="firm-nav-items" style="display:none">
+    <button class="nav-item" data-page="opening"      onclick="navTo('opening')">     <span class="icon">⚖️</span> Açılış Bilanço</button>
+    <button class="nav-item" data-page="income"       onclick="navTo('income')">      <span class="icon">📊</span> Referans Gelir</button>
+    <button class="nav-item" data-page="ciro"         onclick="navTo('ciro')">        <span class="icon">📅</span> Ciro Dağılımı</button>
+    <button class="nav-item" data-page="assumptions"  onclick="navTo('assumptions')"> <span class="icon">⚙️</span> Varsayımlar</button>
+    <button class="nav-item" data-page="expenses"     onclick="navTo('expenses')">    <span class="icon">💸</span> Giderler</button>
+    <button class="nav-item" data-page="loans"        onclick="navTo('loans')">       <span class="icon">🏦</span> Krediler</button>
+    <button class="nav-item" data-page="fx"           onclick="navTo('fx')">          <span class="icon">💱</span> Döviz Kurları</button>
+    <button class="nav-item" data-page="manual"       onclick="navTo('manual')">      <span class="icon">✏️</span> Manuel Satırlar</button>
+    <div class="nav-divider"></div>
+    <button class="nav-item" data-page="projection"   onclick="navTo('projection')">  <span class="icon">📈</span> Nakit Akış</button>
+    <button class="nav-item" data-page="income5y"     onclick="navTo('income5y')">    <span class="icon">📉</span> 5Y Gelir</button>
+    <button class="nav-item" data-page="balance5y"    onclick="navTo('balance5y')">   <span class="icon">🗂️</span> 5Y Bilanço</button>
+  </div>
+  <div class="nav-divider"></div>
+  <div style="padding:10px 12px;display:flex;flex-direction:column;gap:6px">
+    <button class="btn btn-secondary" style="width:100%;font-size:.72rem;justify-content:flex-start;gap:8px" onclick="exportFirmaJSON()">
+      <span>💾</span> Firmayı Kaydet (.json)
+    </button>
+    <label class="btn btn-secondary" style="width:100%;font-size:.72rem;cursor:pointer;justify-content:flex-start;gap:8px;display:flex;align-items:center">
+      <span>📂</span> Firma Yükle (.json)
+      <input type="file" accept=".json" style="display:none" onchange="importFirmaJSON(event)">
+    </label>
+    <button class="btn btn-secondary" style="width:100%;font-size:.72rem;justify-content:flex-start;gap:8px" onclick="exportAllJSON()">
+      <span>🗄️</span> Tüm Veriyi Yedekle
+    </button>
+    <label class="btn btn-secondary" style="width:100%;font-size:.72rem;cursor:pointer;justify-content:flex-start;gap:8px;display:flex;align-items:center">
+      <span>♻️</span> Yedekten Geri Yükle
+      <input type="file" accept=".json" style="display:none" onchange="importAllJSON(event)">
+    </label>
+  </div>
+  <div class="sidebar-footer"><div class="ver-badge">v3.1 — Kayıt + Excel + PDF</div></div>
+</nav>
+
+<div id="main">
+  <div class="topbar">
+    <span class="topbar-title" id="topbar-title">Firmalar</span>
+    <div class="topbar-actions" id="topbar-actions"></div>
+  </div>
+  <div class="content">
+    <div id="alert-area"></div>
+
+    <!-- HOME -->
+    <div class="page active" id="page-home">
+      <div class="page-header"><h1>Firmalar</h1><p>60 aylık nakit akış projeksiyon sistemi — Döviz, Sezonsal Ciro, Stok Çarpanı</p></div>
+<div class="avatar-guide">
+  <div class="avatar-face">🏢</div>
+  <div class="avatar-bubble">
+    <h3>Merhaba! Ben Nakit, senin mali rehberinim 👋</h3>
+    <p>Bu uygulama ile <strong>60 aylık nakit akış projeksiyonu</strong> oluşturabilirsin. Başlamak çok kolay:</p>
+    <ul>
+      <li>Önce bu sayfada <strong>+ Yeni Firma</strong> butonuna bas ve firmanı oluştur.</li>
+      <li>Firma oluşturulduktan sonra <strong>sol menü otomatik açılır</strong> ve seni Açılış sayfasına yönlendirir.</li>
+      <li>Adım adım ilerle: <strong>Açılış → Gelir → Varsayımlar → Giderler → Krediler → Projeksiyon</strong></li>
+      <li>Her sayfada seni yönlendireceğim 😊</li>
+    </ul>
+    <span class="avatar-tip">💡 Mevcut firmaya dönmek için firma kartındaki <strong>✎ Düzenle</strong> butonuna bas.</span>
+  </div>
+</div>
+
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+        <input id="firm-search" placeholder="Firma adı ara..." oninput="renderFirmList()" style="width:260px">
+        <button class="btn btn-primary" onclick="openNewFirmModal()">+ Yeni Firma</button>
+      </div>
+      <div class="card glow">
+        <div class="card-header"><div class="card-icon">🏢</div><div class="card-title" id="firm-list-title">Kayıtlı Firmalar</div></div>
+        <div id="firm-list"></div>
+      </div>
+    </div>
+
+    <!-- OPENING -->
+    <div class="page" id="page-opening">
+      <div class="page-header"><h1>Açılış Bilanço</h1><p>KDV hariç açılış değerleri</p></div>
+<div class="avatar-guide">
+  <div class="avatar-face">📊</div>
+  <div class="avatar-bubble">
+    <h3>Açılış Bilanço — Projeksiyon başlangıç noktası</h3>
+    <p>Projeksiyon başladığında firmanın sahip olduğu değerleri buraya gir. <strong>KDV hariç</strong> tutarları kullan.</p>
+    <ul>
+      <li><strong>Nakit:</strong> Kasada ve hesaplarda bulunan TL tutarı</li>
+      <li><strong>Ticari Alacak:</strong> Henüz tahsil edilmemiş satışlar</li>
+      <li><strong>Stok:</strong> Elindeki mal/hammadde değeri</li>
+      <li><strong>Ticari Borç:</strong> Tedarikçilere ödenecek tutar</li>
+      <li><strong>BCH Bakiyesi:</strong> Borçlu Cari Hesap başlangıç bakiyesi</li>
+    </ul>
+    <span class="avatar-tip">💡 Emin değilsen sıfır bırakabilirsin — sonradan düzenlenebilir.</span>
+  </div>
+</div>
+
+      <div class="card glow">
+        <div class="card-header"><div class="card-icon">⚖️</div><div class="card-title">Açılış Bakiyeleri</div></div>
+        <div class="form-grid">
+          <div class="field"><label>💵 Kasa</label><input id="ob-cash" type="number" placeholder="0"></div>
+          <div class="field"><label>🏦 Banka</label><input id="ob-bank" type="number" placeholder="0"></div>
+          <div class="field"><label>📥 Ticari Alacak (AR)</label><input id="ob-ar" type="number" placeholder="0"></div>
+          <div class="field"><label>📤 Ticari Borç (AP)</label><input id="ob-ap" type="number" placeholder="0"></div>
+          <div class="field"><label>📦 Stok</label><input id="ob-inv" type="number" placeholder="0"></div>
+          <div class="field"><label>💼 Sermaye (Özkaynak)</label><input id="ob-capital" type="number" placeholder="0"></div>
+        </div>
+        <div class="btn-group"><button class="btn btn-primary" onclick="saveOpening()">💾 Kaydet</button></div>
+        <div class="notice">Sermaye nakit değildir; özkaynak kalemidir.</div>
+      </div>
+    </div>
+
+    <!-- INCOME -->
+    <div class="page" id="page-income">
+      <div class="page-header"><h1>Referans Gelir Tablosu</h1><p>Büyüme ve maliyet oranları bu veriden hesaplanır</p></div>
+<div class="avatar-guide">
+  <div class="avatar-face">📈</div>
+  <div class="avatar-bubble">
+    <h3>Referans Gelir — Projeksiyon motorunun yakıtı</h3>
+    <p>Geçmiş dönem veya bütçe rakamlarını gir. Tüm projeksiyon bu verilerden büyüyerek hesaplanır.</p>
+    <ul>
+      <li><strong>Yıllık Net Satış:</strong> KDV hariç toplam ciro</li>
+      <li><strong>COGS (Satılan Mal Maliyeti):</strong> Satışın doğrudan maliyeti — brüt kâr marjı buradan hesaplanır</li>
+      <li><strong>DSO / DPO:</strong> Ortalama tahsilat ve ödeme gün sayısı — nakit döngüsünü belirler</li>
+      <li><strong>Stok Çarpanı:</strong> Aylık satışın kaç katı stok tutulduğunu gösterir</li>
+    </ul>
+    <span class="avatar-tip">💡 Büyüme oranını <strong>Varsayımlar</strong> sayfasından ayarlayabilirsin.</span>
+  </div>
+</div>
+
+      <div class="card glow">
+        <div class="card-header"><div class="card-icon">📊</div><div class="card-title">Önceki Yıl Verileri</div></div>
+        <div class="form-grid cols2">
+          <div class="field"><label>Önceki Yıl Ciro (TL)</label><input id="is-rev" type="number" placeholder="0" oninput="autoCalcSmm()"></div>
+          <div class="field">
+            <label>Brüt Kâr Marjı % <span style="font-size:.7rem;color:var(--acc)">(girin → SMM otomatik hesaplanır)</span></label>
+            <input id="is-gm" type="number" placeholder="Örn: 35" step="0.1" min="0" max="100" oninput="autoCalcSmm()" style="border-color:var(--acc)">
+          </div>
+          <div class="field">
+            <label>SMM — Satışların Maliyeti (TL) <span style="font-size:.7rem;color:var(--tx3)">(Üretim/Ticari Mal Maliyeti)</span></label>
+            <input id="is-cogs" type="number" placeholder="Ciro × (1 − Brüt Kâr Marjı)" oninput="autoCalcGm()" step="any">
+          </div>
+          <div class="field" id="gm-display-field" style="display:flex;align-items:flex-end">
+            <div style="padding:8px 12px;background:var(--s2);border-radius:6px;width:100%;font-size:.82rem">
+              Hesaplanan Brüt Kâr Marjı: <b id="gm-live" style="color:var(--acc)">—</b>
+            </div>
+          </div>
+        </div>
+        <div class="btn-group"><button class="btn btn-primary" onclick="saveIncome()">💾 Kaydet</button></div>
+        <div class="notice">
+          <b>SMM (Satışların Maliyeti)</b> = Ciro × (1 − Brüt Kâr Marjı%/100)<br>
+          Projeksiyon boyunca brüt kâr marjı sabit tutulur. İki giriş yöntemi: ya ciro+SMM girin, ya da ciro+brüt kâr marjı% girin.
+        </div>
+      </div>
+    </div>
+
+    <!-- CİRO DAĞILIMI -->
+    <div class="page" id="page-ciro">
+      <div class="page-header"><h1>Ciro Dağılımı</h1><p>Sezonsal firmalar için aylık % dağılım — sonraki yıllarda büyüme oranı uygulanır</p></div>
+<div class="avatar-guide">
+  <div class="avatar-face">📅</div>
+  <div class="avatar-bubble">
+    <h3>Ciro Dağılımı — Sezonsal satışlar için</h3>
+    <p>Satışların aylara eşit dağılmıyorsa (örn. yaz sezonu, Ramazan dönemleri) burada oranları ayarlayabilirsin.</p>
+    <ul>
+      <li>12 aya <strong>yüzde dağılım</strong> gir — toplamın <strong>%100</strong> olması gerekir</li>
+      <li>Eşit dağılım istiyorsan her aya <strong>8.33</strong> yazabilirsin</li>
+      <li>Bu dağılım her yıl tekrar eder</li>
+    </ul>
+    <span class="avatar-tip">💡 Sezonsal iş yoksa bu sayfayı atlayabilirsin — varsayılan eşit dağılımdır.</span>
+  </div>
+</div>
+
+      <div class="card glow">
+        <div class="card-header"><div class="card-icon">📅</div><div class="card-title">Dağılım Modu</div></div>
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+          <button class="btn" id="mode-uniform-btn" onclick="setCiroMode('uniform')">📊 Eşit Dağılım (Otomatik)</button>
+          <button class="btn" id="mode-manual-btn"  onclick="setCiroMode('manual')"> ✏️ Manuel Sezonsal Dağılım</button>
+        </div>
+        <div id="ciro-uniform-panel">
+          <div class="notice">Her ay Yıllık Ciro / 12 olarak hesaplanır. Sezonsal dağılım için Manuel seçin.</div>
+          <div class="btn-group"><button class="btn btn-primary" onclick="saveCiro()">💾 Kaydet</button></div>
+        </div>
+        <div id="ciro-manual-panel" style="display:none">
+          <div class="notice" style="margin-bottom:12px">Her ayın yıllık ciro içindeki % payını girin. Toplam = 100% olmalı. Sonraki yıllarda bu dağılıma ciro artış oranı uygulanır.</div>
+          <table class="season-table">
+            <thead><tr><th>Ay</th><th>% Pay</th><th>Tahmini Tutar (TL)</th></tr></thead>
+            <tbody id="season-tbody"></tbody>
+            <tfoot><tr><td><b>TOPLAM</b></td><td><span id="season-total">0.00%</span></td><td></td></tr></tfoot>
+          </table>
+          <div class="btn-group">
+            <button class="btn btn-secondary" onclick="equalDistribute()">= Eşit Dağıt</button>
+            <button class="btn btn-primary"   onclick="saveCiro()">💾 Kaydet</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ASSUMPTIONS -->
+    <div class="page" id="page-assumptions">
+      <div class="page-header"><h1>Varsayımlar</h1><p>Projeksiyon parametreleri</p></div>
+<div class="avatar-guide">
+  <div class="avatar-face">⚙️</div>
+  <div class="avatar-bubble">
+    <h3>Varsayımlar — Projeksiyon parametrelerin</h3>
+    <p>Projeksiyon motorunun tüm ayarları burada. Her parametre sonuçları doğrudan etkiler.</p>
+    <ul>
+      <li><strong>Gelir/Gider Büyüme %:</strong> Her yıl satış ve giderler bu oranda artar</li>
+      <li><strong>BCH Faiz Oranları:</strong> Yıl bazında TL/USD/EUR BCH faizleri — TCMB baz alınır, <em>otomatik doldur</em> tuşunu kullan</li>
+      <li><strong>Mevduat Faizi:</strong> Nakit rezerv üzerinden kazanılan getiri</li>
+      <li><strong>Kurumlar Vergisi:</strong> Oran ve ödeme ayları</li>
+      <li><strong>Döviz Kuru:</strong> ⚡ butonu ile USD %7 / EUR %6 büyümeyi <strong>Döviz Kurları</strong> sayfasına otomatik uygular</li>
+    </ul>
+    <span class="avatar-tip">💡 TCMB Ocak 2026 politika faizi %37 — BCH için otomatik doldur butonunu kullan!</span>
+  </div>
+</div>
+
+      <div class="card glow">
+        <div class="card-header"><div class="card-icon">⚙️</div><div class="card-title">Büyüme & Projeksiyon</div></div>
+        <div class="section-sep">Projeksiyon</div>
+        <div class="form-grid">
+          <div class="field"><label>Projeksiyon (ay)</label><input id="ass-months" type="number" value="60" min="1" max="120"></div>
+          <div class="field"><label>Ciro Artış (Yıllık %)</label><input id="ass-growth" type="number" value="0" step="0.1"></div>
+          <div class="field"><label>Gider Artış (Yıllık %)</label><input id="ass-expgrowth" type="number" value="0" step="0.1"></div>
+        </div>
+        <hr class="divider">
+        <div class="section-sep">📦 Stok Hedef Çarpanı — Aylık COGS Katı</div>
+        <div class="notice" style="margin-bottom:10px">Firma kaç aylık satış maliyeti tutarında stok bulundursun?</div>
+        <div class="mult-btns" id="mult-btns">
+          <button class="mult-btn" onclick="setMult(0.5)">0.50×</button>
+          <button class="mult-btn" onclick="setMult(0.75)">0.75×</button>
+          <button class="mult-btn" onclick="setMult(1.0)">1.00×</button>
+          <button class="mult-btn" onclick="setMult(1.25)">1.25×</button>
+          <button class="mult-btn" onclick="setMult(1.5)">1.50×</button>
+          <button class="mult-btn" onclick="setMult(1.75)">1.75×</button>
+          <button class="mult-btn" onclick="setMult(2.0)">2.00×</button>
+          <button class="mult-btn" onclick="setMult(3.0)">3.00×</button>
+          <input class="mult-custom" id="mult-custom" type="number" step="0.05" min="0.1" max="12" placeholder="Özel..." oninput="setMultCustom()">
+        </div>
+        <div style="margin-top:8px;font-size:.75rem;color:var(--acc)">Seçili: <b id="mult-display">1.50×</b></div>
+        <hr class="divider">
+        <div class="section-sep" style="display:flex;align-items:center;justify-content:space-between">
+          <span>BCH (Borçlu Cari Hesap) — TL Faiz Oranları</span>
+          <button class="btn btn-secondary btn-sm" onclick="autoFillBchDep()" style="font-size:.7rem;padding:3px 10px">
+            ⚡ TCMB Bazlı Otomatik Doldur
+          </button>
+        </div>
+        <div class="form-grid">
+          <div class="field"><label>BCH Limit (TL)</label><input id="ass-bchlimit" type="number" value="0"></div>
+          <div class="field"><label>BCH Fallback Faiz TL %</label><input id="ass-bchrate" type="number" value="0" step="0.1"></div>
+          <div class="field"><label>TL BCH Y1 %</label><input id="ass-bch1" type="number" value="0" step="0.1"></div>
+          <div class="field"><label>TL BCH Y2 %</label><input id="ass-bch2" type="number" value="0" step="0.1"></div>
+          <div class="field"><label>TL BCH Y3 %</label><input id="ass-bch3" type="number" value="0" step="0.1"></div>
+          <div class="field"><label>TL BCH Y4 %</label><input id="ass-bch4" type="number" value="0" step="0.1"></div>
+          <div class="field"><label>TL BCH Y5 %</label><input id="ass-bch5" type="number" value="0" step="0.1"></div>
+        </div>
+        <div class="section-sep" style="margin-top:10px">BCH — USD Faiz Oranları (yıllık %)</div>
+        <div class="form-grid">
+          <div class="field"><label>USD Fallback %</label><input id="ass-bchusdrate" type="number" value="0" step="0.1"></div>
+          <div class="field"><label>USD Y1 %</label><input id="ass-bchusd1" type="number" value="0" step="0.1"></div>
+          <div class="field"><label>USD Y2 %</label><input id="ass-bchusd2" type="number" value="0" step="0.1"></div>
+          <div class="field"><label>USD Y3 %</label><input id="ass-bchusd3" type="number" value="0" step="0.1"></div>
+          <div class="field"><label>USD Y4 %</label><input id="ass-bchusd4" type="number" value="0" step="0.1"></div>
+          <div class="field"><label>USD Y5 %</label><input id="ass-bchusd5" type="number" value="0" step="0.1"></div>
+        </div>
+        <div class="section-sep" style="margin-top:10px">BCH — EUR Faiz Oranları (yıllık %)</div>
+        <div class="form-grid">
+          <div class="field"><label>EUR Fallback %</label><input id="ass-bcheurrate" type="number" value="0" step="0.1"></div>
+          <div class="field"><label>EUR Y1 %</label><input id="ass-bcheur1" type="number" value="0" step="0.1"></div>
+          <div class="field"><label>EUR Y2 %</label><input id="ass-bcheur2" type="number" value="0" step="0.1"></div>
+          <div class="field"><label>EUR Y3 %</label><input id="ass-bcheur3" type="number" value="0" step="0.1"></div>
+          <div class="field"><label>EUR Y4 %</label><input id="ass-bcheur4" type="number" value="0" step="0.1"></div>
+          <div class="field"><label>EUR Y5 %</label><input id="ass-bcheur5" type="number" value="0" step="0.1"></div>
+        </div>
+        <hr class="divider">
+        <div class="section-sep">Mevduat Faiz Oranları <span style="font-size:.68rem;color:var(--tx3)">(TCMB politika faizi baz alınır — ⚡ butonu doldurur)</span></div>
+        <div class="form-grid">
+          <div class="field"><label>Mevduat Y1 %</label><input id="ass-dep1" type="number" value="0" step="0.1"></div>
+          <div class="field"><label>Mevduat Y2 %</label><input id="ass-dep2" type="number" value="0" step="0.1"></div>
+          <div class="field"><label>Mevduat Y3 %</label><input id="ass-dep3" type="number" value="0" step="0.1"></div>
+          <div class="field"><label>Mevduat Y4 %</label><input id="ass-dep4" type="number" value="0" step="0.1"></div>
+          <div class="field"><label>Mevduat Y5 %</label><input id="ass-dep5" type="number" value="0" step="0.1"></div>
+        </div>
+        <hr class="divider">
+        <div class="section-sep">Kurumlar Vergisi</div>
+        <div class="form-grid">
+          <div class="field"><label>Vergi Oranı (%)</label><input id="ass-taxrate" type="number" value="25" step="0.1"></div>
+          <div class="field"><label>Ödeme Ayları (örn: 3,6,9,12)</label><input id="ass-taxmonths" type="text" value="3,6,9,12"></div>
+        </div>
+        <hr class="divider">
+        <div class="btn-group" style="gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="saveAssumptions()">💾 Varsayımları Kaydet</button>
+          <button class="btn btn-secondary" onclick="autoFillBchUsdEur()" style="font-size:.8rem">
+            ⚡ USD &amp; EUR BCH Faiz Oranlarını Otomatik Doldur
+          </button>
+        </div>
+        <div class="notice">Yıllık EBT ≤ 0 ise kurumlar vergisi = 0. Zarar 5 yıl devredilir.</div>
+      </div>
+    </div>
+
+    <!-- EXPENSES -->
+    <div class="page" id="page-expenses">
+      <div class="page-header"><h1>Giderler</h1><p>Aylık sabit gider kalemleri — kalem kalem veya toplu giriş</p></div>
+<div class="avatar-guide">
+  <div class="avatar-face">💸</div>
+  <div class="avatar-bubble">
+    <h3>Giderler — Aylık sabit maliyet kalemlerin</h3>
+    <p>Firmanın her ay düzenli ödediği giderleri buraya gir. Bu giderler gelir tablosunda <strong>Faaliyet Gideri</strong> olarak yer alır.</p>
+    <ul>
+      <li><strong>Toplu Giriş (Hızlı):</strong> Tüm giderleri tek tutar olarak üstteki kutuya girebilirsin</li>
+      <li><strong>Kalem Kalem Giriş:</strong> Personel, kira, elektrik gibi her kalemi ayrı ayrı doldur</li>
+      <li>Tutarlar <strong>KDV hariç, aylık TL</strong> olmalı</li>
+      <li>Giderler yıllık büyüme oranına göre otomatik artar (<strong>Varsayımlar</strong>'dan ayarlanır)</li>
+    </ul>
+    <span class="avatar-tip">💡 Tüm kalemleri doldurduktan sonra 💾 Kaydet butonuna basmayı unutma!</span>
+  </div>
+</div>
+
+
+      <!-- Toplu Hızlı Giriş -->
+      <div class="card glow" style="margin-bottom:16px">
+        <div class="card-header"><div class="card-icon">⚡</div><div class="card-title">Aylık Toplu KDVsiz Gider (Hızlı Giriş)</div></div>
+        <div class="notice" style="margin-bottom:12px;font-size:.76rem">
+          Kalem kalem girmek yerine tüm aylık gider toplamını buraya girebilirsiniz.
+          <b>Bu tutar "Operasyon → Diğer" kalemine yazar ve mevcut değerin üzerine gelir.</b>
+          Diğer kalemler sıfırlanmaz — sadece bu tek kalem güncellenir.
+        </div>
+        <div class="form-grid" style="grid-template-columns:1fr 1fr auto">
+          <div class="field">
+            <label>Aylık Toplam Gider (KDV Hariç, TL)</label>
+            <input id="bulk-expense" type="number" placeholder="0" step="any" style="font-size:1rem">
+          </div>
+          <div class="field">
+            <label>Kalem (hangi gider kalemine yazılacak)</label>
+            <select id="bulk-expense-target" style="height:38px">
+              <option value="Diğer">Operasyon → Diğer</option>
+              <option value="Ücret ve Faydalar">Personel → Ücret ve Faydalar</option>
+              <option value="Kira">Operasyon → Kira</option>
+              <option value="Personel Yemek">Operasyon → Personel Yemek</option>
+              <option value="Elektrik &amp; Isınma &amp; Su">Operasyon → Elektrik &amp; Isınma &amp; Su</option>
+            </select>
+          </div>
+          <div class="field" style="display:flex;align-items:flex-end">
+            <button class="btn btn-primary" onclick="applyBulkExpense()">⚡ Uygula</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="expense-groups"></div>
+      <div class="btn-group" style="margin-top:0"><button class="btn btn-primary" onclick="saveExpenses()">💾 Tüm Giderleri Kaydet</button></div>
+      <div class="notice" style="margin-top:12px">Gider artış oranı "Varsayımlar" sekmesinden yıllık % olarak uygulanır.</div>
+    </div>
+
+    <!-- LOANS -->
+    <div class="page" id="page-loans">
+      <div class="page-header"><h1>Krediler</h1><p>Taksitli · Spot · BCH — TL, USD, EUR destekli</p></div>
+<div class="avatar-guide">
+  <div class="avatar-face">🏦</div>
+  <div class="avatar-bubble">
+    <h3>Krediler — Taksitli, Spot ve BCH</h3>
+    <p>Firmanın mevcut veya planlı kredilerini buraya ekle. 3 farklı kredi tipi desteklenmektedir:</p>
+    <ul>
+      <li><strong>🏦 Taksitli Kredi:</strong> Eşit taksitli — BSMV dahil faiz+BSMV gelir tablosuna, anapara bilançoya gider. <em>KKDF yoktur.</em></li>
+      <li><strong>⚡ Spot Kredi:</strong> Vadeli avans — Toplu ödeme veya sadece faiz ödeme seçenekli</li>
+      <li><strong>🔄 BCH (Borçlu Cari Hesap):</strong> Rotatif limit — Limit dahilinde otomatik kullanım/geri ödeme</li>
+    </ul>
+    <span class="avatar-tip">💡 TL, USD ve EUR cinsinden kredi girebilirsin — TL karşılığı kur tablosundan otomatik hesaplanır.</span>
+  </div>
+</div>
+
+
+      <div class="card glow">
+        <div class="card-header"><div class="card-icon">🏦</div><div class="card-title">Mevcut Krediler</div></div>
+        <div class="tbl-scroll"><table><thead><tr>
+          <th style="text-align:left;min-width:80px">Tip</th><th style="text-align:left;min-width:100px">Banka</th>
+          <th>Döviz</th><th>Anapara</th><th>Kullanım Tarihi</th><th>Vade</th><th>Faiz %</th><th></th>
+        </tr></thead><tbody id="loan-table-body"></tbody></table></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-icon">📂</div><div class="card-title">Excel / PDF'den Kredi Yükle</div></div>
+        <div class="notice" style="margin-bottom:12px">Excel (.xlsx/.xls/.csv) veya PDF dosyasından kredi verilerini içe aktarın.<br>
+          Sütunlar: <b>Tip | Banka | Döviz | Anapara | Kullanım Tarihi | Vade (ay) | Faiz %</b> &nbsp;—&nbsp; Tip: <i>taksitli / spot / bch</i></div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <input type="file" id="loan-file-input" accept=".xlsx,.xls,.csv,.pdf" style="display:none" onchange="handleLoanFile(event)">
+          <button class="btn btn-secondary" onclick="document.getElementById('loan-file-input').click()">📁 Dosya Seç</button>
+          <span id="loan-import-status" style="font-size:.78rem;color:var(--tx2)"></span>
+        </div>
+        <div id="loan-preview" style="display:none;margin-top:14px">
+          <div class="section-sep">Önizleme</div>
+          <div class="tbl-scroll"><table><thead><tr>
+            <th style="text-align:left">Tip</th><th>Banka</th><th>Döviz</th><th>Anapara</th><th>Tarih</th><th>Vade</th><th>Faiz %</th><th>Durum</th>
+          </tr></thead><tbody id="loan-preview-body"></tbody></table></div>
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="importLoansFromPreview()">✓ Aktar</button>
+            <button class="btn btn-ghost" onclick="clearLoanPreview()">İptal</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+
+        <div class="card">
+          <div class="card-header"><div class="card-icon">📅</div><div class="card-title">Yeni Taksitli Kredi</div></div>
+          <div class="form-grid" style="grid-template-columns:1fr">
+            <div class="field"><label>Banka</label><input id="ln-bank" placeholder="Banka adı"></div>
+            <div class="field"><label>Para Birimi</label>
+              <select id="ln-ccy"><option value="TL">🇹🇷 TL</option><option value="USD">🇺🇸 USD</option><option value="EUR">🇪🇺 EUR</option></select></div>
+            <div class="field"><label>Anapara</label><input id="ln-principal" type="number" placeholder="0"></div>
+            <div class="field"><label>Kullanım Tarihi (GG-AA-YYYY)</label><input id="ln-date" placeholder="01-01-2026"></div>
+            <div class="field"><label>Vade (ay)</label><input id="ln-term" type="number" placeholder="36"></div>
+            <div class="field"><label>Yıllık Faiz %</label><input id="ln-rate" type="number" placeholder="25" step="0.1"></div>
+          </div>
+          <div class="btn-group"><button class="btn btn-primary" onclick="addInstallmentLoan()">+ Ekle</button></div>
+          <div class="notice" style="margin-top:8px">Her ay eşit taksit. İlk ödeme kullanım ayından 1 ay sonra.</div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><div class="card-icon">⚡</div><div class="card-title">Yeni Spot Kredi</div></div>
+
+          <!-- Spot Tip Seçimi -->
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <button id="sp-type-bullet" class="btn btn-primary btn-sm" style="flex:1;font-size:.72rem" onclick="setSpotType('bullet')">
+              🔴 Toplu Ödeme<br><span style="font-opacity:.7;font-size:.65rem">Vade sonunda anapara+faiz</span>
+            </button>
+            <button id="sp-type-interest" class="btn btn-ghost btn-sm" style="flex:1;font-size:.72rem" onclick="setSpotType('interest_only')">
+              💧 Sadece Faiz<br><span style="font-size:.65rem">Aylık faiz, vadede anapara</span>
+            </button>
+          </div>
+          <div id="sp-type-notice" class="notice" style="margin-bottom:10px;font-size:.72rem">
+            <b>Toplu Ödeme:</b> Vade boyunca ödeme yok. Vade sonunda anapara + toplam basit faiz tek seferde ödenir.<br>
+            Faiz = Anapara × (Yıllık % ÷ 12) × Vade Ay
+          </div>
+
+          <div class="form-grid" style="grid-template-columns:1fr">
+            <div class="field"><label>Banka</label><input id="sp-bank" placeholder="Banka adı"></div>
+            <div class="field"><label>Para Birimi</label>
+              <select id="sp-ccy"><option value="TL">🇹🇷 TL</option><option value="USD">🇺🇸 USD</option><option value="EUR">🇪🇺 EUR</option></select></div>
+            <div class="field"><label>Anapara</label><input id="sp-principal" type="number" placeholder="0"></div>
+            <div class="field">
+              <label>Kullanım Tarihi (GG-AA-YYYY)</label>
+              <input id="sp-date" placeholder="05-08-2025" oninput="updateSpotPreview()">
+              <span id="sp-maturity" style="font-size:.68rem;color:var(--acc);margin-top:3px;display:block"></span>
+            </div>
+            <div class="field"><label>Vade (ay)</label><input id="sp-term" type="number" placeholder="12" oninput="updateSpotPreview()"></div>
+            <div class="field"><label>Yıllık Faiz %</label><input id="sp-rate" type="number" placeholder="40" step="0.1" oninput="updateSpotPreview()"></div>
+          </div>
+          <div id="sp-preview" class="notice" style="margin-top:8px;font-size:.72rem;color:var(--acc)"></div>
+          <div class="btn-group" style="margin-top:10px"><button class="btn btn-primary" onclick="addSpotLoan()">+ Ekle</button></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><div class="card-icon">🔄</div><div class="card-title">Mevcut BCH Borcu</div></div>
+          <div class="form-grid" style="grid-template-columns:1fr">
+            <div class="field"><label>Banka</label><input id="bch-bank" placeholder="Banka adı"></div>
+            <div class="field"><label>Para Birimi</label>
+              <select id="bch-ccy"><option value="TL">🇹🇷 TL</option><option value="USD">🇺🇸 USD</option><option value="EUR">🇪🇺 EUR</option></select></div>
+            <div class="field"><label>BCH Bakiyesi</label><input id="bch-principal" type="number" placeholder="0"></div>
+          </div>
+          <div class="btn-group"><button class="btn btn-primary" onclick="addBchLoan()">+ Ekle</button></div>
+          <div class="notice" style="margin-top:8px;font-size:.72rem">BCH faiz oranları "Varsayımlar" → BCH bölümünden dövize göre girilir.</div>
+        </div>
+
+      </div>
+    </div>
+
+<!-- DÖVİZ KURLARI -->
+    <div class="page" id="page-fx">
+      <div class="page-header"><h1>Döviz Kurları</h1><p>USD ve EUR krediler için aylık TL kuru — ilgili ay ödemesi bu kurla çarpılır</p></div>
+<div class="avatar-guide">
+  <div class="avatar-face">💱</div>
+  <div class="avatar-bubble">
+    <h3>Döviz Kurları — 60 aylık USD ve EUR kur tahmini</h3>
+    <p>USD ve EUR cinsinden her türlü işlem (kredi, gelir, gider) için TL kuru buradan alınır.</p>
+    <ul>
+      <li><strong>Açılış Kuru:</strong> Projeksiyon başlangıcındaki USD/TL ve EUR/TL kurunu gir</li>
+      <li><strong>⚡ Otomatik Hesapla:</strong> Yıllık büyüme oranına göre 60 ayı otomatik doldurur</li>
+      <li><strong>📋 Sadece Açılış:</strong> Tüm ayları sabit açılış kuruyla doldurur</li>
+      <li>İstediğin ayı manuel olarak değiştirebilirsin</li>
+    </ul>
+    <span class="avatar-tip">💡 Varsayımlar sayfasındaki ⚡ butonu USD %7 / EUR %6 büyümeyi buraya otomatik uygular!</span>
+  </div>
+</div>
+
+      <div class="card glow">
+        <div class="card-header"><div class="card-icon">💱</div><div class="card-title">Otomatik Kur Tahmini</div></div>
+        <div class="notice" style="margin-bottom:12px">
+          Güncel spot kurlar ve geçmiş yıl artış oranları baz alınarak hesaplanır. Manuel olarak değiştirebilirsiniz.
+          <br><b>Güncel:</b> USD/TL ≈ 43.93 (1Y: +%21) &nbsp;|&nbsp; EUR/TL ≈ 51.90 (1Y: +%37)
+        </div>
+        <div class="form-grid">
+          <div class="field"><label>USD Açılış Kuru (1 USD = ? TL)</label><input id="fx-usd-open" type="number" placeholder="43.93" step="0.01"></div>
+          <div class="field"><label>EUR Açılış Kuru (1 EUR = ? TL)</label><input id="fx-eur-open" type="number" placeholder="51.90" step="0.01"></div>
+          <div class="field"><label>USD Yıllık Artış Tahmini (%)</label><input id="fx-usd-growth" type="number" value="21" step="0.1"></div>
+          <div class="field"><label>EUR Yıllık Artış Tahmini (%)</label><input id="fx-eur-growth" type="number" value="37" step="0.1"></div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="autoFillFx()">⚡ Otomatik Hesapla &amp; Doldur</button>
+          <button class="btn btn-secondary" onclick="fillFxFromOpen()">📋 Sadece Açılış Kurunu Uygula</button>
+        </div>
+        <div class="notice" style="margin-top:10px">Otomatik hesap: Açılış kurundan başlar, seçilen yıllık artış oranını aylık bileşik büyüme olarak uygular. İstediğiniz ayı manuel değiştirebilirsiniz.</div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-icon">📅</div><div class="card-title">Aylık Kur Tablosu</div></div>
+        <div class="notice" style="margin-bottom:10px">Boş aylarda bir önceki kur kullanılır. Manuel girişleriniz korunur.</div>
+        <div class="fx-wrap">
+          <table class="fx-tbl">
+            <thead><tr><th>Ay</th><th>Tarih</th><th>USD/TL</th><th>EUR/TL</th></tr></thead>
+            <tbody id="fx-tbody"></tbody>
+          </table>
+        </div>
+        <div class="btn-group"><button class="btn btn-primary" onclick="saveFx()">💾 Kaydet</button></div>
+      </div>
+    </div>
+
+    <!-- MANUAL -->
+    <div class="page" id="page-manual">
+      <div class="page-header"><h1>Manuel Nakit Satırları</h1><p>Yatırım · Sermaye Artışı · Diğer gelir/gider</p></div>
+<div class="avatar-guide">
+  <div class="avatar-face">✏️</div>
+  <div class="avatar-bubble">
+    <h3>Manuel Nakit Satırları — Özel gelir ve gider kalemleri</h3>
+    <p>Standart kategorilere girmeyen nakit hareketlerini buraya ekle. <strong>3 farklı muhasebe tipi</strong> vardır:</p>
+    <ul>
+      <li><strong>📋 Diğer:</strong> Normal gelir/gider — nakit akışına <em>ve</em> gelir tablosuna girer</li>
+      <li><strong>🏭 Yatırım / MDV:</strong> Makine, ekipman alımı — nakit çıkışı ve bilançoda MDV olarak kaydedilir, gelir tablosuna <em>girmez</em></li>
+      <li><strong>💼 Sermaye Artışı:</strong> Ortak katkısı — nakit girişi ve özkaynaklara kaydedilir, gelir tablosuna <em>girmez</em></li>
+    </ul>
+    <span class="avatar-tip">💡 Tutar pozitif = nakit girişi, negatif = nakit çıkışı. Yatırım için negatif, sermaye için pozitif gir.</span>
+  </div>
+</div>
+
+      <div class="card glow">
+        <div class="card-header"><div class="card-icon">✏️</div><div class="card-title">Kayıtlı Satırlar</div></div>
+        <div class="tbl-scroll"><table><thead><tr>
+          <th style="text-align:left;min-width:50px">Ay</th>
+          <th style="text-align:left">Tip</th>
+          <th style="text-align:left">Açıklama</th>
+          <th>Tutar (TL)</th><th></th>
+        </tr></thead><tbody id="manual-table-body"></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-icon">+</div><div class="card-title">Yeni Satır</div></div>
+
+        <!-- Tip seçimi -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+          <button id="mn-type-other"      class="btn btn-primary btn-sm"  onclick="setManualType('other')">
+            📋 Diğer<br><span style="font-size:.63rem;opacity:.8">Gelir tablosuna girer</span>
+          </button>
+          <button id="mn-type-investment" class="btn btn-ghost btn-sm"    onclick="setManualType('investment')">
+            🏭 Yatırım / MDV<br><span style="font-size:.63rem;opacity:.8">Nakit çıktısı · Bilançoda MDV</span>
+          </button>
+          <button id="mn-type-capital"    class="btn btn-ghost btn-sm"    onclick="setManualType('capital')">
+            💼 Sermaye Artışı<br><span style="font-size:.63rem;opacity:.8">Nakit girdisi · Özkaynak</span>
+          </button>
+        </div>
+        <div id="mn-type-notice" class="notice" style="margin-bottom:12px;font-size:.72rem">
+          <b>📋 Diğer:</b> Pozitif = nakit girdi + gelir tablosu geliri. Negatif = nakit çıktı + gelir tablosu gideri.
+        </div>
+
+        <div class="form-grid">
+          <div class="field"><label>Ay (1–120)</label><input id="mn-month" type="number" min="1" max="120"></div>
+          <div class="field" style="grid-column:span 2"><label>Açıklama</label><input id="mn-label" placeholder="Makine alımı, sermaye katkısı vs."></div>
+          <div class="field"><label id="mn-amount-label">Tutar TL (+ Gelir / − Gider)</label><input id="mn-amount" type="number" placeholder="0"></div>
+        </div>
+        <div class="btn-group"><button class="btn btn-primary" onclick="addManual()">+ Ekle</button></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-icon">ℹ️</div><div class="card-title">Muhasebe Kuralları</div></div>
+        <div style="font-size:.76rem;color:var(--tx2);line-height:1.7">
+          <div>📋 <b>Diğer:</b> Nakit akış tablosuna girer. <b>Gelir tablosuna</b> da yansır (olağan gelir/gider).</div>
+          <div>🏭 <b>Yatırım/MDV:</b> <b>Nakit çıktısı</b> olarak nakit akış tablosuna girer. <b>Bilançoda Maddi Duran Varlık</b> olarak izlenir. Gelir tablosuna girmez.</div>
+          <div>💼 <b>Sermaye Artışı:</b> <b>Nakit girdisi</b> olarak nakit akış tablosuna girer. <b>Bilançoda Özkaynak/Sermaye</b> olarak izlenir. Gelir tablosuna girmez.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROJECTION -->
+    <div class="page" id="page-projection">
+      <div class="page-header"><h1 id="proj-title">Nakit Akış Tablosu</h1><p id="proj-subtitle"></p></div>
+      <div id="proj-kpis" class="kpi-grid"></div>
+      <div class="notice" style="margin-bottom:14px">⚠ Yıllık VÖK(EBT) ≤ 0 ise kurumlar vergisi = 0. Zarar 5 yıl devredilir. Dövizli kredilerde aylık kur × taksit = TL.</div>
+      <div id="proj-years-container"></div>
+      <div class="btn-group" style="margin-top:16px;flex-wrap:wrap;gap:8px">
+        <button class="btn btn-primary" onclick="exportRaporExcel()">📊 Excel İndir (.xlsx)</button>
+        <button class="btn btn-secondary" onclick="exportRaporPDF()">📄 PDF İndir</button>
+        <button class="btn btn-ghost" onclick="exportCSV()">⬇ CSV (Ham Veri)</button>
+      </div>
+    </div>
+
+    <!-- INCOME 5Y -->
+    <div class="page" id="page-income5y">
+      <div class="page-header"><h1 id="inc5-title">5 Yıllık Gelir Tablosu</h1><p>Yıllık toplamlar</p></div>
+      <div class="tbl-wrap"><table><thead><tr id="inc5-headers"></tr></thead><tbody id="inc5-body"></tbody></table></div>
+      <div class="btn-group" style="margin-top:16px;flex-wrap:wrap;gap:8px">
+        <button class="btn btn-primary" onclick="exportGelirExcel()">📊 Excel İndir</button>
+        <button class="btn btn-secondary" onclick="exportGelirPDF()">📄 PDF İndir</button>
+        <button class="btn btn-ghost" onclick="exportCSV5Y('income')">⬇ CSV</button>
+      </div>
+    </div>
+
+    <!-- BALANCE 5Y -->
+    <div class="page" id="page-balance5y">
+      <div class="page-header"><h1 id="bal5-title">5 Yıllık Bilanço</h1><p>Yıl sonu anlık değerler</p></div>
+      <div class="tbl-wrap"><table><thead><tr id="bal5-headers"></tr></thead><tbody id="bal5-body"></tbody></table></div>
+      <div class="btn-group" style="margin-top:16px;flex-wrap:wrap;gap:8px">
+        <button class="btn btn-primary" onclick="exportBilançoExcel()">📊 Excel İndir</button>
+        <button class="btn btn-secondary" onclick="exportBilançoPDF()">📄 PDF İndir</button>
+        <button class="btn btn-ghost" onclick="exportCSV5Y('balance')">⬇ CSV</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL: YENİ FİRMA -->
+<div class="modal-bg" id="new-firm-modal">
+  <div class="modal">
+    <div class="modal-title">+ Yeni Firma Oluştur</div>
+    <div class="form-grid" style="grid-template-columns:1fr">
+      <div class="field"><label>Firma Adı</label><input id="nf-name" placeholder="ABC Tekstil A.Ş."></div>
+      <div class="field"><label>Nakit Akış Başlangıç Tarihi (GG-AA-YYYY)</label><input id="nf-date" placeholder="01-03-2026"></div>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-primary" onclick="createFirm()">Oluştur</button>
+      <button class="btn btn-ghost"   onclick="closeModal('new-firm-modal')">İptal</button>
+    </div>
+    <div class="notice">GG.AA.YYYY / YYYY-AA-GG formatları da kabul edilir.</div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// GLOBAL STATE
+// ══════════════════════════════════════════════
+let state = { firms: {}, currentFirmId: null };
+let currentMult = 1.5;
+
+const AY_ADI = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+
+const EXPENSE_GROUPS = [
+  {group:'Operasyon Giderleri',items:['Sorunlu Alacak','Fire % Kayıp','Personel Yemek','Banka Genel Gider ve TM Kom.','Telefon İnternet Gideri','Elektrik & Isınma & Su','Güvenlik Gideri','Bakım Onarım','Profesyonel Ücretler','Kira','Vergi Resim Harç','Kargo Logistics','Diğer']},
+  {group:'Personel',items:['Ücret ve Faydalar','Resmi Yükümlülükler','Personel Maliyeti Düzeltme','Sosyal Giderler']},
+  {group:'Pazarlama ve Satış',items:['Toplantı gideri & temsil','Seyahat Konaklama','Satış Destek Giderleri + İhracat Gid.','Reklam Giderleri']},
+  {group:'Sigorta',items:['Sorumluluk Sigortası','Diğer Sigorta']},
+  {group:'Taşıma',items:['Araç Kiralama','Araç Yakıtları']},
+  {group:'Üretim',items:['AR & GE']}
+];
+
+function genId(){return 'f'+Date.now()+Math.random().toString(36).slice(2,6);}
+function $(id){return document.getElementById(id);}
+
+// ══════════════════════════════════════════════
+// STORAGE
+// ══════════════════════════════════════════════
+async function saveState(){
+  try{await window.storage.set('nakit-state-v3',JSON.stringify(state));}catch(e){}
+}
+async function loadState(){
+  try{
+    const r = await window.storage.get('nakit-state-v3');
+    if(r && r.value){const s=JSON.parse(r.value);state.firms=s.firms||{};}
+  }catch(e){}
+}
+
+// ══════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════
+const PAGE_TITLES={home:'Firmalar',opening:'Açılış Bilanço',income:'Referans Gelir',ciro:'Ciro Dağılımı',
+  assumptions:'Varsayımlar',expenses:'Giderler',loans:'Krediler',fx:'Döviz Kurları',
+  manual:'Manuel Satırlar',projection:'Nakit Akış',income5y:'5Y Gelir',balance5y:'5Y Bilanço'};
+
+function navTo(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const pg=$('page-'+page);if(pg)pg.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.page===page));
+  $('topbar-title').textContent=PAGE_TITLES[page]||page;
+  const ta=$('topbar-actions');ta.innerHTML='';
+  if(state.currentFirmId&&page!=='home'){
+    const f=state.firms[state.currentFirmId];
+    if(f){const s=document.createElement('span');s.style.cssText='font-size:.75rem;color:var(--tx3)';s.textContent=f.name;ta.appendChild(s);}
+  }
+  const handlers={opening:populateOpening,income:populateIncome,ciro:populateCiro,assumptions:populateAssumptions,
+    expenses:renderExpenseGroups,loans:renderLoans,fx:populateFx,manual:renderManual,
+    projection:renderProjection,income5y:renderIncome5Y,balance5y:renderBalance5Y};
+  if(handlers[page])handlers[page]();
+}
+
+// ══════════════════════════════════════════════
+// ALERTS
+// ══════════════════════════════════════════════
+function showAlert(msg,type='ok'){
+  const area=$('alert-area');
+  const div=document.createElement('div');
+  div.className='alert alert-'+type;
+  div.innerHTML='<span>'+(type==='ok'?'✓':type==='err'?'✕':'ℹ')+'</span><span>'+msg+'</span>';
+  area.prepend(div);setTimeout(()=>div.remove(),3500);
+}
+
+// ══════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════
+function fnum(x,def=0){
+  if(x===null||x===undefined||x==='')return def;
+  let s=String(x).trim().replace(/\s/g,'');
+  if(s.includes('.')&&s.includes(','))s=s.replace(/\./g,'').replace(',','.');
+  else if(s.includes(',')&&!s.includes('.')){const p=s.split(',');if(p[p.length-1].length<=2)s=s.replace(',','.');else s=s.replace(/,/g,'');}
+  else if(s.includes('.')&&!s.includes(',')){const p=s.split('.');if(p.length>2||p[p.length-1].length===3)s=s.replace(/\./g,'');}
+  const v=parseFloat(s);return isNaN(v)?def:v;
+}
+function parseDate(s){
+  s=(s||'').trim();if(!s)return null;
+  let m;
+  if(m=s.match(/^(\d{1,2})[-.\/](\d{1,2})[-.\/](\d{4})$/))return new Date(+m[3],+m[2]-1,+m[1]);
+  if(m=s.match(/^(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})$/))return new Date(+m[1],+m[2]-1,+m[3]);
+  return null;
+}
+function fmtDate(d){if(!d)return '';const dt=d instanceof Date?d:new Date(d);return String(dt.getDate()).padStart(2,'0')+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+dt.getFullYear();}
+function addMonths(date,n){const d=new Date(date);d.setMonth(d.getMonth()+n);return d;}
+function tr(x,d=2){if(x===null||x===undefined)return '';return Number(x).toLocaleString('tr-TR',{minimumFractionDigits:d,maximumFractionDigits:d});}
+function parseIntList(s){return(s||'').split(',').map(x=>parseInt(x.trim())).filter(x=>!isNaN(x));}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ══════════════════════════════════════════════
+// FIRM MANAGEMENT
+// ══════════════════════════════════════════════
+function openNewFirmModal(){
+  $('nf-name').value='';$('nf-date').value='';
+  $('new-firm-modal').classList.add('open');
+  setTimeout(()=>$('nf-name').focus(),100);
+}
+function closeModal(id){$(id).classList.remove('open');}
+
+function createFirm(){
+  const name=($('nf-name').value||'').trim();
+  const dt=parseDate($('nf-date').value);
+  if(!name){showAlert('Firma adı gerekli.','err');return;}
+  if(!dt){showAlert('Geçersiz tarih. GG-AA-YYYY formatı kullanın.','err');return;}
+  const id=genId();
+  const defExp={};let i=0;
+  for(const{group,items}of EXPENSE_GROUPS)for(const item of items)defExp[i++]={group,name:item,amount:0};
+  const fxRates={usdOpen:0,eurOpen:0,monthly:Array.from({length:60},()=>({usd:0,eur:0}))};
+  state.firms[id]={id,name,startDate:dt.toISOString(),createdAt:new Date().toISOString(),
+    opening:{cash:0,bank:0,ar:0,ap:0,inventory:0,capital:0},
+    incomeStmt:{revenue:0,cogs:0},
+    ciro:{mode:'uniform',monthly:new Array(12).fill(100/12)},
+    assumptions:{months:60,growth:0,expGrowth:0,stockMult:1.5,bchLimit:0,bchRate:0,
+      bch1:0,bch2:0,bch3:0,bch4:0,bch5:0,dep1:0,dep2:0,dep3:0,dep4:0,dep5:0,taxRate:25,taxMonths:'3,6,9,12'},
+    expenses:defExp,loans:[],manualCf:[],fxRates};
+  saveState();closeModal('new-firm-modal');renderFirmList();
+  showAlert('"'+name+'" oluşturuldu. Sol menü açıldı — adım adım ilerleyebilirsin.','ok');
+  // Firma oluşturulduktan hemen sonra otomatik seç → sol menü açılır, Açılış'a geçilir
+  selectFirm(id);
+}
+
+function selectFirm(id){
+  state.currentFirmId=id;
+  $('firm-nav-label').style.display='';
+  $('firm-nav-items').style.display='';
+  navTo('opening');
+}
+function selectAndGo(id,page){
+  state.currentFirmId=id;
+  $('firm-nav-label').style.display='';
+  $('firm-nav-items').style.display='';
+  navTo(page);
+}
+function deleteFirm(id){
+  if(!confirm('Bu firmayı silmek istediğinizden emin misiniz?'))return;
+  const name=state.firms[id]?.name;
+  delete state.firms[id];
+  if(state.currentFirmId===id){
+    state.currentFirmId=null;
+    $('firm-nav-label').style.display='none';
+    $('firm-nav-items').style.display='none';
+    navTo('home');
+  }
+  saveState();renderFirmList();showAlert('"'+name+'" silindi.','ok');
+}
+
+function renderFirmList(){
+  const q=(($('firm-search')?.value)||'').toLowerCase();
+  const firms=Object.values(state.firms).filter(f=>f.name.toLowerCase().includes(q)).reverse();
+  $('firm-list-title').textContent='Kayıtlı Firmalar ('+firms.length+')';
+  const c=$('firm-list');
+  if(!firms.length){c.innerHTML='<div class="empty"><div style="font-size:2rem;margin-bottom:8px">🏢</div><p>'+(q?'Sonuç yok.':'Henüz kayıtlı firma yok.')+'</p></div>';return;}
+  c.innerHTML=firms.map(f=>'<div class="firm-item"><div><div class="firm-name">'+esc(f.name)+'</div><div class="firm-date">'+fmtDate(new Date(f.startDate))+'</div></div><div class="btn-group" style="margin:0">'+
+    '<button class="btn btn-primary btn-sm" data-action="edit" data-id="'+f.id+'">✎ Düzenle</button>'+
+    '<button class="btn btn-secondary btn-sm" data-action="proj" data-id="'+f.id+'">📈 Akış</button>'+
+    '<button class="btn btn-secondary btn-sm" data-action="inc5" data-id="'+f.id+'">📊 5Y Gelir</button>'+
+    '<button class="btn btn-secondary btn-sm" data-action="bal5" data-id="'+f.id+'">⚖️ 5Y Bilanço</button>'+
+    '<button class="btn btn-secondary btn-sm" data-action="save" data-id="'+f.id+'">💾 Kaydet</button>'+
+    '<button class="btn btn-danger btn-sm" data-action="del" data-id="'+f.id+'">🗑</button></div></div>').join('');
+}
+function curFirm(){
+  if(!state.currentFirmId){showAlert('Önce bir firma seçin.','err');return null;}
+  return state.firms[state.currentFirmId];
+}
+
+// ══════════════════════════════════════════════
+// OPENING BALANCE
+// ══════════════════════════════════════════════
+function populateOpening(){
+  const f=curFirm();if(!f)return;const o=f.opening||{};
+  ['cash','bank','ar','ap'].forEach(k=>{const el=$('ob-'+k);if(el)el.value=o[k]||0;});
+  if($('ob-inv'))$('ob-inv').value=o.inventory||0;
+  if($('ob-capital'))$('ob-capital').value=o.capital||0;
+}
+function saveOpening(){
+  const f=curFirm();if(!f)return;
+  f.opening={cash:fnum($('ob-cash').value),bank:fnum($('ob-bank').value),ar:fnum($('ob-ar').value),
+    ap:fnum($('ob-ap').value),inventory:fnum($('ob-inv').value),capital:fnum($('ob-capital').value)};
+  saveState();showAlert('Açılış bilanço kaydedildi.','ok');
+}
+
+// ══════════════════════════════════════════════
+// INCOME STATEMENT
+// ══════════════════════════════════════════════
+function autoCalcSmm(){
+  // Brüt kar marjı girilince SMM'yi otomatik hesapla
+  const rev = fnum($('is-rev').value, 0);
+  const gm  = fnum($('is-gm').value, -1);
+  if(rev > 0 && gm >= 0 && gm <= 100){
+    const smm = rev * (1 - gm/100);
+    $('is-cogs').value = Math.round(smm);
+    updateGmLive();
+  }
+}
+function autoCalcGm(){
+  // SMM girilince brüt kar marjını göster
+  updateGmLive();
+}
+function updateGmLive(){
+  const rev  = fnum($('is-rev').value, 0);
+  const cogs = fnum($('is-cogs').value, 0);
+  const lbl  = $('gm-live');
+  if(!lbl) return;
+  if(rev > 0){
+    const gm = (rev - cogs) / rev * 100;
+    lbl.textContent = gm.toFixed(2) + '%';
+    lbl.style.color = gm >= 0 ? 'var(--acc)' : 'var(--red)';
+    // Marj inputunu da güncelle (SMM'den hesaplandıysa)
+    const gmEl = $('is-gm');
+    if(gmEl && !gmEl.matches(':focus')) gmEl.value = gm.toFixed(2);
+  } else {
+    lbl.textContent = '—';
+  }
+}
+function populateIncome(){
+  const f=curFirm();if(!f)return;const is=f.incomeStmt||{};
+  $('is-rev').value  = is.revenue || 0;
+  $('is-cogs').value = is.cogs    || 0;
+  // Kayıtlı marjı göster
+  const rev=is.revenue||0, cogs=is.cogs||0;
+  if(rev>0){ const gm=(rev-cogs)/rev*100; const gmEl=$('is-gm'); if(gmEl) gmEl.value=gm.toFixed(2); }
+  updateGmLive();
+}
+function saveIncome(){
+  const f=curFirm();if(!f)return;
+  const rev  = fnum($('is-rev').value);
+  const cogs = fnum($('is-cogs').value);
+  // Eğer SMM 0 ama marj girilmişse SMM hesapla
+  const gm = fnum($('is-gm').value, -1);
+  const finalCogs = (cogs === 0 && gm >= 0 && rev > 0) ? rev*(1-gm/100) : cogs;
+  f.incomeStmt={revenue:rev, cogs:finalCogs};
+  saveState();showAlert('✅ Gelir tablosu kaydedildi. Brüt Kâr Marjı: '+((rev>0?((rev-finalCogs)/rev*100):0).toFixed(1))+'%','ok');
+}
+
+// ══════════════════════════════════════════════
+// CİRO DAĞILIMI (SEZONSALLIK)
+// ══════════════════════════════════════════════
+function setCiroMode(mode){
+  const f=curFirm();if(!f)return;
+  if(!f.ciro)f.ciro={mode:'uniform',monthly:new Array(12).fill(100/12)};
+  f.ciro.mode=mode;
+  const isManual=mode==='manual';
+  $('ciro-manual-panel').style.display=isManual?'':'none';
+  $('ciro-uniform-panel').style.display=isManual?'none':'';
+  $('mode-manual-btn').className='btn '+(isManual?'btn-primary':'btn-secondary');
+  $('mode-uniform-btn').className='btn '+(isManual?'btn-secondary':'btn-primary');
+}
+
+function populateCiro(){
+  const f=curFirm();if(!f)return;
+  if(!f.ciro)f.ciro={mode:'uniform',monthly:new Array(12).fill(100/12)};
+  setCiroMode(f.ciro.mode);
+  const rev=f.incomeStmt?.revenue||0;
+  const pcts=f.ciro.monthly||new Array(12).fill(100/12);
+  $('season-tbody').innerHTML=Array.from({length:12},(_,i)=>'<tr><td style="font-family:Syne,sans-serif;text-align:left">'+AY_ADI[i]+'</td>'+
+    '<td><input class="season-pct-input" type="number" step="0.01" min="0" max="100" id="sp-'+i+'" value="'+(pcts[i]||0).toFixed(4)+'" oninput="updateSeasonTotal()"></td>'+
+    '<td style="font-family:JetBrains Mono,monospace;color:var(--acc)">'+tr(rev*(pcts[i]||0)/100)+'</td></tr>').join('');
+  updateSeasonTotal();
+}
+
+function updateSeasonTotal(){
+  const f=curFirm();if(!f)return;
+  const rev=f.incomeStmt?.revenue||0;
+  let total=0;
+  for(let i=0;i<12;i++){
+    const v=fnum($('sp-'+i)?.value,0);total+=v;
+    const row=$('sp-'+i)?.parentElement?.nextElementSibling;
+    if(row)row.textContent=tr(rev*v/100);
+  }
+  const el=$('season-total');
+  el.textContent=total.toFixed(2)+'%';
+  el.className=Math.abs(total-100)<0.01?'season-ok':'season-err';
+}
+
+function equalDistribute(){
+  for(let i=0;i<12;i++){const el=$('sp-'+i);if(el)el.value=(100/12).toFixed(4);}
+  updateSeasonTotal();
+}
+
+function saveCiro(){
+  const f=curFirm();if(!f)return;
+  const mode=f.ciro?.mode||'uniform';
+  let monthly=new Array(12).fill(100/12);
+  if(mode==='manual'){
+    let total=0;
+    monthly=Array.from({length:12},(_,i)=>{const v=fnum($('sp-'+i)?.value,0);total+=v;return v;});
+    if(Math.abs(total-100)>0.1){showAlert('Toplam %'+total.toFixed(2)+' — 100% olmalı!','err');return;}
+  }
+  f.ciro={mode,monthly};
+  saveState();showAlert('Ciro dağılımı kaydedildi.','ok');
+}
+
+// ══════════════════════════════════════════════
+// STOK ÇARPANI
+// ══════════════════════════════════════════════
+function setMult(val){
+  currentMult=val;
+  document.querySelectorAll('.mult-btn').forEach(b=>{
+    const bv=parseFloat(b.textContent);
+    b.classList.toggle('selected',Math.abs(bv-val)<0.001);
+  });
+  $('mult-display').textContent=val.toFixed(2)+'×';
+}
+function setMultCustom(){
+  const v=parseFloat($('mult-custom').value);
+  if(!isNaN(v)&&v>0){
+    currentMult=v;
+    document.querySelectorAll('.mult-btn').forEach(b=>b.classList.remove('selected'));
+    $('mult-display').textContent=v.toFixed(2)+'×';
+  }
+}
+
+// ══════════════════════════════════════════════
+// ASSUMPTIONS
+// ══════════════════════════════════════════════
+function populateAssumptions(){
+  const f=curFirm();if(!f)return;const a=f.assumptions||{};
+  const map={'ass-months':'months','ass-growth':'growth','ass-expgrowth':'expGrowth',
+    'ass-bchlimit':'bchLimit','ass-bchrate':'bchRate',
+    'ass-bch1':'bch1','ass-bch2':'bch2','ass-bch3':'bch3','ass-bch4':'bch4','ass-bch5':'bch5',
+    'ass-bchusdrate':'bchUsdRate','ass-bchusd1':'bchUsd1','ass-bchusd2':'bchUsd2','ass-bchusd3':'bchUsd3','ass-bchusd4':'bchUsd4','ass-bchusd5':'bchUsd5',
+    'ass-bcheurrate':'bchEurRate','ass-bcheur1':'bchEur1','ass-bcheur2':'bchEur2','ass-bcheur3':'bchEur3','ass-bcheur4':'bchEur4','ass-bcheur5':'bchEur5',
+    'ass-dep1':'dep1','ass-dep2':'dep2','ass-dep3':'dep3','ass-dep4':'dep4','ass-dep5':'dep5',
+    'ass-taxrate':'taxRate','ass-taxmonths':'taxMonths'};
+  for(const[id,key]of Object.entries(map)){
+    const el=$(id);if(el)el.value=a[key]!==undefined?a[key]:(key==='taxRate'?25:key==='months'?60:key==='taxMonths'?'3,6,9,12':0);
+  }
+  currentMult=a.stockMult||1.5;
+  setMult(currentMult);
+}
+function saveAssumptions(){
+  const f=curFirm();if(!f)return;
+  f.assumptions={
+    months:Math.max(1,Math.min(120,parseInt($('ass-months').value)||60)),
+    growth:fnum($('ass-growth').value),expGrowth:fnum($('ass-expgrowth').value),
+    stockMult:currentMult,
+    bchLimit:fnum($('ass-bchlimit').value),bchRate:fnum($('ass-bchrate').value),
+    bch1:fnum($('ass-bch1').value),bch2:fnum($('ass-bch2').value),bch3:fnum($('ass-bch3').value),
+    bch4:fnum($('ass-bch4').value),bch5:fnum($('ass-bch5').value),
+    bchUsdRate:fnum($('ass-bchusdrate').value),
+    bchUsd1:fnum($('ass-bchusd1').value),bchUsd2:fnum($('ass-bchusd2').value),bchUsd3:fnum($('ass-bchusd3').value),
+    bchUsd4:fnum($('ass-bchusd4').value),bchUsd5:fnum($('ass-bchusd5').value),
+    bchEurRate:fnum($('ass-bcheurrate').value),
+    bchEur1:fnum($('ass-bcheur1').value),bchEur2:fnum($('ass-bcheur2').value),bchEur3:fnum($('ass-bcheur3').value),
+    bchEur4:fnum($('ass-bcheur4').value),bchEur5:fnum($('ass-bcheur5').value),
+    dep1:fnum($('ass-dep1').value),dep2:fnum($('ass-dep2').value),dep3:fnum($('ass-dep3').value),
+    dep4:fnum($('ass-dep4').value),dep5:fnum($('ass-dep5').value),
+    taxRate:fnum($('ass-taxrate').value,25),taxMonths:($('ass-taxmonths').value||'3,6,9,12').trim()
+  };
+  saveState();showAlert('Varsayımlar kaydedildi.','ok');
+}
+
+// ══════════════════════════════════════════════
+// EXPENSES
+// ══════════════════════════════════════════════
+function renderExpenseGroups(){
+  const f=curFirm();if(!f)return;
+  const byName={};for(const v of Object.values(f.expenses||{}))byName[v.name]=v.amount||0;
+  $('expense-groups').innerHTML=EXPENSE_GROUPS.map(({group,items})=>
+    '<div class="card" style="margin-bottom:12px"><div class="section-sep">'+esc(group)+'</div>'+
+    '<div class="tbl-scroll"><table><thead><tr>'+
+    '<th style="text-align:left">Kalem</th><th style="text-align:right;width:180px">Aylık TL</th></tr></thead><tbody>'+
+    items.map(item=>'<tr><td style="font-family:Syne,sans-serif">'+esc(item)+'</td>'+
+      '<td><input type="number" class="exp-input" data-name="'+esc(item)+'" value="'+(byName[item]||0)+'" style="width:160px;font-size:.8rem;text-align:right" step="any"></td></tr>').join('')+
+    '</tbody></table></div></div>').join('');
+}
+function applyBulkExpense() {
+  const amount = fnum($('bulk-expense').value);
+  if (!amount) { showAlert('Tutar giriniz.', 'err'); return; }
+  const targetName = $('bulk-expense-target').value;
+  // İlgili input'u güncelle
+  const allInputs = document.querySelectorAll('.exp-input');
+  let found = false;
+  allInputs.forEach(inp => {
+    if (inp.dataset.name === targetName) {
+      inp.value = amount;
+      found = true;
+    }
+  });
+  if (!found) { showAlert('Kalem bulunamadı — önce Giderler sayfasını açın.', 'err'); return; }
+  // Otomatik kaydet
+  saveExpenses();
+  showAlert('✅ Aylık toplu gider "' + targetName + '" kalemine yazıldı: ' + tr(amount) + ' TL', 'ok');
+  $('bulk-expense').value = '';
+}
+
+function saveExpenses(){
+  const f=curFirm();if(!f)return;
+  const newExp={};let i=0;
+  for(const{group,items}of EXPENSE_GROUPS)for(const item of items)newExp[i++]={group,name:item,amount:0};
+  document.querySelectorAll('.exp-input').forEach(inp=>{
+    const name=inp.dataset.name;const val=fnum(inp.value);
+    for(const v of Object.values(newExp))if(v.name===name){v.amount=val;break;}
+  });
+  f.expenses=newExp;saveState();showAlert('Giderler kaydedildi.','ok');
+}
+
+// ══════════════════════════════════════════════
+// LOANS
+// ══════════════════════════════════════════════
+function renderLoans(){
+  const f=curFirm();if(!f)return;const loans=f.loans||[];
+  const body=$('loan-table-body');
+  if(!loans.length){body.innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--tx3)">Henüz kredi yok</td></tr>';return;}
+  body.innerHTML=loans.map((L,i)=>{
+    let typeBadge,typeLabel;
+    if(L.type==='installment'){typeBadge='badge-blue';typeLabel='Taksitli';}
+    else if(L.type==='spot'&&L.spotType==='interest_only'){typeBadge='badge-green';typeLabel='Spot·Faizli';}
+    else if(L.type==='spot'){typeBadge='badge-green';typeLabel='Spot·Toplu';}
+    else{typeBadge='badge-amber';typeLabel='BCH';}
+    const ccyBadge=L.ccy==='USD'?'badge-green':L.ccy==='EUR'?'badge-pur':'badge-blue';
+    const hasDate=L.type==='installment'||L.type==='spot';
+    return '<tr>'+
+      '<td><span class="badge '+typeBadge+'">'+typeLabel+'</span></td>'+
+      '<td style="text-align:left;font-family:Syne,sans-serif">'+esc(L.bank)+'</td>'+
+      '<td><span class="badge '+ccyBadge+'">'+(L.ccy||'TL')+'</span></td>'+
+      '<td>'+tr(L.principal)+'</td>'+
+      '<td>'+(hasDate&&L.startDate?fmtDate(new Date(L.startDate)):'—')+'</td>'+
+      '<td>'+(L.term?(L.term+' ay'):'—')+'</td>'+
+      '<td>'+(L.rate!==undefined&&L.rate!==null&&(L.type!=='bch_existing')?('%'+L.rate):'—')+'</td>'+
+      '<td><button class="btn btn-danger btn-xs" onclick="deleteLoan('+i+')">Sil</button></td></tr>';
+  }).join('');
+}
+function addInstallmentLoan(){
+  const f=curFirm();if(!f)return;
+  const bank=($('ln-bank').value||'').trim();const ccy=$('ln-ccy').value||'TL';
+  const principal=fnum($('ln-principal').value);const term=parseInt($('ln-term').value)||0;
+  const rate=fnum($('ln-rate').value);const dt=parseDate($('ln-date').value);
+  if(!bank){showAlert('Banka adı gerekli.','err');return;}
+  if(!dt){showAlert('Geçersiz tarih.','err');return;}
+  if(principal<=0||term<=0){showAlert('Anapara ve vade gerekli.','err');return;}
+  f.loans.push({type:'installment',bank,ccy,principal,startDate:dt.toISOString(),term,rate});
+  ['ln-bank','ln-principal','ln-term','ln-rate','ln-date'].forEach(id=>$(id).value='');
+  saveState();renderLoans();showAlert('Taksitli kredi eklendi.','ok');
+}
+// Spot kredi aktif tip: 'bullet' veya 'interest_only'
+let currentSpotType = 'bullet';
+
+function setSpotType(type) {
+  currentSpotType = type;
+  const btnBullet    = $('sp-type-bullet');
+  const btnInterest  = $('sp-type-interest');
+  const notice       = $('sp-type-notice');
+  if (!btnBullet) return;
+  if (type === 'bullet') {
+    btnBullet.className   = 'btn btn-primary btn-sm';
+    btnInterest.className = 'btn btn-ghost btn-sm';
+    notice.innerHTML = '<b>🔴 Toplu Ödeme:</b> Vade boyunca hiç ödeme yok. Vade sonunda anapara + toplam basit faiz tek seferde ödenir.<br>Faiz = Anapara × (Yıllık% ÷ 12) × Vade Ay';
+  } else {
+    btnBullet.className   = 'btn btn-ghost btn-sm';
+    btnInterest.className = 'btn btn-primary btn-sm';
+    notice.innerHTML = '<b>💧 Sadece Faiz Ödemeli:</b> Her ay sonunda sadece aylık faiz ödenir (anapara ödemesi yok). Vade sonunda anapara tam olarak ödenir.<br>Aylık faiz = Anapara × (Yıllık% ÷ 12)';
+  }
+  updateSpotPreview();
+}
+
+function updateSpotPreview() {
+  const preview  = $('sp-preview');  if (!preview) return;
+  const matEl    = $('sp-maturity');
+  const principal = fnum($('sp-principal')?.value);
+  const term      = parseInt($('sp-term')?.value) || 0;
+  const rate      = fnum($('sp-rate')?.value);
+  const dateStr   = $('sp-date')?.value || '';
+
+  // Vade sonu tarihi göster
+  if (matEl) {
+    const dt = parseDate(dateStr);
+    if (dt && term > 0) {
+      const mat = new Date(dt);
+      mat.setMonth(mat.getMonth() + term);
+      matEl.textContent = '📅 Vade sonu: ' + fmtDate(mat);
+    } else {
+      matEl.textContent = '';
+    }
+  }
+
+  if (!principal || !term || !rate) { preview.textContent = ''; return; }
+  const monthlyInt = principal * (rate / 100) / 12;
+  const totalInt   = monthlyInt * term;
+  if (currentSpotType === 'bullet') {
+    preview.innerHTML = '📌 Vade sonu tek ödeme: <b>' + tr(principal + totalInt) + '</b> &nbsp;(Anapara ' + tr(principal) + ' + Faiz ' + tr(Math.round(totalInt)) + ')';
+  } else {
+    preview.innerHTML = '📌 Aylık faiz: <b>' + tr(Math.round(monthlyInt)) + '</b> × ' + term + ' ay = ' + tr(Math.round(totalInt)) + ' &nbsp;|&nbsp; Vadede anapara: <b>' + tr(principal) + '</b>';
+  }
+}
+
+function addSpotLoan() {
+  const f = curFirm(); if (!f) return;
+  const bank      = ($('sp-bank').value || '').trim();
+  const ccy       = $('sp-ccy').value || 'TL';
+  const principal = fnum($('sp-principal').value);
+  const term      = parseInt($('sp-term').value) || 0;
+  const rate      = fnum($('sp-rate').value);
+  const dt        = parseDate($('sp-date').value);
+  if (!bank)                       { showAlert('Banka adı gerekli.', 'err'); return; }
+  if (!dt)                         { showAlert('Geçersiz tarih.', 'err'); return; }
+  if (principal <= 0 || term <= 0) { showAlert('Anapara ve vade gerekli.', 'err'); return; }
+  f.loans.push({
+    type: 'spot',
+    spotType: currentSpotType,   // 'bullet' veya 'interest_only'
+    bank, ccy, principal,
+    startDate: dt.toISOString(),
+    term, rate
+  });
+  ['sp-bank','sp-principal','sp-term','sp-rate','sp-date'].forEach(id => $(id).value = '');
+  $('sp-preview').textContent = '';
+  saveState(); renderLoans();
+  const label = currentSpotType === 'bullet' ? 'Toplu Ödemeli' : 'Sadece Faizli';
+  showAlert('Spot kredi (' + label + ') eklendi.', 'ok');
+}
+function addBchLoan(){
+  const f=curFirm();if(!f)return;
+  const bank=($('bch-bank').value||'').trim();const ccy=$('bch-ccy').value||'TL';
+  const principal=fnum($('bch-principal').value);
+  if(!bank){showAlert('Banka adı gerekli.','err');return;}
+  f.loans.push({type:'bch_existing',bank,ccy,principal});
+  $('bch-bank').value='';$('bch-principal').value='';
+  saveState();renderLoans();showAlert('Mevcut BCH eklendi.','ok');
+}
+function deleteLoan(i){
+  const f=curFirm();if(!f)return;f.loans.splice(i,1);saveState();renderLoans();showAlert('Kredi silindi.','ok');
+}
+
+// ══════════════════════════════════════════════
+// DÖVİZ KURLARI
+// ══════════════════════════════════════════════
+// Spot kurlar (1 Mart 2026 itibarıyla)
+const FX_SPOT = {usd: 43.93, eur: 51.90};
+// Geçmiş 1 yıllık artış oranları
+const FX_HIST_GROWTH = {usd: 21, eur: 37}; // Tarihsel büyüme referansı
+
+function populateFx(){
+  const f=curFirm();if(!f)return;
+  if(!f.fxRates)f.fxRates={usdOpen:0,eurOpen:0,usdGrowth:FX_HIST_GROWTH.usd,eurGrowth:FX_HIST_GROWTH.eur,monthly:[]};
+  const fx=f.fxRates;
+  if(!fx.monthly||fx.monthly.length<60)fx.monthly=Array.from({length:60},(_,i)=>fx.monthly?.[i]||{usd:0,eur:0});
+  // Açılış kuru: kayıtlı yoksa spot kullan
+  const usdOpen = fx.usdOpen||FX_SPOT.usd;
+  const eurOpen = fx.eurOpen||FX_SPOT.eur;
+  $('fx-usd-open').value = usdOpen;
+  $('fx-eur-open').value = eurOpen;
+  $('fx-usd-growth').value = fx.usdGrowth||FX_HIST_GROWTH.usd;
+  $('fx-eur-growth').value = fx.eurGrowth||FX_HIST_GROWTH.eur;
+  const startDt=new Date(f.startDate);
+  $('fx-tbody').innerHTML=Array.from({length:60},(_,t)=>{
+    const d=addMonths(startDt,t);const m=fx.monthly[t]||{usd:0,eur:0};
+    return '<tr><td>'+(t+1)+'</td><td style="color:var(--tx3)">'+fmtDate(d)+'</td>'+
+      '<td><input class="fx-inp" type="number" step="0.01" id="fx-usd-'+t+'" value="'+(m.usd||'')+'" placeholder="—"></td>'+
+      '<td><input class="fx-inp" type="number" step="0.01" id="fx-eur-'+t+'" value="'+(m.eur||'')+'" placeholder="—"></td></tr>';
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
+// TCMB BAZLI BCH + MEVDUAT OTOMATİK DOLDUR
+// ══════════════════════════════════════════════
+// TCMB politika faizi (Ocak 2026 itibarıyla: %37)
+// Piyasa tahminlerine göre kademeli iniş projeksiyonu:
+const TCMB_POLICY = {
+  y1: 35,   // 2026 yıl ortalaması (mevcut %37'den yıl sonu ~%32-34 beklenirken ortalama)
+  y2: 27,   // 2027
+  y3: 19,   // 2028
+  y4: 14,   // 2029
+  y5: 11,   // 2030
+};
+const BCH_SPREAD = 3; // Politika faizi üstü spread (bankacılık pratiği)
+
+// USD BCH = yıllık %7, EUR BCH = yıllık %6 — tüm 5 yıla yaz ve kaydet
+function autoFillBchUsdEur() {
+  // USD BCH faiz oranları
+  ['ass-bchusdrate','ass-bchusd1','ass-bchusd2','ass-bchusd3','ass-bchusd4','ass-bchusd5']
+    .forEach(id => { const el = document.getElementById(id); if(el) el.value = '7'; });
+  // EUR BCH faiz oranları
+  ['ass-bcheurrate','ass-bcheur1','ass-bcheur2','ass-bcheur3','ass-bcheur4','ass-bcheur5']
+    .forEach(id => { const el = document.getElementById(id); if(el) el.value = '6'; });
+  saveAssumptions();
+  showAlert('✅ USD BCH faizi %7, EUR BCH faizi %6 — tüm 5 yıla uygulandı ve kaydedildi.', 'ok');
+}
+
+function autoFillBchDep() {
+  // BCH TL faizleri (politika + spread)
+  $('ass-bch1').value = (TCMB_POLICY.y1 + BCH_SPREAD).toFixed(1);
+  $('ass-bch2').value = (TCMB_POLICY.y2 + BCH_SPREAD).toFixed(1);
+  $('ass-bch3').value = (TCMB_POLICY.y3 + BCH_SPREAD).toFixed(1);
+  $('ass-bch4').value = (TCMB_POLICY.y4 + BCH_SPREAD).toFixed(1);
+  $('ass-bch5').value = (TCMB_POLICY.y5 + BCH_SPREAD).toFixed(1);
+  // BCH Fallback (Y1 oranı)
+  const bchFb = document.getElementById('ass-bchrate');
+  if(bchFb) bchFb.value = (TCMB_POLICY.y1 + BCH_SPREAD).toFixed(1);
+  // Mevduat faizleri (politika faizi = mevduat tabanı)
+  $('ass-dep1').value = TCMB_POLICY.y1.toFixed(1);
+  $('ass-dep2').value = TCMB_POLICY.y2.toFixed(1);
+  $('ass-dep3').value = TCMB_POLICY.y3.toFixed(1);
+  $('ass-dep4').value = TCMB_POLICY.y4.toFixed(1);
+  $('ass-dep5').value = TCMB_POLICY.y5.toFixed(1);
+  // Kaydet
+  const saveBtn = document.querySelector('[onclick="saveAssumptions()"]');
+  saveAssumptions();
+  showAlert(
+    '✅ BCH: Y1=%'+( TCMB_POLICY.y1+BCH_SPREAD)+'→Y5=%'+(TCMB_POLICY.y5+BCH_SPREAD)+
+    '  |  Mevduat: Y1=%'+TCMB_POLICY.y1+'→Y5=%'+TCMB_POLICY.y5+
+    '  (TCMB Ocak 2026: %37, kademeli iniş tahmini)',
+    'ok'
+  );
+}
+
+// Varsayımlar sayfasındaki butondan çağrılır.
+// Döviz Kurları sayfasının growth inputlarına USD=%7, EUR=%6 yazar
+// ve 60 aylık kur tablosunu hesaplayıp doldurur, ardından kaydeder.
+function autoFillFxGrowth(){
+  // 1) Büyüme oranlarını Döviz Kurları sayfasına yaz
+  const usdGrowthEl = document.getElementById('fx-usd-growth');
+  const eurGrowthEl = document.getElementById('fx-eur-growth');
+  if(usdGrowthEl) usdGrowthEl.value = 7;
+  if(eurGrowthEl) eurGrowthEl.value = 6;
+
+  // 2) Açılış kurlarını oku (Döviz Kurları sayfasındaki input yoksa FX_SPOT kullan)
+  const usdOpenEl = document.getElementById('fx-usd-open');
+  const eurOpenEl = document.getElementById('fx-eur-open');
+  const usdOpen = fnum(usdOpenEl?.value, FX_SPOT.usd);
+  const eurOpen = fnum(eurOpenEl?.value, FX_SPOT.eur);
+  // Açılış kurunu da set et (boşsa)
+  if(usdOpenEl && !fnum(usdOpenEl.value,0)) usdOpenEl.value = usdOpen.toFixed(4);
+  if(eurOpenEl && !fnum(eurOpenEl.value,0)) eurOpenEl.value = eurOpen.toFixed(4);
+
+  // 3) Aylık bileşik büyüme ile 60 aylık tabloyu doldur
+  const usdMonthly = Math.pow(1 + 0.07, 1/12);
+  const eurMonthly = Math.pow(1 + 0.06, 1/12);
+  let usdCur = usdOpen, eurCur = eurOpen;
+  for(let t = 0; t < 60; t++){
+    const usdEl = document.getElementById('fx-usd-'+t);
+    const eurEl = document.getElementById('fx-eur-'+t);
+    if(usdEl) usdEl.value = usdCur.toFixed(4);
+    if(eurEl) eurEl.value = eurCur.toFixed(4);
+    usdCur *= usdMonthly;
+    eurCur *= eurMonthly;
+  }
+
+  // 4) Kaydet
+  saveFx();
+  showAlert('✅ USD yıllık %7, EUR yıllık %6 büyüme Döviz Kurları sayfasına uygulandı ve kaydedildi.','ok');
+}
+
+function autoFillFx(){
+  const usdOpen=fnum($('fx-usd-open').value,FX_SPOT.usd);
+  const eurOpen=fnum($('fx-eur-open').value,FX_SPOT.eur);
+  const usdGrowth=fnum($('fx-usd-growth').value,FX_HIST_GROWTH.usd)/100;
+  const eurGrowth=fnum($('fx-eur-growth').value,FX_HIST_GROWTH.eur)/100;
+  // Aylık bileşik büyüme oranı
+  const usdMonthly = Math.pow(1+usdGrowth, 1/12);
+  const eurMonthly = Math.pow(1+eurGrowth, 1/12);
+  let usdCur=usdOpen, eurCur=eurOpen;
+  for(let t=0;t<60;t++){
+    const usdEl=$('fx-usd-'+t);const eurEl=$('fx-eur-'+t);
+    if(usdEl) usdEl.value = usdCur.toFixed(4);
+    if(eurEl) eurEl.value = eurCur.toFixed(4);
+    usdCur *= usdMonthly;
+    eurCur *= eurMonthly;
+  }
+  showAlert('Kur tahmini hesaplandı. Dilediğiniz ayı manuel değiştirebilirsiniz.','ok');
+}
+
+function fillFxFromOpen(){
+  const usd=fnum($('fx-usd-open').value,0);const eur=fnum($('fx-eur-open').value,0);
+  for(let t=0;t<60;t++){
+    if(usd>0){const el=$('fx-usd-'+t);if(el&&!fnum(el.value,0))el.value=usd;}
+    if(eur>0){const el=$('fx-eur-'+t);if(el&&!fnum(el.value,0))el.value=eur;}
+  }
+  showAlert('Açılış kurları boş aylara uygulandı.','ok');
+}
+
+function saveFx(){
+  const f=curFirm();if(!f)return;
+  f.fxRates={
+    usdOpen:fnum($('fx-usd-open').value,0),
+    eurOpen:fnum($('fx-eur-open').value,0),
+    usdGrowth:fnum($('fx-usd-growth').value,FX_HIST_GROWTH.usd),
+    eurGrowth:fnum($('fx-eur-growth').value,FX_HIST_GROWTH.eur),
+    monthly:Array.from({length:60},(_,t)=>({usd:fnum($('fx-usd-'+t)?.value,0),eur:fnum($('fx-eur-'+t)?.value,0)}))
+  };
+  saveState();showAlert('Döviz kurları kaydedildi.','ok');
+}
+
+// ══════════════════════════════════════════════
+// MANUAL — Yatırım / Sermaye / Diğer
+// ══════════════════════════════════════════════
+let currentManualType = 'other';
+
+const MANUAL_TYPE_META = {
+  other:      { label:'Diğer',         badge:'badge-blue',  icon:'📋' },
+  investment: { label:'Yatırım/MDV',   badge:'badge-amber', icon:'🏭' },
+  capital:    { label:'Sermaye Art.',  badge:'badge-green', icon:'💼' },
+};
+
+function setManualType(type) {
+  currentManualType = type;
+  const btns = { other:'mn-type-other', investment:'mn-type-investment', capital:'mn-type-capital' };
+  Object.entries(btns).forEach(([t,id]) => {
+    const el = $(id); if (!el) return;
+    el.className = t === type ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm';
+  });
+  const notice = $('mn-type-notice');
+  const amtLbl = $('mn-amount-label');
+  if (type === 'investment') {
+    if (notice) notice.innerHTML = '<b>🏭 Yatırım/MDV:</b> Girdiğiniz tutar <b>negatif</b> olmalı (nakit çıkışı). Gelir tablosuna girmez, bilançoda MDV\'ye eklenir.';
+    if (amtLbl) amtLbl.textContent = 'Tutar TL (genellikle negatif — nakit çıkışı)';
+  } else if (type === 'capital') {
+    if (notice) notice.innerHTML = '<b>💼 Sermaye Artışı:</b> Girdiğiniz tutar <b>pozitif</b> olmalı (nakit girişi). Gelir tablosuna girmez, özkaynaklara eklenir.';
+    if (amtLbl) amtLbl.textContent = 'Tutar TL (pozitif — sermaye girişi)';
+  } else {
+    if (notice) notice.innerHTML = '<b>📋 Diğer:</b> Pozitif = nakit girdi + gelir tablosu geliri. Negatif = nakit çıktı + gelir tablosu gideri.';
+    if (amtLbl) amtLbl.textContent = 'Tutar TL (+ Gelir / − Gider)';
+  }
+}
+
+function renderManual(){
+  const f=curFirm();if(!f)return;
+  const rows=(f.manualCf||[]).sort((a,b)=>a.month-b.month);
+  $('manual-table-body').innerHTML=!rows.length
+    ?'<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--tx3)">Manuel satır yok</td></tr>'
+    :rows.map((r,i)=>{
+      const meta = MANUAL_TYPE_META[r.cfType||'other'];
+      return '<tr>'+
+        '<td style="font-family:JetBrains Mono,monospace">'+r.month+'</td>'+
+        '<td><span class="badge '+meta.badge+'">'+meta.icon+' '+meta.label+'</span></td>'+
+        '<td style="text-align:left;font-family:Syne,sans-serif">'+esc(r.label)+'</td>'+
+        '<td class="'+(r.amount>=0?'pos':'neg')+'">'+tr(r.amount)+'</td>'+
+        '<td><button class="btn btn-danger btn-xs" onclick="deleteManual('+i+')">Sil</button></td></tr>';
+    }).join('');
+}
+
+function addManual(){
+  const f=curFirm();if(!f)return;
+  const month=parseInt($('mn-month').value)||0;
+  const label=($('mn-label').value||'').trim();
+  const amount=fnum($('mn-amount').value);
+  if(month<1){showAlert("Ay 1'den küçük olamaz.",'err');return;}
+  if(!label){showAlert('Açıklama gerekli.','err');return;}
+  if(amount===0){showAlert('Tutar 0 olamaz.','err');return;}
+  // Tip uyarıları
+  if(currentManualType==='investment'&&amount>0){
+    if(!confirm('Yatırım/MDV genellikle negatif (nakit çıkışı) olur. Pozitif olarak devam etmek istiyor musunuz?'))return;
+  }
+  if(currentManualType==='capital'&&amount<0){
+    if(!confirm('Sermaye artışı genellikle pozitif (nakit girişi) olur. Negatif olarak devam etmek istiyor musunuz?'))return;
+  }
+  f.manualCf.push({month, label, amount, cfType: currentManualType});
+  $('mn-month').value='';$('mn-label').value='';$('mn-amount').value='';
+  saveState();renderManual();
+  const meta = MANUAL_TYPE_META[currentManualType];
+  showAlert(meta.icon+' '+meta.label+' satırı eklendi.','ok');
+}
+
+function deleteManual(i){
+  const f=curFirm();if(!f)return;f.manualCf.splice(i,1);saveState();renderManual();showAlert('Silindi.','ok');
+}
+
+// ══════════════════════════════════════════════
+// FİNANSAL MÜHENDİSLİK
+// ══════════════════════════════════════════════
+function monthRate(a){return a/100/12;}
+function grossMargin(rev,cogs){if(rev<=0)return 0;return Math.max(-1,Math.min(1,(rev-cogs)/rev));}
+function computeDsoDpo(ar,ap,rev,cogs){
+  return{dso:rev<=0?0:365*Math.max(0,ar)/rev,dpo:cogs<=0?0:365*Math.max(0,ap)/cogs};
+}
+function interpolateLagged(series,lagMonths){
+  const k=Math.floor(lagMonths),frac=lagMonths-k;
+  return series.map((_,t)=>{
+    let v=0;
+    if(t-k>=0)v+=(1-frac)*series[t-k];
+    if(frac>0&&t-k-1>=0)v+=frac*series[t-k-1];
+    return v;
+  });
+}
+function spreadOpening(amount,months,total){
+  const out=new Array(total).fill(0);if(amount<=0)return out;
+  const m=Math.max(1,Math.min(total,months));const piece=amount/m;
+  for(let i=0;i<m;i++)out[i]+=piece;return out;
+}
+// Ticari taksitli kredi amortismanı
+// BSMV = %5 × aylık faiz (sadece faiz üzerinden, KKDF yoktur)
+// Dönen: {payment, interest, bsmv, intPlusBsmv, principal, bal}
+// payment = anapara + interest + bsmv
+const BSMV_RATE = 0.05; // Banka ve Sigorta Muameleleri Vergisi — ticari kredi
+
+function amortSched(principal,annualRate,termMonths){
+  const r=monthRate(annualRate),P=Math.max(0,principal),n=Math.max(1,termMonths);
+  // Saf faiz annuity (BSMV dahilsiz taksit tutarı)
+  const basePayment = r<=0 ? P/n : P*(r*Math.pow(1+r,n))/(Math.pow(1+r,n)-1);
+  let bal=P;const rows=[];
+  for(let i=0;i<n;i++){
+    const interest  = bal * r;                      // Aylık faiz
+    const bsmv      = interest * BSMV_RATE;         // BSMV = faiz × %5
+    const intPlusBsmv = interest + bsmv;            // Gelir tablosuna yansıyacak kısım
+    const principal_  = basePayment - interest;     // Anapara ödemesi (BSMV hariç annuity'den)
+    const payment   = principal_ + intPlusBsmv;     // Toplam taksit = anapara + faiz + BSMV
+    bal = Math.max(0, bal - principal_);
+    rows.push({payment, interest, bsmv, intPlusBsmv, principal:principal_, bal});
+  }
+  return rows;
+}
+function getFxRate(fx,ccy,t){
+  if(!ccy||ccy==='TL')return 1;
+  const maxT=Math.min(t,59);const monthly=fx?.monthly||[];
+  let rate=ccy==='USD'?(fx?.usdOpen||1):(fx?.eurOpen||1);if(rate<=0)rate=1;
+  for(let i=0;i<=maxT;i++){const v=(monthly[i]?.[ccy==='USD'?'usd':'eur'])||0;if(v>0)rate=v;}
+  return rate||1;
+}
+function pickRateByYear(t,rates,fallback){
+  const yi=Math.floor(t/12)+1;const r=rates[yi]||0;return r!==0?r:(fallback||0);
+}
+function applyLosses(profit,losses){
+  let p=Math.max(0,profit);const nl=[];
+  for(const it of losses){
+    if(it.amt<=0||it.yrs<=0)continue;
+    if(p<=0){nl.push({...it});continue;}
+    const take=Math.min(it.amt,p);p-=take;const rem=it.amt-take;
+    if(rem>1e-9)nl.push({amt:rem,yrs:it.yrs});
+  }
+  return{taxable:p,losses:nl};
+}
+function lossesRollover(losses){return losses.map(it=>({amt:it.amt,yrs:it.yrs-1})).filter(it=>it.yrs>0&&it.amt>0);}
+function computeTaxSchedule(months,ebtMonthly,taxRate,payMonths){
+  const tp=new Array(months).fill(0);let losses=[];
+  const pmSet=new Set(payMonths.length?payMonths:[3,6,9,12]);
+  for(let yi=0;yi<Math.ceil(months/12);yi++){
+    const yS=yi*12,yE=Math.min(months,yS+12);
+    const yearEbt=ebtMonthly.slice(yS,yE).reduce((a,b)=>a+b,0);
+    if(yearEbt<=0){if(Math.abs(yearEbt)>1e-9)losses.push({amt:Math.abs(yearEbt),yrs:5});losses=lossesRollover(losses);continue;}
+    const{taxable,losses:nl}=applyLosses(yearEbt,losses);losses=nl;
+    const yearTax=taxable*taxRate;if(yearTax<=1e-9){losses=lossesRollover(losses);continue;}
+    const idx=[];for(let m=1;m<=12;m++){const mi=yS+(m-1);if(mi<yE&&pmSet.has(m))idx.push(mi);}
+    if(!idx.length){tp[yE-1]+=yearTax;}
+    else{const inst=yearTax/idx.length;for(const mi of idx)tp[mi]+=inst;}
+    losses=lossesRollover(losses);
+  }
+  return tp;
+}
+
+// ══════════════════════════════════════════════
+// PROJEKSIYON ENJİNİ
+// ══════════════════════════════════════════════
+function buildProjection(firmId){
+  const f=state.firms[firmId];if(!f)throw new Error('Firma bulunamadı.');
+  const ob=f.opening||{};const is_=f.incomeStmt||{};
+  const ass=f.assumptions||{months:60,growth:0,expGrowth:0,stockMult:1.5};
+  const ciro=f.ciro||{mode:'uniform',monthly:new Array(12).fill(100/12)};
+  const fx=f.fxRates||{usdOpen:1,eurOpen:1,monthly:[]};
+  if(!fx.monthly||fx.monthly.length<60)fx.monthly=Array.from({length:60},(_,i)=>fx.monthly?.[i]||{usd:0,eur:0});
+
+  const months=Math.max(1,Math.min(120,ass.months||60));
+  const growth=(ass.growth||0)/100,expGrowth=(ass.expGrowth||0)/100;
+  const stockMult=ass.stockMult||1.5;
+  const bchLimit=ass.bchLimit||0,bchFallback=ass.bchRate||0;
+  const taxRate=(ass.taxRate||25)/100;
+  const payMonths=parseIntList(ass.taxMonths||'3,6,9,12');
+  const startDt=new Date(f.startDate);
+
+  const cash0=(ob.cash||0)+(ob.bank||0);
+  const ar0=Math.max(0,ob.ar||0),ap0=Math.max(0,ob.ap||0),inv0=Math.max(0,ob.inventory||0),capital0=ob.capital||0;
+  const prevRev=is_.revenue||0,prevCogs=is_.cogs||0;
+  const gm=grossMargin(prevRev,prevCogs);
+  const{dso:dsoDays,dpo:dpoDays}=computeDsoDpo(ar0,ap0,prevRev,prevCogs);
+  // DSO/DPO: 0 gün (peşin) → 0 ay gecikme. max(1,...) YANLIŞ — kaldırıldı.
+  const dsoM=Math.max(0,dsoDays/30);   // Peşin = 0 → aynı ay tahsilat
+  const dpoM=Math.max(0,dpoDays/30);   // Peşin = 0 → aynı ay ödeme
+
+  // SATIŞ — sezonsal veya eşit
+  const pcts=ciro.mode==='manual'?(ciro.monthly||new Array(12).fill(100/12)):new Array(12).fill(100/12);
+  const sales=Array.from({length:months},(_,t)=>{
+    // yi=1 ilk projeksiyon yılı (prevRev önceki yıl referansı, büyüme ilk yıldan itibaren uygulanır)
+    const yi=Math.floor(t/12)+1,moy=t%12;
+    const yFactor=Math.pow(1+growth,yi);
+    return Math.max(0,prevRev)*(pcts[moy]||0)/100*yFactor;
+  });
+
+  const cogsArr=sales.map(s=>s*(1-gm));
+
+  // STOK — hedef: aylık COGS'un X katı (maliyet bazlı, bilanço değeri gerçekçi)
+  // Mantık: firma "1.5 aylık satışa yetecek stok" tutmak istiyorsa,
+  //   o stokun MALİYETİ = aylık COGS × çarpan  (satış fiyatıyla değil maliyetle ölçülür)
+  //   Örn: Satış=100 TL, GM=%30 → COGS=70 TL → 1.5× stok = 105 TL (maliyet değeri)
+  const invTarget = cogsArr.map(c => Math.max(0, c * stockMult));
+  const inv = new Array(months).fill(0);
+  inv[0] = invTarget[0];
+  for(let t=1;t<months;t++) inv[t] = invTarget[t];
+  // Delta stok (maliyet bazlı): ay bazında stok değişimi → satın almaya eklenir
+  const deltaInv = [inv[0]-inv0, ...Array.from({length:months-1},(_,t)=>inv[t+1]-inv[t])];
+  // Satın alma = SMM + stok delta (maliyet tutarlı — aynı birimde)
+  const purchases = Array.from({length:months},(_,t)=>Math.max(0,cogsArr[t]+deltaInv[t]));
+
+  // AR / AP — Nakit akışı: interpolateLagged (gecikme bazlı tahsilat/ödeme)
+  // Açılış AR ve AP: eski alacak/borç, yine gecikmeye göre tahsil/ödenir
+  let receipts    = interpolateLagged(sales,    dsoM);
+  let supplierPay = interpolateLagged(purchases, dpoM);
+  const rOpen = spreadOpening(ar0, Math.max(1,Math.round(dsoM)), months);
+  const pOpen = spreadOpening(ap0, Math.max(1,Math.round(dpoM)), months);
+  receipts    = receipts.map((v,t)=>v+rOpen[t]);
+  supplierPay = supplierPay.map((v,t)=>v+pOpen[t]);
+
+  // AR bakiyesi — conservation korumalı:
+  // Tahsilat, mevcut AR bakiyesini aşamaz (sezonsal senaryolarda conservation hatası önlenir)
+  const arEnd = new Array(months).fill(0);
+  let _arBal = ar0;
+  for(let t=0;t<months;t++){
+    _arBal += sales[t];
+    const collected = Math.min(receipts[t], _arBal); // fazla tahsilat engeli
+    receipts[t] = collected;
+    _arBal -= collected;
+    arEnd[t] = _arBal;
+  }
+
+  // AP bakiyesi — conservation korumalı:
+  // Tedarikçi ödemesi, mevcut AP bakiyesini aşamaz
+  const apEnd = new Array(months).fill(0);
+  let _apBal = ap0;
+  for(let t=0;t<months;t++){
+    _apBal += purchases[t];
+    const paid = Math.min(supplierPay[t], _apBal); // fazla ödeme engeli
+    supplierPay[t] = paid;
+    _apBal -= paid;
+    apEnd[t] = _apBal;
+  }
+
+  // OPEX — Kullanıcı önceki yılın (Y0) giderini girer; projeksiyon Y1'den büyüme uygular
+  // Satışlarla simetrik: prevRev × (1+g)^1 = Y1 satış, baseOpex × (1+g)^1 = Y1 gider
+  // Math.floor(t/12)+1 = 1 for Y1, 2 for Y2, 3 for Y3, ...
+  const baseOpex=Object.values(f.expenses||{}).reduce((s,e)=>s+(e.amount||0),0);
+  const opex=Array.from({length:months},(_,t)=>baseOpex*Math.pow(1+expGrowth,Math.floor(t/12)+1));
+
+  // MANUEL SATIRLAR — tip bazında ayrıştır
+  // other:      nakit akış + gelir tablosu (mevcut davranış)
+  // investment: nakit çıktısı + bilanço MDV (gelir tablosuna girmez)
+  // capital:    nakit girdisi + bilanço özkaynak (gelir tablosuna girmez)
+  const manualTotal   = new Array(months).fill(0); // 'other' tipi
+  const manualInvest  = new Array(months).fill(0); // 'investment' — MDV
+  const manualCapital = new Array(months).fill(0); // 'capital' — sermaye artışı
+  for(const r of f.manualCf||[]){
+    const mi=r.month;if(mi<1||mi>months)continue;
+    const t=mi-1;const cfType=r.cfType||'other';
+    if(cfType==='investment') manualInvest[t]+=(r.amount||0);
+    else if(cfType==='capital') manualCapital[t]+=(r.amount||0);
+    else manualTotal[t]+=(r.amount||0);
+  }
+
+  // KREDİLER — döviz dönüşümlü
+  let openingBch=0;
+  for(const L of f.loans||[]){
+    if(L.type!=='bch_existing')continue;
+    const rate=getFxRate(fx,L.ccy||'TL',0);
+    openingBch+=Math.max(0,L.principal||0)*rate;
+  }
+  // TAKSİTLİ KREDİ arrays
+  const installPay    = new Array(months).fill(0); // toplam taksit
+  const installInt    = new Array(months).fill(0); // faiz + BSMV → gelir tablosu
+  const installPrinc  = new Array(months).fill(0); // anapara → bilanço (gelir tablosuna GİRMEZ)
+  const installBal    = new Array(months).fill(0); // kalan anapara bakiyesi
+  const installDisb   = new Array(months).fill(0); // kredi kullanımı nakit girişi
+
+  // SPOT KREDİ arrays (taksitliden ayrı!)
+  const spotAnaparaPay = new Array(months).fill(0); // vade sonu anapara geri ödeme
+  const spotFaizPay    = new Array(months).fill(0); // faiz ödemesi → gelir tablosu
+  const spotDisb       = new Array(months).fill(0); // kullanım ayı nakit girişi
+  const spotBal        = new Array(months).fill(0); // kalan anapara bakiyesi
+
+  // TAKSİTLİ KREDİLER
+  for(const L of f.loans||[]){
+    if(L.type!=='installment')continue;
+    const{principal,term,rate,startDate,ccy='TL'}=L;
+    if(!principal||!term||!startDate)continue;
+    const loanDt=new Date(startDate);
+    const disburseMi=(loanDt.getFullYear()-startDt.getFullYear())*12+(loanDt.getMonth()-startDt.getMonth())+1;
+    // Kredi kullanım ayı: nakit girişi
+    if(disburseMi>=1&&disburseMi<=months){
+      // Kredi kullanım ayı kuru: o ayın fx tablosundan al, yoksa açılış kuru
+      const disbT = disburseMi - 1;
+      let disbFxRate = 1;
+      if(ccy !== 'TL'){
+        const mo = fx?.monthly?.[disbT];
+        const openRate = ccy==='USD' ? (fx?.usdOpen||1) : (fx?.eurOpen||1);
+        const moRate   = mo ? (ccy==='USD' ? mo.usd : mo.eur) : 0;
+        disbFxRate = (moRate > 0) ? moRate : openRate;
+        if(disbFxRate <= 0) disbFxRate = 1;
+      }
+      installDisb[disbT] += principal * disbFxRate;
+    }
+    const firstPayMi=disburseMi+1; // İlk ödeme bir sonraki ay (Türk bankacılık standardı)
+    const sched=amortSched(principal,rate||0,term);
+    sched.forEach((row,k)=>{
+      const mi=firstPayMi+k;
+      if(mi>=1&&mi<=months){
+        const t=mi-1;const fxRate=getFxRate(fx,ccy,t);
+        installPay[t]   += row.payment      * fxRate;  // toplam taksit
+        installInt[t]   += row.intPlusBsmv  * fxRate;  // faiz + BSMV → gelir tablosu
+        installPrinc[t] += row.principal    * fxRate;  // anapara → bilanço
+        installBal[t]   += row.bal          * fxRate;
+      }
+    });
+  }
+
+  // ── SPOT KREDİLER ──────────────────────────────────────────────────────
+  // Nakit akış tablosunda AYRI satırlar:
+  //   Spot Kredi Kullanımı (+)         → spotDisb
+  //   Spot Kredi Anapara Geri Ödeme (−)→ spotAnaparaPay
+  //   Spot Kredi Faiz Ödemesi (−)      → spotFaizPay  → gelir tablosuna girer
+  //
+  // Tip 1 — TOPLU ÖDEME (bullet): vade boyunca ödeme yok, vade sonunda anapara+faiz
+  // Tip 2 — SADECE FAİZ: her ay faiz, vade sonunda anapara
+  // ──────────────────────────────────────────────────────────────────────
+  for(const L of f.loans||[]){
+    if(L.type!=='spot')continue;
+    const{principal,term,rate,startDate,ccy='TL',spotType='bullet'}=L;
+    if(!principal||!term||!startDate)continue;
+    const loanDt=new Date(startDate);
+    const disburseMi=(loanDt.getFullYear()-startDt.getFullYear())*12+(loanDt.getMonth()-startDt.getMonth())+1;
+    const payMi=disburseMi+term; // Vade sonu ayı
+    const monthlyInt=principal*(rate||0)/100/12;
+    const totalInt=monthlyInt*term;
+
+    // Kullanım ayı: nakit girişi
+    if(disburseMi>=1&&disburseMi<=months){
+      spotDisb[disburseMi-1] += principal*getFxRate(fx,ccy,disburseMi-1);
+    }
+
+    if(spotType==='interest_only'){
+      // Her ay sonunda: faiz ödemesi (gelir tablosuna girer)
+      for(let k=1;k<=term;k++){
+        const mi=disburseMi+k;
+        if(mi>=1&&mi<=months){
+          const t=mi-1;const fxRate=getFxRate(fx,ccy,t);
+          spotFaizPay[t]   += monthlyInt*fxRate; // faiz çıkışı
+        }
+      }
+      // Vade sonunda: sadece anapara geri ödeme
+      if(payMi>=1&&payMi<=months){
+        const t=payMi-1;const fxRate=getFxRate(fx,ccy,t);
+        spotAnaparaPay[t] += principal*fxRate;
+      }
+    } else {
+      // BULLET: vade sonunda anapara + toplam faiz (ayrı ayrı)
+      if(payMi>=1&&payMi<=months){
+        const t=payMi-1;const fxRate=getFxRate(fx,ccy,t);
+        spotAnaparaPay[t] += principal*fxRate;   // anapara geri ödeme
+        spotFaizPay[t]    += totalInt*fxRate;    // toplam faiz
+      }
+    }
+
+    // Bakiye: kullanım anından vade sonuna kadar anapara riski
+    for(let tt=Math.max(0,disburseMi-1);tt<Math.min(months,payMi);tt++){
+      spotBal[tt] += principal*getFxRate(fx,ccy,tt);
+    }
+  }
+
+  const monthDates=Array.from({length:months},(_,t)=>addMonths(startDt,t));
+
+  // BCH faiz oranları — para birimine göre (TL / USD / EUR)
+  // TL BCH bakiyesi için TL oranı, USD BCH için USD oranı, EUR BCH için EUR oranı kullanılır
+  // Şimdilik tek bir bch bakiyesi tutulduğundan ağırlıklı ortalama yapılır
+  // (İleride çok para birimli BCH bakiyeleri için ayrılabilir)
+  const bchRatesTL={1:ass.bch1||0,2:ass.bch2||0,3:ass.bch3||0,4:ass.bch4||0,5:ass.bch5||0};
+  const bchFallbackTL=ass.bchRate||0;
+  // USD ve EUR BCH oranları — açılış BCH döviz dağılımına göre ağırlıklı ortalama
+  const bchUsdRates={1:ass.bchUsd1||0,2:ass.bchUsd2||0,3:ass.bchUsd3||0,4:ass.bchUsd4||0,5:ass.bchUsd5||0};
+  const bchEurRates={1:ass.bchEur1||0,2:ass.bchEur2||0,3:ass.bchEur3||0,4:ass.bchEur4||0,5:ass.bchEur5||0};
+  // Açılış BCH döviz ağırlıkları
+  let bchTLOpen=0,bchUSDOpen=0,bchEUROpen=0;
+  for(const L of f.loans||[]){
+    if(L.type!=='bch_existing')continue;
+    const r=getFxRate(fx,L.ccy||'TL',0);
+    const val=Math.max(0,L.principal||0)*r;
+    if((L.ccy||'TL')==='USD') bchUSDOpen+=val;
+    else if(L.ccy==='EUR') bchEUROpen+=val;
+    else bchTLOpen+=val;
+  }
+  const bchTotalOpen=Math.max(1,bchTLOpen+bchUSDOpen+bchEUROpen);
+  const wTL=bchTLOpen/bchTotalOpen, wUSD=bchUSDOpen/bchTotalOpen, wEUR=bchEUROpen/bchTotalOpen;
+
+  function getBchRate(t){
+    const yi=Math.floor(t/12)+1;
+    const rTL=bchRatesTL[yi]||bchFallbackTL;
+    const rUSD=bchUsdRates[yi]||(ass.bchUsdRate||0);
+    const rEUR=bchEurRates[yi]||(ass.bchEurRate||0);
+    return wTL*rTL + wUSD*rUSD + wEUR*rEUR;
+  }
+
+  const depRates={1:ass.dep1||0,2:ass.dep2||0,3:ass.dep3||0,4:ass.dep4||0,5:ass.dep5||0};
+
+  function runLoop(taxPay){
+    let cash=cash0,deposit=0,bbal=Math.max(0,openingBch),bchIntAccrued=0;
+    const bchIntAccr=new Array(months).fill(0),bchIntPaid=new Array(months).fill(0);
+    const bchDraw=new Array(months).fill(0),bchRepay=new Array(months).fill(0);
+    const depInt=new Array(months).fill(0),depEnd=new Array(months).fill(0);
+    const cashEnd=new Array(months).fill(0),bchEnd=new Array(months).fill(0);
+    for(let t=0;t<months;t++){
+      const bchRate=getBchRate(t); // dövize göre ağırlıklı oran
+      const depRate=pickRateByYear(t,depRates,0);
+      const depStart=deposit;
+      // Nakit dengesi — tüm nakit hareketleri
+      const capitalIn  = Math.max(0, manualCapital[t]);
+      const investOut  = Math.max(0, -manualInvest[t]);
+      const otherIn    = Math.max(0,  manualTotal[t]);
+      const otherOut   = Math.max(0, -manualTotal[t]);
+      // Spot kredi: kullanım girişi − anapara geri ödeme − faiz ödemesi
+      const spotIn     = spotDisb[t];
+      const spotOut    = spotAnaparaPay[t] + spotFaizPay[t];
+      // Taksitli kredi: kullanım girişi − toplam taksit (anapara+faiz+BSMV)
+      cash += receipts[t] + otherIn + capitalIn + installDisb[t] + spotIn
+            - (supplierPay[t] + opex[t] + installPay[t] + spotOut + (taxPay[t]||0) + otherOut + investOut);
+      if(bbal>0&&bchRate>0){const bi=bbal*monthRate(bchRate);bchIntAccr[t]=bi;bchIntAccrued+=bi;}
+      // BCH faiz ödemesi: gerçek takvim ayı 3,6,9,12'de (Mart,Haziran,Eylül,Aralık)
+      const calMonth=monthDates[t].getMonth()+1;
+      if([3,6,9,12].includes(calMonth)&&bchIntAccrued>0){
+        const need=bchIntAccrued;
+        if(cash<need&&deposit>0){const take=Math.min(deposit,need-cash);deposit-=take;cash+=take;}
+        if(cash<need){const avail=Math.max(0,bchLimit-bbal);const draw=Math.min(need-cash,avail);if(draw>0){bbal+=draw;cash+=draw;bchDraw[t]+=draw;}}
+        if(cash>=need){cash-=need;bchIntPaid[t]=need;bchIntAccrued=0;}
+      }
+      if(cash<0&&deposit>0){const take=Math.min(deposit,-cash);deposit-=take;cash+=take;}
+      if(cash<0){const need=-cash;const avail=Math.max(0,bchLimit-bbal);const draw=Math.min(need,avail);if(draw>0){bbal+=draw;cash+=draw;bchDraw[t]+=draw;}}
+      if(cash>0&&bbal>0){const repay=Math.min(cash,bbal);bbal-=repay;cash-=repay;bchRepay[t]+=repay;}
+      if(cash>0){deposit+=cash;cash=0;}
+      if(depRate>0&&deposit>0){const avg=(depStart+deposit)/2;const di=avg*monthRate(depRate);deposit+=di;depInt[t]=di;}
+      cashEnd[t]=cash;bchEnd[t]=bbal;depEnd[t]=deposit;
+    }
+    return{bchIntAccr,bchIntPaid,bchDraw,bchRepay,depInt,depEnd,cashEnd,bchEnd};
+  }
+
+  const p1=runLoop(new Array(months).fill(0));
+  // EBT: spotFaizPay + installInt (faiz+BSMV) gelir tablosuna girer
+  // Yatırım ve Sermaye Artışı GELİR TABLOSUNA GİRMEZ
+  const ebtMonthly=Array.from({length:months},(_,t)=>
+    (sales[t]-cogsArr[t])-opex[t]-installInt[t]-spotFaizPay[t]-p1.bchIntAccr[t]+p1.depInt[t]+manualTotal[t]);
+  const taxPay=computeTaxSchedule(months,ebtMonthly,taxRate,payMonths);
+  const p2=runLoop(taxPay);
+
+  const rows=[];
+  for(let t=0;t<months;t++){
+    rows.push({
+      'Ay':t+1,'Tarih':fmtDate(monthDates[t]),
+      'Satış(TL)':sales[t],'COGS(TL)':cogsArr[t],
+      'Tahsilat':receipts[t],'Satınalma':purchases[t],'Tedarikçi Öd.':supplierPay[t],
+      'Faaliyet Gid.':opex[t],
+      'Taksit Kullanım':installDisb[t],            // Kredi kullanım ayı nakit girişi
+      'Taksit Anapara':installPrinc[t],             // Anapara ödemesi (gelir tablosuna girmez)
+      'Taksit Faiz+BSMV':installInt[t],            // Faiz+BSMV (gelir tablosuna girer)
+      'Taksit Öd.':installPay[t],                  // Toplam taksit = anapara + faiz+BSMV
+      'Spot Kullanım':spotDisb[t],'Spot Anapara Öd.':spotAnaparaPay[t],'Spot Faiz Öd.':spotFaizPay[t],'Spot Bakiye':spotBal[t],
+      'K.Vergisi':taxPay[t],'Manuel':manualTotal[t],'Yatırım':manualInvest[t],'Sermaye Artışı':manualCapital[t],
+      'Mevduat Faiz':p2.depInt[t],'Son.Mevduat':p2.depEnd[t],
+      'BCH Faiz T.':p2.bchIntAccr[t],'BCH Faiz Öd.':p2.bchIntPaid[t],
+      'BCH Kullanım':p2.bchDraw[t],'BCH Geri Öd.':p2.bchRepay[t],
+      'Son.Nakit':p2.cashEnd[t],'Son.BCH':p2.bchEnd[t],
+      'AR Bakiye':arEnd[t],'AP Bakiye':apEnd[t],'Stok Bakiye':inv[t],
+      'Taksit Bakiye':installBal[t],'EBT/VÖK':ebtMonthly[t]
+    });
+  }
+  const summary={gm:gm*100,dso:dsoDays,dpo:dpoDays,cash0,bch0:openingBch,capital0,months,
+    startDate:fmtDate(startDt),stockMult};
+  return{firm:f,summary,rows,arEnd,apEnd,inv,ebtMonthly,taxPay};
+}
+
+// ══════════════════════════════════════════════
+// RENDER PROJECTION — 5 YILLIK TABLO (EXCEL TARZI)
+// Sol: konu başlıkları  |  Üst: Oca-Ara + Toplam
+// ══════════════════════════════════════════════
+let lastProjection=null;
+
+// Satır tanımları — Excel ile birebir
+const PROJ_ROWS=[
+  {key:'acilis',    label:'Açılış Bakiyesi',  type:'grp'},
+  {key:'kasa',      label:'Kasa / Banka',      type:'val',  field:'acilis'},
+  {key:'girdi_grp', label:'Nakit Girdileri',   type:'grp'},
+  {key:'tahsilat',  label:'Alacaklardan Tahsilat', type:'sub', field:'tahsilat'},
+  {key:'depfaiz',   label:'Mevduat Faizi',     type:'sub',  field:'depFaiz'},
+  {key:'kredi_kullan', label:'Taksit Kredi Kullanımı (+)', type:'sub', field:'krediKullan'},
+  {key:'spot_kullan',  label:'Spot Kredi Kullanımı (+)',  type:'sub', field:'spotKullan'},
+  {key:'sermaye_in', label:'Sermaye Artışı',       type:'sub', field:'sermayeGirdi'},
+  {key:'manuel_in', label:'Diğer Gelirler (Manuel+)', type:'sub', field:'manuelGelir'},
+  {key:'toplam_girdi', label:'Toplam Girdi',   type:'total',field:'toplamGirdi'},
+  {key:'cikti_grp', label:'Nakit Çıktıları',   type:'grp'},
+  {key:'tedped',    label:'Tedarikçi Ödemeleri', type:'sub', field:'tedarikci'},
+  {key:'opex',      label:'Faaliyet Giderleri', type:'sub', field:'opex'},
+  {key:'taksit_anapara', label:'Taksit Anapara Ödemesi',    type:'sub', field:'taksitAnapara'},
+  {key:'taksit_faiz',   label:'Taksit Faiz + BSMV (%5)',     type:'sub', field:'taksitFaizBsmv'},
+  {key:'bchfaiz',   label:'BCH Faiz Ödemesi',  type:'sub', field:'bchFaizOd'},
+  {key:'vergi',         label:'Kurumlar Vergisi',            type:'sub', field:'vergi'},
+  {key:'spot_anapara',  label:'Spot Kredi Anapara Geri Öd.',  type:'sub', field:'spotAnaparaPay'},
+  {key:'spot_faiz',     label:'Spot Kredi Faiz Ödemesi',       type:'sub', field:'spotFaizOd'},
+  {key:'yatirim_out',label:'Yatırım Harcaması (MDV)',  type:'sub', field:'yatirimCikti'},
+  {key:'manuel_out',label:'Diğer Ödemeler (Manuel−)', type:'sub', field:'manuelGider'},
+  {key:'toplam_cikti', label:'Toplam Çıktı',   type:'total',field:'toplamCikti'},
+  {key:'bch_kullan',label:'BCH Kullanımı (+)',  type:'sub', field:'bchKullan'},
+  {key:'bch_repay', label:'BCH Geri Ödeme (−)', type:'sub', field:'bchRepay'},
+  {key:'kapanıs',   label:'Kapanış Bakiyesi',   type:'kapanis',field:'kapanisNakit'},
+  {key:'sep1',      label:'',                   type:'sep'},
+  {key:'mevduat',   label:'Mevduat Bakiyesi',   type:'val', field:'mevduat'},
+  {key:'bchend',    label:'BCH Bakiyesi',        type:'val', field:'bchEnd'},
+  {key:'ar_bak',    label:'Ticari Alacak',       type:'val', field:'arBak'},
+  {key:'ap_bak',    label:'Ticari Borç',         type:'val', field:'apBak'},
+  {key:'spot_bak',   label:'Spot Kredi Bakiyesi',  type:'val', field:'spotBak'},
+  {key:'stok',       label:'Stok Bakiyesi',        type:'val', field:'stokBak'},
+  {key:'ebt',       label:'VÖK / EBT',           type:'val', field:'ebt'},
+];
+
+const AY_KISA=['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+
+function buildYearlyData(rows, startYear, numYears){
+  const years=[];
+  for(let yi=0;yi<numYears;yi++){
+    const y=startYear+yi;
+    const yRows=rows.filter(r=>{
+      const parts=r['Tarih'].split('-');
+      return parseInt(parts[2])===y;
+    });
+    if(!yRows.length)continue;
+    // Build months array (up to 12)
+    const months=yRows.map(r=>{
+      const acilis = yi===0 && r===yRows[0]
+        ? r['Son.Nakit']  // approximate — use opening
+        : 0;
+      const tahsilat=r['Tahsilat']||0;
+      const depFaiz=r['Mevduat Faiz']||0;
+      // 'other' tipi manuel: gelir tablosuna girer
+      const manuelGelir  = Math.max(0,  r['Manuel']||0);
+      const manuelGider  = Math.max(0, -(r['Manuel']||0));
+      // 'investment' tipi: sadece nakit çıkışı + bilanço MDV (gelir tablosuna girmez)
+      const yatirimCikti = Math.max(0, -(r['Yatırım']||0));   // negatif tutar → pozitif çıkış
+      // 'capital' tipi: sadece nakit girişi + özkaynak (gelir tablosuna girmez)
+      const sermayeGirdi = Math.max(0,  r['Sermaye Artışı']||0);
+      // Taksitli kredi
+      const taksitAnapara  = r['Taksit Anapara']||0;
+      const taksitFaizBsmv = r['Taksit Faiz+BSMV']||0;
+      const krediKullan    = r['Taksit Kullanım']||0;
+      // Spot kredi
+      const spotKullan     = r['Spot Kullanım']||0;        // nakit girişi
+      const spotAnaparaPay = r['Spot Anapara Öd.']||0;    // anapara geri ödeme
+      const spotFaizOd     = r['Spot Faiz Öd.']||0;       // faiz (gelir tablosuna girer)
+      const spotBak        = r['Spot Bakiye']||0;
+      const toplamGirdi    = tahsilat+depFaiz+manuelGelir+sermayeGirdi+krediKullan+spotKullan;
+      const tedarikci      = r['Tedarikçi Öd.']||0;
+      const opex           = r['Faaliyet Gid.']||0;
+      const bchFaizOd      = r['BCH Faiz Öd.']||0;
+      const vergi          = r['K.Vergisi']||0;
+      const toplamCikti    = tedarikci+opex+taksitAnapara+taksitFaizBsmv+spotAnaparaPay+spotFaizOd+bchFaizOd+vergi+manuelGider+yatirimCikti;
+      const bchKullan    = r['BCH Kullanım']||0;
+      const bchRepay     = r['BCH Geri Öd.']||0;
+      return{
+        tarih:r['Tarih'], ay:r['Ay'],
+        acilis:0, // filled below
+        tahsilat,depFaiz,manuelGelir,sermayeGirdi,krediKullan,spotKullan,toplamGirdi,
+        tedarikci,opex,taksitAnapara,taksitFaizBsmv,spotAnaparaPay,spotFaizOd,bchFaizOd,vergi,manuelGider,yatirimCikti,toplamCikti,
+        spotBak,
+        bchKullan,bchRepay,
+        kapanisNakit:r['Son.Nakit']||0,
+        mevduat:r['Son.Mevduat']||0,
+        bchEnd:r['Son.BCH']||0,
+        arBak:r['AR Bakiye']||0,
+        apBak:r['AP Bakiye']||0,
+        stokBak:r['Stok Bakiye']||0,
+        ebt:r['EBT/VÖK']||0,
+        // Yatırım kümülatifi bilanço MDV için
+        yatirimRaw:r['Yatırım']||0,
+        sermayeRaw:r['Sermaye Artışı']||0,
+      };
+    });
+    // Açılış = önceki ayın kapanış
+    for(let i=0;i<months.length;i++){
+      months[i].acilis = i===0
+        ? (yi===0 ? (lastProjection?.summary?.cash0||0) : (years[yi-1]?.months[years[yi-1].months.length-1]?.kapanisNakit||0))
+        : months[i-1].kapanisNakit;
+    }
+    // Yıllık toplamlar
+    const fields=['tahsilat','depFaiz','manuelGelir','sermayeGirdi','krediKullan','spotKullan','toplamGirdi','tedarikci','opex','taksitAnapara','taksitFaizBsmv','spotAnaparaPay','spotFaizOd','bchFaizOd','vergi','manuelGider','yatirimCikti','toplamCikti','bchKullan','bchRepay','spotBak','ebt','yatirimRaw','sermayeRaw'];
+    const totals={acilis:months[0]?.acilis||0, kapanisNakit:months[months.length-1]?.kapanisNakit||0,
+      mevduat:months[months.length-1]?.mevduat||0, bchEnd:months[months.length-1]?.bchEnd||0,
+      arBak:months[months.length-1]?.arBak||0, apBak:months[months.length-1]?.apBak||0, stokBak:months[months.length-1]?.stokBak||0};
+    for(const f of fields) totals[f]=months.reduce((s,m)=>s+(m[f]||0),0);
+    years.push({year:y, months, totals});
+  }
+  return years;
+}
+
+function renderProjTable(yearData, firmName){
+  const {year, months, totals}=yearData;
+  const cols=months.length; // actual months in this year (may be <12)
+  
+  // Header row — month abbreviations
+  let headCells='<th class="lbl-col">'+(firmName||'')+'<br><span style="font-size:.6rem;color:var(--tx3)">'+year+' · TRY</span></th>';
+  for(let i=0;i<cols;i++){
+    const d=months[i].tarih.split('-');
+    const mn=parseInt(d[1])-1;
+    headCells+='<th>'+AY_KISA[mn]+'</th>';
+  }
+  headCells+='<th class="toplam-col">Toplam</th>';
+
+  let bodyRows='';
+  for(const rd of PROJ_ROWS){
+    if(rd.type==='sep'){
+      bodyRows+='<tr><td class="lbl-col" colspan="'+(cols+2)+'"></td></tr>';
+      continue;
+    }
+    const rowClass=rd.type==='grp'?'row-grp':rd.type==='total'?'row-total':rd.type==='kapanis'?'row-kapanış':'';
+    const lblClass='lbl-col'+(rd.type==='grp'?' grp':rd.type==='sub'?' sub':rd.type==='total'?' total':rd.type==='kapanis'?' total':'');
+    let cells='<td class="'+lblClass+'">'+esc(rd.label)+'</td>';
+    if(rd.field){
+      let ytotal=totals[rd.field]||0;
+      // Açılış sadece ilk ayı göster, toplam = ilk ay açılışı
+      for(let i=0;i<cols;i++){
+        const v=months[i][rd.field]||0;
+        cells+='<td class="'+colorClass(v,rd)+'">'+tr(v)+'</td>';
+      }
+      // Toplam sütunu: stok/ar/ap/bch/mevduat için son ay değerini göster (bakiye = son nokta)
+      const isBalance=['kapanisNakit','mevduat','bchEnd','arBak','apBak','stokBak','spotBak','acilis'].includes(rd.field);
+      const tv=isBalance ? (months[months.length-1]?.[rd.field]||0) : ytotal;
+      cells+='<td class="toplam-col '+colorClass(tv,rd)+'">'+tr(tv)+'</td>';
+    } else {
+      cells+='<td colspan="'+(cols+1)+'" style="background:var(--s2)"></td>';
+    }
+    bodyRows+='<tr class="'+rowClass+'">'+cells+'</tr>';
+  }
+
+  return '<div class="yr-block">'+
+    '<div class="yr-header">'+
+      '<div class="yr-num">'+year+'</div>'+
+      '<div><div style="font-weight:700;font-size:.85rem">'+esc(firmName||'')+'</div>'+
+       '<div class="yr-period">'+months[0]?.tarih+' – '+(months[months.length-1]?.tarih||'')+'</div></div>'+
+      '<div class="yr-try">TRY</div>'+
+    '</div>'+
+    '<div class="proj-tbl-wrap">'+
+      '<table class="proj-tbl">'+
+        '<thead><tr>'+headCells+'</tr></thead>'+
+        '<tbody>'+bodyRows+'</tbody>'+
+      '</table>'+
+    '</div>'+
+  '</div>';
+}
+
+function colorClass(v, rd){
+  if(v===0)return '';
+  const isOutflow=['tedarikci','opex','taksitAnapara','taksitFaizBsmv','spotAnaparaPay','spotFaizOd','bchFaizOd','vergi','manuelGider','yatirimCikti','toplamCikti','bchRepay','bchEnd','apBak'].includes(rd.field);
+  const isInflow=['tahsilat','depFaiz','krediKullan','spotKullan','manuelGelir','sermayeGirdi','toplamGirdi','bchKullan'].includes(rd.field);
+  const isBal=['kapanisNakit','mevduat'].includes(rd.field);
+  if(isBal)return v>0?'pos':'neg';
+  if(isOutflow)return v>0?'neg':'';
+  if(isInflow)return v>0?'pos':'';
+  return v<0?'neg':'';
+}
+
+function renderProjection(){
+  const f=curFirm();if(!f)return;
+  let proj;try{proj=buildProjection(state.currentFirmId);}catch(e){showAlert(e.message,'err');return;}
+  lastProjection=proj;
+  const{summary,rows}=proj;
+  $('proj-title').textContent=f.name+' — Aylık Nakit Akım Projeksiyonu';
+  $('proj-subtitle').textContent='Başlangıç: '+summary.startDate+' · '+summary.months+' ay · Stok çarpanı: '+summary.stockMult+'×';
+  $('proj-kpis').innerHTML=
+    '<div class="kpi"><div class="kpi-label">Açılış Nakit</div><div class="kpi-val blue">'+tr(summary.cash0)+'</div></div>'+
+    '<div class="kpi"><div class="kpi-label">Açılış BCH</div><div class="kpi-val red">'+tr(summary.bch0)+'</div></div>'+
+    '<div class="kpi"><div class="kpi-label">Sermaye</div><div class="kpi-val">'+tr(summary.capital0)+'</div></div>'+
+    '<div class="kpi"><div class="kpi-label">Brüt Kâr Marjı</div><div class="kpi-val '+(summary.gm>0?'green':'red')+'">'+tr(summary.gm,1)+'%</div></div>'+
+    '<div class="kpi"><div class="kpi-label">DSO</div><div class="kpi-val">'+tr(summary.dso,0)+' gün</div></div>'+
+    '<div class="kpi"><div class="kpi-label">DPO</div><div class="kpi-val">'+tr(summary.dpo,0)+' gün</div></div>'+
+    '<div class="kpi"><div class="kpi-label">Stok Çarpanı</div><div class="kpi-val amber">'+summary.stockMult+'×</div></div>';
+  if(!rows.length)return;
+  const startYear=new Date(f.startDate).getFullYear();
+  const numYears=Math.ceil(summary.months/12);
+  const yearlyData=buildYearlyData(rows, startYear, numYears);
+  $('proj-years-container').innerHTML=yearlyData.map(yd=>renderProjTable(yd, f.name)).join('');
+}
+
+// ══════════════════════════════════════════════
+// 5Y TABLES
+// ══════════════════════════════════════════════
+function annual5Y(rows,startYear){
+  const years=[startYear,startYear+1,startYear+2,startYear+3,startYear+4];
+  const inc={};const bal={};
+  for(const y of years)inc[y]={
+    ciro:0,cogs:0,opex:0,tFaiz:0,bchFaizAccr:0,depFaiz:0,tax:0,ebt:0,
+    bchRepay:0,taksitAnapara:0,manuelGelir:0,manuelGider:0,
+    // Yatırım ve sermaye artışı gelir tablosuna GİRMEZ
+    yatirimKumul:0,   // kümülatif yatırım → bilanço MDV
+    sermayeKumul:0,   // kümülatif sermaye artışı → bilanço özkaynak
+  };
+  // Kümülatif MDV ve sermaye tüm yıllar boyunca taşınır
+  let mdvKumul=0, sermayeEkKumul=0;
+  for(const r of rows){
+    const d=r['Tarih'].split('-');const y=parseInt(d[2]);if(!inc[y])continue;
+    inc[y].ciro    += r['Satış(TL)']   ||0;
+    inc[y].cogs    += r['COGS(TL)']    ||0;
+    inc[y].opex    += r['Faaliyet Gid.']||0;
+    inc[y].tFaiz   += r['Taksit Faiz+BSMV'] ||0;  // Taksit faiz+BSMV → gelir tablosu
+    inc[y].tFaiz   += r['Spot Faiz Öd.']      ||0;  // Spot faiz → gelir tablosu (anapara GİRMEZ)
+    inc[y].bchFaizAccr += r['BCH Faiz T.']||0;
+    inc[y].depFaiz += r['Mevduat Faiz']||0;
+    inc[y].tax     += r['K.Vergisi']   ||0;
+    inc[y].ebt     += r['EBT/VÖK']     ||0;
+    // YALNIZCA 'other' tipi manuel gelir tablosuna girer
+    inc[y].manuelGelir += Math.max(0,  r['Manuel']||0);
+    inc[y].manuelGider += Math.max(0, -(r['Manuel']||0));
+    // Yatırım: kümülatif MDV birikimi (negatif tutarların mutlak değeri)
+    mdvKumul       += Math.max(0, -(r['Yatırım']||0));
+    // Sermaye artışı: kümülatif özkaynak artışı
+    sermayeEkKumul += Math.max(0,  r['Sermaye Artışı']||0);
+    // Her satır için son değeri yılın kümülatifine yaz (son aya ait olacak)
+    inc[y].yatirimKumul   = mdvKumul;
+    inc[y].sermayeKumul   = sermayeEkKumul;
+  }
+  for(const y of years){
+    const{ciro,cogs,opex,tFaiz,bchFaizAccr,depFaiz,tax,ebt,manuelGelir,manuelGider}=inc[y];
+    const gp      = ciro - cogs;
+    const faalGid = opex;
+    const faalKar = gp - faalGid;
+    const finGid  = tFaiz + bchFaizAccr;
+    // Diğer gelir/gider: YALNIZCA 'other' tipi manuel + mevduat faizi
+    const dgerGelir = depFaiz + manuelGelir;
+    const dgerGider = manuelGider;
+    const net     = ebt - tax;
+    inc[y].gp=gp; inc[y].faalGid=faalGid; inc[y].faalKar=faalKar;
+    inc[y].finGid=finGid; inc[y].dgerGelir=dgerGelir; inc[y].dgerGider=dgerGider;
+    inc[y].net=net;
+    inc[y].gpM   = ciro>0?gp/ciro*100:0;
+    inc[y].faalM = ciro>0?faalKar/ciro*100:0;
+    inc[y].netM  = ciro>0?net/ciro*100:0;
+    const yr=rows.filter(r=>{const d=r['Tarih'].split('-');return parseInt(d[2])===y;});
+    if(yr.length){
+      const last=yr[yr.length-1];
+      const mdv   = inc[y].yatirimKumul||0;   // Maddi Duran Varlık
+      const sermEk= inc[y].sermayeKumul||0;   // Ek sermaye birikimi
+      // Dönen varlıklar
+      const donen = (last['Son.Nakit']||0)+(last['Son.Mevduat']||0)+(last['AR Bakiye']||0)+(last['Stok Bakiye']||0);
+      const aktifToplam = donen + mdv;         // MDV aktife eklenir
+      const liab  = (last['AP Bakiye']||0)+(last['Son.BCH']||0)+(last['Taksit Bakiye']||0)+(last['Spot Bakiye']||0);
+      bal[y]={
+        nakit:  last['Son.Nakit']  ||0,
+        mevduat:last['Son.Mevduat']||0,
+        ar:     last['AR Bakiye']  ||0,
+        stok:   last['Stok Bakiye']||0,
+        mdv,
+        ap:     last['AP Bakiye']  ||0,
+        bch:    last['Son.BCH']    ||0,
+        taksit: last['Taksit Bakiye']||0,
+        spot:   last['Spot Bakiye'] ||0,
+        toplamYuk: liab,
+        aktifToplam,
+        pasifToplam: aktifToplam,
+        sermayeEk: sermEk,
+      };
+    }
+  }
+  return{years,inc,bal};
+}
+// computeRetained: her yıl için o yıla kadar biriken kümülatif net kar
+// Bilanço'da ilgili yılın özkaynağına yansır (Geçmiş Yıl K/Z + Bu Yıl Net Kâr)
+function computeRetained(years,inc){
+  const ret={};let cum=0;
+  for(let i=0;i<years.length;i++){
+    cum+=(inc[years[i]]?.net||0); // O yılın net karını da dahil et
+    ret[years[i]]=cum;            // Bilanço: yıl sonu özkaynakta gösterilir
+  }
+  return ret;
+}
+
+function renderIncome5Y(){
+  const f=curFirm();if(!f)return;
+  let proj;try{proj=buildProjection(state.currentFirmId);}catch(e){showAlert(e.message,'err');return;}
+  lastProjection=proj;
+  const sy=new Date(f.startDate).getFullYear();
+  const{years,inc}=annual5Y(proj.rows,sy);
+  $('inc5-title').textContent=f.name+' — 5 Yıllık Gelir Tablosu';
+  $('inc5-headers').innerHTML='<th style="text-align:left;min-width:240px">Kalem</th>'+years.map(y=>'<th>'+y+'</th>').join('');
+
+  // Detaylı gelir tablosu satırları
+  const sections=[
+    {sep:'NET SATIŞLAR'},
+    {l:'Net Satışlar',          k:'ciro',    bold:true},
+    {sep:'SATIŞLARIN MALİYETİ'},
+    {l:'Satılan Malın Maliyeti (COGS)', k:'cogs', cost:true},
+    {sep:'BRÜT KÂR'},
+    {l:'Brüt Kâr',             k:'gp',      bold:true, margin:'gpM'},
+    {sep:'FAALİYET GİDERLERİ'},
+    {l:'Genel Yönetim & Operasyon', k:'opex', cost:true},
+    {sep:'FAALİYET KÂRI (EBIT)'},
+    {l:'Faaliyet Kârı (EBIT)', k:'faalKar', bold:true, margin:'faalM'},
+    {sep:'DİĞER OLAĞAN GELİR / GİDER'},
+    {l:'Mevduat & Diğer Faiz Geliri', k:'dgerGelir'},
+    {l:'Diğer Olağan Gider',   k:'dgerGider', cost:true},
+    {sep:'FİNANSMAN GİDERLERİ'},
+    {l:'Taksit Kredi Faizi',   k:'tFaiz',   cost:true},
+    {l:'BCH Faiz Gideri',      k:'bchFaizAccr', cost:true},
+    {l:'Toplam Finansman Gideri', k:'finGid', cost:true, bold:true},
+    {sep:'VERGİ ÖNCESİ KÂR (VÖK / EBT)'},
+    {l:'VÖK / EBT',            k:'ebt',     bold:true},
+    {sep:'VERGİ'},
+    {l:'Kurumlar Vergisi',     k:'tax',     cost:true},
+    {sep:'NET KÂR'},
+    {l:'Net Kâr',              k:'net',     bold:true, margin:'netM'},
+  ];
+
+  function cellVal(y, k){
+    return inc[y]?.[k]||0;
+  }
+  $('inc5-body').innerHTML=sections.map(row=>{
+    if(row.sep){
+      return'<tr class="muted-row"><td colspan="'+(years.length+1)+'" style="font-size:.62rem;letter-spacing:.12em">'+esc(row.sep)+'</td></tr>';
+    }
+    const cells=years.map(y=>{
+      const v=cellVal(y,row.k);
+      let cls='';
+      if(row.cost) cls=v>0?'neg':'';
+      else cls=v>0?'pos':v<0?'neg':'';
+      let extra='';
+      if(row.margin){const m=inc[y]?.[row.margin]||0;extra='<br><span style="font-size:.65rem;color:var(--tx3)">'+m.toFixed(1)+'%</span>';}
+      return'<td class="'+cls+'">'+tr(v)+extra+'</td>';
+    }).join('');
+    const lbl=(row.bold?'<b>':'')+esc(row.l)+(row.bold?'</b>':'');
+    return'<tr><td style="padding-left:12px">'+lbl+'</td>'+cells+'</tr>';
+  }).join('');
+}
+
+function renderBalance5Y(){
+  const f=curFirm();if(!f)return;
+  let proj;try{proj=buildProjection(state.currentFirmId);}catch(e){showAlert(e.message,'err');return;}
+  lastProjection=proj;
+  const sy=new Date(f.startDate).getFullYear();
+  const{years,inc,bal}=annual5Y(proj.rows,sy);
+  const retained=computeRetained(years,inc);const capital0=(f.opening||{}).capital||0;
+  $('bal5-title').textContent=f.name+' — 5 Yıllık Bilanço';
+  $('bal5-headers').innerHTML='<th>Kalem</th>'+years.map(y=>'<th>'+y+'</th>').join('');
+  // Gerçek pasif toplamı = Yükümlülükler + Özkaynak (her yıl bağımsız hesaplanır)
+  const realPasif={};
+  for(const y of years){
+    const sermEk=(bal[y]||{}).sermayeEk||0;
+    realPasif[y]=((bal[y]||{}).toplamYuk||0)+capital0+sermEk+(retained[y]||0);
+  }
+
+  const sections=[
+    {sep:'DÖNEN VARLIKLAR'},
+    {l:'Nakit & Banka',    k:'nakit'},
+    {l:'Mevduat',          k:'mevduat'},
+    {l:'Ticari Alacak (AR)',k:'ar'},
+    {l:'Stok',             k:'stok'},
+    {sep:'DURAN VARLIKLAR'},
+    {l:'Maddi Duran Varlık (kümülatif yatırım)',k:'mdv'},
+    {l:'► AKTİF TOPLAM',  k:'aktifToplam',bold:true},
+    {sep:'YÜKÜMLÜLÜKLER'},
+    {l:'Ticari Borç (AP)', k:'ap',    c:true},
+    {l:'BCH',              k:'bch',   c:true},
+    {l:'Spot Kredi',      k:'spot',  c:true},
+    {l:'Taksitli Kredi',   k:'taksit',c:true},
+    {l:'► Toplam Yükümlülük',k:'toplamYuk',c:true,bold:true},
+    {sep:'ÖZKAYNAK'},
+    {l:'Sermaye (Açılış)', k:'__cap__'},
+    {l:'Sermaye Artışı (kümülatif)',k:'sermayeEk'},
+    {l:'Birikimli Net K/Z (yıl sonu)',  k:'__ret__'},
+    {l:'► PASİF TOPLAM',k:'__pasif__',bold:true},
+    {l:'⚖ Denge Farkı (Aktif − Pasif)',k:'__fark__',fark:true}
+  ];
+  $('bal5-body').innerHTML=sections.map(row=>{
+    if(row.sep)return'<tr class="muted-row"><td colspan="'+(years.length+1)+'">'+row.sep+'</td></tr>';
+    const cells=years.map(y=>{
+      let v;
+      if(row.k==='__cap__')         v=capital0;
+      else if(row.k==='__ret__')    v=retained[y]||0;
+      else if(row.k==='__pasif__')  v=realPasif[y]||0;
+      else if(row.k==='__fark__')   v=((bal[y]||{}).aktifToplam||0)-(realPasif[y]||0);
+      else                          v=(bal[y]||{})[row.k]||0;
+      let cls='';
+      if(row.fark) cls=Math.abs(v)<1?'pos':'neg'; // Fark 1 TL'den küçükse yeşil (dengeli)
+      else if(row.c) cls=v>0?'neg':'';
+      else cls=v>0?'pos':v<0?'neg':'';
+      return'<td class="'+cls+'">'+tr(v)+'</td>';}).join('');
+    return'<tr><td>'+(row.bold?'<b>'+esc(row.l)+'</b>':esc(row.l))+'</td>'+cells+'</tr>';
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
+// CSV EXPORT
+// ══════════════════════════════════════════════
+function exportCSV(){
+  if(!lastProjection)return;
+  const{rows,firm}=lastProjection;if(!rows.length)return;
+  const hdr=Object.keys(rows[0]);
+  const csv=[hdr.join(';'),...rows.map(r=>hdr.map(h=>String(r[h]).replace(/;/g,',')).join(';'))].join('\n');
+  download(csv,'NakitAkis_'+firm.name+'.csv');
+}
+function exportCSV5Y(type){
+  const f=curFirm();if(!f)return;
+  let proj;try{proj=buildProjection(state.currentFirmId);}catch(e){showAlert(e.message,'err');return;}
+  const sy=new Date(f.startDate).getFullYear();
+  const{years,inc,bal}=annual5Y(proj.rows,sy);
+  const retained=computeRetained(years,inc);const c0=(f.opening||{}).capital||0;
+  const rows_=type==='income'
+    ?[['Kalem',...years],['Ciro',...years.map(y=>inc[y]?.ciro||0)],['COGS',...years.map(y=>inc[y]?.cogs||0)],
+      ['Brüt Kâr',...years.map(y=>inc[y]?.gp||0)],['Faaliyet Kârı',...years.map(y=>inc[y]?.faaliyetKar||0)],
+      ['EBT',...years.map(y=>inc[y]?.ebt||0)],['K.Vergisi',...years.map(y=>inc[y]?.tax||0)],['Net Kâr',...years.map(y=>inc[y]?.net||0)]]
+    :[['Kalem',...years],['Nakit',...years.map(y=>(bal[y]||{}).nakit||0)],['Mevduat',...years.map(y=>(bal[y]||{}).mevduat||0)],
+      ['AR',...years.map(y=>(bal[y]||{}).ar||0)],['Stok',...years.map(y=>(bal[y]||{}).stok||0)],
+      ['Aktif Toplam',...years.map(y=>(bal[y]||{}).aktifToplam||0)],['AP',...years.map(y=>(bal[y]||{}).ap||0)],
+      ['BCH',...years.map(y=>(bal[y]||{}).bch||0)],['Taksitli Kredi',...years.map(y=>(bal[y]||{}).taksit||0)],
+      ['Toplam Yük.',...years.map(y=>(bal[y]||{}).toplamYuk||0)],
+      ['Sermaye',...years.map(()=>c0)],['Geçmiş K/Z',...years.map(y=>retained[y]||0)],
+      ['Pasif Toplam',...years.map(y=>(bal[y]||{}).pasifToplam||0)]];
+  download(rows_.map(r=>r.join(';')).join('\n'),(type==='income'?'Gelir':'Bilanco')+'_5Y_'+f.name+'.csv');
+}
+function download(text,filename){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['\uFEFF'+text],{type:'text/csv;charset=utf-8'}));
+  a.download=filename;a.click();
+}
+
+// ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+// KREDİ DOSYA İÇE AKTAR (Excel/CSV/PDF)
+// ══════════════════════════════════════════════
+let loanPreviewData = [];
+
+function handleLoanFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const st = document.getElementById('loan-import-status');
+  st.textContent = '📂 Dosya okunuyor: ' + file.name + '...';
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'pdf') {
+    readPdfLoans(file);
+  } else {
+    readExcelCsvLoans(file, ext);
+  }
+  // Reset file input so same file can be re-selected
+  event.target.value = '';
+}
+
+function readExcelCsvLoans(file, ext) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      let rows = [];
+      if (ext === 'csv') {
+        const text = new TextDecoder('utf-8').decode(e.target.result);
+        rows = parseCSVRows(text);
+      } else {
+        // XLSX — parse binary
+        rows = parseXLSXRows(e.target.result);
+      }
+      buildLoanPreview(rows);
+    } catch(err) {
+      document.getElementById('loan-import-status').textContent = '⚠ Hata: ' + err.message;
+    }
+  };
+  if (ext === 'csv') reader.readAsArrayBuffer(file);
+  else reader.readAsArrayBuffer(file);
+}
+
+function parseCSVRows(text) {
+  // Handle BOM
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) throw new Error('CSV çok kısa.');
+  const sep = lines[0].includes(';') ? ';' : ',';
+  return lines.slice(1).map(l => l.split(sep).map(c => c.trim().replace(/^["']|["']$/g,'')));
+}
+
+function parseXLSXRows(buffer) {
+  // Minimal XLSX reader — extracts shared strings + sheet data
+  // Uses JSZip-style approach via raw zip parsing of xlsx
+  // Since we have no external libs, we'll parse CSV export of xlsx via FileReader
+  // Fall back: try to read as text (works for CSV saved as xls)
+  const text = new TextDecoder('utf-8').decode(buffer);
+  if (text.includes('<') && text.includes('>')) {
+    // Might be XML-based xlsx/xls — try to extract cell values via regex
+    return parseXMLSheet(text);
+  }
+  return parseCSVRows(text);
+}
+
+function parseXMLSheet(xml) {
+  // Very basic: extract row/cell data from xl/worksheets/sheet1.xml or similar
+  const cellRe = /<c r="[A-Z]+(\d+)"[^>]*(?:t="s")?[^>]*>(?:<v>(\d+)<\/v>)?/g;
+  // Simpler: just find all <v> tags row by row
+  const rowRe = /<row[^>]*>([\s\S]*?)<\/row>/g;
+  const valRe = /<v>([^<]*)<\/v>/g;
+  const rows = []; let rm;
+  while ((rm = rowRe.exec(xml)) !== null) {
+    const cells = []; let vm;
+    while ((vm = valRe.exec(rm[1])) !== null) cells.push(vm[1]);
+    if (cells.length) rows.push(cells);
+  }
+  if (rows.length > 1) return rows.slice(1); // skip header
+  throw new Error('XML formatı okunamadı. Lütfen CSV olarak kaydedin.');
+}
+
+function readPdfLoans(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      // Try to extract text from PDF bytes
+      const bytes = new Uint8Array(e.target.result);
+      const text = extractPdfText(bytes);
+      const rows = parsePdfTextLoans(text);
+      buildLoanPreview(rows);
+    } catch(err) {
+      document.getElementById('loan-import-status').textContent = '⚠ PDF okunamadı: ' + err.message + '. Lütfen CSV olarak kaydedin.';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function extractPdfText(bytes) {
+  // Extract printable ASCII text from raw PDF bytes
+  let text = '';
+  for (let i = 0; i < bytes.length; i++) {
+    const c = bytes[i];
+    if ((c >= 32 && c < 127) || c === 10 || c === 13) text += String.fromCharCode(c);
+  }
+  return text;
+}
+
+function parsePdfTextLoans(text) {
+  // Look for lines that contain numeric data resembling loan rows
+  const lines = text.split(/[\r\n]+/).filter(l => l.trim().length > 5);
+  const rows = [];
+  for (const line of lines) {
+    // Skip header/label lines
+    if (/tip|banka|döviz|anapara|tarih|vade|faiz/i.test(line) && !/\d{6,}/.test(line)) continue;
+    // Try splitting by whitespace or common delimiters
+    const parts = line.trim().split(/\s{2,}|\t|;/).map(p => p.trim()).filter(Boolean);
+    if (parts.length >= 4) rows.push(parts);
+  }
+  if (!rows.length) throw new Error('PDF\'den veri çıkarılamadı.');
+  return rows;
+}
+
+function parseLoanRow(cols) {
+  // cols: [tip, banka, döviz, anapara, tarih, vade, faiz] — flexible order/count
+  if (cols.length < 2) return null;
+  const tipRaw = (cols[0] || '').toLowerCase().trim();
+  const type = tipRaw.includes('bch') ? 'bch_existing' : 'installment';
+  const bank = cols[1] || 'Belirtilmemiş';
+  let ccy = 'TL';
+  if (cols[2]) {
+    const c = cols[2].toUpperCase().trim();
+    if (c === 'USD' || c === 'EUR') ccy = c;
+  }
+  const principal = fnum(cols[3] || 0);
+  let startDate = null;
+  let term = 0, rate = 0;
+  if (type === 'installment') {
+    const dt = parseDate(cols[4] || '');
+    startDate = dt ? dt.toISOString() : null;
+    term = parseInt(cols[5]) || 0;
+    rate = fnum(cols[6] || 0);
+  }
+  return { type, bank, ccy, principal, startDate, term, rate };
+}
+
+function buildLoanPreview(rows) {
+  loanPreviewData = [];
+  const tbody = document.getElementById('loan-preview-body');
+  let html = '';
+  for (const cols of rows) {
+    const L = parseLoanRow(cols);
+    if (!L || L.principal <= 0) continue;
+    const errors = [];
+    if (!L.bank) errors.push('Banka?');
+    if (L.type === 'installment' && !L.startDate) errors.push('Tarih?');
+    if (L.type === 'installment' && L.term <= 0) errors.push('Vade?');
+    const ok = errors.length === 0;
+    loanPreviewData.push({ ...L, _ok: ok });
+    const ccyBadge = L.ccy === 'USD' ? 'badge-green' : L.ccy === 'EUR' ? 'badge-pur' : 'badge-blue';
+    html += '<tr>' +
+      '<td><span class="badge ' + (L.type === 'installment' ? 'badge-blue' : 'badge-amber') + '">' + (L.type === 'installment' ? 'Taksitli' : 'BCH') + '</span></td>' +
+      '<td style="text-align:left">' + esc(L.bank) + '</td>' +
+      '<td><span class="badge ' + ccyBadge + '">' + L.ccy + '</span></td>' +
+      '<td>' + tr(L.principal) + '</td>' +
+      '<td>' + (L.startDate ? fmtDate(new Date(L.startDate)) : '—') + '</td>' +
+      '<td>' + (L.term || '—') + '</td>' +
+      '<td>' + (L.rate ? '%' + L.rate : '—') + '</td>' +
+      '<td>' + (ok ? '<span class="pos">✓</span>' : '<span class="neg">⚠ ' + errors.join(', ') + '</span>') + '</td>' +
+      '</tr>';
+  }
+  if (!loanPreviewData.length) {
+    document.getElementById('loan-import-status').textContent = '⚠ Tanınabilir kredi satırı bulunamadı.';
+    document.getElementById('loan-preview').style.display = 'none';
+    return;
+  }
+  tbody.innerHTML = html;
+  document.getElementById('loan-preview').style.display = '';
+  document.getElementById('loan-import-status').textContent = loanPreviewData.length + ' satır bulundu.';
+}
+
+function importLoansFromPreview() {
+  const f = curFirm(); if (!f) return;
+  let count = 0;
+  for (const L of loanPreviewData) {
+    if (!L._ok) continue;
+    const { _ok, ...loan } = L;
+    f.loans.push(loan);
+    count++;
+  }
+  saveState(); renderLoans(); clearLoanPreview();
+  showAlert(count + ' kredi başarıyla aktarıldı.', 'ok');
+}
+
+function clearLoanPreview() {
+  loanPreviewData = [];
+  document.getElementById('loan-preview').style.display = 'none';
+  document.getElementById('loan-import-status').textContent = '';
+}
+
+// INIT
+// ══════════════════════════════════════════════
+// ── FinSkor → NakitFlow otomatik aktarım ───────────────────────────────────
+async function importFromFinSkor(){
+  const raw = localStorage.getItem('nakit_akis_finskor_data');
+  if(!raw) return;
+  let p;
+  try { p = JSON.parse(raw); } catch(e){ return; }
+  if(!p || p.kaynak !== 'finskor') return;
+
+  // Tek seferlik okuma — tekrar açılırsa yeniden sorulmasın
+  localStorage.removeItem('nakit_akis_finskor_data');
+
+  const firmAdı = (p.firmaAdi || 'FinSkor Firması').trim();
+  // Projeksiyon başlangıcı: veri yılının ertesi yılı, 1 Ocak
+  const projYil = (p.veriYili || new Date().getFullYear()) + 1;
+  const startIso = new Date(projYil, 0, 1).toISOString();
+
+  // Gider şablonu
+  const defExp = {};
+  let ei = 0;
+  for(const{group,items} of EXPENSE_GROUPS)
+    for(const item of items) defExp[ei++] = {group, name:item, amount:0};
+
+  // Faaliyet giderini ilk kaleme yaz (Operasyon → Diğer)
+  if(p.faalGider && p.faalGider > 0){
+    const digerIdx = Object.entries(defExp).findIndex(([,v])=>v.name==='Diğer');
+    if(digerIdx >= 0) defExp[digerIdx].amount = p.faalGider;
+  }
+
+  const fxRates = {usdOpen:0, eurOpen:0, monthly:Array.from({length:60},()=>({usd:0,eur:0}))};
+  const id = genId();
+
+  state.firms[id] = {
+    id, name: firmAdı,
+    startDate: startIso,
+    createdAt: new Date().toISOString(),
+    opening:{
+      cash:      0,
+      bank:      p.kasaBanka       || 0,
+      ar:        p.ticariAlacaklar  || 0,
+      ap:        p.kvTicariBorclar  || 0,
+      inventory: p.stoklar          || 0,
+      capital:   p.ozKaynak         || 0,
+    },
+    incomeStmt:{
+      revenue: p.netSatis   || 0,
+      cogs:    p.satMaliyet || 0,
+    },
+    ciro:{mode:'uniform', monthly:new Array(12).fill(100/12)},
+    assumptions:{months:60, growth:0, expGrowth:0, stockMult:1.5,
+      bchLimit:0, bchRate:0, bch1:0, bch2:0, bch3:0, bch4:0, bch5:0,
+      dep1:0, dep2:0, dep3:0, dep4:0, dep5:0, taxRate:25, taxMonths:'3,6,9,12'},
+    expenses: defExp,
+    loans: [],
+    manualCf: [],
+    fxRates,
+  };
+
+  await saveState();
+  selectFirm(id);
+
+  // Borç hatırlatması
+  const kvMali = p.kvMaliBorclar || 0;
+  const uvMali = p.uvMaliBorclar || 0;
+  const borcMsg = (kvMali > 0 || uvMali > 0)
+    ? `\n\n⚠ Banka Kredisi: ${kvMali > 0 ? 'KV ₺'+kvMali.toLocaleString('tr-TR') : ''} ${uvMali > 0 ? '/ UV ₺'+uvMali.toLocaleString('tr-TR') : ''} — Krediler sekmesinden manuel ekleyin.`
+    : '';
+
+  setTimeout(()=>{
+    showAlert(
+      `✅ "${firmAdı}" FinSkor'dan aktarıldı (${p.veriYili} yıl sonu verileri). `
+      + `Açılış bilanço ve gelir tablosu dolduruldu.`
+      + borcMsg,
+      'ok'
+    );
+  }, 600);
+}
+
+async function init(){
+  await loadState();
+  await importFromFinSkor();   // FinSkor'dan veri geldiyse önce oluştur
+  renderFirmList();
+  $('new-firm-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal('new-firm-modal');});
+  $('nf-name').addEventListener('keydown',e=>{if(e.key==='Enter')$('nf-date').focus();});
+  $('nf-date').addEventListener('keydown',e=>{if(e.key==='Enter')createFirm();});
+  // Firm list button delegation
+  $('firm-list').addEventListener('click',e=>{
+    const btn=e.target.closest('[data-action]');if(!btn)return;
+    const id=btn.dataset.id,action=btn.dataset.action;
+    if(action==='edit')selectFirm(id);
+    else if(action==='proj')selectAndGo(id,'projection');
+    else if(action==='inc5')selectAndGo(id,'income5y');
+    else if(action==='bal5')selectAndGo(id,'balance5y');
+    else if(action==='save')exportFirmaJSON(id);
+    else if(action==='del')deleteFirm(id);
+  });
+  setMult(1.5);
+  // Spot tip butonlarını başlat
+  setTimeout(()=>{if(typeof setSpotType==="function")setSpotType("bullet");},100);
+  // Manuel tip butonlarını başlat
+  setTimeout(()=>{if(typeof setManualType==="function")setManualType("other");},100);
+}
+init();
+
+// ══════════════════════════════════════════════
+// FİRMA KAYDET / YÜKLE (JSON)
+// ══════════════════════════════════════════════
+function exportFirmaJSON(id) {
+  const firmId = id || state.currentFirmId;
+  if (!firmId) { showAlert('Önce bir firma seçin.', 'err'); return; }
+  const f = state.firms[firmId];
+  if (!f) { showAlert('Firma bulunamadı.', 'err'); return; }
+  const json = JSON.stringify({ version: 3, firma: f }, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'NakitFlow_' + (f.name || 'firma').replace(/[^a-zA-Z0-9ğüşıöçĞÜŞİÖÇ]/g, '_') + '.json';
+  a.click();
+  showAlert('"' + f.name + '" kaydedildi.', 'ok');
+}
+
+function importFirmaJSON(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      const firma = data.firma || data;
+      if (!firma.id || !firma.name) { showAlert('Geçersiz dosya formatı.', 'err'); return; }
+      // Çakışma önlemi: yeni ID ver
+      const newId = firma.id in state.firms ? ('imp_' + Date.now()) : firma.id;
+      firma.id = newId;
+      state.firms[newId] = firma;
+      await saveState();
+      renderFirmList();
+      showAlert('"' + firma.name + '" başarıyla yüklendi!', 'ok');
+    } catch(err) { showAlert('Dosya okunamadı: ' + err.message, 'err'); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function exportAllJSON() {
+  const json = JSON.stringify({ version: 3, firms: state.firms, exportedAt: new Date().toISOString() }, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'NakitFlow_Yedek_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  showAlert('Tüm veri yedeklendi.', 'ok');
+}
+
+function importAllJSON(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      const firms = data.firms || {};
+      const count = Object.keys(firms).length;
+      if (!count) { showAlert('Dosyada firma bulunamadı.', 'err'); return; }
+      if (!confirm(count + ' firma yüklenecek. Mevcut veriler korunur. Devam?')) return;
+      Object.assign(state.firms, firms);
+      await saveState();
+      renderFirmList();
+      showAlert(count + ' firma yüklendi!', 'ok');
+    } catch(err) { showAlert('Dosya okunamadı: ' + err.message, 'err'); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ══════════════════════════════════════════════
+// EXCEL EXPORT — SheetJS
+// ══════════════════════════════════════════════
+function numFmt(v) {
+  return typeof v === 'number' ? { v: Math.round(v), t: 'n', z: '#,##0' } : { v: v || '', t: 's' };
+}
+
+function makeSheet(headers, rows) {
+  const ws = {};
+  const range = { s: { c: 0, r: 0 }, e: { c: headers.length - 1, r: rows.length } };
+  // Header row
+  headers.forEach((h, c) => {
+    ws[XLSX.utils.encode_cell({ r: 0, c })] = { v: h, t: 's', s: { font: { bold: true } } };
+  });
+  // Data rows
+  rows.forEach((row, r) => {
+    row.forEach((val, c) => {
+      ws[XLSX.utils.encode_cell({ r: r + 1, c })] = numFmt(val);
+    });
+  });
+  ws['!ref'] = XLSX.utils.encode_range(range);
+  // Column widths
+  ws['!cols'] = headers.map((_, i) => ({ wch: i === 0 ? 28 : 16 }));
+  return ws;
+}
+
+function exportRaporExcel() {
+  const f = curFirm(); if (!f) return;
+  let proj; try { proj = buildProjection(state.currentFirmId); } catch(e) { showAlert(e.message, 'err'); return; }
+  lastProjection = proj;
+  const { rows, firm } = proj;
+  if (!rows.length) { showAlert('Projeksiyon boş.', 'err'); return; }
+
+  const wb = XLSX.utils.book_new();
+
+  // === SHEET 1: NAKİT AKIŞ ===
+  const hdrs = Object.keys(rows[0]);
+  const dataRows = rows.map(r => hdrs.map(h => r[h]));
+  const ws1 = makeSheet(hdrs, dataRows);
+  XLSX.utils.book_append_sheet(wb, ws1, 'Nakit Akış');
+
+  // === SHEET 2: GELİR TABLOSU ===
+  const sy = new Date(f.startDate).getFullYear();
+  const { years, inc } = annual5Y(rows, sy);
+  const gelirHdrs = ['Kalem', ...years.map(String)];
+  const gelirRows = [
+    ['Net Satışlar',                ...years.map(y => inc[y]?.ciro || 0)],
+    ['Satılan Malın Maliyeti',      ...years.map(y => inc[y]?.cogs || 0)],
+    ['────────────────',            ...years.map(() => '')],
+    ['Brüt Kâr',                   ...years.map(y => inc[y]?.gp || 0)],
+    ['Brüt Kâr Marjı %',           ...years.map(y => inc[y]?.gpM ? (inc[y].gpM.toFixed(1) + '%') : '0%')],
+    ['────────────────',            ...years.map(() => '')],
+    ['Faaliyet Giderleri',          ...years.map(y => inc[y]?.faalGid || 0)],
+    ['Faaliyet Kârı (EBIT)',        ...years.map(y => inc[y]?.faalKar || 0)],
+    ['Faaliyet Kâr Marjı %',       ...years.map(y => inc[y]?.faalM ? (inc[y].faalM.toFixed(1) + '%') : '0%')],
+    ['────────────────',            ...years.map(() => '')],
+    ['Mevduat & Diğer Gelir',       ...years.map(y => inc[y]?.dgerGelir || 0)],
+    ['Diğer Gider',                 ...years.map(y => inc[y]?.dgerGider || 0)],
+    ['Taksit Faizi',                ...years.map(y => inc[y]?.tFaiz || 0)],
+    ['BCH Faiz Gideri',             ...years.map(y => inc[y]?.bchFaizAccr || 0)],
+    ['Toplam Finansman Gideri',     ...years.map(y => inc[y]?.finGid || 0)],
+    ['────────────────',            ...years.map(() => '')],
+    ['VÖK / EBT',                  ...years.map(y => inc[y]?.ebt || 0)],
+    ['Kurumlar Vergisi',            ...years.map(y => inc[y]?.tax || 0)],
+    ['────────────────',            ...years.map(() => '')],
+    ['NET KÂR',                    ...years.map(y => inc[y]?.net || 0)],
+    ['Net Kâr Marjı %',            ...years.map(y => inc[y]?.netM ? (inc[y].netM.toFixed(1) + '%') : '0%')],
+  ];
+  XLSX.utils.book_append_sheet(wb, makeSheet(gelirHdrs, gelirRows), 'Gelir Tablosu');
+
+  // === SHEET 3: BİLANÇO ===
+  const { bal } = annual5Y(rows, sy);
+  const retained = computeRetained(years, inc);
+  const c0 = (f.opening || {}).capital || 0;
+  const bilHdrs = ['Kalem', ...years.map(String)];
+  const bilRows = [
+    ['── AKTİF ──',           ...years.map(() => '')],
+    ['Nakit & Banka',         ...years.map(y => (bal[y] || {}).nakit || 0)],
+    ['Mevduat',               ...years.map(y => (bal[y] || {}).mevduat || 0)],
+    ['Ticari Alacak (AR)',    ...years.map(y => (bal[y] || {}).ar || 0)],
+    ['Stok',                  ...years.map(y => (bal[y] || {}).stok || 0)],
+    ['AKTİF TOPLAM',          ...years.map(y => (bal[y] || {}).aktifToplam || 0)],
+    ['── PASİF ──',           ...years.map(() => '')],
+    ['Ticari Borç (AP)',      ...years.map(y => (bal[y] || {}).ap || 0)],
+    ['BCH Borcu',             ...years.map(y => (bal[y] || {}).bch || 0)],
+    ['Taksitli Kredi',        ...years.map(y => (bal[y] || {}).taksit || 0)],
+    ['TOPLAM YÜKÜMLÜLÜKler', ...years.map(y => (bal[y] || {}).toplamYuk || 0)],
+    ['── ÖZKAYNAK ──',        ...years.map(() => '')],
+    ['Sermaye',               ...years.map(() => c0)],
+    ['Geçmiş Yıl K/Z',       ...years.map(y => retained[y] || 0)],
+    ['PASİF TOPLAM',          ...years.map(y => (bal[y] || {}).pasifToplam || 0)],
+  ];
+  XLSX.utils.book_append_sheet(wb, makeSheet(bilHdrs, bilRows), 'Bilanço');
+
+  // Download
+  const fname = 'NakitFlow_' + (firm.name || 'rapor').replace(/[^a-zA-Z0-9ğüşıöçĞÜŞİÖÇ]/g, '_') + '_' + new Date().toISOString().slice(0,10) + '.xlsx';
+  XLSX.writeFile(wb, fname);
+  showAlert('Excel raporu indirildi!', 'ok');
+}
+
+function exportGelirExcel() {
+  const f = curFirm(); if (!f) return;
+  let proj; try { proj = buildProjection(state.currentFirmId); } catch(e) { showAlert(e.message,'err'); return; }
+  const sy = new Date(f.startDate).getFullYear();
+  const { years, inc } = annual5Y(proj.rows, sy);
+  const wb = XLSX.utils.book_new();
+  const hdrs = ['Kalem', ...years.map(String)];
+  const rows2 = [
+    ['Net Satışlar', ...years.map(y => inc[y]?.ciro||0)],
+    ['COGS', ...years.map(y => inc[y]?.cogs||0)],
+    ['Brüt Kâr', ...years.map(y => inc[y]?.gp||0)],
+    ['Brüt Kâr %', ...years.map(y => inc[y]?.gpM ? inc[y].gpM.toFixed(1)+'%':'0%')],
+    ['Faaliyet Giderleri', ...years.map(y => inc[y]?.faalGid||0)],
+    ['Faaliyet Kârı (EBIT)', ...years.map(y => inc[y]?.faalKar||0)],
+    ['Finansman Gideri', ...years.map(y => inc[y]?.finGid||0)],
+    ['VÖK / EBT', ...years.map(y => inc[y]?.ebt||0)],
+    ['Kurumlar Vergisi', ...years.map(y => inc[y]?.tax||0)],
+    ['Net Kâr', ...years.map(y => inc[y]?.net||0)],
+    ['Net Kâr %', ...years.map(y => inc[y]?.netM ? inc[y].netM.toFixed(1)+'%':'0%')],
+  ];
+  XLSX.utils.book_append_sheet(wb, makeSheet(hdrs, rows2), 'Gelir Tablosu');
+  XLSX.writeFile(wb, 'Gelir_' + (f.name||'').replace(/[^a-z0-9]/gi,'_') + '.xlsx');
+  showAlert('Gelir tablosu Excel indirildi!', 'ok');
+}
+
+function exportBilançoExcel() {
+  const f = curFirm(); if (!f) return;
+  let proj; try { proj = buildProjection(state.currentFirmId); } catch(e) { showAlert(e.message,'err'); return; }
+  const sy = new Date(f.startDate).getFullYear();
+  const { years, inc, bal } = annual5Y(proj.rows, sy);
+  const retained = computeRetained(years, inc);
+  const c0 = (f.opening||{}).capital||0;
+  const wb = XLSX.utils.book_new();
+  const hdrs = ['Kalem', ...years.map(String)];
+  const rows2 = [
+    ['Nakit', ...years.map(y=>(bal[y]||{}).nakit||0)],
+    ['Mevduat', ...years.map(y=>(bal[y]||{}).mevduat||0)],
+    ['AR', ...years.map(y=>(bal[y]||{}).ar||0)],
+    ['Stok', ...years.map(y=>(bal[y]||{}).stok||0)],
+    ['AKTİF TOPLAM', ...years.map(y=>(bal[y]||{}).aktifToplam||0)],
+    ['AP', ...years.map(y=>(bal[y]||{}).ap||0)],
+    ['BCH', ...years.map(y=>(bal[y]||{}).bch||0)],
+    ['Kredi', ...years.map(y=>(bal[y]||{}).taksit||0)],
+    ['YÜKÜMLÜLÜKler', ...years.map(y=>(bal[y]||{}).toplamYuk||0)],
+    ['Sermaye', ...years.map(()=>c0)],
+    ['Geçmiş K/Z', ...years.map(y=>retained[y]||0)],
+    ['PASİF TOPLAM', ...years.map(y=>(bal[y]||{}).pasifToplam||0)],
+  ];
+  XLSX.utils.book_append_sheet(wb, makeSheet(hdrs, rows2), 'Bilanço');
+  XLSX.writeFile(wb, 'Bilanco_' + (f.name||'').replace(/[^a-z0-9]/gi,'_') + '.xlsx');
+  showAlert('Bilanço Excel indirildi!', 'ok');
+}
+
+// ══════════════════════════════════════════════
+// PDF EXPORT — jsPDF + html2canvas
+// ══════════════════════════════════════════════
+async function captureAndExportPDF(elementId, filename, title) {
+  const el = document.getElementById(elementId);
+  if (!el) { showAlert('Sayfa bulunamadı.', 'err'); return; }
+  showAlert('PDF hazırlanıyor...', 'info');
+  try {
+    const { jsPDF } = window.jspdf;
+    const canvas = await html2canvas(el, {
+      backgroundColor: '#060810',
+      scale: 1.5,
+      useCORS: true,
+      logging: false,
+      width: el.scrollWidth,
+      height: el.scrollHeight,
+      windowWidth: el.scrollWidth + 280,
+    });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const pdfW = pdf.internal.pageSize.getWidth();
+    const pdfH = pdf.internal.pageSize.getHeight();
+    const ratio = canvas.width / canvas.height;
+    const imgH = pdfW / ratio;
+
+    // Header bar
+    pdf.setFillColor(6, 8, 16);
+    pdf.rect(0, 0, pdfW, pdfH, 'F');
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(title || 'NakitFlow Raporu', 14, 12);
+    pdf.setFontSize(8);
+    pdf.setTextColor(150, 150, 180);
+    pdf.text(new Date().toLocaleDateString('tr-TR', { year:'numeric', month:'long', day:'numeric' }), pdfW - 14, 12, { align: 'right' });
+
+    // Image - paginated if needed
+    const startY = 18;
+    const availH = pdfH - startY - 8;
+    if (imgH <= availH) {
+      pdf.addImage(imgData, 'PNG', 0, startY, pdfW, imgH);
+    } else {
+      // Multi-page
+      let remaining = canvas.height;
+      let srcY = 0;
+      let page = 0;
+      const sliceH = Math.floor(canvas.width * availH / pdfW);
+      while (remaining > 0) {
+        if (page > 0) {
+          pdf.addPage();
+          pdf.setFillColor(6, 8, 16);
+          pdf.rect(0, 0, pdfW, pdfH, 'F');
+        }
+        const thisSlice = Math.min(sliceH, remaining);
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = thisSlice;
+        const ctx = sliceCanvas.getContext('2d');
+        ctx.drawImage(canvas, 0, srcY, canvas.width, thisSlice, 0, 0, canvas.width, thisSlice);
+        const sliceImg = sliceCanvas.toDataURL('image/png');
+        const sliceDisplayH = pdfW * thisSlice / canvas.width;
+        pdf.addImage(sliceImg, 'PNG', 0, page === 0 ? startY : 4, pdfW, sliceDisplayH);
+        srcY += thisSlice;
+        remaining -= thisSlice;
+        page++;
+      }
+    }
+    pdf.save(filename);
+    showAlert('PDF indirildi!', 'ok');
+  } catch(err) {
+    showAlert('PDF hatası: ' + err.message, 'err');
+    console.error(err);
+  }
+}
+
+function exportRaporPDF() {
+  const f = curFirm(); if (!f) return;
+  const fname = 'NakitAkis_' + (f.name||'').replace(/[^a-zA-Z0-9]/g,'_') + '_' + new Date().toISOString().slice(0,10) + '.pdf';
+  captureAndExportPDF('page-projection', fname, f.name + ' — Nakit Akış Projeksiyonu');
+}
+
+function exportGelirPDF() {
+  const f = curFirm(); if (!f) return;
+  captureAndExportPDF('page-income5y', 'Gelir_' + (f.name||'').replace(/[^a-zA-Z0-9]/g,'_') + '.pdf', f.name + ' — 5 Yıllık Gelir Tablosu');
+}
+
+function exportBilançoPDF() {
+  const f = curFirm(); if (!f) return;
+  captureAndExportPDF('page-balance5y', 'Bilanco_' + (f.name||'').replace(/[^a-zA-Z0-9]/g,'_') + '.pdf', f.name + ' — 5 Yıllık Bilanço');
+}
+</script>
+
+  <!-- ═══════════════════════════════════
+       BAYKUŞ AVATAR — Sayfa Yardımcısı
+  ════════════════════════════════════ -->
+  <div class="owl-bubble" id="owl-bubble">
+    <div class="owl-panel" id="owl-panel">
+      <div class="owl-panel-head">
+        <div class="owl-avatar-sm">🦉</div>
+        <div>
+          <div class="owl-name">Baykuş</div>
+          <div class="owl-title">Nakit Akış Asistanı</div>
+        </div>
+        <button class="owl-close" onclick="owlClose()">✕</button>
+      </div>
+      <div class="owl-content" id="owl-content">
+        Bir sayfa seçin.
+      </div>
+    </div>
+    <button class="owl-btn" onclick="owlToggle()" title="Yardım">🦉</button>
+  </div>
+
+</body>
+</html>

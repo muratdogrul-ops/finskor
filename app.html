@@ -673,6 +673,10 @@ tbody td { padding:8px 13px; color:var(--text); }
           🎯 FinSkor Otomatik Senaryo Önerisi
         </button>
         <button class="action-btn pdf-btn" onclick="generatePDF()">📄 PDF Rapor</button>
+        <button id="nakitAkisBtn" onclick="openNakitAkis()"
+          style="display:none;background:linear-gradient(135deg,rgba(16,185,129,0.18),rgba(5,150,105,0.18));border-color:rgba(16,185,129,0.5);color:#34d399;font-weight:600">
+          📊 NakitFlow
+        </button>
       </div>
 
       <!-- KREDİ ANALİZ ASISTANI -->
@@ -1653,6 +1657,7 @@ async function doLogin() {
     localStorage.setItem('kas_client_name', data.client_name || code);
     localStorage.setItem('kas_credits', data.credits ?? 999);
     localStorage.setItem('kas_code_id', data.id);
+    localStorage.setItem('kas_nakit_akis', data.nakit_akis_enabled ? '1' : '0');
     loginSuccess(data);
   } catch(e) {
     errEl.textContent = '❌ Bağlantı hatası, tekrar deneyin.'; errEl.style.display = 'block';
@@ -1780,6 +1785,12 @@ function loginSuccess(userData) {
   // Baykuş butonu her zaman görünür
   const ab = document.getElementById('avatarBtn');
   if (ab) ab.style.display = 'flex';
+
+  // NakitFlow butonu — sadece yetkili kullanıcılara göster
+  if (localStorage.getItem('kas_nakit_akis') === '1') {
+    const nb = document.getElementById('nakitAkisBtn');
+    if (nb) nb.style.display = 'flex';
+  }
 
   // Her girişte onboarding sunumu açılsın
   window._obShown = false;
@@ -4963,6 +4974,54 @@ function pdfHtmlOzetGelirRows(gelirSatirlar, ciro, TL, r) {
     + '<tr class="row-header">\n'
     + '<th>KALEM</th><th class="num">TUTAR (TL)</th><th class="pct">% Net Satış</th></tr>\n'
     + body + '</table>';
+}
+
+// ── NakitFlow entegrasyonu ─────────────────────────────────────────────────
+function openNakitAkis() {
+  // En son yılın verisini al (aktif yılların en büyüğü)
+  const years = state.activeYears.slice().sort((a,b)=>a-b);
+  const lastYear = years[years.length - 1];
+  const d = (state.yearData[lastYear] || {});
+
+  // Firma adı
+  const firmName = (state.lastResult && state.lastResult.firmaAdi)
+    || localStorage.getItem('kas_client_name') || '';
+
+  // Nakit ve bankayı hazirDegerler'den al (tek kalem olarak saklanıyor)
+  const kasaBanka = parseFloat(d.hazirDegerler || 0);
+
+  // Net satışlar
+  const netSatis = parseFloat(d.netSatis
+    || (parseFloat(d.brutSatis||0) - parseFloat(d.satisInd||0))
+    || 0);
+
+  // Paket:
+  const payload = {
+    kaynak: 'finskor',
+    firmaAdi:          firmName,
+    veriYili:          lastYear,
+    // Bilanço – dönen
+    kasaBanka:         kasaBanka,
+    ticariAlacaklar:   parseFloat(d.ticAlacaklar   || 0),
+    stoklar:           parseFloat(d.stoklar        || 0),
+    // Bilanço – borçlar
+    kvTicariBorclar:   parseFloat(d.kvTicBorclar   || 0),
+    kvMaliBorclar:     parseFloat(d.kvMaliBorclar  || 0),
+    uvMaliBorclar:     parseFloat(d.uvMaliBorclar  || 0),
+    // Öz kaynak
+    ozKaynak:          parseFloat(d.ozKaynak       || 0),
+    odenmisSermaye:    parseFloat(d.odenmisSermaye || 0),
+    // Gelir tablosu
+    netSatis:          netSatis,
+    satMaliyet:        parseFloat(d.satMaliyet     || 0),
+    faalGider:         parseFloat(d.faalGider      || 0),
+    brutSatisKar:      parseFloat(d.brutSatisKar   || 0),
+    finansmanGider:    parseFloat(d.finansmanGider || 0),
+    donemNetKar:       parseFloat(d.donemNetKarGelir || d.donemNetKar || 0),
+  };
+
+  localStorage.setItem('nakit_akis_finskor_data', JSON.stringify(payload));
+  window.open('nakit_akis.html', '_blank');
 }
 
 function generatePDF() {
