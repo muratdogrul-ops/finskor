@@ -434,7 +434,17 @@ nav {
             <input class="field-input" type="text" id="vd" placeholder="Vergi Dairesi">
           </div>
 
-          <div style="margin-top:20px">
+          <div style="margin-top:20px;padding:14px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px">
+            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:rgba(244,246,249,0.7);line-height:1.6">
+              <input type="checkbox" id="sozlesmeOnay" style="margin-top:3px;flex-shrink:0;width:16px;height:16px;cursor:pointer;accent-color:#C9A84C">
+              <span>
+                <span onclick="openSozlesme('mss')" style="color:#C9A84C;text-decoration:underline;cursor:pointer">Mesafeli Satış Sözleşmesi</span>'ni ve
+                <span onclick="openSozlesme('iade')" style="color:#C9A84C;text-decoration:underline;cursor:pointer">İptal &amp; İade Koşulları</span>'nı okudum, anladım ve kabul ediyorum.
+              </span>
+            </label>
+          </div>
+
+          <div style="margin-top:14px">
             <button class="btn-pay" id="payBtn" onclick="submitPayment()">
               ✓ Ödeme Talebini Gönder
             </button>
@@ -633,6 +643,7 @@ async function submitPayment() {
   if (!telefon || telefon.length < 10) { showToast('Geçerli bir telefon numarası giriniz.', true); return; }
   if (!bireysel && !vkn) { showToast('VKN giriniz veya "Bireysel fatura" seçeneğini işaretleyiniz.', true); return; }
   if (vkn && (vkn.length < 10 || isNaN(vkn))) { showToast('VKN 10 haneli sayıdan oluşmalıdır.', true); return; }
+  if (!document.getElementById('sozlesmeOnay').checked) { showToast('Lütfen Mesafeli Satış Sözleşmesi\'ni kabul ediniz.', true); return; }
 
   const btn = document.getElementById('payBtn');
   btn.disabled = true;
@@ -725,6 +736,112 @@ function copyMail(mail, el) {
       goster(ok);
     } catch(e) { goster(false); }
   }
+}
+</script>
+
+<!-- SÖZLEŞME MODALLARİ -->
+<div id="sozlesmeModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:10001;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeSozlesme()">
+  <div style="background:#0d1e35;border:1px solid rgba(201,168,76,0.3);border-radius:14px;width:100%;max-width:680px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.6)">
+    <div style="padding:20px 28px;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+      <h3 id="sozlesmeBaslik" style="margin:0;font-size:17px;color:#C9A84C;font-family:'Plus Jakarta Sans',sans-serif"></h3>
+      <button onclick="closeSozlesme()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:22px;cursor:pointer">✕</button>
+    </div>
+    <div id="sozlesmeIcerik" style="padding:24px 28px;overflow-y:auto;font-size:13px;color:rgba(244,246,249,0.75);line-height:1.85"></div>
+    <div style="padding:16px 28px;border-top:1px solid rgba(255,255,255,0.08);display:flex;justify-content:flex-end;flex-shrink:0">
+      <button onclick="sozlesmeKabul()" style="padding:10px 28px;background:linear-gradient(135deg,#C9A84C,#f5c842);color:#0d1e35;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer">Okudum, Kabul Ediyorum</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SOZLESMELER = {
+  mss: {
+    baslik: 'Mesafeli Satış Sözleşmesi',
+    icerik: `
+      <p><strong style="color:#C9A84C">MADDE 1 — TARAFLAR</strong></p>
+      <p><strong>Satıcı:</strong><br>
+      Ad Soyad: Muratcan Doğrul<br>
+      Vergi Dairesi: Bakırköy Vergi Dairesi<br>
+      VKN: 530 505 70184<br>
+      Adres: Ataköy 7-8-9-10. Kısım Mah. Çobançeşme E-5 Yan Yol Cad. Nef B Blok No:22/2 İç Kapı No:230 Bakırköy/İstanbul<br>
+      E-posta: info@finskor.tr | Tel: +90 530 894 37 75</p>
+      <p><strong>Alıcı:</strong> Ödeme formunda bilgileri girilen gerçek veya tüzel kişi.</p>
+
+      <p><strong style="color:#C9A84C">MADDE 2 — KONU</strong></p>
+      <p>İşbu sözleşme, alıcının FinSkor Kredi Analiz Platformu'na ait <strong>Profesyonel Paket</strong> (4 analiz kontörü) dijital hizmetini satın almasına ilişkin tarafların hak ve yükümlülüklerini düzenler.</p>
+
+      <p><strong style="color:#C9A84C">MADDE 3 — HİZMET BİLGİLERİ</strong></p>
+      <p>
+      Ürün: FinSkor Profesyonel Paket<br>
+      İçerik: 4 analiz kontörü — kredi notu analizi, senaryo analizi, PDF rapor, Baykuş AI Asistan<br>
+      Satış Fiyatı: 2.490 TL (KDV Dahil)<br>
+      Teslim Yöntemi: Dijital — erişim kodu e-posta ve WhatsApp ile iletilir<br>
+      Teslim Süresi: Ödeme teyidinden sonra dakikalar içinde
+      </p>
+
+      <p><strong style="color:#C9A84C">MADDE 4 — ÖDEME</strong></p>
+      <p>Ödeme EFT/Havale yöntemiyle gerçekleştirilir. Ödeme açıklamasına e-posta adresinin yazılması zorunludur. Ödeme teyit edilmeden erişim kodu iletilmez.</p>
+
+      <p><strong style="color:#C9A84C">MADDE 5 — CAYMA HAKKI</strong></p>
+      <p>6502 sayılı Tüketicinin Korunması Hakkında Kanun ve Mesafeli Sözleşmeler Yönetmeliği uyarınca; <strong>dijital içerik ve yazılım hizmetlerinde</strong>, tüketicinin onayıyla ifaya başlanmış olan sözleşmelerde cayma hakkı kullanılamaz. Alıcı, erişim kodunun iletilmesiyle birlikte hizmetin ifasına başlandığını kabul eder.</p>
+      <p>Erişim kodu henüz iletilmemişse (ödeme teyit edilmemişse) talep tarihinden itibaren 14 gün içinde yazılı iptal hakkı saklıdır.</p>
+
+      <p><strong style="color:#C9A84C">MADDE 6 — GİZLİLİK</strong></p>
+      <p>Alıcıya ait kişisel veriler yalnızca hizmet ifası ve yasal yükümlülükler kapsamında işlenir; üçüncü kişilerle paylaşılmaz.</p>
+
+      <p><strong style="color:#C9A84C">MADDE 7 — UYUŞMAZLIK</strong></p>
+      <p>İşbu sözleşmeden doğan uyuşmazlıklarda İstanbul (Bakırköy) Tüketici Hakem Heyetleri ve Tüketici Mahkemeleri yetkilidir.</p>
+
+      <p><strong style="color:#C9A84C">MADDE 8 — YÜRÜRLÜK</strong></p>
+      <p>Alıcı, ödeme talebini göndererek işbu sözleşmenin tüm maddelerini okuduğunu ve kabul ettiğini beyan eder.</p>
+    `
+  },
+  iade: {
+    baslik: 'İptal ve İade Koşulları',
+    icerik: `
+      <p><strong style="color:#C9A84C">1. GENEL KURAL</strong></p>
+      <p>FinSkor Profesyonel Paket, erişim kodu iletilmesiyle birlikte dijital hizmet ifası başlamış sayılır. Bu nedenle, erişim kodunun tesliminin ardından <strong>iade ve cayma hakkı kullanılamaz</strong>.</p>
+
+      <p><strong style="color:#C9A84C">2. ERİŞİM KODU İLETİLMEDEN ÖNCE İPTAL</strong></p>
+      <p>Ödeme yapılmış ancak erişim kodu henüz iletilmemişse (ödeme henüz teyit edilmemişse), <strong>14 gün içinde</strong> info@finskor.tr adresine yazılı başvuru ile iptal talebinde bulunulabilir. Ödeme tutarı en geç 14 gün içinde iade edilir.</p>
+
+      <p><strong style="color:#C9A84C">3. KONTÖR KULLANIMI</strong></p>
+      <p>
+      • Satın alınan 4 kontörün tamamı kullanılmamış olsa dahi, erişim kodu teslim edildikten sonra kısmi iade yapılmaz.<br>
+      • Kontörler satın alma tarihinden itibaren <strong>1 yıl</strong> geçerlidir. Süre sonunda kalan kontörler iptal edilir, bedeli iade edilmez.<br>
+      • Teknik arıza veya platforma erişim kesintisinden kaynaklanan kontör kayıpları satıcı tarafından telafi edilir.
+      </p>
+
+      <p><strong style="color:#C9A84C">4. HATALI ÖDEME</strong></p>
+      <p>Yanlış hesaba veya yanlış miktarda yapılan EFT/Havale ödemelerinde alıcı derhal info@finskor.tr adresini bilgilendirmelidir. Satıcıya ulaşan fazla ödeme 5 iş günü içinde iade edilir.</p>
+
+      <p><strong style="color:#C9A84C">5. İLETİŞİM</strong></p>
+      <p>
+      İptal/iade talepleriniz için:<br>
+      E-posta: info@finskor.tr<br>
+      Telefon/WhatsApp: +90 530 894 37 75<br>
+      Yanıt süresi: En geç 2 iş günü
+      </p>
+    `
+  }
+};
+
+function openSozlesme(tip) {
+  const s = SOZLESMELER[tip];
+  document.getElementById('sozlesmeBaslik').textContent = s.baslik;
+  document.getElementById('sozlesmeIcerik').innerHTML = s.icerik;
+  document.getElementById('sozlesmeModal')._tip = tip;
+  const m = document.getElementById('sozlesmeModal');
+  m.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeSozlesme() {
+  document.getElementById('sozlesmeModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+function sozlesmeKabul() {
+  document.getElementById('sozlesmeOnay').checked = true;
+  closeSozlesme();
 }
 </script>
 
