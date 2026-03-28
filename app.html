@@ -9193,12 +9193,12 @@ function _demoAnalizSunumu() {
         if (senModal) _vurgula(senModal, 14000);
       }, 800);
     }, 500);
-    _bsoy('Kredi notu artırma senaryo analizi. Sermaye, borç vadesi, kârlılık ve ciro ' +
+    _bsoy('Kredi notu artırma senaryo analizi. Sermaye, borç vadesi, kâr marjı ve ciro ' +
       'parametreleriyle simülasyon yapılır. ' +
       'Bu ekranda gördüğünüz puan ve kredi notu, o anki senaryo değerlerine göre canlı hesaplanır.');
   }, 69000);
 
-  // ADIM 7 — KV→UV taşıma ek senaryo ve simülasyon | 91000ms (ADIM 6 ~19sn konuşma → 69+19+3 buffer)
+  // ADIM 7 — KV→UV taşıma ek senaryo ve simülasyon | 87000ms (ADIM 6 ~15sn konuşma → 69+15+3 buffer)
   setTimeout(() => {
     if (!window._demoMod) return;
     // KV taşıma oranını %75 yap, vade 48 ay
@@ -9222,9 +9222,9 @@ function _demoAnalizSunumu() {
     _bsoy('Kısa vadeli banka borcunun yüzde 75 i 48 ay vadeli taksitli kredi kullanılarak kapatıldığında, ' +
       'senaryo puanı ve kredi notu anlık olarak güncellenir. Ekranda gördüğünüz değerler geçerlidir. ' +
       'Bu şekilde birçok simülasyon yapılabilir.');
-  }, 91000);
+  }, 87000);
 
-  // ADIM 8 — FinSkor Otomatik Senaryo Önerisi | 113000ms (ADIM 7 ~19sn konuşma → 91+19+3 buffer)
+  // ADIM 8 — FinSkor Otomatik Senaryo Önerisi | 109000ms (ADIM 7 ~19sn konuşma → 87+19+3 buffer)
   setTimeout(() => {
     if (!window._demoMod) return;
     const sen = document.getElementById('senaryoModal');
@@ -9238,9 +9238,9 @@ function _demoAnalizSunumu() {
     _bsoy('FinSkor otomatik senaryo önerisi, notunuzu bir ve iki kademe artırmak için ' +
       'en uygun kombinasyonu hesaplar. Sermaye artışı, kısa vadeden uzun vadeye taşıma ve satış büyümesi ' +
       'kombinasyonları denenir. Bu öneri PDF raporda da yer alır.');
-  }, 113000);
+  }, 109000);
 
-  // ADIM 9 — Kapanış | 130000ms (ADIM 8 ~14sn konuşma → 113+14+3 buffer)
+  // ADIM 9 — Kapanış | 126000ms (ADIM 8 ~14sn konuşma → 109+14+3 buffer)
   setTimeout(() => {
     if (!window._demoMod) return;
     window.scrollTo({top:0, behavior:'smooth'});
@@ -9250,7 +9250,7 @@ function _demoAnalizSunumu() {
       'Kredi başvurusundan önce notunuzu öğrenin, zayıf noktaları güçlendirin, ' +
       'bankaya hazırlıklı gidin. Daha az teminat, daha iyi faiz, daha hızlı onay. ' +
       'FinSkor, kredide güç dengesi artık sizin tarafınızda.');
-  }, 130000);
+  }, 126000);
 }
 
 
