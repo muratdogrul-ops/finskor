@@ -3080,7 +3080,7 @@ function _doRunAnalysis() {
 
   // ── DEMO: ANALİZ SONUÇ SUNUMU ────────────────────────────
   if (window._demoMod) {
-    setTimeout(_demoAnalizSunumu, 1500);
+    setTimeout(_demoAnalizSunumu, 1800);
   }
 
 
@@ -9053,8 +9053,6 @@ function demoBaslat() {
               setTimeout(() => {
                 if (!window._demoMod) return;
                 showTab('tab-sonuc', document.getElementById('tab-btn-sonuc'));
-                // Analiz sayfası sunumu — DOM hazır, kısa gecikmeden sonra başlat
-                setTimeout(() => { if (window._demoMod) _demoAnalizSunumu(); }, 300);
               }, 1400);
             }
           }, 1000);
