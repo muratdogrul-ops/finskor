@@ -746,12 +746,16 @@ function copyMail(mail, el) {
       </div>
       <div style="margin-bottom:24px">
         <label style="font-size:12px;font-weight:600;color:rgba(244,246,249,0.7);display:block;margin-bottom:6px">Konu</label>
-        <select id="cKonu2" style="width:100%;padding:11px 14px;background:#0d1e35;border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;outline:none;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer" onfocus="this.style.borderColor='rgba(201,168,76,0.6)'" onblur="this.style.borderColor='rgba(255,255,255,0.12)'">
+        <select id="cKonu2" onchange="if(this.value==='Diğer'){document.getElementById('cAciklama2').style.display='block'}else{document.getElementById('cAciklama2').style.display='none'}" style="width:100%;padding:11px 14px;background:#0d1e35;border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;outline:none;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer" onfocus="this.style.borderColor='rgba(201,168,76,0.6)'" onblur="this.style.borderColor='rgba(255,255,255,0.12)'">
           <option value="Ödeme ve Erişim">Ödeme ve Erişim</option>
           <option value="Fiyat Bilgisi">Fiyat Bilgisi</option>
           <option value="Teknik Destek">Teknik Destek</option>
           <option value="Diğer">Diğer</option>
         </select>
+      </div>
+      <div id="cAciklama2" style="display:none;margin-bottom:16px">
+        <label style="font-size:12px;font-weight:600;color:rgba(244,246,249,0.7);display:block;margin-bottom:6px">Açıklama</label>
+        <textarea id="cAciklamaText2" rows="3" placeholder="Konuyu kısaca açıklayın..." style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;outline:none;font-family:'Plus Jakarta Sans',sans-serif;resize:vertical" onfocus="this.style.borderColor='rgba(201,168,76,0.6)'" onblur="this.style.borderColor='rgba(255,255,255,0.12)'"></textarea>
       </div>
       <button onclick="submitContact2()" style="width:100%;padding:13px;background:linear-gradient(135deg,#C9A84C,#f5c842);color:#0d1e35;font-weight:700;font-size:15px;border:none;border-radius:10px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif">Gönder →</button>
       <div id="cHata2" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(231,76,60,0.1);border:1px solid rgba(231,76,60,0.3);border-radius:8px;font-size:13px;color:#e74c3c;text-align:center"></div>
@@ -778,6 +782,8 @@ function closeContactModal() {
   document.getElementById('cAdSoyad2').value = '';
   document.getElementById('cTelefon2').value = '';
   document.getElementById('cKonu2').value = 'Ödeme ve Erişim';
+  document.getElementById('cAciklama2').style.display = 'none';
+  document.getElementById('cAciklamaText2').value = '';
   document.getElementById('cHata2').style.display = 'none';
   document.getElementById('contactForm2').style.display = 'block';
   document.getElementById('contactSuccess2').style.display = 'none';
@@ -786,6 +792,7 @@ async function submitContact2() {
   const ad = document.getElementById('cAdSoyad2').value.trim();
   const tel = document.getElementById('cTelefon2').value.trim();
   const konu = document.getElementById('cKonu2').value;
+  const aciklama = document.getElementById('cAciklamaText2').value.trim();
   const hata = document.getElementById('cHata2');
   if (!ad) { hata.textContent = 'Ad Soyad zorunludur.'; hata.style.display='block'; return; }
   if (!tel || tel.length < 10) { hata.textContent = 'Geçerli bir telefon numarası giriniz.'; hata.style.display='block'; return; }
@@ -793,7 +800,7 @@ async function submitContact2() {
   try {
     await fetch('/.netlify/functions/contact-form', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ adSoyad: ad, telefon: tel, konu })
+      body: JSON.stringify({ adSoyad: ad, telefon: tel, konu: konu + (aciklama ? (' — ' + aciklama) : '') })
     });
   } catch(e) {}
   document.getElementById('contactForm2').style.display = 'none';

@@ -139,49 +139,6 @@ nav {
 }
 .btn-primary:hover { background: var(--gold2); transform: translateY(-1px); }
 
-/* ── STICKY MINI HERO BAR ── */
-.sticky-hero-bar {
-  position: fixed;
-  top: 72px;
-  left: 0;
-  right: 0;
-  z-index: 90;
-  background: rgba(7,18,33,0.9);
-  border-bottom: 1px solid var(--border);
-  backdrop-filter: blur(10px);
-}
-.sticky-hero-inner {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 10px 60px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 24px;
-}
-.sticky-hero-title {
-  font-size: 12px;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  color: var(--gold2);
-  white-space: nowrap;
-}
-.sticky-hero-text {
-  flex: 1;
-  min-width: 0;
-  font-size: 13px;
-  color: var(--white-dim);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.sticky-hero-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
 .btn-mini {
   padding: 7px 12px;
   border-radius: 4px;
@@ -1001,7 +958,6 @@ footer {
 /* ── RESPONSIVE ── */
 @media (max-width: 1024px) {
   nav { padding: 0 30px; }
-  .sticky-hero-inner { padding: 10px 30px; }
   .hero { padding: 100px 30px 60px; }
   .hero-inner { grid-template-columns: 1fr; gap: 50px; }
   .section-inner { padding: 0 30px; }
@@ -1014,8 +970,6 @@ footer {
 
 @media (max-width: 768px) {
   nav { padding: 0 20px; }
-  .sticky-hero-inner { padding: 10px 20px; }
-  .sticky-hero-text { display: none; }
   .nav-links { display: none; }
   .hero { padding: 90px 20px 50px; }
   .section-inner { padding: 0 20px; }
@@ -1055,13 +1009,6 @@ footer {
   </div>
 </nav>
 
-<!-- STICKY MINI HERO BAR -->
-<div class="sticky-hero-bar">
-  <div class="sticky-hero-inner">
-    <div class="sticky-hero-title">Kredi Notunu Artırma</div>
-    <div class="sticky-hero-text">Firmanızın notunu hangi adımla kaç puan yükselteceğinizi senaryo ve otomatik öneriyle görün.</div>
-  </div>
-</div>
 
 <!-- HERO: Nasıl artırırsınız (ana mesaj) -->
 
@@ -1734,13 +1681,17 @@ footer {
       </div>
       <div style="margin-bottom:24px">
         <label style="font-size:12px;font-weight:600;color:rgba(244,246,249,0.7);display:block;margin-bottom:6px">Konu</label>
-        <select id="cKonu" style="width:100%;padding:11px 14px;background:#0d1e35;border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;outline:none;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer" onfocus="this.style.borderColor='rgba(201,168,76,0.6)'" onblur="this.style.borderColor='rgba(255,255,255,0.12)'">
+        <select id="cKonu" onchange="toggleDiger('cAciklama','cKonu')" style="width:100%;padding:11px 14px;background:#0d1e35;border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;outline:none;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer" onfocus="this.style.borderColor='rgba(201,168,76,0.6)'" onblur="this.style.borderColor='rgba(255,255,255,0.12)'">
           <option value="Fiyat Bilgisi">Fiyat Bilgisi</option>
           <option value="Demo Talebi">Demo Talebi</option>
           <option value="Kurumsal Paket">Kurumsal Paket</option>
           <option value="Teknik Destek">Teknik Destek</option>
           <option value="Diğer">Diğer</option>
         </select>
+      </div>
+      <div id="cAciklama" style="display:none;margin-bottom:16px">
+        <label style="font-size:12px;font-weight:600;color:rgba(244,246,249,0.7);display:block;margin-bottom:6px">Açıklama</label>
+        <textarea id="cAciklamaText" rows="3" placeholder="Konuyu kısaca açıklayın..." style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;outline:none;font-family:'Plus Jakarta Sans',sans-serif;resize:vertical" onfocus="this.style.borderColor='rgba(201,168,76,0.6)'" onblur="this.style.borderColor='rgba(255,255,255,0.12)'"></textarea>
       </div>
       <button onclick="submitContact()" style="width:100%;padding:13px;background:linear-gradient(135deg,#C9A84C,#f5c842);color:#0d1e35;font-weight:700;font-size:15px;border:none;border-radius:10px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:opacity 0.2s" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
         Gönder →
@@ -1809,14 +1760,21 @@ function closeContactModal() {
   document.getElementById('cAdSoyad').value = '';
   document.getElementById('cTelefon').value = '';
   document.getElementById('cKonu').value = 'Fiyat Bilgisi';
+  document.getElementById('cAciklama').style.display = 'none';
+  document.getElementById('cAciklamaText').value = '';
   document.getElementById('cHata').style.display = 'none';
   document.getElementById('contactForm').style.display = 'block';
   document.getElementById('contactSuccess').style.display = 'none';
+}
+function toggleDiger(alanId, selectId) {
+  const v = document.getElementById(selectId).value;
+  document.getElementById(alanId).style.display = v === 'Diğer' ? 'block' : 'none';
 }
 async function submitContact() {
   const ad = document.getElementById('cAdSoyad').value.trim();
   const tel = document.getElementById('cTelefon').value.trim();
   const konu = document.getElementById('cKonu').value;
+  const aciklama = document.getElementById('cAciklamaText').value.trim();
   const hata = document.getElementById('cHata');
 
   if (!ad) { hata.textContent = 'Ad Soyad zorunludur.'; hata.style.display='block'; return; }
@@ -1831,7 +1789,7 @@ async function submitContact() {
     await fetch('/.netlify/functions/contact-form', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ adSoyad: ad, telefon: tel, konu })
+      body: JSON.stringify({ adSoyad: ad, telefon: tel, konu: konu + (aciklama ? (' — ' + aciklama) : '') })
     });
   } catch(e) { /* sessiz hata — başarı göster */ }
 
