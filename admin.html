@@ -221,6 +221,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
     </div>
     <nav class="sidebar-nav">
       <button class="nav-item active" onclick="showPage('dashboard')" id="nav-dashboard"><span class="icon">📊</span><span>Dashboard</span></button>
+      <button class="nav-item" onclick="showPage('leads')" id="nav-leads"><span class="icon">🎯</span><span>Potansiyel Müşteriler</span></button>
       <button class="nav-item" onclick="showPage('customers')" id="nav-customers"><span class="icon">🏢</span><span>Müşteriler</span></button>
       <button class="nav-item" onclick="showPage('codes')" id="nav-codes"><span class="icon">🔑</span><span>Erişim Kodları</span></button>
       <button class="nav-item" onclick="showPage('payments')" id="nav-payments"><span class="icon">💳</span><span>Ödemeler</span></button>
@@ -255,6 +256,24 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
         <div class="card">
           <div class="card-head"><div class="card-head-title">💳 Son Ödemeler</div></div>
           <div class="card-body"><table class="tbl"><thead><tr><th>Müşteri</th><th>Tutar</th><th>Yöntem</th><th>Tarih</th></tr></thead><tbody id="recent-payments"><tr class="loading-row"><td colspan="4"><span class="spinner"></span></td></tr></tbody></table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- POTANSİYEL MÜŞTERİLER -->
+    <div class="page" id="page-leads">
+      <div class="page-title">Potansiyel Müşteriler</div>
+      <div class="page-sub">Bilgi talep edenler ve takip listesi</div>
+      <div class="toolbar">
+        <input class="search-input" type="text" placeholder="🔍 Ad, firma veya telefon ara..." id="lead-search" oninput="filterLeads()">
+        <button class="btn btn-primary" onclick="openLeadModal()">+ Yeni Ekle</button>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <table class="tbl">
+            <thead><tr><th>Ad Soyad / Firma</th><th>Telefon</th><th>E-posta</th><th>Kaynak</th><th>Durum</th><th>Kayıt</th><th>İşlemler</th></tr></thead>
+            <tbody id="leads-body"><tr class="loading-row"><td colspan="7"><span class="spinner"></span></td></tr></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -424,6 +443,45 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
   </div>
 </div>
 
+<!-- Potansiyel Müşteri Modal -->
+<div class="modal-overlay" id="modal-lead">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-lead')">✕</button>
+    <div class="modal-title" id="lead-modal-title">Potansiyel Müşteri Ekle</div>
+    <input type="hidden" id="lead-id">
+    <div class="form-grid">
+      <div class="form-group"><div class="form-label">Ad Soyad *</div><input class="form-input" id="lead-ad" placeholder="Ad Soyad"></div>
+      <div class="form-group"><div class="form-label">Firma Adı</div><input class="form-input" id="lead-firma" placeholder="ABC Ltd. Şti."></div>
+      <div class="form-group"><div class="form-label">Telefon (WhatsApp)</div><input class="form-input" id="lead-tel" type="tel" placeholder="0532 000 00 00"></div>
+      <div class="form-group"><div class="form-label">E-posta</div><input class="form-input" id="lead-email" type="email" placeholder="info@firma.com"></div>
+      <div class="form-group"><div class="form-label">Kaynak</div>
+        <select class="form-select" id="lead-kaynak">
+          <option>Manuel</option>
+          <option>WhatsApp</option>
+          <option>E-posta</option>
+          <option>Referans</option>
+          <option>Web Sitesi</option>
+          <option>Telefon</option>
+        </select>
+      </div>
+      <div class="form-group"><div class="form-label">Durum</div>
+        <select class="form-select" id="lead-durum">
+          <option>Takipte</option>
+          <option>Demo Gönderildi</option>
+          <option>Teklif Verildi</option>
+          <option>Kazanıldı</option>
+          <option>Kaybedildi</option>
+        </select>
+      </div>
+      <div class="form-group span2"><div class="form-label">Not</div><textarea class="form-textarea" id="lead-not" placeholder="Görüşme notu..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-lead')">İptal</button>
+      <button class="btn btn-primary" onclick="saveLead()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
 <!-- Erişim Kodu Modal -->
 <div class="modal-overlay" id="modal-code">
   <div class="modal">
@@ -572,6 +630,7 @@ window.onload = () => {
 async function initAdmin() {
   await setupTables();
   loadDashboard();
+  loadLeads();
   loadCustomers();
   loadCodes();
   loadPayments();
@@ -601,6 +660,7 @@ function showPage(name) {
   const pg = document.getElementById('page-' + name);
   if (pg) pg.classList.add('active');
   const nb = document.getElementById('nav-' + name); if (nb) nb.classList.add('active');
+  if (name === 'leads') loadLeads();
   if (name === 'customers') loadCustomers();
   if (name === 'codes') loadCodes();
   if (name === 'payments') loadPayments();
@@ -1353,6 +1413,165 @@ function adminSifreDegistir() {
 // ══════════════════════════════════════════
 // YARDIMCI
 // ══════════════════════════════════════════
+// ══════════════════════════════════════════
+// POTANSİYEL MÜŞTERİLER (LEADS)
+// ══════════════════════════════════════════
+let allLeads = [];
+
+async function loadLeads() {
+  const body = document.getElementById('leads-body');
+  try {
+    const { data, error } = await sb.from('leads').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+    allLeads = data || [];
+    renderLeads(allLeads);
+  } catch(e) {
+    body.innerHTML = `<tr class="loading-row"><td colspan="7" style="color:var(--danger)">⚠️ ${e.message}</td></tr>`;
+  }
+}
+
+function renderLeads(list) {
+  const body = document.getElementById('leads-body');
+  if (!body) return;
+  if (!list.length) {
+    body.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-title">Henüz potansiyel müşteri yok</div></div></td></tr>`;
+    return;
+  }
+  const durumRenk = { 'Takipte': '#4dabf7', 'Demo Gönderildi': '#f5a623', 'Teklif Verildi': '#cc5de8', 'Kazanıldı': '#51cf66', 'Kaybedildi': '#ff6b6b' };
+  body.innerHTML = list.map(l => {
+    const renk = durumRenk[l.durum] || '#888';
+    const tel = l.telefon ? l.telefon.replace(/\D/g,'').replace(/^0/,'') : '';
+    const waPhone = tel.startsWith('90') ? tel : '90' + tel;
+    return `<tr>
+      <td><strong>${l.ad_soyad || '—'}</strong>${l.firma_adi ? `<br><span style="font-size:11px;color:var(--text-muted)">${l.firma_adi}</span>` : ''}</td>
+      <td>${l.telefon ? `<a href="https://wa.me/${waPhone}" target="_blank" style="color:#25D366">${l.telefon}</a>` : '—'}</td>
+      <td>${l.email || '—'}</td>
+      <td><span style="font-size:11px;color:var(--text-muted)">${l.kaynak || '—'}</span></td>
+      <td><span style="font-size:11px;font-weight:600;color:${renk}">${l.durum || '—'}</span></td>
+      <td style="color:var(--text-muted);font-size:11px">${fmtDate(l.created_at)}</td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap">
+        ${l.telefon ? `<button class="btn btn-outline btn-sm" onclick="leadWhatsApp('${l.id}')" style="background:rgba(37,211,102,0.1);border-color:#25D366;color:#25D366" title="WhatsApp">💬</button>` : ''}
+        <button class="btn btn-outline btn-sm btn-icon" onclick="convertToCustomer('${l.id}')" title="Müşteriye Dönüştür" style="background:rgba(81,207,102,0.1);border-color:#51cf66;color:#51cf66">🏢</button>
+        <button class="btn btn-outline btn-sm btn-icon" onclick="editLead('${l.id}')" title="Düzenle">✏️</button>
+        <button class="btn btn-danger btn-sm btn-icon" onclick="deleteLead('${l.id}')" title="Sil">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterLeads() {
+  const q = document.getElementById('lead-search').value.toLowerCase();
+  renderLeads(allLeads.filter(l =>
+    (l.ad_soyad||'').toLowerCase().includes(q) ||
+    (l.firma_adi||'').toLowerCase().includes(q) ||
+    (l.telefon||'').includes(q) ||
+    (l.email||'').toLowerCase().includes(q)
+  ));
+}
+
+function openLeadModal() {
+  document.getElementById('lead-id').value = '';
+  document.getElementById('lead-modal-title').textContent = 'Potansiyel Müşteri Ekle';
+  document.getElementById('lead-ad').value = '';
+  document.getElementById('lead-firma').value = '';
+  document.getElementById('lead-tel').value = '';
+  document.getElementById('lead-email').value = '';
+  document.getElementById('lead-kaynak').value = 'Manuel';
+  document.getElementById('lead-durum').value = 'Takipte';
+  document.getElementById('lead-not').value = '';
+  openModal('modal-lead');
+}
+
+function editLead(id) {
+  const l = allLeads.find(x => x.id === id);
+  if (!l) return;
+  document.getElementById('lead-id').value = l.id;
+  document.getElementById('lead-modal-title').textContent = 'Potansiyel Müşteri Düzenle';
+  document.getElementById('lead-ad').value = l.ad_soyad || '';
+  document.getElementById('lead-firma').value = l.firma_adi || '';
+  document.getElementById('lead-tel').value = l.telefon || '';
+  document.getElementById('lead-email').value = l.email || '';
+  document.getElementById('lead-kaynak').value = l.kaynak || 'Manuel';
+  document.getElementById('lead-durum').value = l.durum || 'Takipte';
+  document.getElementById('lead-not').value = l.notlar || '';
+  openModal('modal-lead');
+}
+
+async function saveLead() {
+  const id = document.getElementById('lead-id').value;
+  const adSoyad = document.getElementById('lead-ad').value.trim();
+  if (!adSoyad) { toast('Ad Soyad zorunludur', 'error'); return; }
+  const data = {
+    ad_soyad: adSoyad,
+    firma_adi: document.getElementById('lead-firma').value.trim() || null,
+    telefon: document.getElementById('lead-tel').value.trim() || null,
+    email: document.getElementById('lead-email').value.trim() || null,
+    kaynak: document.getElementById('lead-kaynak').value,
+    durum: document.getElementById('lead-durum').value,
+    notlar: document.getElementById('lead-not').value.trim() || null,
+    updated_at: new Date().toISOString()
+  };
+  try {
+    if (id) {
+      const { error } = await sb.from('leads').update(data).eq('id', id);
+      if (error) throw error;
+      toast('Güncellendi');
+    } else {
+      const { error } = await sb.from('leads').insert(data);
+      if (error) throw error;
+      toast('Potansiyel müşteri eklendi');
+    }
+    closeModal('modal-lead');
+    loadLeads();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function deleteLead(id) {
+  if (!confirm('Bu kaydı silmek istediğinizden emin misiniz?')) return;
+  try {
+    const { error } = await sb.from('leads').delete().eq('id', id);
+    if (error) throw error;
+    toast('Silindi');
+    loadLeads();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function leadWhatsApp(id) {
+  const l = allLeads.find(x => x.id === id);
+  if (!l || !l.telefon) return;
+  const tel = l.telefon.replace(/\D/g,'').replace(/^0/,'');
+  const waPhone = tel.startsWith('90') ? tel : '90' + tel;
+  const msg = encodeURIComponent(
+    'Merhaba' + (l.ad_soyad ? ' ' + l.ad_soyad.split(' ')[0] : '') + ',\n\n' +
+    '🦉 FinSkor Kredi Analiz Platformu hakkındaki ilginiz için teşekkür ederiz.\n\n' +
+    '🎯 Demo izlemek için: https://finskor.tr/app\n' +
+    '💳 Abonelik ve fiyat bilgisi: https://finskor.tr/odeme\n' +
+    '📋 Yıllık abonelik: 2.490 TL (KDV Dahil)\n\n' +
+    'Sorularınız için buradayız.'
+  );
+  window.open('https://wa.me/' + waPhone + '?text=' + msg, '_blank');
+}
+
+async function convertToCustomer(id) {
+  const l = allLeads.find(x => x.id === id);
+  if (!l) return;
+  if (!confirm(`"${l.ad_soyad}" müşteriler listesine taşınsın mı?`)) return;
+  try {
+    const { error } = await sb.from('customers').insert({
+      firma_adi: l.firma_adi || l.ad_soyad,
+      yetkili_kisi: l.ad_soyad,
+      telefon: l.telefon || null,
+      email: l.email || null,
+      notlar: l.notlar || null
+    });
+    if (error) throw error;
+    await sb.from('leads').update({ durum: 'Kazanıldı', updated_at: new Date().toISOString() }).eq('id', id);
+    toast('✅ Müşteriye dönüştürüldü');
+    loadLeads();
+    loadCustomers();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
 function fillCustomerDropdowns() {
   const selects = ['code-customer', 'pay-customer'];
   selects.forEach(id => {
