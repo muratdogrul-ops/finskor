@@ -65,6 +65,8 @@ async function saveToSupabase(adSoyad, email, telefon, firmaAdi, vkn, vd, fatura
 
     // Ödeme kaydı oluştur
     const notlar = [
+      firmaAdi ? `Firma: ${firmaAdi}` : '',
+      adSoyad ? `Ad: ${adSoyad}` : '',
       vkn ? `VKN: ${vkn}` : '',
       vd ? `Vergi Dairesi: ${vd}` : '',
       faturaTipi ? `Fatura: ${faturaTipi}` : '',

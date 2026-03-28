@@ -1066,13 +1066,16 @@ let allPayments = [];
 
 function parsePaymentInfo(p) {
   const notlar = p.notlar || '';
+  const firmaMatch = notlar.match(/Firma:\s*([^|]+)/);
+  const adMatch    = notlar.match(/Ad:\s*([^|]+)/);
   const emailMatch = notlar.match(/E-posta:\s*([^\s|]+)/);
   const telMatch   = notlar.match(/Tel:\s*([^\s|]+)/);
-  const firma = p.customers?.firma_adi || '';
-  const displayName = firma || notlar.split('|')[0].replace(/VKN:[^|]*/,'').replace(/Vergi[^|]*/,'').trim() || '—';
+  const displayName = (firmaMatch ? firmaMatch[1].trim() : '') ||
+                      (adMatch    ? adMatch[1].trim()    : '') ||
+                      (p.client_name || '—');
   return {
-    email:   emailMatch ? emailMatch[1] : (p.customers?.email || null),
-    telefon: telMatch   ? telMatch[1]   : (p.customers?.telefon || null),
+    email:   emailMatch ? emailMatch[1].trim() : null,
+    telefon: telMatch   ? telMatch[1].trim()   : null,
     firma:   displayName
   };
 }
