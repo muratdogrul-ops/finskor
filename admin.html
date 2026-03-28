@@ -433,7 +433,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
     <input type="hidden" id="code-id">
     <div class="form-grid">
       <div class="form-group"><div class="form-label">Müşteri *</div>
-        <select class="form-select" id="code-customer"></select>
+        <select class="form-select" id="code-customer" onchange="autoFillCodeFields()"></select>
       </div>
       <div class="form-group"><div class="form-label">Erişim Kodu</div>
         <div style="display:flex;gap:8px;align-items:center">
@@ -445,7 +445,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
       <div class="form-group"><div class="form-label">Durum</div>
         <select class="form-select" id="code-active"><option value="true">✅ Aktif</option><option value="false">❌ Pasif</option></select>
       </div>
-      <div class="form-group"><div class="form-label">E-posta Girişi (opsiyonel)</div><input class="form-input" id="code-email" type="email" placeholder="musteri@firma.com"></div>
+      <div class="form-group"><div class="form-label">E-posta (kod gönderilecek)</div><input class="form-input" id="code-email" type="email" placeholder="musteri@firma.com"></div>
+      <div class="form-group"><div class="form-label">WhatsApp Telefon (kod gönderilecek)</div><input class="form-input" id="code-phone" type="tel" placeholder="0532 000 00 00"></div>
       <div class="form-group"><div class="form-label">Şifre (opsiyonel)</div><input class="form-input" id="code-pass" type="password" placeholder="En az 6 karakter"></div>
     </div>
     <div id="code-preview" style="margin-top:16px;display:none">
@@ -828,6 +829,7 @@ function openCodeModal() {
   document.getElementById('code-credits').value = '10';
   document.getElementById('code-active').value = 'true';
   document.getElementById('code-email').value = '';
+  document.getElementById('code-phone').value = '';
   document.getElementById('code-pass').value = '';
   document.getElementById('code-preview').style.display = 'none';
   fillCustomerDropdowns();
@@ -867,14 +869,46 @@ async function saveCode() {
   };
   if (pass) data.password_hash = btoa(pass); // basit encoding
 
+  const phone = document.getElementById('code-phone').value.trim();
+
   try {
     const { error } = await sb.from('access_codes').insert(data);
     if (error) throw error;
-    toast('Erişim kodu oluşturuldu: ' + code);
     closeModal('modal-code');
     loadCodes();
     loadDashboard();
+    // Otomatik mail + WhatsApp gönder
+    if (email || phone) {
+      toast('Erişim kodu oluşturuldu, gönderiliyor...', 'info');
+      try {
+        const resp = await fetch('/.netlify/functions/send-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, email, phone, firma: custName, credits })
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          toast('✅ Kod oluşturuldu ve ' + (email && phone ? 'mail + WhatsApp' : email ? 'mail' : 'WhatsApp') + ' ile gönderildi');
+        } else {
+          toast('Kod oluşturuldu fakat gönderim hatası: ' + JSON.stringify(result.errors), 'error');
+        }
+      } catch(sendErr) {
+        toast('Kod oluşturuldu fakat gönderim hatası: ' + sendErr.message, 'error');
+      }
+    } else {
+      toast('Erişim kodu oluşturuldu: ' + code);
+    }
   } catch(e) { toast(e.message, 'error'); }
+}
+
+function autoFillCodeFields() {
+  const sel = document.getElementById('code-customer');
+  const custId = sel.value;
+  if (!custId) return;
+  const cust = allCustomers.find(c => String(c.id) === String(custId));
+  if (!cust) return;
+  if (cust.email) document.getElementById('code-email').value = cust.email;
+  if (cust.telefon) document.getElementById('code-phone').value = cust.telefon;
 }
 
 function openTopup(id, code, current) {
