@@ -228,7 +228,9 @@ exports.handler = async (event) => {
     // Yöneticiye WhatsApp bildirimi (CallMeBot)
     const waMsg = `🔔 FinSkor Yeni Ödeme Talebi\n\nAd Soyad: ${adSoyad}\nTelefon: ${telefon}\nE-posta: ${email}\nFirma: ${firmaAdi || '—'}\nPaket: ${paketLabel} (${kredit} kontör)\nTutar: ₺${fiyatLabel}\nYöntem: ${odemeYontemi || 'EFT'}\nTarih: ${tarih}`;
     await sendAdminWhatsApp(waMsg);
-    // Not: Supabase kaydı odeme.html tarafından doğrudan yapılıyor, burada tekrar yapmaya gerek yok.
+
+    // Supabase'e müşteri + ödeme kaydı
+    await saveToSupabase(adSoyad, email, telefon, firmaAdi, vkn, vd, faturaTipi, odemeYontemi, tarih, paketLabel, fiyatLabel, kredit);
 
     return {
       statusCode: 200,
