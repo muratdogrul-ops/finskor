@@ -93,7 +93,7 @@ exports.handler = async (event) => {
       ad_soyad: adSoyad,
       telefon: telefon || null,
       kaynak: 'Web Sitesi',
-      durum: konu === 'Demo Talebi' ? 'Demo Gönderildi' : 'Takipte',
+      durum: 'Takipte',
       notlar: notlar || null
     }).catch(e => console.warn('Supabase leads hatası:', e.message));
 
