@@ -325,7 +325,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
       <div class="card">
         <div class="card-body">
           <table class="tbl">
-            <thead><tr><th>Müşteri</th><th>Tutar</th><th>Yöntem</th><th>Fatura No</th><th>Ödeme Tarihi</th><th>Notlar</th><th>İşlemler</th></tr></thead>
+            <thead><tr><th>Müşteri</th><th>Tutar</th><th>Yöntem</th><th>Durum</th><th>Ödeme Tarihi</th><th>Notlar</th><th>İşlemler</th></tr></thead>
             <tbody id="payments-body"><tr class="loading-row"><td colspan="7"><span class="spinner"></span></td></tr></tbody>
           </table>
         </div>
@@ -1059,20 +1059,25 @@ async function loadPayments() {
 function renderPayments(list) {
   const body = document.getElementById('payments-body');
   if (!list.length) { body.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">Henüz ödeme kaydı yok</div></div></td></tr>`; return; }
-  body.innerHTML = list.map(p => `
-    <tr>
-      <td><strong>${p.customers?.firma_adi||'—'}</strong></td>
+  body.innerHTML = list.map(p => {
+    const onaylandi = p.durum === 'onaylandi';
+    const durumBadge = onaylandi
+      ? `<span style="font-size:11px;font-weight:600;color:#51cf66">✅ Onaylı</span>`
+      : `<span style="font-size:11px;font-weight:600;color:#f5a623">⏳ Bekliyor</span>`;
+    return `<tr>
+      <td><strong>${p.customers?.firma_adi||p.notlar?.split('E-posta:')[0]?.replace('VKN:','')?.trim()||'—'}</strong></td>
       <td><strong style="color:var(--success)">₺${parseFloat(p.tutar||0).toLocaleString('tr-TR',{minimumFractionDigits:2})}</strong></td>
       <td><span class="badge badge-blue">${p.odeme_yontemi||'—'}</span></td>
-      <td style="font-family:monospace;font-size:12px">${p.fatura_no||'—'}</td>
+      <td>${durumBadge}</td>
       <td style="color:var(--text-muted)">${fmtDate(p.odeme_tarihi)}</td>
-      <td style="color:var(--text-muted);font-size:12px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.notlar||'—'}</td>
-      <td>
+      <td style="color:var(--text-muted);font-size:12px;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.notlar||'—'}</td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap">
+        ${!onaylandi ? `<button class="btn btn-primary btn-sm" onclick="confirmPayment('${p.id}')" style="background:linear-gradient(135deg,#51cf66,#40c057);border:none">✅ Onayla</button>` : ''}
         <button class="btn btn-outline btn-sm btn-icon" onclick="editPayment('${p.id}')" title="Düzenle">✏️</button>
         <button class="btn btn-danger btn-sm btn-icon" onclick="deletePayment('${p.id}')" title="Sil">🗑</button>
       </td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
 }
 
 function filterPayments() {
@@ -1145,6 +1150,56 @@ async function deletePayment(id) {
     loadPayments();
     loadDashboard();
   } catch(e) { toast(e.message, 'error'); }
+}
+
+async function confirmPayment(paymentId) {
+  const p = allPayments.find(x => x.id === paymentId);
+  if (!p) return;
+  if (!confirm('Ödemeyi onaylayın — erişim kodu otomatik oluşturulup müşteriye mail gönderilecek.')) return;
+
+  // Notlardan email ve telefonu çıkar
+  const notlar = p.notlar || '';
+  const emailMatch = notlar.match(/E-posta:\s*([^\s|]+)/);
+  const telMatch = notlar.match(/Tel:\s*([^\s|]+)/);
+  const email = emailMatch ? emailMatch[1] : null;
+  const telefon = telMatch ? telMatch[1] : null;
+  const firma = p.customers?.firma_adi || '';
+
+  toast('Onaylanıyor, kod oluşturuluyor...', 'info');
+  try {
+    const resp = await fetch('/.netlify/functions/confirm-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        paymentId,
+        customerId: p.customer_id || null,
+        email,
+        telefon,
+        firma,
+        credits: 10
+      })
+    });
+    const result = await resp.json();
+    if (!result.ok) { toast('Hata: ' + (result.error || 'Bilinmeyen hata'), 'error'); return; }
+
+    toast('✅ Ödeme onaylandı! Kod: ' + result.code + (email ? ' · Mail gönderildi' : ''));
+    loadPayments();
+    loadDashboard();
+    loadCodes();
+
+    // WhatsApp 1-tık butonu göster
+    if (result.telefon) {
+      const tel = result.telefon.replace(/\D/g,'').replace(/^0/,'');
+      const waPhone = tel.startsWith('90') ? tel : '90' + tel;
+      const waMsg = encodeURIComponent(
+        '🦉 *FinSkor Erişim Kodunuz*\n\n' +
+        (result.firma ? result.firma + ' için erişim kodunuz:\n\n' : 'Erişim kodunuz:\n\n') +
+        '🔑 *' + result.code + '*\n📊 10 kontör\n\n' +
+        '🌐 Giriş: https://finskor.tr/app.html\n\nSorularınız için: info@finskor.tr'
+      );
+      showWaButton(waPhone, waMsg);
+    }
+  } catch(e) { toast('Bağlantı hatası: ' + e.message, 'error'); }
 }
 
 // ══════════════════════════════════════════
