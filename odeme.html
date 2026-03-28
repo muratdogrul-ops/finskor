@@ -754,83 +754,110 @@ function copyMail(mail, el) {
 </div>
 
 <script>
-const SOZLESMELER = {
-  mss: {
-    baslik: 'Mesafeli Satış Sözleşmesi',
-    icerik: `
-      <p><strong style="color:#C9A84C">MADDE 1 — TARAFLAR</strong></p>
-      <p><strong>Satıcı:</strong><br>
-      Ad Soyad: Muratcan Doğrul<br>
-      Vergi Dairesi: Bakırköy Vergi Dairesi<br>
-      VKN: 530 505 70184<br>
-      Adres: Ataköy 7-8-9-10. Kısım Mah. Çobançeşme E-5 Yan Yol Cad. Nef B Blok No:22/2 İç Kapı No:230 Bakırköy/İstanbul<br>
-      E-posta: info@finskor.tr | Tel: +90 530 894 37 75</p>
-      <p><strong>Alıcı:</strong> Ödeme formunda bilgileri girilen gerçek veya tüzel kişi.</p>
+// Formdan alıcı bilgilerini oku
+function getAlici() {
+  const adSoyad  = (document.getElementById('adSoyad')?.value || '').trim();
+  const email    = (document.getElementById('email')?.value || '').trim();
+  const telefon  = (document.getElementById('telefon')?.value || '').trim();
+  const firmaAdi = (document.getElementById('firmaAdi')?.value || '').trim();
+  const vkn      = (document.getElementById('vkn')?.value || '').trim();
+  const vd       = (document.getElementById('vd')?.value || '').trim();
+  const bireysel = document.getElementById('bireyselFatura')?.checked;
+  const tarih    = new Date().toLocaleDateString('tr-TR', {day:'2-digit', month:'long', year:'numeric'});
+  const odemeYontemi = document.querySelector('.tab-btn.active')?.textContent?.trim() || 'EFT/Havale';
 
-      <p><strong style="color:#C9A84C">MADDE 2 — KONU</strong></p>
-      <p>İşbu sözleşme, alıcının FinSkor Kredi Analiz Platformu'na ait <strong>Profesyonel Paket</strong> (4 analiz kontörü) dijital hizmetini satın almasına ilişkin tarafların hak ve yükümlülüklerini düzenler.</p>
+  const aliciAd    = adSoyad  || '<span style="color:#e74c3c;font-style:italic">[ Ad Soyad girilmedi ]</span>';
+  const aliciMail  = email    || '<span style="color:#e74c3c;font-style:italic">[ E-posta girilmedi ]</span>';
+  const aliciTel   = telefon  || '<span style="color:#e74c3c;font-style:italic">[ Telefon girilmedi ]</span>';
+  const aliciFirma = firmaAdi ? `<br>Firma: ${firmaAdi}` : '';
+  const aliciVkn   = (!bireysel && vkn) ? `<br>VKN: ${vkn}${vd ? ' — ' + vd + ' VD' : ''}` : '<br>Fatura Tipi: Bireysel';
 
-      <p><strong style="color:#C9A84C">MADDE 3 — HİZMET BİLGİLERİ</strong></p>
-      <p>
-      Ürün: FinSkor Profesyonel Paket<br>
-      İçerik: 4 analiz kontörü — kredi notu analizi, senaryo analizi, PDF rapor, Baykuş AI Asistan<br>
-      Satış Fiyatı: 2.490 TL (KDV Dahil)<br>
-      Teslim Yöntemi: Dijital — erişim kodu e-posta ve WhatsApp ile iletilir<br>
-      Teslim Süresi: Ödeme teyidinden sonra dakikalar içinde
-      </p>
+  return { aliciAd, aliciMail, aliciTel, aliciFirma, aliciVkn, tarih, odemeYontemi };
+}
 
-      <p><strong style="color:#C9A84C">MADDE 4 — ÖDEME</strong></p>
-      <p>Ödeme EFT/Havale yöntemiyle gerçekleştirilir. Ödeme açıklamasına e-posta adresinin yazılması zorunludur. Ödeme teyit edilmeden erişim kodu iletilmez.</p>
+function getMssIcerik(a) {
+  return `
+    <div style="background:rgba(201,168,76,0.07);border:1px solid rgba(201,168,76,0.2);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:12px;color:rgba(244,246,249,0.6)">
+      ⚠️ Bu sözleşme formda girdiğiniz bilgilerle anlık olarak oluşturulmuştur. Bilgilerinizi güncelleyip tekrar açabilirsiniz.
+    </div>
 
-      <p><strong style="color:#C9A84C">MADDE 5 — CAYMA HAKKI</strong></p>
-      <p>6502 sayılı Tüketicinin Korunması Hakkında Kanun ve Mesafeli Sözleşmeler Yönetmeliği uyarınca; <strong>dijital içerik ve yazılım hizmetlerinde</strong>, tüketicinin onayıyla ifaya başlanmış olan sözleşmelerde cayma hakkı kullanılamaz. Alıcı, erişim kodunun iletilmesiyle birlikte hizmetin ifasına başlandığını kabul eder.</p>
-      <p>Erişim kodu henüz iletilmemişse (ödeme teyit edilmemişse) talep tarihinden itibaren 14 gün içinde yazılı iptal hakkı saklıdır.</p>
+    <p><strong style="color:#C9A84C">MADDE 1 — TARAFLAR</strong></p>
+    <p><strong>SATICI:</strong><br>
+    Ad Soyad: Muratcan Doğrul<br>
+    Vergi Dairesi / VKN: Bakırköy VD / 530 505 70184<br>
+    Adres: Ataköy 7-8-9-10. Kısım Mah. Çobançeşme E-5 Yan Yol Cad. Nef B Blok No:22/2 İç Kapı No:230 Bakırköy/İstanbul<br>
+    E-posta: info@finskor.tr &nbsp;|&nbsp; Tel: +90 530 894 37 75</p>
 
-      <p><strong style="color:#C9A84C">MADDE 6 — GİZLİLİK</strong></p>
-      <p>Alıcıya ait kişisel veriler yalnızca hizmet ifası ve yasal yükümlülükler kapsamında işlenir; üçüncü kişilerle paylaşılmaz.</p>
+    <p><strong>ALICI:</strong><br>
+    Ad Soyad: ${a.aliciAd}<br>
+    E-posta: ${a.aliciMail}<br>
+    Telefon: ${a.aliciTel}${a.aliciFirma}${a.aliciVkn}</p>
 
-      <p><strong style="color:#C9A84C">MADDE 7 — UYUŞMAZLIK</strong></p>
-      <p>İşbu sözleşmeden doğan uyuşmazlıklarda İstanbul (Bakırköy) Tüketici Hakem Heyetleri ve Tüketici Mahkemeleri yetkilidir.</p>
+    <p><strong style="color:#C9A84C">MADDE 2 — KONU</strong></p>
+    <p>İşbu Mesafeli Satış Sözleşmesi; <strong>${a.aliciAd}</strong> adlı alıcının, FinSkor Kredi Analiz Platformu'na ait <strong>Profesyonel Paket</strong> dijital hizmetini satın almasına ilişkin tarafların hak ve yükümlülüklerini, 6502 sayılı Tüketicinin Korunması Hakkında Kanun ve Mesafeli Sözleşmeler Yönetmeliği çerçevesinde düzenler.</p>
 
-      <p><strong style="color:#C9A84C">MADDE 8 — YÜRÜRLÜK</strong></p>
-      <p>Alıcı, ödeme talebini göndererek işbu sözleşmenin tüm maddelerini okuduğunu ve kabul ettiğini beyan eder.</p>
-    `
-  },
-  iade: {
-    baslik: 'İptal ve İade Koşulları',
-    icerik: `
-      <p><strong style="color:#C9A84C">1. GENEL KURAL</strong></p>
-      <p>FinSkor Profesyonel Paket, erişim kodu iletilmesiyle birlikte dijital hizmet ifası başlamış sayılır. Bu nedenle, erişim kodunun tesliminin ardından <strong>iade ve cayma hakkı kullanılamaz</strong>.</p>
+    <p><strong style="color:#C9A84C">MADDE 3 — HİZMET BİLGİLERİ</strong></p>
+    <p>
+    Ürün: FinSkor Profesyonel Paket<br>
+    İçerik: 4 analiz kontörü — kredi notu analizi, senaryo analizi modülü, subjektif faktör değerlendirme, ÜFE reel büyüme düzeltmesi, PDF rapor üretimi, Baykuş AI Asistan<br>
+    Satış Fiyatı: <strong>2.490 TL (KDV Dahil)</strong><br>
+    Ödeme Yöntemi: ${a.odemeYontemi}<br>
+    Teslim Yöntemi: Dijital — erişim kodu e-posta (<strong>${a.aliciMail}</strong>) ve WhatsApp (<strong>${a.aliciTel}</strong>) ile iletilir<br>
+    Teslim Süresi: Ödeme teyidinden sonra dakikalar içinde
+    </p>
 
-      <p><strong style="color:#C9A84C">2. ERİŞİM KODU İLETİLMEDEN ÖNCE İPTAL</strong></p>
-      <p>Ödeme yapılmış ancak erişim kodu henüz iletilmemişse (ödeme henüz teyit edilmemişse), <strong>14 gün içinde</strong> info@finskor.tr adresine yazılı başvuru ile iptal talebinde bulunulabilir. Ödeme tutarı en geç 14 gün içinde iade edilir.</p>
+    <p><strong style="color:#C9A84C">MADDE 4 — ÖDEME VE TESLİMAT</strong></p>
+    <p>Ödeme EFT/Havale yöntemiyle gerçekleştirilir. Havale/EFT açıklamasına <strong>${a.aliciMail}</strong> e-posta adresinin yazılması zorunludur. Ödeme teyit edilmeden erişim kodu iletilmez.</p>
 
-      <p><strong style="color:#C9A84C">3. KONTÖR KULLANIMI</strong></p>
-      <p>
-      • Satın alınan 4 kontörün tamamı kullanılmamış olsa dahi, erişim kodu teslim edildikten sonra kısmi iade yapılmaz.<br>
-      • Kontörler satın alma tarihinden itibaren <strong>1 yıl</strong> geçerlidir. Süre sonunda kalan kontörler iptal edilir, bedeli iade edilmez.<br>
-      • Teknik arıza veya platforma erişim kesintisinden kaynaklanan kontör kayıpları satıcı tarafından telafi edilir.
-      </p>
+    <p><strong style="color:#C9A84C">MADDE 5 — CAYMA HAKKI</strong></p>
+    <p>6502 sayılı Kanun'un 49. maddesi ve Mesafeli Sözleşmeler Yönetmeliği'nin 15/ğ bendi uyarınca; dijital içerik ve yazılım hizmetlerinde, tüketicinin onayıyla ifaya başlanmış olan sözleşmelerde <strong>cayma hakkı kullanılamaz</strong>. Alıcı, erişim kodunun iletilmesiyle birlikte hizmetin ifasına başlandığını ve cayma hakkından feragat ettiğini kabul eder.</p>
+    <p>Erişim kodu henüz iletilmemişse, ödeme tarihinden itibaren 14 (on dört) gün içinde yazılı iptal hakkı saklıdır.</p>
 
-      <p><strong style="color:#C9A84C">4. HATALI ÖDEME</strong></p>
-      <p>Yanlış hesaba veya yanlış miktarda yapılan EFT/Havale ödemelerinde alıcı derhal info@finskor.tr adresini bilgilendirmelidir. Satıcıya ulaşan fazla ödeme 5 iş günü içinde iade edilir.</p>
+    <p><strong style="color:#C9A84C">MADDE 6 — GİZLİLİK VE KİŞİSEL VERİ</strong></p>
+    <p>Alıcıya ait ad-soyad, e-posta, telefon numarası gibi kişisel veriler yalnızca hizmet ifası ve yasal yükümlülükler kapsamında işlenir; satıcı tarafından üçüncü kişilerle paylaşılmaz.</p>
 
-      <p><strong style="color:#C9A84C">5. İLETİŞİM</strong></p>
-      <p>
-      İptal/iade talepleriniz için:<br>
-      E-posta: info@finskor.tr<br>
-      Telefon/WhatsApp: +90 530 894 37 75<br>
-      Yanıt süresi: En geç 2 iş günü
-      </p>
-    `
-  }
-};
+    <p><strong style="color:#C9A84C">MADDE 7 — UYUŞMAZLIK</strong></p>
+    <p>İşbu sözleşmeden doğan uyuşmazlıklarda İstanbul (Bakırköy) Tüketici Hakem Heyetleri ve Tüketici Mahkemeleri yetkilidir.</p>
+
+    <p><strong style="color:#C9A84C">MADDE 8 — YÜRÜRLÜK</strong></p>
+    <p>Sözleşme tarihi: <strong>${a.tarih}</strong><br>
+    Alıcı, "Okudum, Kabul Ediyorum" butonuna tıklayarak işbu sözleşmenin tüm maddelerini okuduğunu, anladığını ve kabul ettiğini beyan eder.</p>
+  `;
+}
+
+function getIadeIcerik(a) {
+  return `
+    <p><strong style="color:#C9A84C">1. GENEL KURAL</strong></p>
+    <p>FinSkor Profesyonel Paket, erişim kodunun <strong>${a.aliciMail}</strong> adresine iletilmesiyle birlikte dijital hizmet ifası başlamış sayılır. Bu nedenle erişim kodunun tesliminin ardından <strong>iade ve cayma hakkı kullanılamaz</strong>.</p>
+
+    <p><strong style="color:#C9A84C">2. ERİŞİM KODU İLETİLMEDEN ÖNCE İPTAL</strong></p>
+    <p>Ödeme yapılmış ancak erişim kodu henüz iletilmemişse, ödeme tarihinden itibaren <strong>14 gün içinde</strong> info@finskor.tr adresine yazılı başvuru ile iptal talebinde bulunulabilir. Ödeme tutarı en geç 14 gün içinde alıcının ödeme yaptığı hesaba iade edilir.</p>
+
+    <p><strong style="color:#C9A84C">3. KONTÖR KULLANIMI</strong></p>
+    <p>
+    • Satın alınan 4 kontörün tamamı kullanılmamış olsa dahi, erişim kodu teslim edildikten sonra kısmi iade yapılmaz.<br>
+    • Kontörler satın alma tarihinden itibaren <strong>1 yıl</strong> geçerlidir. Süre sonunda kalan kontörler iptal edilir, bedeli iade edilmez.<br>
+    • Platforma erişim kesintisi veya teknik arızadan kaynaklanan kontör kayıpları satıcı tarafından telafi edilir.
+    </p>
+
+    <p><strong style="color:#C9A84C">4. HATALI ÖDEME</strong></p>
+    <p>Yanlış hesaba veya yanlış miktarda yapılan ödemelerde alıcı derhal info@finskor.tr adresini bilgilendirmelidir. Satıcıya ulaşan fazla ödeme 5 iş günü içinde iade edilir.</p>
+
+    <p><strong style="color:#C9A84C">5. İLETİŞİM</strong></p>
+    <p>
+    İptal/iade talepleriniz için:<br>
+    E-posta: info@finskor.tr<br>
+    Telefon/WhatsApp: +90 530 894 37 75<br>
+    Yanıt süresi: En geç 2 iş günü
+    </p>
+  `;
+}
 
 function openSozlesme(tip) {
-  const s = SOZLESMELER[tip];
-  document.getElementById('sozlesmeBaslik').textContent = s.baslik;
-  document.getElementById('sozlesmeIcerik').innerHTML = s.icerik;
-  document.getElementById('sozlesmeModal')._tip = tip;
+  const a = getAlici();
+  const basliklar = { mss: 'Mesafeli Satış Sözleşmesi', iade: 'İptal ve İade Koşulları' };
+  document.getElementById('sozlesmeBaslik').textContent = basliklar[tip];
+  document.getElementById('sozlesmeIcerik').innerHTML = tip === 'mss' ? getMssIcerik(a) : getIadeIcerik(a);
   const m = document.getElementById('sozlesmeModal');
   m.style.display = 'flex';
   document.body.style.overflow = 'hidden';
