@@ -672,21 +672,16 @@ async function submitPayment() {
   const odemeYontemi = document.querySelector('.method-tab.active .tab-icon')?.nextSibling?.textContent?.trim() || 'EFT';
 
   try {
-    // 1. Supabase'e kaydet
+    // 1. Supabase'e kaydet (sadece payments tablosunda var olan sütunlar)
+    const tutarSayi = parseFloat(String(SECILI_PAKET.fiyat).replace(/\./g, '').replace(',', '.')) || 2490;
+    const notlarStr = `Paket:${SECILI_PAKET.ad}|Tutar:${SECILI_PAKET.fiyat}|Kontör:${SECILI_PAKET.credits}|Firma:${firmaAdi || ''}|Ad:${adSoyad}|Mail:${email}|Tel:${telefon}`;
     const { error } = await _sb.from('payments').insert([{
-      ad_soyad:      adSoyad,
-      email:         email,
-      telefon:       telefon,
-      firma_adi:     firmaAdi || null,
-      vkn:           vkn || null,
-      vergi_dairesi: vd || null,
-      fatura_tipi:   bireysel ? 'bireysel' : 'kurumsal',
+      tutar:         tutarSayi,
       odeme_yontemi: odemeYontemi,
       durum:         'bekliyor',
-      notlar:        `Paket:${SECILI_PAKET.ad}|Tutar:${SECILI_PAKET.fiyat}|Kontör:${SECILI_PAKET.credits}|Firma:${firmaAdi || ''}|Ad:${adSoyad}|Mail:${email}|Tel:${telefon}`,
-      created_at:    new Date().toISOString()
+      notlar:        notlarStr
     }]);
-    if (error) console.warn('Supabase kayıt hatası:', error.message);
+    if (error) throw new Error('Kayıt hatası: ' + error.message);
 
     // 2. Mail bildirimleri gönder (Zoho SMTP)
     try {
