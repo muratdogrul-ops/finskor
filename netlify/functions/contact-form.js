@@ -1,7 +1,31 @@
-// FinSkor İletişim Formu — Admin bildirimi
+// FinSkor İletişim Formu — Admin bildirimi + Supabase leads kaydı
 const nodemailer = require('nodemailer');
+const https = require('https');
 
 const ADMIN_MAIL = 'info@finskor.tr';
+const SB_HOST    = 'clmqfckposcaqjmbrmuq.supabase.co';
+const SB_KEY     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsbXFmY2twb3NjYXFqbWJybXVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NjE3MDcsImV4cCI6MjA4ODUzNzcwN30.hbCPb5IMcnNcwUXyDkcUrzFKXPUgJrG1XmLXl_aI8T8';
+
+function sbPost(table, data) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify(data);
+    const req = https.request({
+      hostname: SB_HOST,
+      path: '/rest/v1/' + table,
+      method: 'POST',
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal',
+        'Content-Length': Buffer.byteLength(body)
+      }
+    }, (res) => { res.resume(); res.on('end', resolve); });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
@@ -12,7 +36,7 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body); }
   catch { return { statusCode: 400, body: 'Geçersiz istek.' }; }
 
-  const { adSoyad, telefon, konu } = body;
+  const { adSoyad, telefon, konu, mesaj } = body;
   if (!adSoyad || !telefon) {
     return { statusCode: 400, body: 'Zorunlu alanlar eksik.' };
   }
@@ -55,14 +79,24 @@ exports.handler = async (event) => {
       html,
     });
 
-    // CallMeBot WhatsApp bildirimi (opsiyonel)
+    // CallMeBot WhatsApp bildirimi
     const apiKey = process.env.CALLMEBOT_API_KEY;
     if (apiKey) {
       const msg = `📩 FinSkor İletişim\n${adSoyad}\n📱 ${telefon}\nKonu: ${konu}`;
-      const https = require('https');
       const url = `https://api.callmebot.com/whatsapp.php?phone=905308943775&text=${encodeURIComponent(msg)}&apikey=${apiKey}`;
       await new Promise((res, rej) => https.get(url, r => { r.resume(); r.on('end', res); }).on('error', rej)).catch(() => {});
     }
+
+    // Supabase leads tablosuna kaydet
+    const notlar = [konu ? `Konu: ${konu}` : '', mesaj || ''].filter(Boolean).join('\n');
+    await sbPost('leads', {
+      ad_soyad: adSoyad,
+      telefon: telefon || null,
+      kaynak: 'Web Sitesi',
+      durum: konu === 'Demo Talebi' ? 'Demo Gönderildi' : 'Takipte',
+      notlar: notlar || null
+    }).catch(e => console.warn('Supabase leads hatası:', e.message));
+
   } catch (err) {
     console.error('contact-form mail hatası:', err.message);
   }
