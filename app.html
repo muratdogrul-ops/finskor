@@ -8919,18 +8919,25 @@ function demoBaslat() {
     if (!window._demoMod) return;
     const am = document.getElementById('avatarModal');
     if (am) am.style.display = 'none';
+    // avSesOku çift konuşmayı önlemek için geçici olarak sustur
+    const _prevSes = window._avSesAcik;
+    window._avSesAcik = false;
     _avAddMsg('bot', metin);
+    window._avSesAcik = _prevSes;
     if (window.speechSynthesis) {
       const tmp = document.createElement('div'); tmp.innerHTML = metin;
       const text = tmp.textContent.trim();
       if (text) {
         speechSynthesis.cancel();
-        const utt = new SpeechSynthesisUtterance(text);
-        const voices = speechSynthesis.getVoices();
-        const trSes = voices.find(v => v.lang.startsWith('tr'));
-        if (trSes) utt.voice = trSes;
-        utt.lang='tr-TR'; utt.rate=1.05;
-        speechSynthesis.speak(utt);
+        setTimeout(() => {
+          if (!window._demoMod) return;
+          const utt = new SpeechSynthesisUtterance(text);
+          const voices = speechSynthesis.getVoices();
+          const trSes = voices.find(v => v.lang.startsWith('tr'));
+          if (trSes) utt.voice = trSes;
+          utt.lang='tr-TR'; utt.rate=1.05;
+          speechSynthesis.speak(utt);
+        }, 300);
       }
     }
   }
@@ -9046,8 +9053,8 @@ function demoBaslat() {
               setTimeout(() => {
                 if (!window._demoMod) return;
                 showTab('tab-sonuc', document.getElementById('tab-btn-sonuc'));
-                // Analiz sayfası sunumu — runAnalysis tamamlandıktan sonra başlat
-                setTimeout(() => { if (window._demoMod) _demoAnalizSunumu(); }, 1200);
+                // Analiz sayfası sunumu — DOM hazır, kısa gecikmeden sonra başlat
+                setTimeout(() => { if (window._demoMod) _demoAnalizSunumu(); }, 300);
               }, 1400);
             }
           }, 1000);
@@ -9083,7 +9090,7 @@ function _demoAnalizSunumu() {
       const text = tmp.textContent.trim();
       if (text) {
         speechSynthesis.cancel();
-        // 150ms bekle: Chrome'da cancel()+speak() zincirlenmesi "echo" stutterına yol açar
+        // 300ms bekle: Chrome'da cancel()+speak() zincirlenmesi "echo" stutterına yol açar
         setTimeout(() => {
           if (!window._demoMod) return;
           const utt = new SpeechSynthesisUtterance(text);
@@ -9092,12 +9099,12 @@ function _demoAnalizSunumu() {
           if (trSes) utt.voice = trSes;
           utt.lang='tr-TR'; utt.rate=1.05;
           speechSynthesis.speak(utt);
-        }, 150);
+        }, 300);
       }
     }
   }
 
-  // ADIM 1 — Kredi notu açıklaması | 2000ms
+  // ADIM 1 — Kredi notu açıklaması | 300ms (DOM hazır, hemen başla)
   setTimeout(() => {
     if (!window._demoMod) return;
     window.scrollTo({top:0, behavior:'smooth'});
@@ -9116,7 +9123,7 @@ function _demoAnalizSunumu() {
       + 'subjektif değerlerden ise 30 üzerinden ' + subjVal + ' puan alındı. '
       + 'Kredi notu ' + notVal + '. ' + notYorum
       + 'Teminat şartı: ' + teminatVal + '.');
-  }, 2000);
+  }, 300);
 
   // ADIM 2 — Kredi not skalası | 17000ms
   setTimeout(() => {
