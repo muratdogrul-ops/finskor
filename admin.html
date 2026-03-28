@@ -1066,17 +1066,21 @@ let allPayments = [];
 
 function parsePaymentInfo(p) {
   const notlar = p.notlar || '';
-  const firmaMatch = notlar.match(/Firma:\s*([^|]+)/);
-  const adMatch    = notlar.match(/Ad:\s*([^|]+)/);
-  const emailMatch = notlar.match(/E-posta:\s*([^\s|]+)/);
-  const telMatch   = notlar.match(/Tel:\s*([^\s|]+)/);
+  const firmaMatch   = notlar.match(/Firma:\s*([^|]+)/);
+  const adMatch      = notlar.match(/Ad:\s*([^|]+)/);
+  const emailMatch   = notlar.match(/(?:E-posta|Mail):\s*([^\s|]+)/);
+  const telMatch     = notlar.match(/Tel:\s*([^\s|]+)/);
+  const paketMatch   = notlar.match(/Paket:\s*([^|]+)/);
+  const kontorMatch  = notlar.match(/Kont[öo]r:\s*(\d+)/);
   const displayName = (firmaMatch ? firmaMatch[1].trim() : '') ||
                       (adMatch    ? adMatch[1].trim()    : '') ||
                       (p.client_name || '—');
   return {
-    email:   emailMatch ? emailMatch[1].trim() : null,
-    telefon: telMatch   ? telMatch[1].trim()   : null,
-    firma:   displayName
+    email:   emailMatch  ? emailMatch[1].trim()    : (p.email || null),
+    telefon: telMatch    ? telMatch[1].trim()       : (p.telefon || null),
+    firma:   displayName,
+    paket:   paketMatch  ? paketMatch[1].trim()     : 'Profesyonel Paket',
+    credits: kontorMatch ? parseInt(kontorMatch[1]) : 4
   };
 }
 
@@ -1107,8 +1111,11 @@ function renderBekleyenler(list) {
   }
   body.innerHTML = pending.map(p => {
     const info = parsePaymentInfo(p);
+    const paketBadge = info.paket && info.paket.toLowerCase().includes('danışman')
+      ? `<span style="font-size:10px;background:rgba(99,179,237,0.2);color:#63b3ed;border:1px solid rgba(99,179,237,0.4);border-radius:4px;padding:2px 6px;display:block;margin-top:4px">💼 ${info.credits} kontör</span>`
+      : `<span style="font-size:10px;background:rgba(201,168,76,0.15);color:#C9A84C;border:1px solid rgba(201,168,76,0.3);border-radius:4px;padding:2px 6px;display:block;margin-top:4px">⭐ ${info.credits} kontör</span>`;
     return `<tr style="border-left:3px solid #f5a623">
-      <td><strong>${info.firma}</strong></td>
+      <td><strong>${info.firma}</strong>${paketBadge}</td>
       <td style="font-size:12px;color:#4dabf7">${info.email || '—'}</td>
       <td style="font-size:12px;color:#25D366">${info.telefon || '—'}</td>
       <td><strong style="color:var(--success)">₺${parseFloat(p.tutar||0).toLocaleString('tr-TR',{minimumFractionDigits:2})}</strong></td>
@@ -1238,7 +1245,7 @@ async function confirmPayment(paymentId) {
   const email   = info.email;
   const telefon = info.telefon;
   const firma   = info.firma || 'Müşteri';
-  const credits = 4;
+  const credits = info.credits || 4;
 
   toast('Onaylanıyor...', 'info');
   try {

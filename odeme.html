@@ -465,8 +465,8 @@ nav {
 
           <div class="product-row">
             <div>
-              <div class="product-name">FinSkor Profesyonel Paket</div>
-              <div class="product-desc">4 analiz kontörü · tüm özellikler</div>
+              <div class="product-name" id="productName">FinSkor Profesyonel Paket</div>
+              <div class="product-desc" id="productDesc">4 analiz kontörü · tüm özellikler</div>
             </div>
             <div class="product-price" id="priceVal">₺ —</div>
           </div>
@@ -574,14 +574,32 @@ nav {
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 // ═══════════════════════════════════════
-// AYARLAR — Buraya IBAN ve fiyat girin
+// PAKET TANIMLARI
 // ═══════════════════════════════════════
+const PAKETLER = {
+  profesyonel: {
+    ad:      'FinSkor Profesyonel Paket',
+    desc:    '4 analiz kontörü · tüm özellikler',
+    fiyat:   '2.490',
+    credits: 4
+  },
+  danisan: {
+    ad:      'FinSkor Finansal Danışman Paketi',
+    desc:    '100 analiz kontörü · tüm özellikler · KDV Dahil',
+    fiyat:   '36.000',
+    credits: 100
+  }
+};
+
+const _paketKey = new URLSearchParams(window.location.search).get('paket') || 'profesyonel';
+const SECILI_PAKET = PAKETLER[_paketKey] || PAKETLER.profesyonel;
+
 const CONFIG = {
-  iban:    'TR41 0001 5001 5800 7308 0678 62',
-  banka:   'Vakıfbank',
-  telefon: '+90 530 894 37 75',
-  fiyat:   '2.490',
-  toplamFiyat: '2.490',
+  iban:        'TR41 0001 5001 5800 7308 0678 62',
+  banka:       'Vakıfbank',
+  telefon:     '+90 530 894 37 75',
+  fiyat:       SECILI_PAKET.fiyat,
+  toplamFiyat: SECILI_PAKET.fiyat,
 };
 
 const SUPABASE_URL = 'https://clmqfckposcaqjmbrmuq.supabase.co';
@@ -594,8 +612,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('bankVal').textContent   = CONFIG.banka;
   document.getElementById('contactPhone').textContent = CONFIG.telefon;
   document.getElementById('contactPhone').href        = 'tel:' + CONFIG.telefon.replace(/\s/g,'');
-  document.getElementById('priceVal').textContent  = CONFIG.fiyat !== '—' ? '₺ ' + CONFIG.fiyat : '₺ —';
-  document.getElementById('totalVal').textContent  = CONFIG.toplamFiyat !== '—' ? '₺ ' + CONFIG.toplamFiyat : '₺ —';
+  document.getElementById('priceVal').textContent  = '₺ ' + CONFIG.fiyat;
+  document.getElementById('totalVal').textContent  = '₺ ' + CONFIG.toplamFiyat;
+  document.getElementById('productName').textContent = SECILI_PAKET.ad;
+  document.getElementById('productDesc').textContent = SECILI_PAKET.desc;
 });
 
 // ═══════════════════════════════════════
@@ -663,6 +683,7 @@ async function submitPayment() {
       fatura_tipi:   bireysel ? 'bireysel' : 'kurumsal',
       odeme_yontemi: odemeYontemi,
       durum:         'bekliyor',
+      notlar:        `Paket:${SECILI_PAKET.ad}|Tutar:${SECILI_PAKET.fiyat}|Kontör:${SECILI_PAKET.credits}|Firma:${firmaAdi || ''}|Ad:${adSoyad}|Mail:${email}|Tel:${telefon}`,
       created_at:    new Date().toISOString()
     }]);
     if (error) console.warn('Supabase kayıt hatası:', error.message);
@@ -673,7 +694,8 @@ async function submitPayment() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ adSoyad, email, telefon, firmaAdi, vkn, vd,
-          faturaTipi: bireysel ? 'bireysel' : 'kurumsal', odemeYontemi })
+          faturaTipi: bireysel ? 'bireysel' : 'kurumsal', odemeYontemi,
+          paketAdi: SECILI_PAKET.ad, paketFiyat: SECILI_PAKET.fiyat, paketKredit: SECILI_PAKET.credits })
       });
     } catch(mailErr) {
       console.warn('Mail gönderilemedi:', mailErr.message);
