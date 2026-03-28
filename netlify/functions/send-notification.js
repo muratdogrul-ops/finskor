@@ -66,7 +66,7 @@ async function saveToSupabase(adSoyad, email, telefon, firmaAdi, vkn, vd, fatura
     // Ödeme kaydı oluştur
     const _paket  = paketAdi   || 'FinSkor Profesyonel Paket';
     const _fiyat  = paketFiyat || '2.490';
-    const _kredit = paketKredit || 4;
+    const _kredit = (paketKredit != null && paketKredit !== '') ? paketKredit : 4;
     const tutarSayi = parseFloat(String(_fiyat).replace(/\./g,'').replace(',','.')) || 2490;
 
     const notlar = [
@@ -144,7 +144,7 @@ exports.handler = async (event) => {
 
   const paketLabel  = paketAdi    || 'FinSkor Profesyonel Paket';
   const fiyatLabel  = paketFiyat  || '2.490';
-  const kredit      = paketKredit || 4;
+  const kredit      = (paketKredit != null && paketKredit !== '') ? paketKredit : 4;
 
   const transporter = createTransporter();
   const tarih = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });

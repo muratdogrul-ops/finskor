@@ -896,6 +896,7 @@ function renderCodes(list) {
       <td style="color:var(--text-muted);font-size:11px">${fmtDate(c.created_at)}</td>
       <td style="display:flex;gap:4px;flex-wrap:wrap">
         <button class="btn btn-outline btn-sm" onclick="openTopup('${c.id}','${c.code}','${c.credits??0}')" title="Kontör Yükle">+ Kontör</button>
+        <button class="btn btn-outline btn-sm" onclick="openEditCodeModal('${c.id}')" title="Düzenle">✎</button>
         <button class="btn btn-outline btn-sm btn-icon" onclick="toggleCode('${c.id}',${c.active})" title="${c.active?'Pasife Al':'Aktife Al'}">${c.active?'⏸':'▶'}</button>
         <button class="btn btn-danger btn-sm btn-icon" onclick="deleteCode('${c.id}')" title="Sil">🗑</button>
       </td>
@@ -917,8 +918,28 @@ function openCodeModal() {
   document.getElementById('code-email').value = '';
   document.getElementById('code-phone').value = '';
   document.getElementById('code-pass').value = '';
+  const naCb = document.getElementById('code-nakit-akis');
+  if (naCb) naCb.checked = false;
   document.getElementById('code-preview').style.display = 'none';
   fillCustomerDropdowns();
+  openModal('modal-code');
+}
+
+function openEditCodeModal(id) {
+  const c = allCodes.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('code-id').value = c.id;
+  document.getElementById('code-modal-title').textContent = 'Erişim Kodu Düzenle';
+  document.getElementById('code-value').value = c.code || '';
+  document.getElementById('code-credits').value = c.credits ?? 0;
+  document.getElementById('code-active').value = c.active ? 'true' : 'false';
+  document.getElementById('code-email').value = c.email || '';
+  document.getElementById('code-phone').value = '';
+  document.getElementById('code-pass').value = '';
+  const naCb = document.getElementById('code-nakit-akis');
+  if (naCb) naCb.checked = !!c.nakit_akis_enabled;
+  document.getElementById('code-preview').style.display = 'none';
+  fillCustomerDropdowns(c.customer_id);
   openModal('modal-code');
 }
 
@@ -945,6 +966,7 @@ async function saveCode() {
   const custName = custSel.options[custSel.selectedIndex]?.text || '';
 
   const nakitAkis = document.getElementById('code-nakit-akis')?.checked || false;
+  const editId = document.getElementById('code-id').value;
 
   const data = {
     code,
@@ -953,19 +975,25 @@ async function saveCode() {
     credits,
     active,
     email: email || null,
-    usage_count: 0,
     nakit_akis_enabled: nakitAkis
   };
-  if (pass) data.password_hash = btoa(pass); // basit encoding
+  if (!editId) data.usage_count = 0;
+  if (pass) data.password_hash = btoa(pass);
 
   const phone = document.getElementById('code-phone').value.trim();
 
   try {
-    const { error } = await sb.from('access_codes').insert(data);
+    let error;
+    if (editId) {
+      ({ error } = await sb.from('access_codes').update(data).eq('id', editId));
+    } else {
+      ({ error } = await sb.from('access_codes').insert(data));
+    }
     if (error) throw error;
     closeModal('modal-code');
     loadCodes();
     loadDashboard();
+    if (editId) { toast('✅ Erişim kodu güncellendi'); return; }
     // Mail gönder (otomatik)
     if (email) {
       toast('Erişim kodu oluşturuldu, mail gönderiliyor...', 'info');
@@ -1779,12 +1807,12 @@ async function convertToCustomer(id) {
   } catch(e) { toast(e.message, 'error'); }
 }
 
-function fillCustomerDropdowns() {
+function fillCustomerDropdowns(preselect) {
   const selects = ['code-customer', 'pay-customer'];
   selects.forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
-    const cur = sel.value;
+    const cur = preselect !== undefined ? preselect : sel.value;
     sel.innerHTML = '<option value="">— Seçin —</option>' +
       allCustomers.map(c => `<option value="${c.id}">${c.firma_adi}</option>`).join('');
     if (cur) sel.value = cur;
