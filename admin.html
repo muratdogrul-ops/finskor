@@ -317,15 +317,34 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
     <!-- ÖDEMELER -->
     <div class="page" id="page-payments">
       <div class="page-title">Ödemeler</div>
-      <div class="page-sub">Ödeme ve fatura takibi</div>
-      <div class="toolbar">
-        <input class="search-input" type="text" placeholder="🔍 Firma veya fatura ara..." id="pay-search" oninput="filterPayments()">
-        <button class="btn btn-primary" onclick="openPaymentModal()">+ Ödeme Ekle</button>
+      <div class="page-sub">Ödeme teyidi ve erişim kodu yönetimi</div>
+
+      <!-- Bekleyen Ödemeler -->
+      <div style="margin-bottom:20px">
+        <div style="font-size:13px;font-weight:700;color:#f5a623;margin-bottom:10px;display:flex;align-items:center;gap:8px">
+          ⏳ Bekleyen Ödemeler
+          <span id="bekleyen-count" style="background:rgba(245,166,35,0.15);border:1px solid rgba(245,166,35,0.3);border-radius:20px;padding:2px 10px;font-size:11px">0</span>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <table class="tbl">
+              <thead><tr><th>Müşteri / Ad Soyad</th><th>E-posta</th><th>Telefon</th><th>Tutar</th><th>Yöntem</th><th>Tarih</th><th>İşlem</th></tr></thead>
+              <tbody id="bekleyen-body"><tr class="loading-row"><td colspan="7"><span class="spinner"></span></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tüm Ödemeler -->
+      <div style="font-size:13px;font-weight:700;color:rgba(244,246,249,0.5);margin-bottom:10px">📋 Tüm Ödemeler</div>
+      <div class="toolbar" style="margin-bottom:12px">
+        <input class="search-input" type="text" placeholder="🔍 Müşteri veya not ara..." id="pay-search" oninput="filterPayments()">
+        <button class="btn btn-primary" onclick="openPaymentModal()">+ Manuel Ekle</button>
       </div>
       <div class="card">
         <div class="card-body">
           <table class="tbl">
-            <thead><tr><th>Müşteri</th><th>Tutar</th><th>Yöntem</th><th>Durum</th><th>Ödeme Tarihi</th><th>Notlar</th><th>İşlemler</th></tr></thead>
+            <thead><tr><th>Müşteri</th><th>Tutar</th><th>Yöntem</th><th>Durum</th><th>Tarih</th><th>Notlar</th><th>İşlemler</th></tr></thead>
             <tbody id="payments-body"><tr class="loading-row"><td colspan="7"><span class="spinner"></span></td></tr></tbody>
           </table>
         </div>
@@ -1044,35 +1063,85 @@ async function deleteCode(id) {
 // ÖDEMELER
 // ══════════════════════════════════════════
 let allPayments = [];
+
+function parsePaymentInfo(p) {
+  const notlar = p.notlar || '';
+  const emailMatch = notlar.match(/E-posta:\s*([^\s|]+)/);
+  const telMatch   = notlar.match(/Tel:\s*([^\s|]+)/);
+  const firma = p.customers?.firma_adi || '';
+  const displayName = firma || notlar.split('|')[0].replace(/VKN:[^|]*/,'').replace(/Vergi[^|]*/,'').trim() || '—';
+  return {
+    email:   emailMatch ? emailMatch[1] : (p.customers?.email || null),
+    telefon: telMatch   ? telMatch[1]   : (p.customers?.telefon || null),
+    firma:   displayName
+  };
+}
+
 async function loadPayments() {
-  const body = document.getElementById('payments-body');
   try {
-    const { data, error } = await sb.from('payments').select('*, customers(firma_adi)').order('odeme_tarihi', {ascending:false});
+    const { data, error } = await sb.from('payments').select('*, customers(firma_adi, email, telefon)').order('created_at', {ascending:false});
     if (error) throw error;
     allPayments = data || [];
+    renderBekleyenler(allPayments);
     renderPayments(allPayments);
   } catch(e) {
-    body.innerHTML = `<tr class="loading-row"><td colspan="7" style="color:var(--danger)">⚠️ Tablo bulunamadı</td></tr>`;
+    const b1 = document.getElementById('payments-body');
+    const b2 = document.getElementById('bekleyen-body');
+    if (b1) b1.innerHTML = `<tr class="loading-row"><td colspan="7" style="color:var(--danger)">⚠️ ${e.message}</td></tr>`;
+    if (b2) b2.innerHTML = `<tr class="loading-row"><td colspan="7" style="color:var(--danger)">⚠️ ${e.message}</td></tr>`;
   }
+}
+
+function renderBekleyenler(list) {
+  const pending = list.filter(p => p.durum !== 'onaylandi');
+  const cnt = document.getElementById('bekleyen-count');
+  if (cnt) cnt.textContent = pending.length;
+  const body = document.getElementById('bekleyen-body');
+  if (!body) return;
+  if (!pending.length) {
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:rgba(244,246,249,0.4);font-size:13px">✅ Bekleyen ödeme yok</td></tr>';
+    return;
+  }
+  body.innerHTML = pending.map(p => {
+    const info = parsePaymentInfo(p);
+    return `<tr style="border-left:3px solid #f5a623">
+      <td><strong>${info.firma}</strong></td>
+      <td style="font-size:12px;color:#4dabf7">${info.email || '—'}</td>
+      <td style="font-size:12px;color:#25D366">${info.telefon || '—'}</td>
+      <td><strong style="color:var(--success)">₺${parseFloat(p.tutar||0).toLocaleString('tr-TR',{minimumFractionDigits:2})}</strong></td>
+      <td><span class="badge badge-blue">${p.odeme_yontemi||'—'}</span></td>
+      <td style="color:var(--text-muted);font-size:11px">${fmtDate(p.odeme_tarihi||p.created_at)}</td>
+      <td>
+        <button class="btn btn-primary btn-sm" onclick="confirmPayment('${p.id}')"
+          style="background:linear-gradient(135deg,#51cf66,#40c057);border:none;font-weight:700;white-space:nowrap">
+          ✅ Onayla & Gönder
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
 }
 
 function renderPayments(list) {
   const body = document.getElementById('payments-body');
-  if (!list.length) { body.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">Henüz ödeme kaydı yok</div></div></td></tr>`; return; }
+  if (!body) return;
+  if (!list.length) {
+    body.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">Henüz ödeme kaydı yok</div></div></td></tr>';
+    return;
+  }
   body.innerHTML = list.map(p => {
     const onaylandi = p.durum === 'onaylandi';
+    const info = parsePaymentInfo(p);
     const durumBadge = onaylandi
-      ? `<span style="font-size:11px;font-weight:600;color:#51cf66">✅ Onaylı</span>`
-      : `<span style="font-size:11px;font-weight:600;color:#f5a623">⏳ Bekliyor</span>`;
+      ? '<span style="font-size:11px;font-weight:600;color:#51cf66">✅ Onaylı</span>'
+      : '<span style="font-size:11px;font-weight:600;color:#f5a623">⏳ Bekliyor</span>';
     return `<tr>
-      <td><strong>${p.customers?.firma_adi||p.notlar?.split('E-posta:')[0]?.replace('VKN:','')?.trim()||'—'}</strong></td>
+      <td><strong>${info.firma}</strong></td>
       <td><strong style="color:var(--success)">₺${parseFloat(p.tutar||0).toLocaleString('tr-TR',{minimumFractionDigits:2})}</strong></td>
       <td><span class="badge badge-blue">${p.odeme_yontemi||'—'}</span></td>
       <td>${durumBadge}</td>
-      <td style="color:var(--text-muted)">${fmtDate(p.odeme_tarihi)}</td>
-      <td style="color:var(--text-muted);font-size:12px;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.notlar||'—'}</td>
-      <td style="display:flex;gap:6px;flex-wrap:wrap">
-        ${!onaylandi ? `<button class="btn btn-primary btn-sm" onclick="confirmPayment('${p.id}')" style="background:linear-gradient(135deg,#51cf66,#40c057);border:none">✅ Onayla</button>` : ''}
+      <td style="color:var(--text-muted);font-size:11px">${fmtDate(p.odeme_tarihi||p.created_at)}</td>
+      <td style="color:var(--text-muted);font-size:11px;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.notlar||'—'}</td>
+      <td style="display:flex;gap:6px">
         <button class="btn btn-outline btn-sm btn-icon" onclick="editPayment('${p.id}')" title="Düzenle">✏️</button>
         <button class="btn btn-danger btn-sm btn-icon" onclick="deletePayment('${p.id}')" title="Sil">🗑</button>
       </td>
@@ -1082,7 +1151,12 @@ function renderPayments(list) {
 
 function filterPayments() {
   const q = document.getElementById('pay-search').value.toLowerCase();
-  renderPayments(allPayments.filter(p => (p.customers?.firma_adi||'').toLowerCase().includes(q) || (p.fatura_no||'').toLowerCase().includes(q)));
+  const filtered = allPayments.filter(p => {
+    const info = parsePaymentInfo(p);
+    return info.firma.toLowerCase().includes(q) || (p.notlar||'').toLowerCase().includes(q);
+  });
+  renderBekleyenler(filtered);
+  renderPayments(filtered);
 }
 
 function openPaymentModal() {
