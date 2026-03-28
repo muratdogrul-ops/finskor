@@ -372,7 +372,7 @@ tbody td { padding:8px 13px; color:var(--text); }
     <div class="login-error" id="loginError">❌ Geçersiz erişim kodu</div>
     <div style="margin-top:16px;text-align:center">
       <div style="font-size:11px;color:#475569;margin-bottom:10px;letter-spacing:0.5px">— veya —</div>
-      <button onclick="demoBaslat()" id="demoBtnLogin" style="display:none;width:100%;padding:12px;border-radius:10px;border:2px solid rgba(46,204,154,0.5);background:rgba(46,204,154,0.1);color:#2ECC9A;font-size:14px;font-weight:700;cursor:pointer;transition:all 0.2s;font-family:'Plus Jakarta Sans',sans-serif;animation:demoGlow 2s ease-in-out infinite;"
+      <button onclick="demoBaslat()" id="demoBtnLogin" style="width:100%;padding:12px;border-radius:10px;border:2px solid rgba(46,204,154,0.5);background:rgba(46,204,154,0.1);color:#2ECC9A;font-size:14px;font-weight:700;cursor:pointer;transition:all 0.2s;font-family:'Plus Jakarta Sans',sans-serif;animation:demoGlow 2s ease-in-out infinite;"
         onmouseover="this.style.background='rgba(46,204,154,0.2)'" onmouseout="this.style.background='rgba(46,204,154,0.1)'">
         🎯 Ücretsiz Demo Yap
       </button>
@@ -9301,8 +9301,7 @@ window.onload = () => {
   // demo.html'den yönlendirme varsa otomatik demo başlat
   if (sessionStorage.getItem('autoDemo') === '1') {
     sessionStorage.removeItem('autoDemo');
-    // Demo geçici olarak devre dışı
-    // setTimeout(() => demoBaslat(), 500);
+    setTimeout(() => demoBaslat(), 500);
     return;
   }
 
