@@ -1,4 +1,4 @@
-// FinSkor Ödeme Bildirimi — Zoho SMTP + CallMeBot WhatsApp
+// FinSkor Ödeme Bildirimi — Zoho SMTP + CallMeBot WhatsApp v2
 // Tetiklenince: müşteriye onay maili + yöneticiye bildirim maili + yöneticiye WA mesajı
 
 const nodemailer = require('nodemailer');
