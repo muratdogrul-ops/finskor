@@ -677,11 +677,12 @@ async function submitPayment() {
     const notlarStr = `Paket:${SECILI_PAKET.ad}|Tutar:${SECILI_PAKET.fiyat}|Kontör:${SECILI_PAKET.credits}|Firma:${firmaAdi || ''}|Ad:${adSoyad}|Mail:${email}|Tel:${telefon}`;
     const { error } = await _sb.from('payments').insert([{
       tutar:         tutarSayi,
+      odeme_tarihi:  new Date().toISOString().split('T')[0],
       odeme_yontemi: odemeYontemi,
       durum:         'bekliyor',
       notlar:        notlarStr
     }]);
-    if (error) throw new Error('Kayıt hatası: ' + error.message);
+    if (error) console.warn('Supabase kayıt hatası:', error.message);
 
     // 2. Mail bildirimleri gönder (Zoho SMTP)
     try {
