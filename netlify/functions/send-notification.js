@@ -179,7 +179,7 @@ exports.handler = async (event) => {
       </div>
       <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:8px;padding:14px 18px;margin-bottom:24px;font-size:13px;color:rgba(244,246,249,0.6);line-height:1.7">
         <strong style="color:#C9A84C">Önemli:</strong> Havale/EFT yapıyorsanız açıklama kısmına <strong style="color:#F4F6F9">${email}</strong> adresinizi yazmayı unutmayınız.
-        Ödemeniz teyit edildikten sonra dakikalar içinde erişim kodunuz iletilecektir.
+        Ödemeniz teyit edildikten sonra erişim kodunuz iletilecektir.
       </div>
       <div style="text-align:center;margin-bottom:24px">
         <a href="${waLink}" style="display:inline-block;padding:12px 28px;background:#25D366;color:#fff;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600">
