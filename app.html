@@ -1679,6 +1679,7 @@ function buildYearCards() {
 
 // Admin panelden kaydedilen Mali Yıllar ve Dönemleri Supabase'den çek ve uygula
 async function loadSettingsFromSupabase() {
+  if (window._demoMod) return; // Demo modunda Supabase ayarları demo verilerini ezmez
   try {
     // ── Mali Yıllar ──
     const { data: yilData } = await _sb.from('settings').select('value').eq('key','mali_yillar').maybeSingle();
@@ -2189,8 +2190,8 @@ function showPage(p) {
   const nb = document.getElementById('nav' + p.charAt(0).toUpperCase() + p.slice(1));
   if (nb) nb.classList.add('active');
   if (p === 'admin') renderAdmin();
-  // Analiz sayfasına her geçişte admin ayarlarını tazele (yıl/dönem/ÜFE)
-  if (p === 'analiz' && typeof loadSettingsFromSupabase === 'function') {
+  // Analiz sayfasına her geçişte admin ayarlarını tazele (yıl/dönem/ÜFE) — demo modunda atla
+  if (p === 'analiz' && !window._demoMod && typeof loadSettingsFromSupabase === 'function') {
     loadUfeFromSupabase();
     loadSettingsFromSupabase();
   }
@@ -8763,6 +8764,14 @@ function demoBaslat() {
   const logo = document.querySelector('.logo');
   if (logo) logo.innerHTML = 'FinSkor <span style="font-size:10px;background:#f5a623;color:#000;padding:2px 7px;border-radius:20px;font-weight:700;vertical-align:middle;margin-left:6px">DEMO</span>';
 
+  // Demo modunda init() çağrılmadan gelindi — yıl kartları ve tablo yoksa oluştur
+  if (!document.getElementById('year-' + DEMO_FIRMA.refYear)) {
+    // state.activeYears varsayılan değerleri kullan (2022-2026 arası)
+    buildYearCards();
+    if (typeof buildTable === 'function') buildTable();
+    state.activeYears.forEach(y => { if (typeof refreshInputs === 'function') refreshInputs(y); });
+  }
+
   if (!state.yearData) state.yearData = {};
   state.yearData[DEMO_FIRMA.refYear]       = {...DEMO_FIRMA.data};
   state.yearData[DEMO_FIRMA.refYear - 1]   = {...DEMO_FIRMA.data2023};
@@ -8775,6 +8784,13 @@ function demoBaslat() {
   if (refYearEl) refYearEl.value = DEMO_FIRMA.refYear;
   document.querySelectorAll('.btn-period').forEach(b =>
     b.classList.toggle('active', b.dataset.val === DEMO_FIRMA.period));
+
+  // Demo yıl kartlarını "veri yüklenmiş" görünümüne getir
+  const _ry = DEMO_FIRMA.refYear;
+  const _ky24 = document.getElementById('year-' + _ry);
+  const _ky23 = document.getElementById('year-' + (_ry - 1));
+  if (_ky24) { _ky24.classList.add('has-data'); const _i = document.getElementById('info' + _ry); if (_i) _i.textContent = 'ABC Metal Mak. ' + _ry + '.xlsx \u2713'; }
+  if (_ky23) { _ky23.classList.add('has-data'); const _i = document.getElementById('info' + (_ry-1)); if (_i) _i.textContent = 'ABC Metal Mak. ' + (_ry-1) + '.xlsx \u2713'; }
   if (typeof updateFirmTypeDisplay === 'function') updateFirmTypeDisplay();
 
   const _ab = document.getElementById('avatarBtn');
@@ -8980,6 +8996,8 @@ function demoBaslat() {
     window.scrollTo({top:0, behavior:'smooth'});
     setTimeout(() => {
       const st = document.getElementById('tab-btn-subj');
+      // Demo için: subjektif grid yoksa yeniden oluştur
+      if (window._demoSubjHazir && typeof buildSubjGrid === 'function') buildSubjGrid();
       if (st) {
         _elCiftTik(st, () => {
           showTab('tab-subj', st);
@@ -9028,6 +9046,8 @@ function demoBaslat() {
               setTimeout(() => {
                 if (!window._demoMod) return;
                 showTab('tab-sonuc', document.getElementById('tab-btn-sonuc'));
+                // Analiz sayfası sunumu — runAnalysis tamamlandıktan sonra başlat
+                setTimeout(() => { if (window._demoMod) _demoAnalizSunumu(); }, 1200);
               }, 1400);
             }
           }, 1000);
