@@ -877,28 +877,56 @@ async function saveCode() {
     closeModal('modal-code');
     loadCodes();
     loadDashboard();
-    // Otomatik mail + WhatsApp gönder
-    if (email || phone) {
-      toast('Erişim kodu oluşturuldu, gönderiliyor...', 'info');
+    // Mail gönder (otomatik)
+    if (email) {
+      toast('Erişim kodu oluşturuldu, mail gönderiliyor...', 'info');
       try {
         const resp = await fetch('/.netlify/functions/send-code', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code, email, phone, firma: custName, credits })
+          body: JSON.stringify({ code, email, phone: '', firma: custName, credits })
         });
         const result = await resp.json();
-        if (result.ok) {
-          toast('✅ Kod oluşturuldu ve ' + (email && phone ? 'mail + WhatsApp' : email ? 'mail' : 'WhatsApp') + ' ile gönderildi');
-        } else {
-          toast('Kod oluşturuldu fakat gönderim hatası: ' + JSON.stringify(result.errors), 'error');
-        }
-      } catch(sendErr) {
-        toast('Kod oluşturuldu fakat gönderim hatası: ' + sendErr.message, 'error');
-      }
+        if (result.ok) toast('✅ Kod oluşturuldu ve mail gönderildi');
+        else toast('Mail gönderilemedi: ' + JSON.stringify(result.errors), 'error');
+      } catch(e) { toast('Mail hatası: ' + e.message, 'error'); }
     } else {
       toast('Erişim kodu oluşturuldu: ' + code);
     }
+    // WhatsApp için tek tıklık link göster
+    if (phone) {
+      const waMsg = encodeURIComponent(
+        '🦉 *FinSkor Erişim Kodunuz*\n\n' +
+        (custName ? custName + ' için erişim kodunuz:\n\n' : 'Erişim kodunuz:\n\n') +
+        '🔑 *' + code + '*\n' +
+        (credits ? '📊 ' + credits + ' kontör\n' : '') +
+        '\n🌐 Giriş: https://finskor.tr/app.html\n\nSorularınız için: info@finskor.tr'
+      );
+      const cleaned = phone.replace(/\D/g,'').replace(/^0/,'');
+      const waPhone = cleaned.startsWith('90') ? cleaned : '90' + cleaned;
+      showWaButton(waPhone, waMsg);
+    }
   } catch(e) { toast(e.message, 'error'); }
+}
+
+function showWaButton(waPhone, waMsg) {
+  // Önceki varsa kaldır
+  const old = document.getElementById('wa-send-popup');
+  if (old) old.remove();
+  const div = document.createElement('div');
+  div.id = 'wa-send-popup';
+  div.style.cssText = 'position:fixed;bottom:32px;right:32px;z-index:99999;background:#1b2d3e;border:2px solid #25D366;border-radius:14px;padding:18px 22px;box-shadow:0 8px 32px rgba(0,0,0,0.5);max-width:320px;animation:fadeInUp 0.3s ease';
+  div.innerHTML = `
+    <div style="font-size:13px;color:rgba(244,246,249,0.7);margin-bottom:10px">📱 Müşteriye WhatsApp göndermek için:</div>
+    <a href="https://wa.me/${waPhone}?text=${waMsg}" target="_blank"
+       style="display:block;text-align:center;padding:11px 20px;background:#25D366;color:#fff;border-radius:8px;text-decoration:none;font-size:14px;font-weight:700;margin-bottom:10px"
+       onclick="setTimeout(()=>document.getElementById('wa-send-popup')?.remove(),500)">
+      💬 WhatsApp'ı Aç ve Gönder
+    </a>
+    <button onclick="document.getElementById('wa-send-popup').remove()" style="width:100%;padding:7px;background:transparent;border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:rgba(244,246,249,0.4);font-size:12px;cursor:pointer">Kapat</button>
+  `;
+  document.body.appendChild(div);
+  setTimeout(() => div.remove(), 30000); // 30sn sonra otomatik kapat
 }
 
 function autoFillCodeFields() {
