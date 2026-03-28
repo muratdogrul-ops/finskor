@@ -890,10 +890,10 @@ async function saveCode() {
         if (result.ok) toast('✅ Kod oluşturuldu ve mail gönderildi');
         else toast('Mail gönderilemedi: ' + JSON.stringify(result.errors), 'error');
       } catch(e) { toast('Mail hatası: ' + e.message, 'error'); }
-    } else {
+    } else if (!phone) {
       toast('Erişim kodu oluşturuldu: ' + code);
     }
-    // WhatsApp için tek tıklık link göster
+    // WhatsApp için tek tıklık link göster (mail olsa da olmasa da)
     if (phone) {
       const waMsg = encodeURIComponent(
         '🦉 *FinSkor Erişim Kodunuz*\n\n' +
