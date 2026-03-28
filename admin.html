@@ -718,7 +718,7 @@ async function loadDashboard() {
     const [c, a, p, codes] = await Promise.all([
       sb.from('customers').select('id', {count:'exact'}),
       sb.from('analyses').select('id', {count:'exact'}),
-      sb.from('payments').select('tutar'),
+      sb.from('payments').select('tutar').eq('durum', 'onaylandi'),
       sb.from('access_codes').select('id', {count:'exact'}).eq('active', true)
     ]);
     document.getElementById('stat-customers').textContent = c.count ?? '—';
@@ -1238,7 +1238,7 @@ async function confirmPayment(paymentId) {
   const email   = info.email;
   const telefon = info.telefon;
   const firma   = info.firma || 'Müşteri';
-  const credits = 10;
+  const credits = 4;
 
   toast('Onaylanıyor...', 'info');
   try {
