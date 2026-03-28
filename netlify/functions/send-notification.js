@@ -1,10 +1,88 @@
-// FinSkor Ödeme Bildirimi — Zoho SMTP + CallMeBot WhatsApp v2
-// Tetiklenince: müşteriye onay maili + yöneticiye bildirim maili + yöneticiye WA mesajı
+// FinSkor Ödeme Bildirimi — Zoho SMTP + CallMeBot WhatsApp v3
+// Tetiklenince: müşteriye onay maili + yöneticiye bildirim maili + yöneticiye WA mesajı + Supabase kayıt
 
 const nodemailer = require('nodemailer');
+const https = require('https');
 
 const ADMIN_MAIL      = 'info@finskor.tr';
-const ADMIN_WHATSAPP  = '905308943775'; // WhatsApp numarası (başında 0 olmadan, 90 ile)
+const ADMIN_WHATSAPP  = '905308943775';
+const SB_URL          = 'https://clmqfckposcaqjmbrmuq.supabase.co';
+const SB_KEY          = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsbXFmY2twb3NjYXFqbWJybXVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NjE3MDcsImV4cCI6MjA4ODUzNzcwN30.hbCPb5IMcnNcwUXyDkcUrzFKXPUgJrG1XmLXl_aI8T8';
+
+// Supabase REST API çağrısı
+function sbRequest(method, path, data) {
+  return new Promise((resolve, reject) => {
+    const body = data ? JSON.stringify(data) : null;
+    const options = {
+      hostname: 'clmqfckposcaqjmbrmuq.supabase.co',
+      path: '/rest/v1/' + path,
+      method,
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      }
+    };
+    if (body) options.headers['Content-Length'] = Buffer.byteLength(body);
+    const req = https.request(options, (res) => {
+      let raw = '';
+      res.on('data', d => raw += d);
+      res.on('end', () => {
+        try { resolve({ status: res.statusCode, data: JSON.parse(raw) }); }
+        catch { resolve({ status: res.statusCode, data: raw }); }
+      });
+    });
+    req.on('error', reject);
+    if (body) req.write(body);
+    req.end();
+  });
+}
+
+// Ödeme formundan gelen müşteriyi Supabase'e kaydet
+async function saveToSupabase(adSoyad, email, telefon, firmaAdi, vkn, vd, faturaTipi, odemeYontemi, tarih) {
+  try {
+    // Müşteri zaten var mı kontrol et (email ile)
+    const check = await sbRequest('GET', `customers?email=eq.${encodeURIComponent(email)}&select=id`, null);
+    let customerId = null;
+
+    if (check.status === 200 && Array.isArray(check.data) && check.data.length > 0) {
+      customerId = check.data[0].id;
+    } else {
+      // Yeni müşteri oluştur
+      const custRes = await sbRequest('POST', 'customers', {
+        firma_adi: firmaAdi || adSoyad,
+        yetkili_kisi: adSoyad,
+        telefon: telefon || null,
+        email: email || null,
+        vergi_no: vkn || null,
+        notlar: vd ? `Vergi Dairesi: ${vd} | Fatura: ${faturaTipi || 'kurumsal'}` : null
+      });
+      if (custRes.status === 201 && Array.isArray(custRes.data) && custRes.data.length > 0) {
+        customerId = custRes.data[0].id;
+      }
+    }
+
+    // Ödeme kaydı oluştur
+    const notlar = [
+      vkn ? `VKN: ${vkn}` : '',
+      vd ? `Vergi Dairesi: ${vd}` : '',
+      faturaTipi ? `Fatura: ${faturaTipi}` : '',
+      `E-posta: ${email}`,
+      telefon ? `Tel: ${telefon}` : ''
+    ].filter(Boolean).join(' | ');
+
+    await sbRequest('POST', 'payments', {
+      customer_id: customerId || null,
+      tutar: 2490,
+      odeme_tarihi: new Date().toISOString().split('T')[0],
+      odeme_yontemi: odemeYontemi || 'EFT / Havale',
+      notlar: notlar || null
+    });
+  } catch(e) {
+    console.warn('Supabase kayıt hatası:', e.message);
+  }
+}
 
 // CallMeBot ile yöneticiye WhatsApp bildirimi gönder
 async function sendAdminWhatsApp(message) {
@@ -12,7 +90,6 @@ async function sendAdminWhatsApp(message) {
   if (!apiKey) return; // env yoksa sessizce atla
   const url = `https://api.callmebot.com/whatsapp.php?phone=${ADMIN_WHATSAPP}&text=${encodeURIComponent(message)}&apikey=${apiKey}`;
   try {
-    const https = require('https');
     await new Promise((resolve, reject) => {
       https.get(url, (res) => {
         res.resume();
@@ -135,6 +212,9 @@ exports.handler = async (event) => {
     // Yöneticiye WhatsApp bildirimi (CallMeBot)
     const waMsg = `🔔 FinSkor Yeni Ödeme Talebi\n\nAd Soyad: ${adSoyad}\nTelefon: ${telefon}\nE-posta: ${email}\nFirma: ${firmaAdi || '—'}\nYöntem: ${odemeYontemi || 'EFT'}\nTarih: ${tarih}`;
     await sendAdminWhatsApp(waMsg);
+
+    // Supabase'e müşteri + ödeme kaydı
+    await saveToSupabase(adSoyad, email, telefon, firmaAdi, vkn, vd, faturaTipi, odemeYontemi, tarih);
 
     return {
       statusCode: 200,
