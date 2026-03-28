@@ -737,10 +737,10 @@ async function loadDashboard() {
     `).join('') : '<tr class="loading-row"><td colspan="4" class="empty-state">Henüz analiz yok</td></tr>';
 
     // Son ödemeler
-    const rp = await sb.from('payments').select('customers(firma_adi),tutar,odeme_yontemi,odeme_tarihi').order('created_at',{ascending:false}).limit(5);
+    const rp = await sb.from('payments').select('*').order('created_at',{ascending:false}).limit(5);
     const rpBody = document.getElementById('recent-payments');
     rpBody.innerHTML = (rp.data && rp.data.length) ? rp.data.map(r => `
-      <tr><td>${r.customers?.firma_adi||'—'}</td>
+      <tr><td>${parsePaymentInfo(r).firma||'—'}</td>
       <td><strong>₺${parseFloat(r.tutar||0).toLocaleString('tr-TR')}</strong></td>
       <td style="color:var(--text-muted)">${r.odeme_yontemi||'—'}</td>
       <td style="color:var(--text-muted);font-size:11px">${fmtDate(r.odeme_tarihi)}</td></tr>
@@ -1079,7 +1079,7 @@ function parsePaymentInfo(p) {
 
 async function loadPayments() {
   try {
-    const { data, error } = await sb.from('payments').select('*, customers(firma_adi, email, telefon)').order('created_at', {ascending:false});
+    const { data, error } = await sb.from('payments').select('*').order('created_at', {ascending:false});
     if (error) throw error;
     allPayments = data || [];
     renderBekleyenler(allPayments);
