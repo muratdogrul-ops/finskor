@@ -1854,17 +1854,17 @@ function spreadOpening(amount,months,total){
 // payment = anapara + interest + bsmv
 const BSMV_RATE = 0.05; // Banka ve Sigorta Muameleleri Vergisi — ticari kredi
 
-function amortSched(principal,annualRate,termMonths){
+// bsmvRate: TL kredilerde 0.05, EUR/USD kredilerde 0
+function amortSched(principal, annualRate, termMonths, bsmvRate = BSMV_RATE){
   const r=monthRate(annualRate),P=Math.max(0,principal),n=Math.max(1,termMonths);
-  // Saf faiz annuity (BSMV dahilsiz taksit tutarı)
   const basePayment = r<=0 ? P/n : P*(r*Math.pow(1+r,n))/(Math.pow(1+r,n)-1);
   let bal=P;const rows=[];
   for(let i=0;i<n;i++){
-    const interest  = bal * r;                      // Aylık faiz
-    const bsmv      = interest * BSMV_RATE;         // BSMV = faiz × %5
-    const intPlusBsmv = interest + bsmv;            // Gelir tablosuna yansıyacak kısım
-    const principal_  = basePayment - interest;     // Anapara ödemesi (BSMV hariç annuity'den)
-    const payment   = principal_ + intPlusBsmv;     // Toplam taksit = anapara + faiz + BSMV
+    const interest    = bal * r;
+    const bsmv        = interest * bsmvRate;
+    const intPlusBsmv = interest + bsmv;
+    const principal_  = basePayment - interest;
+    const payment     = principal_ + intPlusBsmv;
     bal = Math.max(0, bal - principal_);
     rows.push({payment, interest, bsmv, intPlusBsmv, principal:principal_, bal});
   }
@@ -1948,20 +1948,13 @@ function buildProjection(firmId){
   const cogsArr=sales.map(s=>s*(1-gm));
 
   // STOK — hedef: aylık COGS'un X katı (maliyet bazlı, bilanço değeri gerçekçi)
-  // Mantık: firma "1.5 aylık satışa yetecek stok" tutmak istiyorsa,
-  //   o stokun MALİYETİ = aylık COGS × çarpan  (satış fiyatıyla değil maliyetle ölçülür)
-  //   Örn: Satış=100 TL, GM=%30 → COGS=70 TL → 1.5× stok = 105 TL (maliyet değeri)
-  const invTarget = cogsArr.map(c => Math.max(0, c * stockMult));
+  // Sabit satın alma politikası: her ay COGS × stockMult kadar hammadde/mal alınır.
+  // Stok = açılış + net değişim (alış - satış maliyeti)
+  // stockMult=1.5 → her ay 1.5×COGS alınır, 1×COGS kullanılır → stok 0.5×COGS artar
+  const purchases = cogsArr.map(c => Math.max(0, c * stockMult));
   const inv = new Array(months).fill(0);
-  // Açılış bakiyesi (inv0) baz alınır.
-  // Her ay: fazla stok varsa doğal erime (satın alma yok), eksikse hedefe tamamla.
-  // inv[t] = max(invTarget[t], inv[t-1] - cogsArr[t])
-  inv[0] = Math.max(invTarget[0], Math.max(0, inv0 - cogsArr[0]));
-  for(let t=1;t<months;t++) inv[t] = Math.max(invTarget[t], Math.max(0, inv[t-1] - cogsArr[t]));
-  // Delta stok (maliyet bazlı): ay bazında stok değişimi → satın almaya eklenir
-  const deltaInv = [inv[0]-inv0, ...Array.from({length:months-1},(_,t)=>inv[t+1]-inv[t])];
-  // Satın alma = SMM + stok delta (maliyet tutarlı — aynı birimde)
-  const purchases = Array.from({length:months},(_,t)=>Math.max(0,cogsArr[t]+deltaInv[t]));
+  inv[0] = Math.max(0, inv0 + purchases[0] - cogsArr[0]);
+  for(let t=1;t<months;t++) inv[t] = Math.max(0, inv[t-1] + purchases[t] - cogsArr[t]);
 
   // AR / AP — Nakit akışı: interpolateLagged (gecikme bazlı tahsilat/ödeme)
   // Açılış AR ve AP: eski alacak/borç, yine gecikmeye göre tahsil/ödenir
@@ -2040,13 +2033,13 @@ function buildProjection(firmId){
   // TAKSİTLİ KREDİLER
   for(const L of f.loans||[]){
     if(L.type!=='installment')continue;
-    const{principal,term,rate,startDate,ccy='TL'}=L;
+    const{principal,term,rate,startDate,ccy='TL',existing:isExisting=false}=L;
     if(!principal||!term||!startDate)continue;
     const loanDt=new Date(startDate);
     const disburseMi=(loanDt.getFullYear()-startDt.getFullYear())*12+(loanDt.getMonth()-startDt.getMonth())+1;
-    // Kredi kullanım ayı: nakit girişi
-    if(disburseMi>=1&&disburseMi<=months){
-      // Kredi kullanım ayı kuru: o ayın fx tablosundan al, yoksa açılış kuru
+    // Mevcut kredi (existing:true) → disbursement YOKTUR, nakit girişi oluşturulmaz.
+    // Yeni kredi → kullanım ayında nakit girişi.
+    if(!isExisting && disburseMi>=1 && disburseMi<=months){
       const disbT = disburseMi - 1;
       let disbFxRate = 1;
       if(ccy !== 'TL'){
@@ -2058,8 +2051,12 @@ function buildProjection(firmId){
       }
       installDisb[disbT] += principal * disbFxRate;
     }
-    const firstPayMi=disburseMi+1; // İlk ödeme bir sonraki ay (Türk bankacılık standardı)
-    const sched=amortSched(principal,rate||0,term);
+    // Mevcut kredi: ilk ödeme projeksiyon başından (ay 1) itibaren başlar.
+    // Yeni kredi: kullanım ayının bir sonraki ayından başlar.
+    const firstPayMi = isExisting ? 1 : disburseMi + 1;
+    // BSMV: TL kredilerde faizin %5'i; EUR/USD kredilerde yoktur
+    const loanBsmv = (ccy && ccy !== 'TL') ? 0 : BSMV_RATE;
+    const sched=amortSched(principal, rate||0, term, loanBsmv);
     sched.forEach((row,k)=>{
       const mi=firstPayMi+k;
       if(mi>=1&&mi<=months){
@@ -2180,19 +2177,30 @@ function buildProjection(firmId){
       // Taksitli kredi: kullanım girişi − toplam taksit (anapara+faiz+BSMV)
       cash += receipts[t] + otherIn + capitalIn + installDisb[t] + spotIn
             - (supplierPay[t] + opex[t] + installPay[t] + spotOut + (taxPay[t]||0) + otherOut + investOut);
-      // BCH faiz: Türk bankacılığı basit faiz — yıllık oran / 12 (compound değil)
-      if(bbal>0&&bchRate>0){const bi=bbal*(bchRate/100/12);bchIntAccr[t]=bi;bchIntAccrued+=bi;}
+      // BCH faiz: Türk bankacılığı basit faiz, gerçek gün/360, BSMV dahil (%5)
+      // Formül: (BCH oranı × bakiye × gerçek gün sayısı) / 36000 × 1.05
+      if(bbal>0&&bchRate>0){
+        const dim=new Date(monthDates[t].getFullYear(),monthDates[t].getMonth()+1,0).getDate();
+        const bi=bbal*bchRate*dim/36000*1.05;
+        bchIntAccr[t]=bi;bchIntAccrued+=bi;
+      }
       // BCH faiz ödemesi: gerçek takvim ayı 3,6,9,12'de (Mart,Haziran,Eylül,Aralık)
       const calMonth=monthDates[t].getMonth()+1;
       if([3,6,9,12].includes(calMonth)&&bchIntAccrued>0){
         const need=bchIntAccrued;
+        // 1. Mevduat + nakit ile ödemeye çalış
         if(cash<need&&deposit>0){const take=Math.min(deposit,need-cash);deposit-=take;cash+=take;}
+        // 2. BCH çekimi (limit > 0 ise)
         if(cash<need){const avail=Math.max(0,bchLimit-bbal);const draw=Math.min(need-cash,avail);if(draw>0){bbal+=draw;cash+=draw;bchDraw[t]+=draw;}}
-        if(cash>=need){cash-=need;bchIntPaid[t]=need;bchIntAccrued=0;}
+        // 3. Elimizdeki nakitle öde (kısmi ödeme de kabul); kalan akrüe taşınır
+        const paid=Math.min(cash,need);
+        if(paid>0){cash-=paid;bchIntPaid[t]=paid;bchIntAccrued-=paid;}
       }
       if(cash<0&&deposit>0){const take=Math.min(deposit,-cash);deposit-=take;cash+=take;}
       if(cash<0){const need=-cash;const avail=Math.max(0,bchLimit-bbal);const draw=Math.min(need,avail);if(draw>0){bbal+=draw;cash+=draw;bchDraw[t]+=draw;}}
-      if(cash>0&&bbal>0){const repay=Math.min(cash,bbal);bbal-=repay;cash-=repay;bchRepay[t]+=repay;}
+      // Sadece otomatik çekilen kısım (bbal > openingBch) iade edilir.
+      // openingBch = mevcut krediler → anapara sabit, kapatılmaz.
+      if(cash>0&&bbal>openingBch){const repay=Math.min(cash,bbal-openingBch);bbal-=repay;cash-=repay;bchRepay[t]+=repay;}
       if(cash>0){deposit+=cash;cash=0;}
       if(depRate>0&&deposit>0){const avg=(depStart+deposit)/2;const di=avg*monthRate(depRate);deposit+=di;depInt[t]=di;}
       cashEnd[t]=cash;bchEnd[t]=bbal;depEnd[t]=deposit;
@@ -2885,39 +2893,51 @@ function clearLoanPreview() {
 // ══════════════════════════════════════════════
 // ── FinSkor kredi aktarımı yardımcısı ────────────────────────────────────
 // Kural:
-//   Toplam = KV + UV mali borç
-//   %60 → TL BCH (revolving, anapara sabit, 3/6/9/12 devre sonu faiz)
-//   %40 → EUR taksitli kredi (36 ay, EUR BCH faizi, aylık kur revizyonu)
+//   1. KV mali borç → TAMAMINI TL BCH olarak uygula (anapara sabit, devre sonu faiz)
+//   2. UV mali borç → 300M TL taksitli kredi (25.06.2024 başlangıç, 24 ay, %54 yıllık)
+//      Projeksiyon başında (01.01.2026) 18 taksit ödenmiş → kalan 6 ay × kalan bakiye
 function _buildLoansFromFinskor(p, projYil){
   const loans = [];
-  const total = (p.kvMaliBorclar || 0) + (p.uvMaliBorclar || 0);
-  if(total <= 0) return loans;
-
   const projStart = new Date(projYil, 0, 1);
 
-  // %70 → TL BCH (bch_existing, ccy:TL)
-  const tlBch = Math.round(total * 0.70);
-  if(tlBch > 0){
+  // ── 1. KV mali borç → %100 TL BCH ────────────────────────────────────────
+  const kvBCH = Math.round(p.kvMaliBorclar || 0);
+  if(kvBCH > 0){
     loans.push({
       type: 'bch_existing',
       bank: 'Mevcut TL BCH (FinSkor)',
       ccy: 'TL',
-      principal: tlBch
+      principal: kvBCH
     });
   }
 
-  // %40 → EUR taksitli (installment, ccy:EUR, 36 ay, EUR BCH faiz %6)
-  const eurTL = total - tlBch;
-  if(eurTL > 0){
-    const eurPrincipal = parseFloat((eurTL / FX_SPOT.eur).toFixed(2));
+  // ── 2. UV mali borç → 300M TL taksitli kredi ─────────────────────────────
+  // Orijinal kredi: 300.000.000 TL, 24 ay vade, %54 yıllık (%4,5 aylık)
+  // Başlangıç: 25.06.2024 → Bitiş: 25.06.2026
+  // Projeksiyon başı (01.01.2026) itibarıyla 18 taksit ödenmiş (Tem 2024 – Ara 2025)
+  // Kalan: 6 taksit (Oca 2026 – Haz 2026)
+  const UV_ORIG   = 300_000_000;  // TL
+  const UV_RATE   = 54;           // yıllık % (= aylık %4.5)
+  const UV_TERM   = 24;           // toplam ay
+  const UV_PAID   = 18;           // ödenen ay (projeksiyon öncesi)
+  const UV_REM    = UV_TERM - UV_PAID;  // = 6
+
+  const r      = UV_RATE / 100 / 12;                    // 0.045
+  const pow_n  = Math.pow(1 + r, UV_TERM);
+  const pow_k  = Math.pow(1 + r, UV_PAID);
+  const PMT_uv = UV_ORIG * r * pow_n / (pow_n - 1);    // sabit taksit (BSMV hariç)
+  const tlRemBal = Math.round(UV_ORIG * pow_k - PMT_uv * (pow_k - 1) / r);
+
+  if(tlRemBal > 0 && UV_REM > 0){
     loans.push({
       type: 'installment',
-      bank: 'Mevcut EUR Kredi (FinSkor)',
-      ccy: 'EUR',
-      principal: eurPrincipal,
+      existing: true,          // mevcut kredi → Ocak'ta nakit girişi YOKTUR
+      bank: 'Mevcut TL Kredi (25.06.2024 – 25.06.2026)',
+      ccy: 'TL',
+      principal: tlRemBal,
       startDate: projStart.toISOString(),
-      term: 36,
-      rate: 6  // EUR BCH referans faiz
+      term: UV_REM,
+      rate: UV_RATE
     });
   }
 
@@ -2999,12 +3019,9 @@ async function importFromFinSkor(){
       months: 60,
       growth:    growthRate,
       expGrowth: growthRate,
-      // stockMult: FinSkor açılış stok / aylık COGS oranından türetilir.
-      // Örn: stok=885M, yıllık SMM=1.2B → aylık SMM=100M → stockMult=8.85
-      // Böylece projeksiyon stok seviyesi açılışa yakın kalır.
-      stockMult: (p.stoklar > 0 && p.satMaliyet > 0)
-        ? Math.max(1, Math.round(p.stoklar / (p.satMaliyet / 12) * 10) / 10)
-        : 1.5,
+      // stockMult=1.5: her ay aylık COGS'un 1.5 katı hammadde satın alınır.
+      // Açılış stok (inv0=p.stoklar) üzerine her ay 0.5×COGS net stok artışı oluşur.
+      stockMult: 1.5,
       bchLimit: 0,
       bchRate: bch1,
       bch1, bch2, bch3, bch4, bch5,
