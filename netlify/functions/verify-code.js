@@ -18,10 +18,10 @@ exports.handler = async function(event, context) {
   if (!SUPABASE_SERVICE_KEY) return { statusCode: 500, body: JSON.stringify({ error: 'Sunucu yapılandırma hatası' }) };
   const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
   try {
-    const { data, error } = await sb.from('access_codes').select('id,code,active,credits,client_name,usage_count').eq('code', cleanCode).single();
+    const { data, error } = await sb.from('access_codes').select('id,code,active,credits,client_name,usage_count,nakit_akis_enabled').eq('code', cleanCode).single();
     if (error || !data) return { statusCode: 200, body: JSON.stringify({ valid: false, error: 'Geçersiz kod' }) };
     if (!data.active) return { statusCode: 200, body: JSON.stringify({ valid: false, error: 'Kod pasif' }) };
-    if (data.credits !== null && data.credits <= 0) return { statusCode: 200, body: JSON.stringify({ valid: false, error: 'Kontör tökendi'}) };
-    return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ valid: true, id: data.id, credits: data.credits, client_name: data.client_name || cleanCode }) };
+    if (data.credits !== null && data.credits <= 0 && !data.nakit_akis_enabled) return { statusCode: 200, body: JSON.stringify({ valid: false, error: 'Kontör tökendi'}) };
+    return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ valid: true, id: data.id, credits: data.credits, client_name: data.client_name || cleanCode, nakit_akis_enabled: data.nakit_akis_enabled || false }) };
   } catch(e) { return { statusCode: 500, body: JSON.stringify({ error: 'Sunucu hatası' }) }; }
 };

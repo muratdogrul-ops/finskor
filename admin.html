@@ -1283,7 +1283,7 @@ async function confirmPayment(paymentId) {
   const email   = info.email;
   const telefon = info.telefon;
   const firma   = info.firma || 'Müşteri';
-  const credits = info.credits || 4;
+  const credits = (info.credits != null) ? info.credits : 4;
 
   toast('Onaylanıyor...', 'info');
   try {
