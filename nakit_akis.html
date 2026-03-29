@@ -3508,21 +3508,21 @@ function pdfAddFooter(doc, pageNum, totalPages, pageW, pageH) {
 }
 
 function pdfNum(v) {
-  if (v === 0 || v == null) return '—';
+  if (v == null || (v === 0)) return '';
   return Number(v).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function pdfBuildCashFlowPages(doc, proj, firmName) {
-  const { jsPDF } = window.jspdf;
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const sy = new Date(proj.firm.startDate).getFullYear();
-  const { years } = annual5Y(proj.rows, sy, (proj.firm.opening || {}).mdv || 0);
+  const sy     = new Date(proj.firm.startDate).getFullYear();
+  const numYrs = Math.ceil((proj.summary.months || 60) / 12);
+  // buildYearlyData → [{year, months:[{ay,tarih,...}], totals}]
+  const yearlyData = buildYearlyData(proj.rows, sy, numYrs);
 
-  // Satır tanımları (kısaltılmış etiketler)
   const rowDefs = PROJ_ROWS.filter(r => r.field && r.type !== 'sep');
 
-  for (const yData of years) {
+  for (const yData of yearlyData) {
     doc.addPage();
     pdfAddHeader(doc, firmName, yData.year + ' — Aylık Nakit Akım Projeksiyonu', pageW);
 
@@ -3613,7 +3613,7 @@ function pdfBuildIncomePage(doc, proj, firmName) {
   doc.addPage();
   pdfAddHeader(doc, firmName, '5 Yıllık Gelir Tablosu', pageW);
 
-  const yInts   = years.map(y => y.year);
+  const yInts   = years; // annual5Y returns integer year array
   const yLabels = yInts.map(String);
   const sections = [
     {l:'Satış Gelirleri',                    k:'ciro',        bold:true},
