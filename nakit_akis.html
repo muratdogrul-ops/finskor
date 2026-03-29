@@ -2968,17 +2968,23 @@ function _buildLoansFromConfig(loanConfig, projYil) {
         ccy, principal: amt
       });
     } else if (l.type === 'installment') {
-      // ── Taksitli Ticari Kredi: Ödeme Planı Masterı ─────────────────────────
-      // Geçmiş tarihli kredi → kaç ay ödenmiş hesapla → kalan bakiye + kalan vade kullan
-      const totalTerm    = Math.max(1, l.term || 12);
-      const annualRate   = l.rate || 0;
-      const loanDt       = l.disbDate ? new Date(l.disbDate) : new Date(projYil - 1, 0, 1);
-      const projStartDt  = new Date(projYil, 0, 1);
-      const monthsPaid   = (projStartDt.getFullYear() - loanDt.getFullYear()) * 12
-                         + (projStartDt.getMonth() - loanDt.getMonth());
+      // ── Taksitli Ticari Kredi — Excel PMT Ödeme Planı ──────────────────────
+      // Excel formülü: PMT = PV * r / (1 - (1+r)^-n)   [eşit taksit, BSMV ayrıca eklenir]
+      // Kalan bakiye:  P_k  = PMT * (1 - (1+r)^-(n-k)) / r
+      // r = yıllık_faiz / 12 / 100,  n = toplam vade (ay),  k = ödenmiş ay sayısı
+      const totalTerm  = Math.max(1, l.term || 12);
+      const annualRate = parseFloat(l.rate) || 0;
+      const loanDt     = (l.disbDate && l.disbDate.length >= 7)
+                         ? new Date(l.disbDate) : new Date(projYil - 1, 0, 1);
+      const projStartDt = new Date(projYil, 0, 1);
+
+      // Geçen ay sayısı (kullandırımdan projeksiyon başına)
+      const monthsPaid = isNaN(loanDt.getTime()) ? 0
+        : (projStartDt.getFullYear() - loanDt.getFullYear()) * 12
+          + (projStartDt.getMonth()   - loanDt.getMonth());
 
       if (monthsPaid <= 0) {
-        // Gelecek veya bu ay kullandırılan yeni kredi
+        // Yeni kredi: kullanım ayında nakit girişi oluşur, sonraki aydan taksit başlar
         loans.push({
           type: 'installment',
           bank: 'UV Taksitli Ticari Kredi (' + ccy + ')',
@@ -2988,31 +2994,36 @@ function _buildLoansFromConfig(loanConfig, projYil) {
           rate: annualRate
         });
       } else if (monthsPaid < totalTerm) {
-        // Geçmişte kullandırılmış, kısmen ödenmiş kredi
-        // Kalan bakiyeyi ödeme planı masterından hesapla:
-        // P_kalan = P_orig * (1+r)^k - PMT * ((1+r)^k - 1) / r
-        const r  = annualRate / 100 / 12;
-        const n  = totalTerm;
-        const k  = monthsPaid;
-        const pmt = r > 0
-          ? amt * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1)
-          : amt / n;
-        const remBal = r > 0
-          ? Math.round(amt * Math.pow(1 + r, k) - pmt * (Math.pow(1 + r, k) - 1) / r)
-          : Math.round(amt - pmt * k);
-        const remTerm = totalTerm - monthsPaid;
-        if (remBal > 0 && remTerm > 0) {
+        // Geçmiş tarihli kredi — Excel kalan bakiye formülü:
+        // P_k = PMT * (1 - (1+r)^-(n-k)) / r
+        const r    = annualRate / 100 / 12;
+        const n    = totalTerm;
+        const k    = monthsPaid;
+        const remN = n - k;               // kalan ay
+        let remBal;
+        if (r > 0) {
+          // Excel PMT: PV * r / (1 - (1+r)^-n)
+          const pmt  = amt * r / (1 - Math.pow(1 + r, -n));
+          // Kalan bakiye: PMT * (1 - (1+r)^-(n-k)) / r
+          remBal = Math.round(pmt * (1 - Math.pow(1 + r, -remN)) / r);
+        } else {
+          // Faizsiz: eşit anapara taksitleri
+          remBal = Math.round(amt * remN / n);
+        }
+        // Güvenlik: kalan bakiye orijinal tutarı aşamaz
+        remBal = Math.min(remBal, amt);
+        if (remBal > 0 && remN > 0) {
           loans.push({
             type: 'installment',
-            existing: true,   // Ocak'ta nakit girişi YOKTUR, sadece taksit ödemesi
-            bank: 'UV Taksitli Ticari Kredi (' + ccy + ') — ' + remTerm + ' ay kalan',
+            existing: true,   // projeksiyon başında nakit girişi OLMAZ
+            bank: 'UV Taksitli Ticari Kredi (' + ccy + ') — kalan ' + remN + ' ay',
             ccy, principal: remBal,
             startDate: projStartDt.toISOString(),
-            term: remTerm,
+            term: remN,
             rate: annualRate
           });
         }
-        // monthsPaid >= totalTerm → kredi bitti, hiçbir şey ekleme
+        // monthsPaid >= totalTerm → kredi tamamlandı, atla
       }
     } else if (l.type === 'spot') {
       const startDate = l.disbDate
