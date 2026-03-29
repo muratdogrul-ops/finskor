@@ -2252,7 +2252,7 @@ const PROJ_ROWS=[
   {key:'girdi_grp', label:'Nakit Girdileri',   type:'grp'},
   {key:'tahsilat',  label:'Alacaklardan Tahsilat', type:'sub', field:'tahsilat'},
   {key:'depfaiz',   label:'Mevduat Faizi',     type:'sub',  field:'depFaiz'},
-  {key:'kredi_kullan', label:'Ticari Kredi Kullanımı (+)', type:'sub', field:'krediKullan'},
+  {key:'kredi_kullan', label:'Taksitli Ticari Kredi Kullanımı (+)', type:'sub', field:'krediKullan'},
   {key:'spot_kullan',  label:'Spot Kredi Kullanımı (+)',  type:'sub', field:'spotKullan'},
   {key:'sermaye_in', label:'Sermaye Artışı',       type:'sub', field:'sermayeGirdi'},
   {key:'manuel_in', label:'Diğer Gelirler (Manuel+)', type:'sub', field:'manuelGelir'},
@@ -2260,8 +2260,8 @@ const PROJ_ROWS=[
   {key:'cikti_grp', label:'Nakit Çıktıları',   type:'grp'},
   {key:'tedped',    label:'Tedarikçi Ödemeleri', type:'sub', field:'tedarikci'},
   {key:'opex',      label:'Faaliyet Giderleri', type:'sub', field:'opex'},
-  {key:'taksit_anapara', label:'Taksit Anapara Ödemesi',    type:'sub', field:'taksitAnapara'},
-  {key:'taksit_faiz',   label:'Taksit Faiz + BSMV (%5)',     type:'sub', field:'taksitFaizBsmv'},
+  {key:'taksit_anapara', label:'Taksitli Ticari Kredi Anapara Ödemesi', type:'sub', field:'taksitAnapara'},
+  {key:'taksit_faiz',   label:'Taksitli Ticari Kredi Faiz + BSMV (%5)', type:'sub', field:'taksitFaizBsmv'},
   {key:'bchfaiz',   label:'BCH Faiz Ödemesi',  type:'sub', field:'bchFaizOd'},
   {key:'vergi',         label:'Kurumlar Vergisi',            type:'sub', field:'vergi'},
   {key:'spot_anapara',  label:'Spot Kredi Anapara Geri Öd.',  type:'sub', field:'spotAnaparaPay'},
@@ -2968,19 +2968,52 @@ function _buildLoansFromConfig(loanConfig, projYil) {
         ccy, principal: amt
       });
     } else if (l.type === 'installment') {
-      // Kullandırım tarihi geçmiş olabilir; kod disburseMi<1 ise
-      // nakit girişi göstermez, kalan taksitler otomatik hesaplanır.
-      const startDate = l.disbDate
-        ? new Date(l.disbDate).toISOString()
-        : new Date(projYil - 1, 0, 1).toISOString();
-      loans.push({
-        type: 'installment',
-        bank: 'UV Taksitli Kredi (' + ccy + ')',
-        ccy, principal: amt,
-        startDate,
-        term: l.term || 12,
-        rate: l.rate || 0
-      });
+      // ── Taksitli Ticari Kredi: Ödeme Planı Masterı ─────────────────────────
+      // Geçmiş tarihli kredi → kaç ay ödenmiş hesapla → kalan bakiye + kalan vade kullan
+      const totalTerm    = Math.max(1, l.term || 12);
+      const annualRate   = l.rate || 0;
+      const loanDt       = l.disbDate ? new Date(l.disbDate) : new Date(projYil - 1, 0, 1);
+      const projStartDt  = new Date(projYil, 0, 1);
+      const monthsPaid   = (projStartDt.getFullYear() - loanDt.getFullYear()) * 12
+                         + (projStartDt.getMonth() - loanDt.getMonth());
+
+      if (monthsPaid <= 0) {
+        // Gelecek veya bu ay kullandırılan yeni kredi
+        loans.push({
+          type: 'installment',
+          bank: 'UV Taksitli Ticari Kredi (' + ccy + ')',
+          ccy, principal: amt,
+          startDate: loanDt.toISOString(),
+          term: totalTerm,
+          rate: annualRate
+        });
+      } else if (monthsPaid < totalTerm) {
+        // Geçmişte kullandırılmış, kısmen ödenmiş kredi
+        // Kalan bakiyeyi ödeme planı masterından hesapla:
+        // P_kalan = P_orig * (1+r)^k - PMT * ((1+r)^k - 1) / r
+        const r  = annualRate / 100 / 12;
+        const n  = totalTerm;
+        const k  = monthsPaid;
+        const pmt = r > 0
+          ? amt * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1)
+          : amt / n;
+        const remBal = r > 0
+          ? Math.round(amt * Math.pow(1 + r, k) - pmt * (Math.pow(1 + r, k) - 1) / r)
+          : Math.round(amt - pmt * k);
+        const remTerm = totalTerm - monthsPaid;
+        if (remBal > 0 && remTerm > 0) {
+          loans.push({
+            type: 'installment',
+            existing: true,   // Ocak'ta nakit girişi YOKTUR, sadece taksit ödemesi
+            bank: 'UV Taksitli Ticari Kredi (' + ccy + ') — ' + remTerm + ' ay kalan',
+            ccy, principal: remBal,
+            startDate: projStartDt.toISOString(),
+            term: remTerm,
+            rate: annualRate
+          });
+        }
+        // monthsPaid >= totalTerm → kredi bitti, hiçbir şey ekleme
+      }
     } else if (l.type === 'spot') {
       const startDate = l.disbDate
         ? new Date(l.disbDate).toISOString()
