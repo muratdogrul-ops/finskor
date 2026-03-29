@@ -739,7 +739,7 @@ tbody td { padding:8px 13px; color:var(--text); }
       <div class="analiz-metin" id="analizMetin"></div>
       <!-- ÖZET BİLANÇO & GELİR TABLOSU -->
       <div class="ratio-grid" id="ozetTabloGrid" style="display:none">
-        <div class="card"><div class="card-title">🏛️ ÖZET BİLANÇO</div><div id="ozetBilanco"></div></div>
+        <div class="card"><div class="card-title">🏛️ BİLANÇO</div><div id="ozetBilanco"></div></div>
         <div class="card"><div class="card-title">📊 ÖZET GELİR TABLOSU</div><div id="ozetGelir"></div></div>
       </div>
       <!-- SKALA TABLOSU -->
@@ -3353,44 +3353,16 @@ function buildAnalizMetin(refYear, r, paz, prevYear, enflasyon, donemAd, isTaahh
   buildOzetTablolar(refYear, prevYear, isTaahhut);
 }
 
-/** Analiz sayfası özet bilanço / özet gelir ile aynı satır ve tutarlar (PDF ile paylaşılır). */
+/** Bilanço: HESAPLAR kalemleri (PDF ile birebir); gelir tablosu özet satırları taahhüt ciro düzeltmesiyle. */
 function computeOzetTabloData(refYear, prevYear, isTaahhut) {
   const D  = k => (state.yearData[refYear]  || {})[k] || 0;
   const Dp = k => (state.yearData[prevYear] || {})[k] || 0;
   const Dp2= k => (state.yearData[prevYear-1] || {})[k] || 0;
   const en = state.lang === 'en';
 
-  // ── TAAHHÜT: 17 ve 35 tenzil hesabı (cari yıl)
-  const hak35   = D('yilHakediş');      // 35 — KV pasif
-  const mal17   = D('yilYayginMal');    // 17 — dönen aktif
-  const fark    = isTaahhut ? (hak35 - mal17) : 0;
-  const giderFazlasi = isTaahhut && fark < 0 ? Math.abs(fark) : 0;  // durana ekle
-  const gelirFazlasi = isTaahhut && fark > 0 ? fark : 0;             // KV pasife ekle
-
-  // Önceki yıl tenzil
+  // ── TAAHHÜT: hakediş — gelir tablosu ciro düzeltmesi
+  const hak35   = D('yilHakediş');
   const pHak35   = Dp('yilHakediş');
-  const pMal17   = Dp('yilYayginMal');
-  const pFark    = isTaahhut ? (pHak35 - pMal17) : 0;
-  const pGiderFazlasi = isTaahhut && pFark < 0 ? Math.abs(pFark) : 0;
-  const pGelirFazlasi = isTaahhut && pFark > 0 ? pFark : 0;
-
-  // ── Düzeltilmiş bilanço değerleri (cari yıl)
-  const donenVar  = isTaahhut ? D('donenVarlik') - mal17             : D('donenVarlik');
-  const duranVar  = isTaahhut ? D('duranVarlik') + giderFazlasi      : D('duranVarlik');
-  const aktifTop  = donenVar + duranVar;
-  const kvTop     = isTaahhut ? D('kvYKToplam') - hak35 + gelirFazlasi : D('kvYKToplam');
-  const uvTop     = D('uvYKToplam');
-  const ozKay     = D('ozKaynak');
-  const pasifTop  = kvTop + uvTop + ozKay;
-
-  // Önceki yıl düzeltilmiş
-  const pDonenVar = isTaahhut ? Dp('donenVarlik') - pMal17              : Dp('donenVarlik');
-  const pDuranVar = isTaahhut ? Dp('duranVarlik') + pGiderFazlasi       : Dp('duranVarlik');
-  const pAktifTop = pDonenVar + pDuranVar;
-  const pKvTop    = isTaahhut ? Dp('kvYKToplam') - pHak35 + pGelirFazlasi : Dp('kvYKToplam');
-  const pUvTop    = Dp('uvYKToplam');
-  const pOzKay    = Dp('ozKaynak');
-  const pPasifTop = pKvTop + pUvTop + pOzKay;
 
   // ── Gelir tablosu değerleri (cari yıl ara dönemse yıllıklaştır)
   const _af2 = getAnnualizeFactor ? getAnnualizeFactor() : 1;
@@ -3433,68 +3405,35 @@ function computeOzetTabloData(refYear, prevYear, isTaahhut) {
   const yy = _per < 12 ? refYear + '/' + _per : refYear;
   const py = prevYear;
 
-  // ── ÖZET BİLANÇO satırları
+  // ── BİLANÇO satırları — HESAPLAR ile veri girişi ekranı ve recalc() toplamlarıyla birebir (PDF dahil)
+  const _BILANCO_TOTAL_KEYS = new Set(['donenVarlik', 'duranVarlik', 'aktifToplam', 'kvYKToplam', 'uvYKToplam', 'ozKaynak', 'pasifToplam']);
   const bilancoSatirlar = [];
-
-  // AKTİF
-  bilancoSatirlar.push({tip:'anabablik', label: en?'🔵 ASSETS':'🔵 AKTİF'});
-
-  // DÖNEN VARLIKLAR
-  bilancoSatirlar.push({tip:'baslik', label: en?'CURRENT ASSETS':'DÖNEN VARLIKLAR'});
-  bilancoSatirlar.push({label: en?'Liquid Assets':'Hazır Değerler',        cv: D('hazirDegerler'),    pv: Dp('hazirDegerler')});
-  bilancoSatirlar.push({label: en?'Trade Receivables':'Ticari Alacaklar',  cv: D('ticAlacaklar'),     pv: Dp('ticAlacaklar')});
-  bilancoSatirlar.push({label: en?'Inventories':'Stoklar',                 cv: D('stoklar'),          pv: Dp('stoklar')});
-  bilancoSatirlar.push({label: en?'Other Current':'Diğer Dönen',           cv: D('digerAlacaklar')+D('menkKiymetler')+D('gelecekAyGider')+D('digerDonen'),
-                                                                            pv: Dp('digerAlacaklar')+Dp('menkKiymetler')+Dp('gelecekAyGider')+Dp('digerDonen')});
-  bilancoSatirlar.push({tip:'toplam', label: en?'Total Current Assets':'Dönen Varlıklar Toplamı', cv: donenVar, pv: pDonenVar});
-
-  // DURAN VARLIKLAR
-  bilancoSatirlar.push({tip:'baslik', label: en?'NON-CURRENT ASSETS':'DURAN VARLIKLAR'});
-  bilancoSatirlar.push({label: en?'Tangible Assets':'Maddi Duran Varlıklar', cv: D('maddiDuranVar'),  pv: Dp('maddiDuranVar')});
-  bilancoSatirlar.push({label: en?'Financial Assets':'Mali Duran Varlıklar', cv: D('maliDuranVar'),   pv: Dp('maliDuranVar')});
-  bilancoSatirlar.push({label: en?'Other Non-Current':'Diğer Duran',         cv: D('maddiOlmayan')+D('gelecekYilGider')+D('digerDuran'),
-                                                                               pv: Dp('maddiOlmayan')+Dp('gelecekYilGider')+Dp('digerDuran')});
-  // Taahhüt: Gider fazlası varsa durana ekle
-  if (isTaahhut && (giderFazlasi > 0 || pGiderFazlasi > 0)) {
-    bilancoSatirlar.push({tip:'ozel', label: en?'Work-in-Progress Expense Surplus':'Devam Eden İş Gider Fazlası', cv: giderFazlasi, pv: pGiderFazlasi});
+  bilancoSatirlar.push({ tip: 'anabablik', label: en ? '🔵 ASSETS' : '🔵 AKTİF' });
+  for (let hi = 0; hi < HESAPLAR.length; hi++) {
+    const h = HESAPLAR[hi];
+    if (h.type === 'cat') {
+      if (h.label === 'GELİR TABLOSU' || h.labelEn === 'INCOME STATEMENT') break;
+      if ((h.label || '').indexOf('III.') === 0) {
+        bilancoSatirlar.push({ tip: 'anabablik', label: en ? '🟠 LIABILITIES & EQUITY' : '🟠 PASİF' });
+      }
+      bilancoSatirlar.push({ tip: 'baslik', label: (en && h.labelEn) ? h.labelEn : h.label });
+      continue;
+    }
+    if (!h.key) continue;
+    const lab = (en && h.labelEn) ? h.labelEn : h.label;
+    if (h.isTotal || _BILANCO_TOTAL_KEYS.has(h.key)) {
+      const tip = (h.key === 'aktifToplam' || h.key === 'pasifToplam') ? 'anatoplam' : 'toplam';
+      bilancoSatirlar.push({ tip, label: lab, cv: D(h.key), pv: Dp(h.key) });
+      continue;
+    }
+    bilancoSatirlar.push({ label: lab, cv: D(h.key), pv: Dp(h.key) });
   }
-  bilancoSatirlar.push({tip:'toplam', label: en?'Total Non-Current Assets':'Duran Varlıklar Toplamı', cv: duranVar, pv: pDuranVar});
-
-  bilancoSatirlar.push({tip:'anatoplam', label: en?'TOTAL ASSETS':'AKTİF TOPLAM', cv: aktifTop, pv: pAktifTop});
-
-  // PASİF
-  bilancoSatirlar.push({tip:'anabablik', label: en?'🟠 LIABILITIES & EQUITY':'🟠 PASİF'});
-
-  // KV BORÇLAR
-  bilancoSatirlar.push({tip:'baslik', label: en?'SHORT-TERM LIABILITIES':'KISA VADELİ BORÇLAR'});
-  bilancoSatirlar.push({label: en?'Financial Debt (ST)':'Mali Borçlar',        cv: D('kvMaliBorclar'),   pv: Dp('kvMaliBorclar')});
-  bilancoSatirlar.push({label: en?'Trade Payables':'Ticari Borçlar',           cv: D('kvTicBorclar'),    pv: Dp('kvTicBorclar')});
-  bilancoSatirlar.push({label: en?'Other ST Liabilities':'Diğer KV Borçlar',   cv: D('kvDigBorclar')+D('alinanAvans')+D('odenecekVergi')+D('borcKarsilik')+D('gelecekAyGelir')+D('digerKvYK'),
-                                                                                 pv: Dp('kvDigBorclar')+Dp('alinanAvans')+Dp('odenecekVergi')+Dp('borcKarsilik')+Dp('gelecekAyGelir')+Dp('digerKvYK')});
-  // Taahhüt: Gelir fazlası varsa KV'ya ekle
-  if (isTaahhut && (gelirFazlasi > 0 || pGelirFazlasi > 0)) {
-    bilancoSatirlar.push({tip:'ozel', label: en?'Work-in-Progress Revenue Surplus':'Devam Eden İş Gelir Fazlası', cv: gelirFazlasi, pv: pGelirFazlasi});
-  }
-  bilancoSatirlar.push({tip:'toplam', label: en?'Total ST Liabilities':'KV Borçlar Toplamı', cv: kvTop, pv: pKvTop});
-
-  // UV BORÇLAR
-  bilancoSatirlar.push({tip:'baslik', label: en?'LONG-TERM LIABILITIES':'UZUN VADELİ BORÇLAR'});
-  bilancoSatirlar.push({label: en?'Financial Debt (LT)':'Mali Borçlar',        cv: D('uvMaliBorclar'),   pv: Dp('uvMaliBorclar')});
-  bilancoSatirlar.push({label: en?'Other LT Liabilities':'Diğer UV Borçlar',   cv: D('uvTicBorclar')+D('uvDigBorclar')+D('uvAlinanAvans')+D('uvBorcKarsilik')+D('uvDigYK'),
-                                                                                 pv: Dp('uvTicBorclar')+Dp('uvDigBorclar')+Dp('uvAlinanAvans')+Dp('uvBorcKarsilik')+Dp('uvDigYK')});
-  bilancoSatirlar.push({tip:'toplam', label: en?'Total LT Liabilities':'UV Borçlar Toplamı', cv: uvTop, pv: pUvTop});
-
-  // ÖZKAYNAK
-  bilancoSatirlar.push({tip:'baslik', label: en?'EQUITY':'ÖZKAYNAK'});
-  bilancoSatirlar.push({label: en?'Paid-in Capital':'Ödenmiş Sermaye',         cv: D('odenmisSermaye'),  pv: Dp('odenmisSermaye')});
-  bilancoSatirlar.push({label: en?'Reserves & Retained':'Yedekler & Geçmiş',  cv: D('sermaYedek')+D('karYedek')+D('gecmisKar')-D('gecmisZarar'),
-                                                                                 pv: Dp('sermaYedek')+Dp('karYedek')+Dp('gecmisKar')-Dp('gecmisZarar')});
-  bilancoSatirlar.push({label: en?'Net Profit':'Dönem Net Karı',               cv: D('donemNetKar'),     pv: Dp('donemNetKar')});
-  bilancoSatirlar.push({tip:'toplam', label: en?'Total Equity':'Özkaynak Toplamı', cv: ozKay, pv: pOzKay});
-
-  bilancoSatirlar.push({tip:'anatoplam', label: en?'TOTAL LIABILITIES':'PASİF TOPLAM', cv: pasifTop, pv: pPasifTop});
-  // Aktif - Pasif fark (kontrol)
-  bilancoSatirlar.push({tip:'fark', label: en?'ASSET / LIABILITY DIFFERENCE':'AKTİF — PASİF FARKI', cv: aktifTop-pasifTop, pv: pAktifTop-pPasifTop});
+  bilancoSatirlar.push({
+    tip: 'fark',
+    label: en ? 'ASSET / LIABILITY DIFFERENCE' : 'AKTİF — PASİF FARKI',
+    cv: D('aktifToplam') - D('pasifToplam'),
+    pv: Dp('aktifToplam') - Dp('pasifToplam')
+  });
 
   const ciroLabel = isTaahhut ? (en?'Revenue (Adjusted)':'Net Satışlar + Hakediş Düzeltmesi') : (en?'Net Sales':'Net Satışlar');
   const gelirSatirlar = [
@@ -4913,7 +4852,7 @@ function showOtomSenaryo() {
 function _pdfEsc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
-/** PDF özet bilanço: analiz sayfasındaki computeOzetTabloData satırları (yalnızca analiz yılı tutarı). */
+/** PDF bilanço: computeOzetTabloData HESAPLAR satırları (analiz yılı tutarı). */
 function pdfHtmlOzetBilancoRows(bilancoSatirlar, TL) {
   let body = '';
   for (const s of bilancoSatirlar) {
@@ -4936,7 +4875,7 @@ function pdfHtmlOzetBilancoRows(bilancoSatirlar, TL) {
       body += '<tr><td style="padding-left:16px;color:#475569">'+lab+'</td><td class="num">'+TL(s.cv)+'</td></tr>';
     }
   }
-  return '<table class="fin-table" style="page-break-inside:avoid;width:100%">\n'
+  return '<table class="fin-table" style="width:100%;page-break-inside:auto">\n'
     + '<colgroup><col style="width:70%"><col style="width:30%"></colgroup>\n'
     + '<tr class="row-header"><th>KALEM</th><th class="num">TUTAR (TL)</th></tr>\n'
     + body + '</table>';
@@ -5846,7 +5785,7 @@ function generatePDF() {
   <div class="metric-box"><div class="label">Öz Kaynak</div><div class="value">${TL(r.ozKaynak)}</div><div class="sub">Net Varlık</div></div>
 </div>
 
-<h2 id="i18nBilanco" style="page-break-before:auto;page-break-after:avoid">📋 Özet Bilanço — ${refYear} Yılı</h2>
+<h2 id="i18nBilanco" style="page-break-before:auto;page-break-after:avoid">📋 Bilanço (tüm kalemler) — ${refYear} Yılı</h2>
 ${pdfHtmlOzetBilancoRows(ozPdf.bilancoSatirlar, TL)}
 
 <h2 id="i18nGelirTab" style="page-break-after:avoid">📈 Özet Gelir Tablosu — ${refYear} Yılı</h2>
