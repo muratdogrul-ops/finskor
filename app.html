@@ -5040,72 +5040,61 @@ function _nkmAutoRate(idx) {
 function _nkmUpdateKalan() {
   const p = _nkmPayload;
   if (!p) return;
-  const uvTotal = p.uvMaliBorclar || 0;
+  const uvTotal = Math.round(p.uvMaliBorclar || 0);
   let used = 0;
   document.querySelectorAll('[id^="nkm-tutar-"]').forEach(el => {
-    const v = parseFloat(String(el.value).replace(/\./g,'').replace(',','.'));
-    if (!isNaN(v)) used += v;
+    const v = Math.round(parseFloat(String(el.value).replace(/\./g,'').replace(',','.')) || 0);
+    if (v > 0) used += v;
   });
   const kalan = uvTotal - used;
   const el = document.getElementById('nkm-uv-kalan');
   if (el) {
-    el.textContent = kalan.toLocaleString('tr-TR') + ' TL';
-    el.style.color  = kalan < -1 ? '#f87171' : kalan <= 1 ? '#34d399' : '#f59e0b';
+    el.textContent = kalan.toLocaleString('tr-TR', {maximumFractionDigits:0}) + ' TL';
+    el.style.color  = kalan < -1000 ? '#f87171' : Math.abs(kalan) <= 1000 ? '#34d399' : '#f59e0b';
   }
 }
 
 function nkmAddRow() {
-  const idx = _nkmRowIdx++;
-  const div = document.createElement('div');
+  var idx = _nkmRowIdx++;
+  var inp = 'width:100%;background:#1a2535;border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:7px 10px;color:#e2e8f0;font-size:13px';
+  var div = document.createElement('div');
   div.id = 'nkm-row-'+idx;
   div.style.cssText = 'background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:10px 12px;margin-bottom:8px';
-  div.innerHTML = `
-    <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
-      <div style="flex:1;min-width:140px">
-        <div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Tutar</div>
-        <input type="number" id="nkm-tutar-${idx}" placeholder="0"
-          style="width:100%;background:#1a2535;border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:7px 10px;color:#e2e8f0;font-size:13px"
-          oninput="_nkmUpdateKalan()">
-      </div>
-      <div style="min-width:110px">
-        <div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Kredi Tipi</div>
-        <select id="nkm-tip-${idx}" onchange="_nkmRowChange(${idx})"
-          style="width:100%;background:#1a2535;border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:7px 8px;color:#e2e8f0;font-size:13px">
-          <option value="bch_existing">BCH</option>
-          <option value="installment">Taksitli</option>
-          <option value="spot">Spot</option>
-        </select>
-      </div>
-      <div style="min-width:80px">
-        <div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Döviz</div>
-        <select id="nkm-ccy-${idx}" onchange="_nkmRowChange(${idx})"
-          style="width:100%;background:#1a2535;border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:7px 8px;color:#e2e8f0;font-size:13px">
-          <option value="TL">TL</option>
-          <option value="USD">USD</option>
-          <option value="EUR">EUR</option>
-        </select>
-      </div>
-      <button onclick="nkmDeleteRow(${idx})" title="Sil"
-        style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);border-radius:6px;padding:7px 10px;color:#f87171;cursor:pointer;font-size:13px;align-self:flex-end">✕</button>
-    </div>
-    <div id="nkm-extra-${idx}"
-      style="display:none;margin-top:8px;grid-template-columns:90px 1fr 110px;gap:8px;align-items:end">
-      <div>
-        <div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Vade (ay)</div>
-        <input type="number" id="nkm-vade-${idx}" min="1" max="360" placeholder="24"
-          style="width:100%;background:#1a2535;border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:7px 10px;color:#e2e8f0;font-size:13px">
-      </div>
-      <div>
-        <div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Kullandırım Tarihi</div>
-        <input type="date" id="nkm-tarih-${idx}" onchange="_nkmAutoRate(${idx})"
-          style="width:100%;background:#1a2535;border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:7px 10px;color:#e2e8f0;font-size:13px">
-      </div>
-      <div>
-        <div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Faiz % (yıllık)</div>
-        <input type="number" id="nkm-rate-${idx}" step="0.1" placeholder="—"
-          style="width:100%;background:#1a2535;border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:7px 10px;color:#e2e8f0;font-size:13px">
-      </div>
-    </div>`;
+  div.innerHTML = '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">'
+    + '<div style="flex:1;min-width:140px">'
+      + '<div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Tutar (tam TL)</div>'
+      + '<input type="number" id="nkm-tutar-'+idx+'" placeholder="0" min="0" step="1" style="'+inp+'" oninput="_nkmUpdateKalan()">'
+    + '</div>'
+    + '<div style="min-width:110px">'
+      + '<div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Kredi Tipi</div>'
+      + '<select id="nkm-tip-'+idx+'" onchange="_nkmRowChange('+idx+')" style="'+inp+'">'
+        + '<option value="bch_existing">BCH</option>'
+        + '<option value="installment">Taksitli</option>'
+        + '<option value="spot">Spot</option>'
+      + '</select>'
+    + '</div>'
+    + '<div style="min-width:80px">'
+      + '<div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Döviz</div>'
+      + '<select id="nkm-ccy-'+idx+'" onchange="_nkmRowChange('+idx+')" style="'+inp+'">'
+        + '<option value="TL">TL</option><option value="USD">USD</option><option value="EUR">EUR</option>'
+      + '</select>'
+    + '</div>'
+    + '<button onclick="nkmDeleteRow('+idx+')" style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);border-radius:6px;padding:7px 10px;color:#f87171;cursor:pointer;font-size:13px;align-self:flex-end">✕</button>'
+  + '</div>'
+  + '<div id="nkm-extra-'+idx+'" style="display:none;margin-top:8px;grid-template-columns:90px 1fr 110px;gap:8px;align-items:end">'
+    + '<div>'
+      + '<div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Vade (ay)</div>'
+      + '<input type="number" id="nkm-vade-'+idx+'" min="1" max="360" step="1" placeholder="24" style="'+inp+'">'
+    + '</div>'
+    + '<div>'
+      + '<div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Kullandırım Tarihi</div>'
+      + '<input type="date" id="nkm-tarih-'+idx+'" onchange="_nkmAutoRate('+idx+')" style="'+inp+'">'
+    + '</div>'
+    + '<div>'
+      + '<div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Faiz % (yıllık)</div>'
+      + '<input type="number" id="nkm-rate-'+idx+'" step="0.01" placeholder="—" style="'+inp+'">'
+    + '</div>'
+  + '</div>';
   document.getElementById('nkm-uv-rows').appendChild(div);
 }
 
@@ -5115,26 +5104,41 @@ function nkmDeleteRow(idx) {
 }
 
 function nkmUygula() {
-  const p = _nkmPayload;
+  var p = _nkmPayload;
   if (!p) return;
 
-  const kvCcy    = document.getElementById('nkm-kv-ccy')?.value || 'TL';
-  const kvAmount = p.kvMaliBorclar || 0;
+  var kvCcyEl  = document.getElementById('nkm-kv-ccy');
+  var kvAmtEl  = document.getElementById('nkm-kv-amount');
+  var kvCcy    = kvCcyEl ? kvCcyEl.value : 'TL';
+  var kvRaw    = kvAmtEl ? String(kvAmtEl.value).replace(/\./g,'').replace(',','.') : '0';
+  var kvAmount = Math.round(parseFloat(kvRaw) || p.kvMaliBorclar || 0);
 
-  const uvLoans = [];
-  let hasError  = false;
-  document.querySelectorAll('[id^="nkm-row-"]').forEach(rowEl => {
-    const idx      = rowEl.id.replace('nkm-row-','');
-    const tutarRaw = String(document.getElementById('nkm-tutar-'+idx)?.value || '');
-    const tutar    = parseFloat(tutarRaw.replace(/\./g,'').replace(',','.'));
-    const tip      = document.getElementById('nkm-tip-'+idx)?.value;
-    const ccy      = document.getElementById('nkm-ccy-'+idx)?.value || 'TL';
-    if (isNaN(tutar) || tutar <= 0) { hasError = true; return; }
-    const loan = {amount:tutar, type:tip, ccy};
+  // UV kalan kontrolü
+  var uvTotal = Math.round(p.uvMaliBorclar || 0);
+  var uvUsed  = 0;
+  document.querySelectorAll('[id^="nkm-tutar-"]').forEach(function(el) {
+    var v = Math.round(parseFloat(String(el.value).replace(/\./g,'').replace(',','.')) || 0);
+    if (v > 0) uvUsed += v;
+  });
+  var uvKalan = uvTotal - uvUsed;
+  if (uvTotal > 0 && Math.abs(uvKalan) > 1000) {
+    showToast('UV kredi bakiyesi henüz sıfırlanmadı! Kalan: ' + Math.round(uvKalan).toLocaleString('tr-TR') + ' TL', true);
+    return;
+  }
+
+  var uvLoans  = [];
+  var hasError = false;
+  document.querySelectorAll('[id^="nkm-row-"]').forEach(function(rowEl) {
+    var idx    = rowEl.id.replace('nkm-row-','');
+    var tutar  = Math.round(parseFloat(String((document.getElementById('nkm-tutar-'+idx)||{}).value||'0').replace(/\./g,'').replace(',','.')) || 0);
+    var tip    = (document.getElementById('nkm-tip-'+idx)||{}).value;
+    var ccy    = (document.getElementById('nkm-ccy-'+idx)||{}).value || 'TL';
+    if (!tutar || tutar <= 0) { hasError = true; return; }
+    var loan = {amount: tutar, type: tip, ccy: ccy};
     if (tip === 'installment' || tip === 'spot') {
-      const vade  = parseInt(document.getElementById('nkm-vade-'+idx)?.value);
-      const tarih = document.getElementById('nkm-tarih-'+idx)?.value;
-      const rate  = parseFloat(document.getElementById('nkm-rate-'+idx)?.value);
+      var vade  = parseInt((document.getElementById('nkm-vade-'+idx)||{}).value);
+      var tarih = (document.getElementById('nkm-tarih-'+idx)||{}).value;
+      var rate  = parseFloat((document.getElementById('nkm-rate-'+idx)||{}).value);
       if (!tarih || !vade || vade < 1) { hasError = true; return; }
       loan.term     = vade;
       loan.disbDate = tarih;
@@ -5144,11 +5148,11 @@ function nkmUygula() {
   });
 
   if (hasError) {
-    showToast('Lütfen tüm kredi bilgilerini eksiksiz doldurun.', true);
+    showToast('Lütfen tüm kredi satırlarını eksiksiz doldurun.', true);
     return;
   }
 
-  localStorage.setItem('nakit_akis_loan_config',  JSON.stringify({kvAmount, kvCcy, uvLoans}));
+  localStorage.setItem('nakit_akis_loan_config',  JSON.stringify({kvAmount: kvAmount, kvCcy: kvCcy, uvLoans: uvLoans}));
   localStorage.setItem('nakit_akis_finskor_data', JSON.stringify(p));
   var mEl = document.getElementById('nakitKrediModal');
   if (mEl) mEl.remove();
@@ -5223,8 +5227,8 @@ function openNakitAkis() {
         + '<div style="font-size:11px;color:#64748b;margin-bottom:10px">Tamamı BCH kredi olarak uygulanır. Tutar değiştirilemez, döviz cinsi seçilebilir.</div>'
         + '<div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">'
           + '<div style="flex:1;min-width:180px">'
-            + '<div style="font-size:10px;color:#94a3b8;margin-bottom:4px">Toplam KV Banka Kredisi</div>'
-            + '<input id="nkm-kv-amount" type="text" readonly value="' + (p.kvMaliBorclar || 0).toLocaleString('tr-TR') + '" style="width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:8px 12px;color:#64748b;font-size:13px">'
+            + '<div style="font-size:10px;color:#94a3b8;margin-bottom:4px">KV Banka Kredisi (BCH tutarı)</div>'
+            + '<input id="nkm-kv-amount" type="number" min="0" step="1" value="' + Math.round(p.kvMaliBorclar || 0) + '" style="width:100%;background:#1a2535;border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:8px 12px;color:#e2e8f0;font-size:13px">'
           + '</div>'
           + '<div style="min-width:100px">'
             + '<div style="font-size:10px;color:#94a3b8;margin-bottom:4px">Döviz</div>'
@@ -5236,7 +5240,7 @@ function openNakitAkis() {
         + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
           + '<div>'
             + '<div style="font-size:12px;font-weight:700;color:#818cf8">📋 Uzun Vadeli Banka Kredisi</div>'
-            + '<div style="font-size:11px;color:#64748b;margin-top:2px">Toplam: ' + (p.uvMaliBorclar || 0).toLocaleString('tr-TR') + ' TL</div>'
+            + '<div style="font-size:11px;color:#64748b;margin-top:2px">Toplam: ' + Math.round(p.uvMaliBorclar || 0).toLocaleString('tr-TR') + ' TL</div>'
           + '</div>'
           + '<button onclick="nkmAddRow()" style="background:rgba(99,102,241,.2);border:1px solid rgba(99,102,241,.4);border-radius:6px;padding:6px 14px;color:#818cf8;font-size:12px;cursor:pointer">+ Kredi Ekle</button>'
         + '</div>'
