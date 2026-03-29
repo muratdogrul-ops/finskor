@@ -425,6 +425,7 @@ tbody td { padding:8px 13px; color:var(--text); }
   <div class="logo">FinSkor</div>
   <div class="header-right">
     <button class="nav-btn active" id="navAnaliz" onclick="showPage('analiz')">📊 Analiz</button>
+    <button id="nakitAkisHeaderBtn" onclick="openNakitAkis()" style="display:none;padding:7px 16px;border-radius:8px;border:1px solid rgba(16,185,129,0.5);background:rgba(16,185,129,0.12);color:#34d399;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer">📊 NakitFlow</button>
     <button class="nav-btn logout-btn" onclick="doLogout()">🚪 Çıkış</button>
   </div>
 </header>
@@ -1786,10 +1787,12 @@ function loginSuccess(userData) {
   const ab = document.getElementById('avatarBtn');
   if (ab) ab.style.display = 'flex';
 
-  // NakitFlow butonu — sadece yetkili kullanıcılara göster
+  // NakitFlow butonu — sadece yetkili kullanıcılara göster (header + sonuç sekmesi)
   if (localStorage.getItem('kas_nakit_akis') === '1') {
     const nb = document.getElementById('nakitAkisBtn');
     if (nb) nb.style.display = 'flex';
+    const nbh = document.getElementById('nakitAkisHeaderBtn');
+    if (nbh) nbh.style.display = 'inline-flex';
   }
 
   // Her girişte onboarding sunumu açılsın
