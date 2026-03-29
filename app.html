@@ -5235,7 +5235,7 @@ function _nkmUpdateKvKalan() {
     if (kvTotal <= 0) {
       warnEl.textContent = '';
     } else if (kalan < -1000) {
-      warnEl.textContent = '⚠ Aşım: bilanço KV’den ' + Math.abs(Math.round(kalan)).toLocaleString('tr-TR') + ' TL fazla BCH (TL karşılığı) dağıttınız. Uygula ile kayıt alınmaz.';
+      warnEl.innerHTML = '⚠ Aşım: bilanço KV’den ' + Math.abs(Math.round(kalan)).toLocaleString('tr-TR') + ' TL fazla BCH (TL karşılığı) dağıttınız. Uygula ile kayıt alınmaz.<br><span style="color:#94a3b8;font-weight:400">İpucu: İlk satırda hâlâ <b>tüm</b> bilanço tutarı varken ikinci satır mı eklediniz? İlk satırı küçültün veya «Bilanço KV → tek satır (TL)» ile sıfırdan doldurun — <b>satır toplamı</b> 30. hesaba eşit olmalı.</span>';
     } else if (kalan > 1000) {
       warnEl.textContent = '⚠ Eksik: henüz ' + Math.round(kalan).toLocaleString('tr-TR') + ' TL karşılığı BCH dağıtılmadı. Uygula ile kayıt alınmaz.';
     } else {
@@ -5372,6 +5372,31 @@ function nkmAddKvRow(prefillAmt, prefCcy) {
 function nkmRemoveKvRow(idx) {
   var el = document.getElementById('nkm-kv-row-' + idx);
   if (el) { el.remove(); _nkmUpdateKvKalan(); }
+}
+
+// Bilanço KV’yi tek satırda TL olarak yazar; ek satırları siler (çift sayım önlenir)
+function nkmKvDoldurTekSatirTL() {
+  var p = _nkmPayload;
+  if (!p) return;
+  var amt = Math.round(p.kvMaliBorclar || 0);
+  var wrap = document.getElementById('nkm-kv-rows');
+  if (!wrap) return;
+  var lines = wrap.querySelectorAll('.nkm-kv-line');
+  if (lines.length === 0) {
+    nkmAddKvRow(amt, 'TL');
+    _nkmUpdateKvKalan();
+    return;
+  }
+  var i;
+  var toRemove = [];
+  for (i = 1; i < lines.length; i++) toRemove.push(lines[i]);
+  for (i = 0; i < toRemove.length; i++) toRemove[i].remove();
+  var kid = lines[0].getAttribute('data-kv-idx');
+  var tEl = document.getElementById('nkm-kv-tutar-' + kid);
+  var cEl = document.getElementById('nkm-kv-ccy-' + kid);
+  if (tEl) tEl.value = amt > 0 ? String(amt) : '';
+  if (cEl) cEl.value = 'TL';
+  _nkmUpdateKvKalan();
 }
 
 function nkmUygula() {
@@ -5560,9 +5585,13 @@ function openNakitAkis() {
           + '<div style="font-size:12px;font-weight:700;color:#34d399">🏦 Kısa Vadeli Banka Kredisi (BCH)</div>'
           + '<div style="font-size:11px;color:#64748b">Bilanço (30): <b style="color:#6ee7b7">' + Math.round(p.kvMaliBorclar || 0).toLocaleString('tr-TR', {maximumFractionDigits: 0}) + ' TL</b></div>'
         + '</div>'
-        + '<div style="font-size:11px;color:#64748b;margin-bottom:8px">Yalnızca <b>BCH</b>. Tutarı ve dövizi siz girin; satırların <b>TL eşdeğeri toplamı</b> bilanço tutarına yakın olmalı. Döviz satırlarında <b>' + _nkmFxLbl + '</b>: <b>1 USD = ' + _nkmFxModal.usd + ' TL</b>, <b>1 EUR = ' + _nkmFxModal.eur + ' TL</b>. Öneri bir satır olarak gelir; satırlar <b>toplamı</b> 30. hesap ile eşleşmeli (aynı tutarı iki kez yazmayın). <b>+ satır</b> ile parçalayabilirsiniz.</div>'
+        + '<div style="font-size:11px;color:#64748b;margin-bottom:8px">Yalnızca <b>BCH</b>. <b>Tüm satırların TL eşdeğeri toplamı</b> = bilanço (30). Çoklu dövizde tutarı satırlara <b>bölün</b> (aynı borcu iki satırda <b>üst üste</b> yazmayın). Döviz: <b>' + _nkmFxLbl + '</b> — <b>1 USD = ' + _nkmFxModal.usd + ' TL</b>, <b>1 EUR = ' + _nkmFxModal.eur + ' TL</b>.</div>'
         + '<div id="nkm-kv-rows"></div>'
-        + '<button type="button" onclick="nkmAddKvRow()" style="margin-top:4px;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35);border-radius:6px;padding:6px 14px;color:#34d399;font-size:12px;cursor:pointer">+ KV BCH satırı ekle</button>'
+        + '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px">'
+        + '<button type="button" onclick="nkmAddKvRow()" style="background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35);border-radius:6px;padding:6px 14px;color:#34d399;font-size:12px;cursor:pointer">+ KV BCH satırı ekle</button>'
+        + '<button type="button" onclick="nkmKvDoldurTekSatirTL()" style="background:rgba(52,211,153,.22);border:1px solid rgba(52,211,153,.5);border-radius:6px;padding:6px 14px;color:#6ee7b7;font-size:12px;font-weight:600;cursor:pointer">Bilanço KV → tek satır (TL)</button>'
+        + '</div>'
+        + '<div style="font-size:10px;color:#64748b;margin-top:6px">Hepsi TL ve tek satır yeterliyse kısayol; USD/EUR ekleyecekseniz önce tutarı satırlara bölerek ilk satırı küçültün.</div>'
         + '<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)">'
           + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">'
             + '<div style="font-size:12px;color:#94a3b8">Kalan BCH <span style="color:#64748b;font-weight:400">(TL karşılığı)</span>: <span id="nkm-kv-kalan" style="font-weight:700;color:#f59e0b">—</span></div>'
@@ -5597,7 +5626,7 @@ function openNakitAkis() {
   _nkmKvIdx = 0;
   var kvRows = document.getElementById('nkm-kv-rows');
   if (kvRows) kvRows.innerHTML = '';
-  nkmAddKvRow(Math.round(p.kvMaliBorclar || 0), 'TL');
+  nkmAddKvRow('', 'TL');
   _nkmUpdateKvKalan();
   _nkmUpdateKalan();
 }
