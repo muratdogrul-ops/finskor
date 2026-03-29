@@ -727,9 +727,14 @@ section { position: relative; z-index: 1; }
 
 /* ── PRICING ── */
 .pricing-section { padding: 100px 0; }
+/* Site vitrininde gizli paketler (HTML korunur; odeme.html?paket= ile doğrudan erişim) */
+.pricing-grid > .paket-site-hidden {
+  display: none !important;
+}
+
 .pricing-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 1px;
   background: var(--border);
   border: 1px solid var(--border);
@@ -1489,7 +1494,7 @@ footer {
         <a href="odeme.html" class="pricing-btn pricing-btn-gold">Hemen Satın Al</a>
       </div>
 
-      <div class="pricing-card featured" style="border-color:rgba(99,179,237,0.6)">
+      <div class="pricing-card featured paket-site-hidden" hidden aria-hidden="true" style="display:none!important;border-color:rgba(99,179,237,0.6)">
         <div class="pricing-tier" style="color:#63b3ed">Finansal Danışman</div>
         <div class="pricing-price" style="color:#63b3ed">₺36.000</div>
         <div class="pricing-period">100 analiz kontörü · tüm özellikler · KDV Dahil</div>
@@ -1507,7 +1512,7 @@ footer {
         <a href="odeme.html?paket=danisan" class="pricing-btn" style="background:linear-gradient(135deg,#3182ce,#2b6cb0);color:#fff;border:none">Hemen Satın Al</a>
       </div>
 
-      <div class="pricing-card" style="border-color:rgba(16,185,129,0.5)">
+      <div class="pricing-card paket-site-hidden" hidden aria-hidden="true" style="display:none!important;border-color:rgba(16,185,129,0.5)">
         <div class="pricing-tier" style="color:#34d399">NakitFlow</div>
         <div class="pricing-price" style="color:#34d399">₺48.000</div>
         <div class="pricing-period">KDV Dahil · 60 aylık projeksiyon</div>
@@ -1768,7 +1773,7 @@ const observer = new IntersectionObserver((entries) => {
   });
 }, { threshold: 0.1 });
 
-document.querySelectorAll('.feature-card, .how-step, .pricing-card, .scenario-card, .rating-row, .flow-step').forEach(el => {
+document.querySelectorAll('.feature-card, .how-step, .pricing-card:not(.paket-site-hidden), .scenario-card, .rating-row, .flow-step').forEach(el => {
   el.style.opacity = '0';
   el.style.transform = 'translateY(16px)';
   el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';

@@ -4852,66 +4852,77 @@ function showOtomSenaryo() {
 function _pdfEsc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
-/** PDF bilanço: computeOzetTabloData HESAPLAR satırları (analiz yılı tutarı). */
-function pdfHtmlOzetBilancoRows(bilancoSatirlar, TL) {
+/** PDF bilanço: FinSkor HESAPLAR satırları; pyLabel/yyLabel = analiz tablosu ile aynı iki yıl sütunu. */
+function pdfHtmlOzetBilancoRows(bilancoSatirlar, TL, pyLabel, yyLabel) {
+  const pyH = _pdfEsc(pyLabel != null ? String(pyLabel) : 'Önceki');
+  const yyH = _pdfEsc(yyLabel != null ? String(yyLabel) : 'Cari');
+  const tdNumPv = (v, neg) => '<td class="num" style="color:' + (neg ? '#dc2626' : '#475569') + '">' + TL(v) + '</td>';
+  const tdNumCv = (v, neg) => '<td class="num" style="color:' + (neg ? '#dc2626' : '#1e3a5f') + '">' + TL(v) + '</td>';
   let body = '';
   for (const s of bilancoSatirlar) {
     const tip = s.tip || 'kalem';
     const lab = _pdfEsc(s.label);
     if (tip === 'anabablik') {
-      body += '<tr class="row-section"><td colspan="2">' + lab + '</td></tr>';
+      body += '<tr class="row-section"><td colspan="3">' + lab + '</td></tr>';
     } else if (tip === 'baslik') {
-      body += '<tr style="background:#f8fafc"><td colspan="2" style="font-weight:700;color:#1e3a5f;font-size:11px">' + lab + '</td></tr>';
+      body += '<tr style="background:#f8fafc"><td colspan="3" style="font-weight:700;color:#1e3a5f;font-size:11px">' + lab + '</td></tr>';
     } else if (tip === 'toplam') {
-      body += '<tr class="row-subtotal"><td>'+lab+'</td><td class="num">'+TL(s.cv)+'</td></tr>';
+      body += '<tr class="row-subtotal"><td>' + lab + '</td>' + tdNumPv(s.pv, (s.pv || 0) < 0) + tdNumCv(s.cv, (s.cv || 0) < 0) + '</tr>';
     } else if (tip === 'anatoplam') {
-      body += '<tr class="row-total-bilanco"><td>'+lab+'</td><td class="num">'+TL(s.cv)+'</td></tr>';
+      body += '<tr class="row-total-bilanco"><td>' + lab + '</td>' + tdNumPv(s.pv, (s.pv || 0) < 0) + tdNumCv(s.cv, (s.cv || 0) < 0) + '</tr>';
     } else if (tip === 'ozel') {
-      body += '<tr style="background:#fffbeb"><td style="font-style:italic;color:#d97706">'+lab+'</td><td class="num" style="color:#d97706;font-weight:600">'+TL(s.cv)+'</td></tr>';
+      body += '<tr style="background:#fffbeb"><td style="font-style:italic;color:#d97706">' + lab + '</td><td class="num" style="color:#d97706;font-weight:600">' + TL(s.pv) + '</td><td class="num" style="color:#d97706;font-weight:600">' + TL(s.cv) + '</td></tr>';
     } else if (tip === 'fark') {
-      const ok = Math.abs(s.cv||0) < 1;
-      body += '<tr class="row-diff '+(!ok?'negative':'')+'"><td colspan="2" style="text-align:center">'+lab+': '+TL(s.cv)+'</td></tr>';
+      const ok = Math.abs(s.cv || 0) < 1 && Math.abs(s.pv || 0) < 1;
+      body += '<tr class="row-diff ' + (!ok ? 'negative' : '') + '"><td colspan="3" style="text-align:center;font-size:11px">' + lab + ': <b>' + yyH + '</b> ' + TL(s.cv) + ' &nbsp;|&nbsp; <b>' + pyH + '</b> ' + TL(s.pv) + '</td></tr>';
     } else {
-      body += '<tr><td style="padding-left:16px;color:#475569">'+lab+'</td><td class="num">'+TL(s.cv)+'</td></tr>';
+      body += '<tr><td style="padding-left:16px;color:#475569">' + lab + '</td>' + tdNumPv(s.pv, (s.pv || 0) < 0) + tdNumCv(s.cv, (s.cv || 0) < 0) + '</tr>';
     }
   }
-  return '<table class="fin-table" style="width:100%;page-break-inside:auto">\n'
-    + '<colgroup><col style="width:70%"><col style="width:30%"></colgroup>\n'
-    + '<tr class="row-header"><th>KALEM</th><th class="num">TUTAR (TL)</th></tr>\n'
+  return '<table class="fin-table bilanco-pdf-2y" style="width:100%;page-break-inside:auto">\n'
+    + '<colgroup><col style="width:52%"><col style="width:24%"><col style="width:24%"></colgroup>\n'
+    + '<tr class="row-header"><th>KALEM</th><th class="num">' + pyH + ' (TL)</th><th class="num">' + yyH + ' (TL)</th></tr>\n'
     + body + '</table>';
 }
-/** PDF özet gelir: analiz özet gelir satırları + isteğe bağlı EBITDA (oranlarla uyum). */
-function pdfHtmlOzetGelirRows(gelirSatirlar, ciro, TL, r) {
-  const ns = Math.abs(ciro) > 1e-12 ? ciro : 0;
-  const pctOf = (v) => ns !== 0 ? ((v||0)/ns*100).toFixed(1)+'%' : '—';
+/** PDF gelir: özet satırlar (taahhüt ciro düzeltmesi korunur) + iki yıl sütunu + % cari ciro. */
+function pdfHtmlOzetGelirRows(gelirSatirlar, ciro, TL, r, pyLabel, yyLabel) {
+  const pyH = _pdfEsc(pyLabel != null ? String(pyLabel) : 'Önceki');
+  const yyH = _pdfEsc(yyLabel != null ? String(yyLabel) : 'Cari');
+  const pCiro = (gelirSatirlar && gelirSatirlar[0] && gelirSatirlar[0].pv != null) ? gelirSatirlar[0].pv : 0;
+  const pctOf = (v, base) => {
+    const b = Math.abs(base) > 1e-12 ? base : 0;
+    return b !== 0 ? ((v || 0) / b * 100).toFixed(1) + '%' : '—';
+  };
   let body = '';
   let gelirToplamSayac = 0;
   for (const s of gelirSatirlar) {
     const tip = s.tip || 'kalem';
     const lab = _pdfEsc(s.label);
-    const pct = pctOf(s.cv);
-    const neg = (s.cv||0) < 0;
+    const pctC = pctOf(s.cv, ciro);
+    const negC = (s.cv || 0) < 0;
+    const negP = (s.pv || 0) < 0;
     if (tip === 'toplam') {
       const trCls = gelirToplamSayac === 0 ? 'row-gelir-ciro' : 'row-total-gelir';
       gelirToplamSayac++;
-      body += '<tr class="'+trCls+'"><td>'+lab+'</td><td class="num">'+TL(s.cv)+'</td><td class="pct">'+pct+'</td></tr>';
+      body += '<tr class="' + trCls + '"><td>' + lab + '</td><td class="num" style="color:' + (negP ? '#dc2626' : '#475569') + '">' + TL(s.pv) + '</td><td class="num" style="color:' + (negC ? '#dc2626' : '#15803d') + '">' + TL(s.cv) + '</td><td class="pct">' + pctC + '</td></tr>';
     } else if (tip === 'anatoplam') {
-      body += '<tr class="row-section"><td style="font-weight:800">'+lab+'</td><td class="num '+(!neg?'positive':'negative-val')+'">'+TL(s.cv)+'</td><td class="pct">'+pct+'</td></tr>';
+      body += '<tr class="row-section"><td style="font-weight:800">' + lab + '</td><td class="num ' + (!negP ? 'positive' : 'negative-val') + '">' + TL(s.pv) + '</td><td class="num ' + (!negC ? 'positive' : 'negative-val') + '">' + TL(s.cv) + '</td><td class="pct">' + pctC + '</td></tr>';
     } else {
-      body += '<tr><td>'+lab+'</td><td class="num">'+TL(s.cv)+'</td><td class="pct">'+pct+'</td></tr>';
+      body += '<tr><td>' + lab + '</td><td class="num" style="color:' + (negP ? '#dc2626' : '#475569') + '">' + TL(s.pv) + '</td><td class="num" style="color:' + (negC ? '#dc2626' : '#334155') + '">' + TL(s.cv) + '</td><td class="pct">' + pctC + '</td></tr>';
     }
   }
   if (r) {
-    const em = (r.ebitdaMarj!=null&&r.ebitdaMarj!==undefined) ? (r.ebitdaMarj||0).toFixed(2)+'%' : ((r.faalMarj||0).toFixed(2)+'%');
+    const em = (r.ebitdaMarj != null && r.ebitdaMarj !== undefined) ? (r.ebitdaMarj || 0).toFixed(2) + '%' : ((r.faalMarj || 0).toFixed(2) + '%');
     body += '<tr class="row-gelir-ebitda">'
       + '<td>EBITDA (Faaliyet Karı + Amortisman)</td>'
-      + '<td class="num">'+TL(r.ebitda!=null?r.ebitda:r.faalKar)+'</td>'
-      + '<td class="pct">'+em+'</td>'
+      + '<td class="num" style="color:#94a3b8">—</td>'
+      + '<td class="num">' + TL(r.ebitda != null ? r.ebitda : r.faalKar) + '</td>'
+      + '<td class="pct">' + em + '</td>'
       + '</tr>';
   }
   return '<table class="fin-table" style="page-break-inside:avoid;width:100%">\n'
     + '<tr class="row-header">\n'
-    + '<th>KALEM</th><th class="num">TUTAR (TL)</th><th class="pct">% Net Satış</th></tr>\n'
+    + '<th>KALEM</th><th class="num">' + pyH + ' (TL)</th><th class="num">' + yyH + ' (TL)</th><th class="pct">% / ' + yyH + ' ciro</th></tr>\n'
     + body + '</table>';
 }
 
@@ -5785,12 +5796,13 @@ function generatePDF() {
   <div class="metric-box"><div class="label">Öz Kaynak</div><div class="value">${TL(r.ozKaynak)}</div><div class="sub">Net Varlık</div></div>
 </div>
 
-<h2 id="i18nBilanco" style="page-break-before:auto;page-break-after:avoid">📋 Bilanço (tüm kalemler) — ${refYear} Yılı</h2>
-${pdfHtmlOzetBilancoRows(ozPdf.bilancoSatirlar, TL)}
+<h2 id="i18nBilanco" style="page-break-before:auto;page-break-after:avoid">📋 Bilanço (FinSkor mizan kalemleri)</h2>
+<p style="font-size:11px;color:#64748b;margin:-4px 0 10px">10–59 hesap grupları veri girişi ekranı ile aynıdır; sütunlar analiz özet tablosu ile uyumludur.</p>
+${pdfHtmlOzetBilancoRows(ozPdf.bilancoSatirlar, TL, ozPdf.py, ozPdf.yy)}
 
-<h2 id="i18nGelirTab" style="page-break-after:avoid">📈 Özet Gelir Tablosu — ${refYear} Yılı</h2>
-${ozPdf._per < 12 ? '<p style="font-size:11px;color:#64748b;margin:-6px 0 10px">(Tam yıl simüle edilmiştir)</p>' : ''}
-${pdfHtmlOzetGelirRows(ozPdf.gelirSatirlar, ozPdf.ciro, TL, r)}
+<h2 id="i18nGelirTab" style="page-break-after:avoid">📈 Özet gelir tablosu</h2>
+${ozPdf._per < 12 ? '<p style="font-size:11px;color:#64748b;margin:-6px 0 10px">(Cari sütun: seçili aylar yıllıklaştırılmış; tam yıl simülasyonu)</p>' : ''}
+${pdfHtmlOzetGelirRows(ozPdf.gelirSatirlar, ozPdf.ciro, TL, r, ozPdf.py, ozPdf.yy)}
 
 <h2 id="i18nFinOran" style="page-break-before:always;page-break-after:avoid">📐 Finansal Oranlar</h2>
 <table style="page-break-inside:avoid;width:100%">
