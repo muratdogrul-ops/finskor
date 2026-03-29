@@ -2879,6 +2879,42 @@ function clearLoanPreview() {
 
 // INIT
 // ══════════════════════════════════════════════
+// ── FinSkor kredi aktarımı yardımcısı ────────────────────────────────────
+function _buildLoansFromFinskor(p, projYil, rate){
+  const loans = [];
+  const projStart = new Date(projYil, 0, 1);
+
+  // Kısa vadeli mali borç → 12 ay taksitli, projeksiyonun başından itibaren
+  const kv = p.kvMaliBorclar || 0;
+  if(kv > 0){
+    loans.push({
+      type: 'installment',
+      bank: 'Mevcut KV Kredi (FinSkor)',
+      ccy: 'TL',
+      principal: kv,
+      startDate: projStart.toISOString(),
+      term: 12,
+      rate: rate
+    });
+  }
+
+  // Uzun vadeli mali borç → 36 ay taksitli, projeksiyonun başından itibaren
+  const uv = p.uvMaliBorclar || 0;
+  if(uv > 0){
+    loans.push({
+      type: 'installment',
+      bank: 'Mevcut UV Kredi (FinSkor)',
+      ccy: 'TL',
+      principal: uv,
+      startDate: projStart.toISOString(),
+      term: 36,
+      rate: rate
+    });
+  }
+
+  return loans;
+}
+
 // ── FinSkor → NakitFlow otomatik aktarım ───────────────────────────────────
 async function importFromFinSkor(){
   const raw = localStorage.getItem('nakit_akis_finskor_data');
@@ -2900,11 +2936,13 @@ async function importFromFinSkor(){
   for(const{group,items} of EXPENSE_GROUPS)
     for(const item of items) defExp[ei++] = {group, name:item, amount:0};
 
-  // Faaliyet giderini (Hesap 63) Operasyon → Diğer'e yaz
+  // Faaliyet giderini (Hesap 63) Operasyon → Diğer'e AYLIK olarak yaz.
+  // NakitFlow gider tutarlarını aylık bekler (opex = amount * büyüme, /12 yok).
+  // Revenue ise yıllık girilir — içeride pcts[moy]/100 ile /12 yapılır.
   if(p.faalGider && p.faalGider > 0){
     const vals = Object.values(defExp);
     const idx  = vals.findIndex(v => v.name === 'Diğer' && v.group === 'Operasyon Giderleri');
-    if(idx >= 0) defExp[idx].amount = p.faalGider;
+    if(idx >= 0) defExp[idx].amount = Math.round(p.faalGider / 12);
   }
 
   // ── TCMB/FX otomatik değerler ─────────────────────────────────────────────
@@ -2961,7 +2999,7 @@ async function importFromFinSkor(){
       taxRate: 25, taxMonths: '3,6,9,12'
     },
     expenses: defExp,
-    loans: [],
+    loans: _buildLoansFromFinskor(p, projYil, bch1),
     manualCf: [],
     fxRates:{
       usdOpen: FX_SPOT.usd,
@@ -2975,18 +3013,18 @@ async function importFromFinSkor(){
   await saveState();
   selectFirm(id);
 
-  // Borç ve özet uyarı
+  // Özet mesaj
   const kvMali = p.kvMaliBorclar || 0;
   const uvMali = p.uvMaliBorclar || 0;
   const borcMsg = (kvMali > 0 || uvMali > 0)
-    ? ` | ⚠ KV Mali Borç: ₺${kvMali.toLocaleString('tr-TR')}${uvMali>0?' / UV: ₺'+uvMali.toLocaleString('tr-TR'):''} → Krediler sekmesinden manuel ekleyin.`
+    ? ` | Krediler: KV ₺${kvMali.toLocaleString('tr-TR')}${uvMali>0?' + UV ₺'+uvMali.toLocaleString('tr-TR'):''} otomatik eklendi — vade/faiz Krediler sekmesinden düzenleyin.`
     : '';
 
   setTimeout(()=>{
     showAlert(
       `✅ "${firmAdı}" FinSkor'dan aktarıldı (${p.veriYili} yıl sonu). `
-      + `Açılış bilanço + gelir tablosu dolduruldu. `
-      + `Büyüme %${growthRate} · BCH Y1 %${bch1} · USD/TL ${FX_SPOT.usd} → 60 ay otomatik.`
+      + `Açılış bilanço + gelir tablosu + kur/faiz dolduruldu. `
+      + `Büyüme %${growthRate} · BCH Y1 %${bch1} · USD ${FX_SPOT.usd} → 60 ay.`
       + borcMsg,
       'ok'
     );
