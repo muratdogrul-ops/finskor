@@ -5029,6 +5029,7 @@ function _nkmRowChange(idx) {
   const show    = tip === 'installment' || tip === 'spot';
   extraEl.style.display = show ? 'grid' : 'none';
   _nkmAutoRate(idx);
+  _nkmUpdateKalan();
 }
 
 function _nkmAutoRate(idx) {
@@ -5091,23 +5092,63 @@ function _nkmUpdateRemaining(idx) {
   preEl.style.color = '#34d399';
 }
 
+// Bir satırın etkin TL tutarını döner:
+// - BCH: tutar × kur
+// - Taksitli (geçmiş tarihli): kalan bakiye × kur
+// - Taksitli (yeni/eksik bilgi): tutar × kur
+// - Spot: tutar × kur
+function _nkmRowEffectiveTL(idx) {
+  var el  = document.getElementById('nkm-tutar-' + idx);
+  if (!el) return 0;
+  var v   = Math.round(parseFloat(String(el.value).replace(/\./g,'').replace(',','.')) || 0);
+  if (v <= 0) return 0;
+  var ccy = (document.getElementById('nkm-ccy-' + idx) || {}).value || 'TL';
+  var tip = (document.getElementById('nkm-tip-' + idx) || {}).value;
+
+  var effectiveAmt = v;
+
+  // Taksitli kredilerde vade+tarih+faiz doluysa kalan bakiyeyi kullan
+  if (tip === 'installment') {
+    var tarih = (document.getElementById('nkm-tarih-' + idx) || {}).value;
+    var vade  = parseInt((document.getElementById('nkm-vade-'  + idx) || {}).value);
+    var rate  = parseFloat((document.getElementById('nkm-rate-'  + idx) || {}).value);
+    if (tarih && vade >= 1 && !isNaN(rate) && rate > 0) {
+      var projYilK = (_nkmPayload && _nkmPayload.veriYili) ? _nkmPayload.veriYili + 1 : new Date().getFullYear();
+      var lDt = new Date(tarih);
+      var psDt = new Date(projYilK, 0, 1);
+      var mPaid = isNaN(lDt.getTime()) ? 0
+        : (psDt.getFullYear() - lDt.getFullYear()) * 12 + (psDt.getMonth() - lDt.getMonth());
+      if (mPaid > 0 && mPaid < vade) {
+        var bsmvRk = (ccy === 'TL') ? 0.05 : 0;
+        var rIncK  = (rate / 100 / 12) * (1 + bsmvRk);
+        var remNk  = vade - mPaid;
+        var remBalK;
+        if (rIncK > 0) {
+          var pmtK = v * rIncK / (1 - Math.pow(1 + rIncK, -vade));
+          remBalK  = Math.round(pmtK * (1 - Math.pow(1 + rIncK, -remNk)) / rIncK);
+        } else {
+          remBalK = Math.round(v * remNk / vade);
+        }
+        remBalK = Math.min(remBalK, v);
+        if (remBalK > 0) effectiveAmt = remBalK;
+      }
+    }
+  }
+
+  // TL eşdeğerine çevir
+  if (ccy === 'EUR') return Math.round(effectiveAmt * NKM_FX_REF.eur);
+  if (ccy === 'USD') return Math.round(effectiveAmt * NKM_FX_REF.usd);
+  return effectiveAmt;
+}
+
 function _nkmUpdateKalan() {
   const p = _nkmPayload;
   if (!p) return;
-  // UV hedef = 40. Hesap (uvMaliBorclar) — KV girişinden BAĞIMSIZ, sabit
   const uvTotal = Math.round(p.uvMaliBorclar || 0);
   let usedTL = 0;
   document.querySelectorAll('[id^="nkm-row-"]').forEach(function(rowEl) {
     var idx = rowEl.id.replace('nkm-row-', '');
-    var el  = document.getElementById('nkm-tutar-' + idx);
-    if (!el) return;
-    var v = Math.round(parseFloat(String(el.value).replace(/\./g,'').replace(',','.')) || 0);
-    if (v <= 0) return;
-    var ccy = (document.getElementById('nkm-ccy-' + idx) || {}).value || 'TL';
-    // EUR/USD tutarları yaklaşık TL eşdeğerine çevir
-    if (ccy === 'EUR') v = Math.round(v * NKM_FX_REF.eur);
-    else if (ccy === 'USD') v = Math.round(v * NKM_FX_REF.usd);
-    usedTL += v;
+    usedTL += _nkmRowEffectiveTL(idx);
   });
   const kalan = uvTotal - usedTL;
   const kalanEl = document.getElementById('nkm-uv-kalan');
@@ -5147,15 +5188,15 @@ function nkmAddRow() {
   + '<div id="nkm-extra-'+idx+'" style="display:none;margin-top:8px;grid-template-columns:90px 1fr 110px;gap:8px;align-items:end">'
     + '<div>'
       + '<div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Vade (ay)</div>'
-      + '<input type="number" id="nkm-vade-'+idx+'" min="1" max="360" step="1" placeholder="24" style="'+inp+'" oninput="_nkmUpdateRemaining('+idx+')">'
+      + '<input type="number" id="nkm-vade-'+idx+'" min="1" max="360" step="1" placeholder="24" style="'+inp+'" oninput="_nkmUpdateRemaining('+idx+');_nkmUpdateKalan()">'
     + '</div>'
     + '<div>'
       + '<div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Kullandırım Tarihi</div>'
-      + '<input type="date" id="nkm-tarih-'+idx+'" onchange="_nkmAutoRate('+idx+')" style="'+inp+'">'
+      + '<input type="date" id="nkm-tarih-'+idx+'" onchange="_nkmAutoRate('+idx+');_nkmUpdateKalan()" style="'+inp+'">'
     + '</div>'
     + '<div>'
       + '<div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Faiz % (yıllık)</div>'
-      + '<input type="number" id="nkm-rate-'+idx+'" step="0.01" placeholder="—" style="'+inp+'" oninput="_nkmUpdateRemaining('+idx+')">'
+      + '<input type="number" id="nkm-rate-'+idx+'" step="0.01" placeholder="—" style="'+inp+'" oninput="_nkmUpdateRemaining('+idx+');_nkmUpdateKalan()">'
     + '</div>'
   + '</div>'
   + '<div id="nkm-rembal-'+idx+'" style="font-size:11px;margin-top:4px;padding-left:2px"></div>';
@@ -5177,19 +5218,12 @@ function nkmUygula() {
   var kvRaw    = kvAmtEl ? String(kvAmtEl.value).replace(/\./g,'').replace(',','.') : '0';
   var kvAmount = Math.round(parseFloat(kvRaw) || p.kvMaliBorclar || 0);
 
-  // UV kalan kontrolü — EUR/USD tutarlar TL eşdeğerine çevrilir
+  // UV kalan kontrolü — kalan bakiye hesabı ile TL eşdeğeri
   var uvTotal = Math.round(p.uvMaliBorclar || 0);
   var uvUsedTL = 0;
   document.querySelectorAll('[id^="nkm-row-"]').forEach(function(rowEl) {
     var ridx = rowEl.id.replace('nkm-row-', '');
-    var el   = document.getElementById('nkm-tutar-' + ridx);
-    if (!el) return;
-    var v = Math.round(parseFloat(String(el.value).replace(/\./g,'').replace(',','.')) || 0);
-    if (v <= 0) return;
-    var rc = (document.getElementById('nkm-ccy-' + ridx) || {}).value || 'TL';
-    if (rc === 'EUR') v = Math.round(v * NKM_FX_REF.eur);
-    else if (rc === 'USD') v = Math.round(v * NKM_FX_REF.usd);
-    uvUsedTL += v;
+    uvUsedTL += _nkmRowEffectiveTL(ridx);
   });
   var uvKalan = uvTotal - uvUsedTL;
   if (uvTotal > 0 && Math.abs(uvKalan) > 1000) {
