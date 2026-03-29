@@ -5092,11 +5092,10 @@ function _nkmUpdateRemaining(idx) {
   preEl.style.color = '#34d399';
 }
 
-// Bir satırın etkin TL tutarını döner:
-// - BCH: tutar × kur
-// - Taksitli (geçmiş tarihli): kalan bakiye × kur
-// - Taksitli (yeni/eksik bilgi): tutar × kur
-// - Spot: tutar × kur
+// Bir satırın etkin TL tutarını döner.
+// Taksitli/Spot için vade+tarih+faiz girilene kadar 0 döner (kalan hesabına katkı yapmaz).
+// Taksitli için tüm alanlar dolunca geçmiş tarihli kredide KALAN BAKİYE, yeni kredide orijinal tutar kullanılır.
+// BCH için tutar girildikten sonra hemen hesaba katılır.
 function _nkmRowEffectiveTL(idx) {
   var el  = document.getElementById('nkm-tutar-' + idx);
   if (!el) return 0;
@@ -5105,40 +5104,48 @@ function _nkmRowEffectiveTL(idx) {
   var ccy = (document.getElementById('nkm-ccy-' + idx) || {}).value || 'TL';
   var tip = (document.getElementById('nkm-tip-' + idx) || {}).value;
 
-  var effectiveAmt = v;
-
-  // Taksitli kredilerde vade+tarih+faiz doluysa kalan bakiyeyi kullan
+  // ── Taksitli: vade + tarih + faiz girilene kadar 0 döner ────────────────
   if (tip === 'installment') {
     var tarih = (document.getElementById('nkm-tarih-' + idx) || {}).value;
     var vade  = parseInt((document.getElementById('nkm-vade-'  + idx) || {}).value);
     var rate  = parseFloat((document.getElementById('nkm-rate-'  + idx) || {}).value);
-    if (tarih && vade >= 1 && !isNaN(rate) && rate > 0) {
-      var projYilK = (_nkmPayload && _nkmPayload.veriYili) ? _nkmPayload.veriYili + 1 : new Date().getFullYear();
-      var lDt = new Date(tarih);
-      var psDt = new Date(projYilK, 0, 1);
-      var mPaid = isNaN(lDt.getTime()) ? 0
-        : (psDt.getFullYear() - lDt.getFullYear()) * 12 + (psDt.getMonth() - lDt.getMonth());
-      if (mPaid > 0 && mPaid < vade) {
-        var bsmvRk = (ccy === 'TL') ? 0.05 : 0;
-        var rIncK  = (rate / 100 / 12) * (1 + bsmvRk);
-        var remNk  = vade - mPaid;
-        var remBalK;
-        if (rIncK > 0) {
-          var pmtK = v * rIncK / (1 - Math.pow(1 + rIncK, -vade));
-          remBalK  = Math.round(pmtK * (1 - Math.pow(1 + rIncK, -remNk)) / rIncK);
-        } else {
-          remBalK = Math.round(v * remNk / vade);
-        }
-        remBalK = Math.min(remBalK, v);
-        if (remBalK > 0) effectiveAmt = remBalK;
+    if (!tarih || !(vade >= 1) || isNaN(rate) || rate <= 0) return 0; // henüz eksik
+    var projYilK = (_nkmPayload && _nkmPayload.veriYili) ? _nkmPayload.veriYili + 1 : new Date().getFullYear();
+    var lDt = new Date(tarih);
+    var psDt = new Date(projYilK, 0, 1);
+    var mPaid = isNaN(lDt.getTime()) ? 0
+      : (psDt.getFullYear() - lDt.getFullYear()) * 12 + (psDt.getMonth() - lDt.getMonth());
+    var effectiveAmt = v;
+    if (mPaid > 0 && mPaid < vade) {
+      var bsmvRk = (ccy === 'TL') ? 0.05 : 0;
+      var rIncK  = (rate / 100 / 12) * (1 + bsmvRk);
+      var remNk  = vade - mPaid;
+      var remBalK;
+      if (rIncK > 0) {
+        var pmtK = v * rIncK / (1 - Math.pow(1 + rIncK, -vade));
+        remBalK  = Math.round(pmtK * (1 - Math.pow(1 + rIncK, -remNk)) / rIncK);
+      } else {
+        remBalK = Math.round(v * remNk / vade);
       }
+      remBalK = Math.min(remBalK, v);
+      if (remBalK > 0) effectiveAmt = remBalK;
     }
+    if (ccy === 'EUR') return Math.round(effectiveAmt * NKM_FX_REF.eur);
+    if (ccy === 'USD') return Math.round(effectiveAmt * NKM_FX_REF.usd);
+    return effectiveAmt;
   }
 
-  // TL eşdeğerine çevir
-  if (ccy === 'EUR') return Math.round(effectiveAmt * NKM_FX_REF.eur);
-  if (ccy === 'USD') return Math.round(effectiveAmt * NKM_FX_REF.usd);
-  return effectiveAmt;
+  // ── Spot: vade + tarih girilene kadar 0 döner ───────────────────────────
+  if (tip === 'spot') {
+    var sTarih = (document.getElementById('nkm-tarih-' + idx) || {}).value;
+    var sVade  = parseInt((document.getElementById('nkm-vade-'  + idx) || {}).value);
+    if (!sTarih || !(sVade >= 1)) return 0;
+  }
+
+  // ── BCH veya Spot (tam): tutar × kur ────────────────────────────────────
+  if (ccy === 'EUR') return Math.round(v * NKM_FX_REF.eur);
+  if (ccy === 'USD') return Math.round(v * NKM_FX_REF.usd);
+  return v;
 }
 
 function _nkmUpdateKalan() {
