@@ -2984,13 +2984,23 @@ function _buildLoansFromFinskor(p, projYil){
 function _buildLoansFromConfig(loanConfig, projYil) {
   const loans = [];
 
-  // KV: her zaman BCH
-  if (loanConfig.kvAmount > 0) {
+  // KV: yalnızca BCH — birden fazla satır (TL + USD/EUR) veya eski tek kvAmount
+  var kvList = [];
+  if (loanConfig && Array.isArray(loanConfig.kvLoans) && loanConfig.kvLoans.length) {
+    kvList = loanConfig.kvLoans;
+  } else if (loanConfig && loanConfig.kvAmount > 0) {
+    kvList = [{ amount: loanConfig.kvAmount, ccy: loanConfig.kvCcy || 'TL' }];
+  }
+  for (var ki = 0; ki < kvList.length; ki++) {
+    var kv = kvList[ki];
+    var kAmt = Math.round(kv.amount || 0);
+    if (kAmt <= 0) continue;
+    var kCcy = kv.ccy || 'TL';
     loans.push({
       type: 'bch_existing',
-      bank: 'KV Banka Kredisi (BCH)',
-      ccy: loanConfig.kvCcy || 'TL',
-      principal: Math.round(loanConfig.kvAmount)
+      bank: 'KV Banka Kredisi (BCH · ' + kCcy + ')',
+      ccy: kCcy,
+      principal: kAmt
     });
   }
 
