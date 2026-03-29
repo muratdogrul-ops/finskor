@@ -2180,7 +2180,8 @@ function buildProjection(firmId){
       // Taksitli kredi: kullanım girişi − toplam taksit (anapara+faiz+BSMV)
       cash += receipts[t] + otherIn + capitalIn + installDisb[t] + spotIn
             - (supplierPay[t] + opex[t] + installPay[t] + spotOut + (taxPay[t]||0) + otherOut + investOut);
-      if(bbal>0&&bchRate>0){const bi=bbal*monthRate(bchRate);bchIntAccr[t]=bi;bchIntAccrued+=bi;}
+      // BCH faiz: Türk bankacılığı basit faiz — yıllık oran / 12 (compound değil)
+      if(bbal>0&&bchRate>0){const bi=bbal*(bchRate/100/12);bchIntAccr[t]=bi;bchIntAccrued+=bi;}
       // BCH faiz ödemesi: gerçek takvim ayı 3,6,9,12'de (Mart,Haziran,Eylül,Aralık)
       const calMonth=monthDates[t].getMonth()+1;
       if([3,6,9,12].includes(calMonth)&&bchIntAccrued>0){
@@ -2998,7 +2999,12 @@ async function importFromFinSkor(){
       months: 60,
       growth:    growthRate,
       expGrowth: growthRate,
-      stockMult: 1.5,
+      // stockMult: FinSkor açılış stok / aylık COGS oranından türetilir.
+      // Örn: stok=885M, yıllık SMM=1.2B → aylık SMM=100M → stockMult=8.85
+      // Böylece projeksiyon stok seviyesi açılışa yakın kalır.
+      stockMult: (p.stoklar > 0 && p.satMaliyet > 0)
+        ? Math.max(1, Math.round(p.stoklar / (p.satMaliyet / 12) * 10) / 10)
+        : 1.5,
       bchLimit: 0,
       bchRate: bch1,
       bch1, bch2, bch3, bch4, bch5,
