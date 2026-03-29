@@ -5010,6 +5010,24 @@ const NKM_HIST_RATES = {
 // Referans döviz kurları (kalan bakiye TL eşdeğeri hesabında kullanılır — yaklaşık)
 const NKM_FX_REF = {usd: 36.0, eur: 40.0};
 
+// KV/UV tutar kutusu: 1.234,56 (TR) veya 1,234.56 (EN) — noktayı körü körüne silme (USD ondalığı bozulurdu)
+function _nkmParseMoneyInput(raw) {
+  if (raw == null || raw === '') return 0;
+  var s = String(raw).trim().replace(/\s/g, '');
+  if (!s) return 0;
+  var lastComma = s.lastIndexOf(',');
+  var lastDot = s.lastIndexOf('.');
+  if (lastComma > lastDot) {
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else if (lastDot > lastComma) {
+    s = s.replace(/,/g, '');
+  } else if (lastComma >= 0) {
+    s = s.replace(',', '.');
+  }
+  var n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
 let _nkmPayload = null;
 let _nkmRowIdx  = 0;
 let _nkmKvIdx   = 0;
@@ -5155,12 +5173,12 @@ function _nkmRowEffectiveTL(idx) {
 function _nkmKvRowEffectiveTL(kid) {
   var tEl = document.getElementById('nkm-kv-tutar-' + kid);
   if (!tEl) return 0;
-  var v = Math.round(parseFloat(String(tEl.value).replace(/\./g, '').replace(',', '.')) || 0);
+  var v = _nkmParseMoneyInput(tEl.value);
   if (v <= 0) return 0;
   var ccy = (document.getElementById('nkm-kv-ccy-' + kid) || {}).value || 'TL';
   if (ccy === 'EUR') return Math.round(v * NKM_FX_REF.eur);
   if (ccy === 'USD') return Math.round(v * NKM_FX_REF.usd);
-  return v;
+  return Math.round(v);
 }
 
 function _nkmUpdateKvKalan() {
@@ -5168,8 +5186,9 @@ function _nkmUpdateKvKalan() {
   if (!p) return;
   var kvTotal = Math.round(p.kvMaliBorclar || 0);
   var usedTL = 0;
-  document.querySelectorAll('[id^="nkm-kv-row-"]').forEach(function(rowEl) {
-    var kid = rowEl.id.replace('nkm-kv-row-', '');
+  document.querySelectorAll('#nkm-kv-rows .nkm-kv-line').forEach(function(rowEl) {
+    var kid = rowEl.getAttribute('data-kv-idx');
+    if (kid == null || kid === '') return;
     usedTL += _nkmKvRowEffectiveTL(kid);
   });
   var kalan = kvTotal - usedTL;
@@ -5178,6 +5197,40 @@ function _nkmUpdateKvKalan() {
     kalanEl.textContent = kalan.toLocaleString('tr-TR', {maximumFractionDigits: 0}) + ' TL';
     kalanEl.style.color = kalan < -1000 ? '#f87171' : Math.abs(kalan) <= 1000 ? '#34d399' : '#f59e0b';
   }
+  var warnEl = document.getElementById('nkm-kv-warn');
+  if (warnEl) {
+    if (kvTotal <= 0) {
+      warnEl.textContent = '';
+    } else if (kalan < -1000) {
+      warnEl.textContent = '⚠ Aşım: bilanço KV’den ' + Math.abs(Math.round(kalan)).toLocaleString('tr-TR') + ' TL fazla BCH (TL karşılığı) dağıttınız. Uygula ile kayıt alınmaz.';
+    } else if (kalan > 1000) {
+      warnEl.textContent = '⚠ Eksik: henüz ' + Math.round(kalan).toLocaleString('tr-TR') + ' TL karşılığı BCH dağıtılmadı. Uygula ile kayıt alınmaz.';
+    } else {
+      warnEl.textContent = '';
+    }
+  }
+  document.querySelectorAll('#nkm-kv-rows .nkm-kv-line').forEach(function(rowEl) {
+    var kid = rowEl.getAttribute('data-kv-idx');
+    var hint = document.getElementById('nkm-kv-hint-' + kid);
+    if (!hint) return;
+    var tEl = document.getElementById('nkm-kv-tutar-' + kid);
+    var cEl = document.getElementById('nkm-kv-ccy-' + kid);
+    if (!tEl) { hint.textContent = ''; return; }
+    var v = _nkmParseMoneyInput(tEl.value);
+    var ccy = (cEl && cEl.value) ? cEl.value : 'TL';
+    if (v <= 0) {
+      hint.textContent = '';
+      return;
+    }
+    if (ccy === 'TL') {
+      hint.textContent = '';
+      return;
+    }
+    var tlEq = ccy === 'EUR' ? Math.round(v * NKM_FX_REF.eur) : Math.round(v * NKM_FX_REF.usd);
+    var rate = ccy === 'EUR' ? NKM_FX_REF.eur : NKM_FX_REF.usd;
+    hint.textContent = '→ Bu satırın TL karşılığı: ' + tlEq.toLocaleString('tr-TR') + ' TL (kur ≈ ' + rate + '). Kalan BCH (TL): ' + kalan.toLocaleString('tr-TR') + ' TL';
+    hint.style.color = '#94a3b8';
+  });
 }
 
 function _nkmUpdateKalan() {
@@ -5254,14 +5307,17 @@ function nkmAddKvRow(prefillAmt, prefCcy) {
   var wrap = document.getElementById('nkm-kv-rows');
   if (!wrap) return;
   var div = document.createElement('div');
+  div.className = 'nkm-kv-line';
+  div.setAttribute('data-kv-idx', String(idx));
   div.id = 'nkm-kv-row-' + idx;
-  div.style.cssText = 'display:flex;gap:10px;align-items:flex-end;margin-bottom:8px;flex-wrap:wrap';
+  div.style.cssText = 'margin-bottom:8px';
   var amtVal = (prefillAmt !== undefined && prefillAmt !== null && prefillAmt !== '')
     ? Math.round(Number(prefillAmt) || 0) : '';
   div.innerHTML = ''
+    + '<div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">'
     + '<div style="flex:1;min-width:140px">'
       + '<div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Tutar</div>'
-      + '<input type="text" inputmode="numeric" autocomplete="off" id="nkm-kv-tutar-' + idx + '" placeholder="0" style="' + inp + '" value="' + (amtVal !== '' ? String(amtVal) : '') + '" oninput="_nkmUpdateKvKalan()">'
+      + '<input type="text" inputmode="decimal" autocomplete="off" id="nkm-kv-tutar-' + idx + '" placeholder="0" style="' + inp + '" value="' + (amtVal !== '' ? String(amtVal) : '') + '" oninput="_nkmUpdateKvKalan()" onblur="_nkmUpdateKvKalan()">'
     + '</div>'
     + '<div style="min-width:100px">'
       + '<div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Döviz</div>'
@@ -5269,7 +5325,9 @@ function nkmAddKvRow(prefillAmt, prefCcy) {
         + '<option value="TL">TL</option><option value="USD">USD</option><option value="EUR">EUR</option>'
       + '</select>'
     + '</div>'
-    + '<button type="button" onclick="nkmRemoveKvRow(' + idx + ')" title="Satırı sil" style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.35);border-radius:6px;padding:8px 12px;color:#f87171;cursor:pointer;font-size:13px;align-self:flex-end">✕</button>';
+    + '<button type="button" onclick="nkmRemoveKvRow(' + idx + ')" title="Satırı sil" style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.35);border-radius:6px;padding:8px 12px;color:#f87171;cursor:pointer;font-size:13px;align-self:flex-end">✕</button>'
+    + '</div>'
+    + '<div id="nkm-kv-hint-' + idx + '" style="font-size:11px;margin-top:6px;padding-left:2px;min-height:14px;color:#94a3b8"></div>';
   wrap.appendChild(div);
   var ccy = prefCcy || 'TL';
   var sel = document.getElementById('nkm-kv-ccy-' + idx);
@@ -5286,26 +5344,31 @@ function nkmUygula() {
   if (!p) return;
 
   var kvLoansCfg = [];
-  document.querySelectorAll('[id^="nkm-kv-row-"]').forEach(function(rowEl) {
-    var kid = rowEl.id.replace('nkm-kv-row-', '');
+  document.querySelectorAll('#nkm-kv-rows .nkm-kv-line').forEach(function(rowEl) {
+    var kid = rowEl.getAttribute('data-kv-idx');
+    if (kid == null || kid === '') return;
     var tEl = document.getElementById('nkm-kv-tutar-' + kid);
     var cEl = document.getElementById('nkm-kv-ccy-' + kid);
     if (!tEl) return;
-    var v = Math.round(parseFloat(String(tEl.value).replace(/\./g, '').replace(',', '.')) || 0);
+    var v = _nkmParseMoneyInput(tEl.value);
     if (v <= 0) return;
-    kvLoansCfg.push({ amount: v, ccy: (cEl && cEl.value) ? cEl.value : 'TL' });
+    kvLoansCfg.push({ amount: Math.round(v), ccy: (cEl && cEl.value) ? cEl.value : 'TL' });
   });
 
   // KV kalan kontrolü — satırların TL eşdeğeri toplamı ≈ bilanço KV mali borç
   var kvTotal = Math.round(p.kvMaliBorclar || 0);
   var kvUsedTL = 0;
-  document.querySelectorAll('[id^="nkm-kv-row-"]').forEach(function(rowEl) {
-    var kid = rowEl.id.replace('nkm-kv-row-', '');
+  document.querySelectorAll('#nkm-kv-rows .nkm-kv-line').forEach(function(rowEl) {
+    var kid = rowEl.getAttribute('data-kv-idx');
+    if (kid == null || kid === '') return;
     kvUsedTL += _nkmKvRowEffectiveTL(kid);
   });
   var kvKalan = kvTotal - kvUsedTL;
   if (kvTotal > 0 && Math.abs(kvKalan) > 1000) {
-    showToast('KV kredi bakiyesi bilanço ile uyumlu değil! Kalan: ' + Math.round(kvKalan).toLocaleString('tr-TR') + ' TL', true);
+    var kvMsg = kvKalan < 0
+      ? 'KV BCH aşımı: bilançodan ' + Math.abs(Math.round(kvKalan)).toLocaleString('tr-TR') + ' TL fazla (TL karşılığı) dağıttınız.'
+      : 'KV BCH eksik: ' + Math.round(kvKalan).toLocaleString('tr-TR') + ' TL karşılığı dağıtılmadı.';
+    showToast(kvMsg, true);
     return;
   }
 
@@ -5463,9 +5526,12 @@ function openNakitAkis() {
         + '<div style="font-size:11px;color:#64748b;margin-bottom:8px">Yalnızca <b>BCH</b>. Tutarı ve dövizi siz girin; satırların <b>TL eşdeğeri toplamı</b> yukarıdaki bilanço tutarına yakın olmalı (USD/EUR için yaklaşık kur: ' + NKM_FX_REF.usd + ' / ' + NKM_FX_REF.eur + '). Öneri bir satır olarak gelir; <b>+ satır</b> ile parçalayabilirsiniz.</div>'
         + '<div id="nkm-kv-rows"></div>'
         + '<button type="button" onclick="nkmAddKvRow()" style="margin-top:4px;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35);border-radius:6px;padding:6px 14px;color:#34d399;font-size:12px;cursor:pointer">+ KV BCH satırı ekle</button>'
-        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)">'
-          + '<div style="font-size:12px;color:#94a3b8">Kalan: <span id="nkm-kv-kalan" style="font-weight:700;color:#f59e0b">—</span></div>'
-          + '<div style="font-size:10px;color:#475569">Kalan sıfırlanınca yeşile döner</div>'
+        + '<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">'
+            + '<div style="font-size:12px;color:#94a3b8">Kalan BCH <span style="color:#64748b;font-weight:400">(TL karşılığı)</span>: <span id="nkm-kv-kalan" style="font-weight:700;color:#f59e0b">—</span></div>'
+            + '<div style="font-size:10px;color:#475569">±1.000 TL içinde yeşil — aşım/eksikte kırmızı uyarı</div>'
+          + '</div>'
+          + '<div id="nkm-kv-warn" style="font-size:11px;color:#f87171;margin-top:6px;min-height:0"></div>'
         + '</div>'
       + '</div>'
       + '<div style="background:rgba(99,102,241,.05);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:16px">'
