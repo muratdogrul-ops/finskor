@@ -5007,10 +5007,33 @@ const NKM_HIST_RATES = {
   '2025-11':{tl:42,usd:4.2,eur:2.5},'2025-12':{tl:40,usd:4.2,eur:2.5}
 };
 
-// Referans döviz kurları (kalan bakiye TL eşdeğeri hesabında kullanılır — yaklaşık)
-const NKM_FX_REF = {usd: 36.0, eur: 40.0};
+// TCMB gösterge döviz satış kurları, ilgili yılın 31.12. iş günü (kaynak: TCMB; BCH TL karşılığı)
+const NKM_TCMB_YEAREND_FX = {
+  2022: { usd: 18.6983, eur: 19.9349 },
+  2023: { usd: 29.5355, eur: 32.6815 },
+  2024: { usd: 35.3438, eur: 36.8024 },
+  2025: { usd: 42.9229, eur: 50.3765 },
+  2026: { usd: 42.9229, eur: 50.3765 }
+};
+const NKM_FX_REF_FALLBACK = { usd: 42.9229, eur: 50.3765 };
 
-// KV/UV tutar kutusu: 1.234,56 (TR) veya 1,234.56 (EN) — noktayı körü körüne silme (USD ondalığı bozulurdu)
+function _nkmTcmbYearendFx(veriYili) {
+  var y = parseInt(veriYili, 10);
+  if (!y || isNaN(y)) y = new Date().getFullYear();
+  var t = NKM_TCMB_YEAREND_FX[y];
+  if (t) return { usd: t.usd, eur: t.eur, labelY: y };
+  for (var back = 1; back <= 6; back++) {
+    t = NKM_TCMB_YEAREND_FX[y - back];
+    if (t) return { usd: t.usd, eur: t.eur, labelY: y - back };
+  }
+  return { usd: NKM_FX_REF_FALLBACK.usd, eur: NKM_FX_REF_FALLBACK.eur, labelY: null };
+}
+
+function _nkmBchFxRates() {
+  return _nkmTcmbYearendFx((_nkmPayload && _nkmPayload.veriYili) != null ? _nkmPayload.veriYili : null);
+}
+
+// KV/UV tutar kutusu: 1.234,56 (TR), 1,234.56 (EN), 500.000.000 (TR binlik nokta)
 function _nkmParseMoneyInput(raw) {
   if (raw == null || raw === '') return 0;
   var s = String(raw).trim().replace(/\s/g, '');
@@ -5020,7 +5043,14 @@ function _nkmParseMoneyInput(raw) {
   if (lastComma > lastDot) {
     s = s.replace(/\./g, '').replace(',', '.');
   } else if (lastDot > lastComma) {
-    s = s.replace(/,/g, '');
+    var parts = s.split('.');
+    if (parts.length > 2) {
+      s = parts.join('');
+    } else if (parts.length === 2 && /^\d+$/.test(parts[0]) && /^\d{3}$/.test(parts[1])) {
+      s = parts[0] + parts[1];
+    } else {
+      s = s.replace(/,/g, '');
+    }
   } else if (lastComma >= 0) {
     s = s.replace(',', '.');
   }
@@ -5070,7 +5100,7 @@ function _nkmUpdateRemaining(idx) {
   if (!preEl) return;
   if (tip !== 'installment') { preEl.textContent = ''; return; }
 
-  var amt   = Math.round(parseFloat(String((document.getElementById('nkm-tutar-'+idx)||{}).value||'0').replace(/\./g,'').replace(',','.')) || 0);
+  var amt   = Math.round(_nkmParseMoneyInput((document.getElementById('nkm-tutar-'+idx)||{}).value));
   var ccy   = (document.getElementById('nkm-ccy-'+idx)||{}).value || 'TL';
   var tarih = (document.getElementById('nkm-tarih-'+idx)||{}).value;
   var vade  = parseInt((document.getElementById('nkm-vade-'+idx)||{}).value);
@@ -5106,8 +5136,9 @@ function _nkmUpdateRemaining(idx) {
   }
   remBal = Math.min(remBal, amt);
 
+  var fxRem = _nkmBchFxRates();
   var txt = '✓ 01.01.' + projYil + ' kalan: ' + remBal.toLocaleString('tr-TR') + ' ' + ccy;
-  if (ccy !== 'TL') txt += '  (~' + Math.round(remBal * (ccy==='EUR' ? NKM_FX_REF.eur : NKM_FX_REF.usd)).toLocaleString('tr-TR') + ' TL)';
+  if (ccy !== 'TL') txt += '  (~' + Math.round(remBal * (ccy==='EUR' ? fxRem.eur : fxRem.usd)).toLocaleString('tr-TR') + ' TL)';
   txt += '  |  ' + remN + ' ay kalan taksit';
   preEl.textContent = txt;
   preEl.style.color = '#34d399';
@@ -5120,10 +5151,11 @@ function _nkmUpdateRemaining(idx) {
 function _nkmRowEffectiveTL(idx) {
   var el  = document.getElementById('nkm-tutar-' + idx);
   if (!el) return 0;
-  var v   = Math.round(parseFloat(String(el.value).replace(/\./g,'').replace(',','.')) || 0);
+  var v   = Math.round(_nkmParseMoneyInput(el.value));
   if (v <= 0) return 0;
   var ccy = (document.getElementById('nkm-ccy-' + idx) || {}).value || 'TL';
   var tip = (document.getElementById('nkm-tip-' + idx) || {}).value;
+  var fx  = _nkmBchFxRates();
 
   // ── Taksitli: vade + tarih + faiz girilene kadar 0 döner ────────────────
   if (tip === 'installment') {
@@ -5151,8 +5183,8 @@ function _nkmRowEffectiveTL(idx) {
       remBalK = Math.min(remBalK, v);
       if (remBalK > 0) effectiveAmt = remBalK;
     }
-    if (ccy === 'EUR') return Math.round(effectiveAmt * NKM_FX_REF.eur);
-    if (ccy === 'USD') return Math.round(effectiveAmt * NKM_FX_REF.usd);
+    if (ccy === 'EUR') return Math.round(effectiveAmt * fx.eur);
+    if (ccy === 'USD') return Math.round(effectiveAmt * fx.usd);
     return effectiveAmt;
   }
 
@@ -5164,20 +5196,21 @@ function _nkmRowEffectiveTL(idx) {
   }
 
   // ── BCH veya Spot (tam): tutar × kur ────────────────────────────────────
-  if (ccy === 'EUR') return Math.round(v * NKM_FX_REF.eur);
-  if (ccy === 'USD') return Math.round(v * NKM_FX_REF.usd);
+  if (ccy === 'EUR') return Math.round(v * fx.eur);
+  if (ccy === 'USD') return Math.round(v * fx.usd);
   return v;
 }
 
-// KV BCH satırı — tutar × referans kur → TL eşdeğeri (UV BCH ile aynı mantık)
+// KV BCH satırı — tutar × 31.12. veri yılı TCMB satış → TL eşdeğeri
 function _nkmKvRowEffectiveTL(kid) {
   var tEl = document.getElementById('nkm-kv-tutar-' + kid);
   if (!tEl) return 0;
   var v = _nkmParseMoneyInput(tEl.value);
   if (v <= 0) return 0;
   var ccy = (document.getElementById('nkm-kv-ccy-' + kid) || {}).value || 'TL';
-  if (ccy === 'EUR') return Math.round(v * NKM_FX_REF.eur);
-  if (ccy === 'USD') return Math.round(v * NKM_FX_REF.usd);
+  var fx = _nkmBchFxRates();
+  if (ccy === 'EUR') return Math.round(v * fx.eur);
+  if (ccy === 'USD') return Math.round(v * fx.usd);
   return Math.round(v);
 }
 
@@ -5226,9 +5259,11 @@ function _nkmUpdateKvKalan() {
       hint.textContent = '';
       return;
     }
-    var tlEq = ccy === 'EUR' ? Math.round(v * NKM_FX_REF.eur) : Math.round(v * NKM_FX_REF.usd);
-    var rate = ccy === 'EUR' ? NKM_FX_REF.eur : NKM_FX_REF.usd;
-    hint.textContent = '→ Bu satırın TL karşılığı: ' + tlEq.toLocaleString('tr-TR') + ' TL (kur ≈ ' + rate + '). Kalan BCH (TL): ' + kalan.toLocaleString('tr-TR') + ' TL';
+    var fxH = _nkmBchFxRates();
+    var tlEq = ccy === 'EUR' ? Math.round(v * fxH.eur) : Math.round(v * fxH.usd);
+    var rate = ccy === 'EUR' ? fxH.eur : fxH.usd;
+    var yLbl = fxH.labelY != null ? '31.12.' + fxH.labelY + ' TCMB gösterge satış' : 'TCMB gösterge satış';
+    hint.textContent = '→ Bu satırın TL karşılığı: ' + tlEq.toLocaleString('tr-TR') + ' TL (' + yLbl + ': ' + rate + ' TL/' + (ccy === 'EUR' ? 'EUR' : 'USD') + '). Kalan BCH (TL): ' + kalan.toLocaleString('tr-TR') + ' TL';
     hint.style.color = '#94a3b8';
   });
 }
@@ -5392,7 +5427,7 @@ function nkmUygula() {
 
   document.querySelectorAll('[id^="nkm-row-"]').forEach(function(rowEl) {
     var idx    = rowEl.id.replace('nkm-row-','');
-    var tutar  = Math.round(parseFloat(String((document.getElementById('nkm-tutar-'+idx)||{}).value||'0').replace(/\./g,'').replace(',','.')) || 0);
+    var tutar  = Math.round(_nkmParseMoneyInput((document.getElementById('nkm-tutar-'+idx)||{}).value));
     var tip    = (document.getElementById('nkm-tip-'+idx)||{}).value;
     var ccy    = (document.getElementById('nkm-ccy-'+idx)||{}).value || 'TL';
     if (!tutar || tutar <= 0) return; // boş satırı atla
@@ -5499,6 +5534,8 @@ function openNakitAkis() {
 
   const p = _nkmPayload;
   _nkmRowIdx = 0;
+  var _nkmFxModal = _nkmTcmbYearendFx(p.veriYili);
+  var _nkmFxLbl = _nkmFxModal.labelY != null ? '31.12.' + _nkmFxModal.labelY + ' TCMB gösterge satış' : 'TCMB gösterge satış';
 
   // Modal'ı dinamik oluştur (her açılışta yenile)
   var existingM = document.getElementById('nakitKrediModal');
@@ -5523,7 +5560,7 @@ function openNakitAkis() {
           + '<div style="font-size:12px;font-weight:700;color:#34d399">🏦 Kısa Vadeli Banka Kredisi (BCH)</div>'
           + '<div style="font-size:11px;color:#64748b">Bilanço (30): <b style="color:#6ee7b7">' + Math.round(p.kvMaliBorclar || 0).toLocaleString('tr-TR', {maximumFractionDigits: 0}) + ' TL</b></div>'
         + '</div>'
-        + '<div style="font-size:11px;color:#64748b;margin-bottom:8px">Yalnızca <b>BCH</b>. Tutarı ve dövizi siz girin; satırların <b>TL eşdeğeri toplamı</b> yukarıdaki bilanço tutarına yakın olmalı (USD/EUR için yaklaşık kur: ' + NKM_FX_REF.usd + ' / ' + NKM_FX_REF.eur + '). Öneri bir satır olarak gelir; <b>+ satır</b> ile parçalayabilirsiniz.</div>'
+        + '<div style="font-size:11px;color:#64748b;margin-bottom:8px">Yalnızca <b>BCH</b>. Tutarı ve dövizi siz girin; satırların <b>TL eşdeğeri toplamı</b> bilanço tutarına yakın olmalı. Döviz satırlarında <b>' + _nkmFxLbl + '</b>: <b>1 USD = ' + _nkmFxModal.usd + ' TL</b>, <b>1 EUR = ' + _nkmFxModal.eur + ' TL</b>. Öneri bir satır olarak gelir; satırlar <b>toplamı</b> 30. hesap ile eşleşmeli (aynı tutarı iki kez yazmayın). <b>+ satır</b> ile parçalayabilirsiniz.</div>'
         + '<div id="nkm-kv-rows"></div>'
         + '<button type="button" onclick="nkmAddKvRow()" style="margin-top:4px;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35);border-radius:6px;padding:6px 14px;color:#34d399;font-size:12px;cursor:pointer">+ KV BCH satırı ekle</button>'
         + '<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)">'
