@@ -2887,69 +2887,106 @@ async function importFromFinSkor(){
   try { p = JSON.parse(raw); } catch(e){ return; }
   if(!p || p.kaynak !== 'finskor') return;
 
-  // Tek seferlik okuma — tekrar açılırsa yeniden sorulmasın
+  // Tek seferlik okuma
   localStorage.removeItem('nakit_akis_finskor_data');
 
   const firmAdı = (p.firmaAdi || 'FinSkor Firması').trim();
-  // Projeksiyon başlangıcı: veri yılının ertesi yılı, 1 Ocak
   const projYil = (p.veriYili || new Date().getFullYear()) + 1;
   const startIso = new Date(projYil, 0, 1).toISOString();
 
-  // Gider şablonu
+  // ── Gider şablonu ─────────────────────────────────────────────────────────
   const defExp = {};
   let ei = 0;
   for(const{group,items} of EXPENSE_GROUPS)
     for(const item of items) defExp[ei++] = {group, name:item, amount:0};
 
-  // Faaliyet giderini ilk kaleme yaz (Operasyon → Diğer)
+  // Faaliyet giderini (Hesap 63) Operasyon → Diğer'e yaz
   if(p.faalGider && p.faalGider > 0){
-    const digerIdx = Object.entries(defExp).findIndex(([,v])=>v.name==='Diğer');
-    if(digerIdx >= 0) defExp[digerIdx].amount = p.faalGider;
+    const vals = Object.values(defExp);
+    const idx  = vals.findIndex(v => v.name === 'Diğer' && v.group === 'Operasyon Giderleri');
+    if(idx >= 0) defExp[idx].amount = p.faalGider;
   }
 
-  const fxRates = {usdOpen:0, eurOpen:0, monthly:Array.from({length:60},()=>({usd:0,eur:0}))};
-  const id = genId();
+  // ── TCMB/FX otomatik değerler ─────────────────────────────────────────────
+  // BCH TL faizleri (TCMB politika + 3 puan spread)
+  const bch1 = parseFloat((TCMB_POLICY.y1 + BCH_SPREAD).toFixed(1));
+  const bch2 = parseFloat((TCMB_POLICY.y2 + BCH_SPREAD).toFixed(1));
+  const bch3 = parseFloat((TCMB_POLICY.y3 + BCH_SPREAD).toFixed(1));
+  const bch4 = parseFloat((TCMB_POLICY.y4 + BCH_SPREAD).toFixed(1));
+  const bch5 = parseFloat((TCMB_POLICY.y5 + BCH_SPREAD).toFixed(1));
 
+  // Büyüme: TCMB politika faizi baz alınarak enflasyon + 5 puan (Y1)
+  const growthRate = parseFloat((TCMB_POLICY.y1 * 0.6 + 5).toFixed(1)); // ~26%
+
+  // 60 aylık FX projeksiyonu (USD %7, EUR %6 yıllık)
+  const usdMonthly = Math.pow(1.07, 1/12);
+  const eurMonthly = Math.pow(1.06, 1/12);
+  let usdCur = FX_SPOT.usd, eurCur = FX_SPOT.eur;
+  const fxMonthly = [];
+  for(let t = 0; t < 60; t++){
+    fxMonthly.push({usd: parseFloat(usdCur.toFixed(4)), eur: parseFloat(eurCur.toFixed(4))});
+    usdCur *= usdMonthly;
+    eurCur *= eurMonthly;
+  }
+
+  // ── Firma oluştur ─────────────────────────────────────────────────────────
+  const id = genId();
   state.firms[id] = {
     id, name: firmAdı,
     startDate: startIso,
     createdAt: new Date().toISOString(),
     opening:{
       cash:      0,
-      bank:      p.kasaBanka       || 0,
-      ar:        p.ticariAlacaklar  || 0,
-      ap:        p.kvTicariBorclar  || 0,
-      inventory: p.stoklar          || 0,
-      capital:   p.ozKaynak         || 0,
+      bank:      p.kasaBanka        || 0,
+      ar:        p.ticariAlacaklar   || 0,
+      ap:        p.kvTicariBorclar   || 0,
+      inventory: p.stoklar           || 0,
+      capital:   p.ozKaynak          || 0,
     },
     incomeStmt:{
-      revenue: p.netSatis   || 0,
-      cogs:    p.satMaliyet || 0,
+      revenue: p.netSatis    || 0,
+      cogs:    p.satMaliyet  || 0,
     },
     ciro:{mode:'uniform', monthly:new Array(12).fill(100/12)},
-    assumptions:{months:60, growth:0, expGrowth:0, stockMult:1.5,
-      bchLimit:0, bchRate:0, bch1:0, bch2:0, bch3:0, bch4:0, bch5:0,
-      dep1:0, dep2:0, dep3:0, dep4:0, dep5:0, taxRate:25, taxMonths:'3,6,9,12'},
+    assumptions:{
+      months: 60,
+      growth:    growthRate,
+      expGrowth: growthRate,
+      stockMult: 1.5,
+      bchLimit: 0,
+      bchRate: bch1,
+      bch1, bch2, bch3, bch4, bch5,
+      dep1: TCMB_POLICY.y1, dep2: TCMB_POLICY.y2, dep3: TCMB_POLICY.y3,
+      dep4: TCMB_POLICY.y4, dep5: TCMB_POLICY.y5,
+      taxRate: 25, taxMonths: '3,6,9,12'
+    },
     expenses: defExp,
     loans: [],
     manualCf: [],
-    fxRates,
+    fxRates:{
+      usdOpen: FX_SPOT.usd,
+      eurOpen:  FX_SPOT.eur,
+      usdGrowth: 7,
+      eurGrowth: 6,
+      monthly: fxMonthly
+    },
   };
 
   await saveState();
   selectFirm(id);
 
-  // Borç hatırlatması
+  // Borç ve özet uyarı
   const kvMali = p.kvMaliBorclar || 0;
   const uvMali = p.uvMaliBorclar || 0;
   const borcMsg = (kvMali > 0 || uvMali > 0)
-    ? `\n\n⚠ Banka Kredisi: ${kvMali > 0 ? 'KV ₺'+kvMali.toLocaleString('tr-TR') : ''} ${uvMali > 0 ? '/ UV ₺'+uvMali.toLocaleString('tr-TR') : ''} — Krediler sekmesinden manuel ekleyin.`
+    ? ` | ⚠ KV Mali Borç: ₺${kvMali.toLocaleString('tr-TR')}${uvMali>0?' / UV: ₺'+uvMali.toLocaleString('tr-TR'):''} → Krediler sekmesinden manuel ekleyin.`
     : '';
 
   setTimeout(()=>{
     showAlert(
-      `✅ "${firmAdı}" FinSkor'dan aktarıldı (${p.veriYili} yıl sonu verileri). `
-      + `Açılış bilanço ve gelir tablosu dolduruldu.`
+      `✅ "${firmAdı}" FinSkor'dan aktarıldı (${p.veriYili} yıl sonu). `
+      + `Açılış bilanço + gelir tablosu dolduruldu. `
+      + `Büyüme %${growthRate} · BCH Y1 %${bch1} · USD/TL ${FX_SPOT.usd} → 60 ay otomatik.`
       + borcMsg,
       'ok'
     );
