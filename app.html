@@ -5666,24 +5666,25 @@ function generatePDF() {
   const _kararRenk = pct>=70?'#22c55e':pct>=45?'#f59e0b':'#ef4444';
   const _kararBg   = pct>=70?'#f0fdf4':pct>=45?'#fffbeb':'#fef2f2';
   const _riskRenk  = pct>=70?'#16a34a':pct>=45?'#d97706':'#dc2626';
+  const _pdfDocRef = 'FS-' + refYear + '-' + String(Date.now()).slice(-8);
 
   const reportHTML = `<!DOCTYPE html><html lang="tr" translate="no"><head><meta charset="UTF-8">
-  <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#f5a623">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="FinSkor">
-<title>Kredi Analiz Raporu - ${firma}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kurumsal Kredi Analiz Raporu — ${firma}</title>
 \x3cstyle\x3e
   *{box-sizing:border-box;margin:0;padding:0;}
-  body{font-family:'Plus Jakarta Sans','Segoe UI',sans-serif;color:#1a1a2e;background:#fff;font-size:15px;}
-  .cover{background:linear-gradient(135deg,#07080f,#141823);color:#fff;padding:48px 40px;}
-  .cover-logo{font-family:'Syne',sans-serif;font-size:32px;font-weight:800;letter-spacing:2px;background:linear-gradient(135deg,#f5a623,#e8c56b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px;}
-  .cover-sub{font-size:11px;color:#64748b;letter-spacing:2px;margin-bottom:40px;}
-  .cover-firma{font-size:22px;font-weight:700;margin-bottom:8px;}
-  .cover-meta{font-size:12px;color:#94a3b8;margin-bottom:6px;}
-  .cover-badge{display:inline-block;padding:8px 24px;border-radius:20px;font-weight:700;margin-top:16px;}
+  body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#1e293b;background:#fff;font-size:14px;line-height:1.45;}
+  @page{size:A4;margin:14mm;}
+  .cover{background:linear-gradient(145deg,#0b1220 0%,#1e293b 55%,#0f172a 100%);color:#fff;padding:44px 36px;min-height:100vh;box-sizing:border-box;}
+  .cover-logo{font-size:28px;font-weight:800;letter-spacing:4px;text-transform:uppercase;color:#f8fafc;margin-bottom:4px;}
+  .cover-logo span{background:linear-gradient(135deg,#f59e0b,#fbbf24);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;}
+  .cover-docline{display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;font-size:10px;color:#94a3b8;letter-spacing:.12em;text-transform:uppercase;margin-bottom:28px;padding-bottom:16px;border-bottom:1px solid rgba(148,163,184,.25);}
+  .cover-sub{font-size:11px;color:#cbd5e1;letter-spacing:.28em;text-transform:uppercase;margin-bottom:8px;font-weight:600;}
+  .cover-kurumsal{font-size:13px;color:#e2e8f0;font-weight:600;margin-bottom:28px;max-width:42em;line-height:1.5;}
+  .cover-firma{font-size:24px;font-weight:700;margin-bottom:10px;color:#fff;letter-spacing:-.02em;}
+  .cover-meta{font-size:12px;color:#94a3b8;margin-bottom:5px;}
+  .cover-conf{font-size:10px;color:#64748b;margin-top:32px;padding-top:20px;border-top:1px solid rgba(148,163,184,.2);line-height:1.55;max-width:48em;}
+  .cover-badge{display:inline-block;padding:8px 22px;border-radius:6px;font-weight:700;margin-top:14px;font-size:13px;letter-spacing:.02em;}
   .badge-ok{background:rgba(34,197,94,.2);color:#22c55e;border:1px solid #22c55e;}
   /* Profesyonel bilanço / gelir tablosu stilleri */
   .fin-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:0}
@@ -5728,17 +5729,24 @@ function generatePDF() {
   tr:nth-child(even) td{background:#f8fafc;}
   .badge-s{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;}
   .s-ok{background:#dcfce7;color:#16a34a;} .s-warn{background:#fef3c7;color:#d97706;} .s-bad{background:#fee2e2;color:#dc2626;}
-  .footer{margin-top:40px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;text-align:center;}
-  @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
+  .footer{margin-top:36px;padding-top:18px;border-top:1px solid #e2e8f0;font-size:9px;color:#64748b;text-align:center;line-height:1.65;}
+  .footer-legal{margin-top:12px;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;text-align:left;max-width:720px;margin-left:auto;margin-right:auto;}
+  @media print{
+    body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .cover{min-height:0;page-break-after:always;}
+  }
 </style></head><body>
 
 <div class="cover">
-  <div class="cover-logo">FinSkor</div>
-  <div class="cover-sub">FİNANSAL ANALİZ RAPORU</div>
+  <div class="cover-logo"><span>FinSkor</span></div>
+  <div class="cover-docline"><span>Belge no. ${_pdfDocRef}</span><span>Kurumsal iç kullanım</span><span>TFRS tabanlı özet</span></div>
+  <div class="cover-sub">Kurumsal finansal değerlendirme özeti</div>
+  <div class="cover-kurumsal">Kredi değerlendirmesi amaçlı özet rapor: bilanço ve gelir tablosu özetleri, finansal oranlar, trend ve senaryo bölümlerini kapsar. Bankacılık düzenlemeleri kapsamında nihai karar kurumunuzun politikalarına tabidir.</div>
   <div class="cover-firma">${firma}</div>
-  <div class="cover-meta">Analiz Yılı: ${refYear} &nbsp;|&nbsp; Dönem: ${donem} &nbsp;|&nbsp; Tip: ${tip}</div>
-  <div class="cover-meta">Rapor Tarihi: ${date}</div>
+  <div class="cover-meta">Analiz yılı: ${refYear} &nbsp;·&nbsp; Dönem: ${donem} &nbsp;·&nbsp; Sektör tipi: ${tip}</div>
+  <div class="cover-meta">Rapor tarihi: ${date}</div>
   <div class="cover-badge ${pct>=70?'badge-ok':pct>=45?'badge-warn':'badge-bad'}">${karar} &nbsp;|&nbsp; Risk: ${risk}</div>
+  <div class="cover-conf"><strong>Gizlilik.</strong> Bu belge yalnızca oluşturan taraf ve yetkili alıcı kurum içi kullanım içindir; izinsiz çoğaltma, dağıtım veya üçüncü kişilere aktarım yasaktır. Veriler kullanıcı girişlerine dayanır; doğruluğu kaynak belgelerle teyit edilmelidir.</div>
 </div>
 
 <div class="body">
@@ -5942,8 +5950,10 @@ ${(function(){
   })()}
 
 <div class="footer">
-  Bu rapor FinSkor tarafından ${date} tarihinde otomatik olarak üretilmiştir.<br>
-  Rapordaki bilgiler girilen verilere dayanmakta olup bağımsız bir finansal danışmanlık hizmeti değildir.
+  <div><strong>FinSkor</strong> — Otomatik kredi skorlama ve finansal analiz aracı. Bu çıktı ${date} tarihinde sistem tarafından üretilmiştir (belge no. ${_pdfDocRef}).</div>
+  <div class="footer-legal">
+    <strong>Yasal sınır.</strong> Rapor yatırım tavsiyesi, hukuki/mali danışmanlık veya resmi denetim yerine geçmez. Ticari kararlar öncesinde bağımsız uzman görüşü alınması önerilir. FinSkor, girilen verilerin eksik veya hatalı olmasından doğabilecek sonuçlardan sorumlu tutulamaz.
+  </div>
 </div>
 </div>
 </body></html>`;
