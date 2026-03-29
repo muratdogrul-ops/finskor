@@ -4976,6 +4976,184 @@ function pdfHtmlOzetGelirRows(gelirSatirlar, ciro, TL, r) {
     + body + '</table>';
 }
 
+// ── NakitFlow Kredi Yapılandırma Modal ─────────────────────────────────────
+
+// Geçmiş ~3 yıl ticari kredi faiz oranları (aylık lookup tablosu)
+// TL: TCMB politika faizi + banka spreadi (~12%), USD/EUR: uluslararası piyasa + spread
+const NKM_HIST_RATES = {
+  '2022-01':{tl:26,usd:3.5,eur:2.0},'2022-02':{tl:26,usd:3.8,eur:2.1},
+  '2022-03':{tl:26,usd:4.2,eur:2.2},'2022-04':{tl:26,usd:4.8,eur:2.5},
+  '2022-05':{tl:26,usd:5.2,eur:2.7},'2022-06':{tl:26,usd:5.8,eur:3.0},
+  '2022-07':{tl:26,usd:6.2,eur:3.2},'2022-08':{tl:25,usd:6.3,eur:3.5},
+  '2022-09':{tl:24,usd:6.5,eur:3.8},'2022-10':{tl:22.5,usd:6.8,eur:4.0},
+  '2022-11':{tl:22.5,usd:7.0,eur:4.2},'2022-12':{tl:21,usd:7.2,eur:4.5},
+  '2023-01':{tl:21,usd:7.2,eur:4.5},'2023-02':{tl:20.5,usd:7.3,eur:4.8},
+  '2023-03':{tl:20.5,usd:7.5,eur:5.0},'2023-04':{tl:20.5,usd:7.5,eur:5.2},
+  '2023-05':{tl:20.5,usd:7.5,eur:5.2},'2023-06':{tl:27,usd:7.8,eur:5.5},
+  '2023-07':{tl:29.5,usd:7.8,eur:5.5},'2023-08':{tl:37,usd:7.8,eur:5.5},
+  '2023-09':{tl:42,usd:7.8,eur:5.5},'2023-10':{tl:47,usd:7.8,eur:5.5},
+  '2023-11':{tl:52,usd:7.8,eur:5.5},'2023-12':{tl:54.5,usd:7.8,eur:5.5},
+  '2024-01':{tl:57,usd:7.8,eur:5.2},'2024-02':{tl:57,usd:7.8,eur:5.2},
+  '2024-03':{tl:62,usd:7.5,eur:5.0},'2024-04':{tl:62,usd:7.5,eur:5.0},
+  '2024-05':{tl:62,usd:7.2,eur:4.8},'2024-06':{tl:62,usd:7.2,eur:4.8},
+  '2024-07':{tl:62,usd:6.8,eur:4.5},'2024-08':{tl:62,usd:6.5,eur:4.5},
+  '2024-09':{tl:62,usd:6.2,eur:4.2},'2024-10':{tl:62,usd:6.0,eur:4.2},
+  '2024-11':{tl:62,usd:5.8,eur:4.0},'2024-12':{tl:59.5,usd:5.8,eur:4.0},
+  '2025-01':{tl:57,usd:5.8,eur:3.8},'2025-02':{tl:54.5,usd:5.8,eur:3.5},
+  '2025-03':{tl:54.5,usd:5.8,eur:3.5},'2025-04':{tl:54.5,usd:5.5,eur:3.5},
+  '2025-05':{tl:52,usd:5.5,eur:3.2},'2025-06':{tl:47,usd:5.5,eur:3.0},
+  '2025-07':{tl:44.5,usd:5.5,eur:3.0},'2025-08':{tl:44.5,usd:5.2,eur:2.8},
+  '2025-09':{tl:44.5,usd:5.2,eur:2.8},'2025-10':{tl:42,usd:5.0,eur:2.8},
+  '2025-11':{tl:42,usd:5.0,eur:2.5},'2025-12':{tl:40,usd:5.0,eur:2.5}
+};
+
+let _nkmPayload = null;
+let _nkmRowIdx  = 0;
+
+function _nkmHistRate(dateStr, ccy) {
+  if (!dateStr) return '';
+  const d   = new Date(dateStr);
+  const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  const rec = NKM_HIST_RATES[key];
+  if (!rec) return '';
+  return ccy === 'USD' ? rec.usd : ccy === 'EUR' ? rec.eur : rec.tl;
+}
+
+function _nkmRowChange(idx) {
+  const tip     = document.getElementById('nkm-tip-'+idx)?.value;
+  const extraEl = document.getElementById('nkm-extra-'+idx);
+  if (!extraEl) return;
+  const show    = tip === 'installment' || tip === 'spot';
+  extraEl.style.display = show ? 'grid' : 'none';
+  _nkmAutoRate(idx);
+}
+
+function _nkmAutoRate(idx) {
+  const tip = document.getElementById('nkm-tip-'+idx)?.value;
+  if (tip === 'bch_existing') return;
+  const dateStr = document.getElementById('nkm-tarih-'+idx)?.value;
+  const ccy     = document.getElementById('nkm-ccy-'+idx)?.value || 'TL';
+  const rate    = _nkmHistRate(dateStr, ccy);
+  if (rate !== '') document.getElementById('nkm-rate-'+idx).value = rate;
+}
+
+function _nkmUpdateKalan() {
+  const p = _nkmPayload;
+  if (!p) return;
+  const uvTotal = p.uvMaliBorclar || 0;
+  let used = 0;
+  document.querySelectorAll('[id^="nkm-tutar-"]').forEach(el => {
+    const v = parseFloat(String(el.value).replace(/\./g,'').replace(',','.'));
+    if (!isNaN(v)) used += v;
+  });
+  const kalan = uvTotal - used;
+  const el = document.getElementById('nkm-uv-kalan');
+  if (el) {
+    el.textContent = kalan.toLocaleString('tr-TR') + ' TL';
+    el.style.color  = kalan < -1 ? '#f87171' : kalan <= 1 ? '#34d399' : '#f59e0b';
+  }
+}
+
+function nkmAddRow() {
+  const idx = _nkmRowIdx++;
+  const div = document.createElement('div');
+  div.id = 'nkm-row-'+idx;
+  div.style.cssText = 'background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:10px 12px;margin-bottom:8px';
+  div.innerHTML = `
+    <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+      <div style="flex:1;min-width:140px">
+        <div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Tutar</div>
+        <input type="number" id="nkm-tutar-${idx}" placeholder="0"
+          style="width:100%;background:#1a2535;border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:7px 10px;color:#e2e8f0;font-size:13px"
+          oninput="_nkmUpdateKalan()">
+      </div>
+      <div style="min-width:110px">
+        <div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Kredi Tipi</div>
+        <select id="nkm-tip-${idx}" onchange="_nkmRowChange(${idx})"
+          style="width:100%;background:#1a2535;border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:7px 8px;color:#e2e8f0;font-size:13px">
+          <option value="bch_existing">BCH</option>
+          <option value="installment">Taksitli</option>
+          <option value="spot">Spot</option>
+        </select>
+      </div>
+      <div style="min-width:80px">
+        <div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Döviz</div>
+        <select id="nkm-ccy-${idx}" onchange="_nkmRowChange(${idx})"
+          style="width:100%;background:#1a2535;border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:7px 8px;color:#e2e8f0;font-size:13px">
+          <option value="TL">TL</option>
+          <option value="USD">USD</option>
+          <option value="EUR">EUR</option>
+        </select>
+      </div>
+      <button onclick="nkmDeleteRow(${idx})" title="Sil"
+        style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);border-radius:6px;padding:7px 10px;color:#f87171;cursor:pointer;font-size:13px;align-self:flex-end">✕</button>
+    </div>
+    <div id="nkm-extra-${idx}"
+      style="display:none;margin-top:8px;grid-template-columns:90px 1fr 110px;gap:8px;align-items:end">
+      <div>
+        <div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Vade (ay)</div>
+        <input type="number" id="nkm-vade-${idx}" min="1" max="360" placeholder="24"
+          style="width:100%;background:#1a2535;border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:7px 10px;color:#e2e8f0;font-size:13px">
+      </div>
+      <div>
+        <div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Kullandırım Tarihi</div>
+        <input type="date" id="nkm-tarih-${idx}" onchange="_nkmAutoRate(${idx})"
+          style="width:100%;background:#1a2535;border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:7px 10px;color:#e2e8f0;font-size:13px">
+      </div>
+      <div>
+        <div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Faiz % (yıllık)</div>
+        <input type="number" id="nkm-rate-${idx}" step="0.1" placeholder="—"
+          style="width:100%;background:#1a2535;border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:7px 10px;color:#e2e8f0;font-size:13px">
+      </div>
+    </div>`;
+  document.getElementById('nkm-uv-rows').appendChild(div);
+}
+
+function nkmDeleteRow(idx) {
+  const el = document.getElementById('nkm-row-'+idx);
+  if (el) { el.remove(); _nkmUpdateKalan(); }
+}
+
+function nkmUygula() {
+  const p = _nkmPayload;
+  if (!p) return;
+
+  const kvCcy    = document.getElementById('nkm-kv-ccy')?.value || 'TL';
+  const kvAmount = p.kvMaliBorclar || 0;
+
+  const uvLoans = [];
+  let hasError  = false;
+  document.querySelectorAll('[id^="nkm-row-"]').forEach(rowEl => {
+    const idx      = rowEl.id.replace('nkm-row-','');
+    const tutarRaw = String(document.getElementById('nkm-tutar-'+idx)?.value || '');
+    const tutar    = parseFloat(tutarRaw.replace(/\./g,'').replace(',','.'));
+    const tip      = document.getElementById('nkm-tip-'+idx)?.value;
+    const ccy      = document.getElementById('nkm-ccy-'+idx)?.value || 'TL';
+    if (isNaN(tutar) || tutar <= 0) { hasError = true; return; }
+    const loan = {amount:tutar, type:tip, ccy};
+    if (tip === 'installment' || tip === 'spot') {
+      const vade  = parseInt(document.getElementById('nkm-vade-'+idx)?.value);
+      const tarih = document.getElementById('nkm-tarih-'+idx)?.value;
+      const rate  = parseFloat(document.getElementById('nkm-rate-'+idx)?.value);
+      if (!tarih || !vade || vade < 1) { hasError = true; return; }
+      loan.term     = vade;
+      loan.disbDate = tarih;
+      loan.rate     = isNaN(rate) ? 0 : rate;
+    }
+    uvLoans.push(loan);
+  });
+
+  if (hasError) {
+    showToast('Lütfen tüm kredi bilgilerini eksiksiz doldurun.', true);
+    return;
+  }
+
+  localStorage.setItem('nakit_akis_loan_config',  JSON.stringify({kvAmount, kvCcy, uvLoans}));
+  localStorage.setItem('nakit_akis_finskor_data', JSON.stringify(p));
+  document.getElementById('nakitKrediModal').style.display = 'none';
+  window.open('nakit_akis.html', '_blank');
+}
+
 // ── NakitFlow entegrasyonu ─────────────────────────────────────────────────
 function openNakitAkis() {
   // En çok dolu olan yılı bul (en yüksek yıl değil, en fazla veri girilen yıl)
@@ -4998,33 +5176,39 @@ function openNakitAkis() {
     || (parseFloat(d.brutSatis||0) - parseFloat(d.satisInd||0))
     || 0);
 
-  // Paket:
-  const payload = {
+  _nkmPayload = {
     kaynak: 'finskor',
-    firmaAdi:          firmName,
-    veriYili:          lastYear,
-    // Bilanço – dönen
-    kasaBanka:         kasaBanka,
-    ticariAlacaklar:   parseFloat(d.ticAlacaklar   || 0),
-    stoklar:           parseFloat(d.stoklar        || 0),
-    // Bilanço – borçlar
-    kvTicariBorclar:   parseFloat(d.kvTicBorclar   || 0),
-    kvMaliBorclar:     parseFloat(d.kvMaliBorclar  || 0),
-    uvMaliBorclar:     parseFloat(d.uvMaliBorclar  || 0),
-    // Öz kaynak
-    ozKaynak:          parseFloat(d.ozKaynak       || 0),
-    odenmisSermaye:    parseFloat(d.odenmisSermaye || 0),
-    // Gelir tablosu
-    netSatis:          netSatis,
-    satMaliyet:        parseFloat(d.satMaliyet     || 0),
-    faalGider:         parseFloat(d.faalGider      || 0),
-    brutSatisKar:      parseFloat(d.brutSatisKar   || 0),
-    finansmanGider:    parseFloat(d.finansmanGider || 0),
-    donemNetKar:       parseFloat(d.donemNetKarGelir || d.donemNetKar || 0),
+    firmaAdi:        firmName,
+    veriYili:        lastYear,
+    kasaBanka:       kasaBanka,
+    ticariAlacaklar: parseFloat(d.ticAlacaklar   || 0),
+    stoklar:         parseFloat(d.stoklar        || 0),
+    kvTicariBorclar: parseFloat(d.kvTicBorclar   || 0),
+    kvMaliBorclar:   parseFloat(d.kvMaliBorclar  || 0),
+    uvMaliBorclar:   parseFloat(d.uvMaliBorclar  || 0),
+    ozKaynak:        parseFloat(d.ozKaynak       || 0),
+    odenmisSermaye:  parseFloat(d.odenmisSermaye || 0),
+    netSatis:        netSatis,
+    satMaliyet:      parseFloat(d.satMaliyet     || 0),
+    faalGider:       parseFloat(d.faalGider      || 0),
+    brutSatisKar:    parseFloat(d.brutSatisKar   || 0),
+    finansmanGider:  parseFloat(d.finansmanGider || 0),
+    donemNetKar:     parseFloat(d.donemNetKarGelir || d.donemNetKar || 0),
   };
 
-  localStorage.setItem('nakit_akis_finskor_data', JSON.stringify(payload));
-  window.open('nakit_akis.html', '_blank');
+  const p = _nkmPayload;
+  document.getElementById('nkm-subtitle').textContent =
+    (p.firmaAdi ? p.firmaAdi + ' · ' : '') + p.veriYili + ' bilanço verisi';
+  document.getElementById('nkm-kv-amount').value =
+    (p.kvMaliBorclar || 0).toLocaleString('tr-TR');
+  document.getElementById('nkm-uv-toplam').textContent =
+    'Toplam UV banka kredisi: ' + (p.uvMaliBorclar || 0).toLocaleString('tr-TR') + ' TL';
+
+  _nkmRowIdx = 0;
+  document.getElementById('nkm-uv-rows').innerHTML = '';
+  _nkmUpdateKalan();
+
+  document.getElementById('nakitKrediModal').style.display = 'flex';
 }
 
 function generatePDF() {
@@ -9529,6 +9713,77 @@ window.onload = () => {
 <style>
   @keyframes ksSlide { from { opacity:0; transform:translateY(-10px) scale(.97); } to { opacity:1; transform:translateY(0) scale(1); } }
 </style>
+<!-- NakitFlow Kredi Yapılandırma Modal -->
+<div id="nakitKrediModal" onclick="if(event.target===this)this.style.display='none'"
+  style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:99998;overflow-y:auto;padding:20px;align-items:flex-start;justify-content:center">
+  <div style="width:100%;max-width:680px;margin:auto;background:#0f1623;border-radius:16px;border:1px solid rgba(255,255,255,.1);overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.6)">
+
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#0d2318,#091a12);padding:18px 24px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid rgba(52,211,153,.15)">
+      <div>
+        <div style="font-size:15px;font-weight:700;color:#34d399;letter-spacing:.5px">📊 NakitFlow — Kredi Yapılandırma</div>
+        <div id="nkm-subtitle" style="font-size:11px;color:#64748b;margin-top:3px"></div>
+      </div>
+      <button onclick="document.getElementById('nakitKrediModal').style.display='none'"
+        style="background:none;border:none;color:#64748b;font-size:22px;cursor:pointer;line-height:1;padding:2px 6px;border-radius:6px" onmouseover="this.style.color='#94a3b8'" onmouseout="this.style.color='#64748b'">✕</button>
+    </div>
+
+    <!-- Body -->
+    <div style="padding:20px;display:flex;flex-direction:column;gap:16px">
+
+      <!-- KV Section -->
+      <div style="background:rgba(52,211,153,.05);border:1px solid rgba(52,211,153,.2);border-radius:10px;padding:16px">
+        <div style="font-size:12px;font-weight:700;color:#34d399;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">🏦 Kısa Vadeli Banka Kredisi</div>
+        <div style="font-size:11px;color:#64748b;margin-bottom:10px">Tamamı BCH kredi olarak uygulanır. Tutar değiştirilemez, döviz cinsi seçilebilir.</div>
+        <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+          <div style="flex:1;min-width:180px">
+            <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">Toplam KV Banka Kredisi (bilanço)</div>
+            <input id="nkm-kv-amount" type="text" readonly
+              style="width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:8px 12px;color:#64748b;font-size:13px;cursor:default">
+          </div>
+          <div style="min-width:100px">
+            <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">Döviz Cinsi</div>
+            <select id="nkm-kv-ccy"
+              style="width:100%;background:#1a2535;border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:8px 10px;color:#e2e8f0;font-size:13px">
+              <option value="TL">TL</option>
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- UV Section -->
+      <div style="background:rgba(99,102,241,.05);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div>
+            <div style="font-size:12px;font-weight:700;color:#818cf8;text-transform:uppercase;letter-spacing:1px">📋 Uzun Vadeli Banka Kredisi</div>
+            <div id="nkm-uv-toplam" style="font-size:11px;color:#64748b;margin-top:2px"></div>
+          </div>
+          <button onclick="nkmAddRow()"
+            style="background:rgba(99,102,241,.2);border:1px solid rgba(99,102,241,.4);border-radius:6px;padding:6px 14px;color:#818cf8;font-size:12px;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='rgba(99,102,241,.35)'" onmouseout="this.style.background='rgba(99,102,241,.2)'">+ Kredi Ekle</button>
+        </div>
+        <div style="font-size:11px;color:#64748b;margin-bottom:12px">BCH: vadesi olmayan döner kredi. Spot: vadeli, anapara vade sonunda tek seferde ödenir. Taksitli: eşit taksitli amortisman.</div>
+
+        <div id="nkm-uv-rows"></div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)">
+          <div style="font-size:12px;color:#94a3b8">Kalan: <span id="nkm-uv-kalan" style="font-weight:700;color:#f59e0b">—</span></div>
+          <div style="font-size:10px;color:#475569">Toplamın sıfırlanması önerilir (sarı → yeşil)</div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="display:flex;justify-content:flex-end;gap:10px;padding-top:4px">
+        <button onclick="document.getElementById('nakitKrediModal').style.display='none'"
+          style="background:none;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:10px 20px;color:#94a3b8;cursor:pointer;font-size:14px" onmouseover="this.style.borderColor='rgba(255,255,255,.3)'" onmouseout="this.style.borderColor='rgba(255,255,255,.15)'">İptal</button>
+        <button onclick="nkmUygula()"
+          style="background:linear-gradient(135deg,#10b981,#059669);border:none;border-radius:8px;padding:10px 28px;color:white;font-weight:700;cursor:pointer;font-size:14px;letter-spacing:.3px" onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">Uygula →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="kayitliModal" onclick="if(event.target===this)closeKayitliModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;align-items:flex-start;justify-content:center;padding:60px 16px 24px">
   <div style="width:100%;max-width:460px;background:var(--surface);border-radius:14px;border:1px solid var(--border);box-shadow:0 24px 60px rgba(0,0,0,.5);overflow:hidden;animation:ksSlide .18s ease">
     <div style="background:linear-gradient(135deg,#0d2318,#091a12);padding:14px 18px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(52,211,153,.15)">

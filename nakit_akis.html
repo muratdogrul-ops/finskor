@@ -2252,7 +2252,7 @@ const PROJ_ROWS=[
   {key:'girdi_grp', label:'Nakit Girdileri',   type:'grp'},
   {key:'tahsilat',  label:'Alacaklardan Tahsilat', type:'sub', field:'tahsilat'},
   {key:'depfaiz',   label:'Mevduat Faizi',     type:'sub',  field:'depFaiz'},
-  {key:'kredi_kullan', label:'Taksit Kredi Kullanımı (+)', type:'sub', field:'krediKullan'},
+  {key:'kredi_kullan', label:'Ticari Kredi Kullanımı (+)', type:'sub', field:'krediKullan'},
   {key:'spot_kullan',  label:'Spot Kredi Kullanımı (+)',  type:'sub', field:'spotKullan'},
   {key:'sermaye_in', label:'Sermaye Artışı',       type:'sub', field:'sermayeGirdi'},
   {key:'manuel_in', label:'Diğer Gelirler (Manuel+)', type:'sub', field:'manuelGelir'},
@@ -2435,7 +2435,7 @@ function renderProjection(){
   $('proj-subtitle').textContent='Başlangıç: '+summary.startDate+' · '+summary.months+' ay · Stok çarpanı: '+summary.stockMult+'×';
   $('proj-kpis').innerHTML=
     '<div class="kpi"><div class="kpi-label">Açılış Nakit</div><div class="kpi-val blue">'+tr(summary.cash0)+'</div></div>'+
-    '<div class="kpi"><div class="kpi-label">Açılış BCH</div><div class="kpi-val red">'+tr(summary.bch0)+'</div></div>'+
+    '<div class="kpi"><div class="kpi-label">Açılış Banka Kredisi</div><div class="kpi-val red">'+tr(summary.bch0)+'</div></div>'+
     '<div class="kpi"><div class="kpi-label">Sermaye</div><div class="kpi-val">'+tr(summary.capital0)+'</div></div>'+
     '<div class="kpi"><div class="kpi-label">Brüt Kâr Marjı</div><div class="kpi-val '+(summary.gm>0?'green':'red')+'">'+tr(summary.gm,1)+'%</div></div>'+
     '<div class="kpi"><div class="kpi-label">DSO</div><div class="kpi-val">'+tr(summary.dso,0)+' gün</div></div>'+
@@ -2941,6 +2941,65 @@ function _buildLoansFromFinskor(p, projYil){
   return loans;
 }
 
+// ── Kredi Yapılandırma Modalından Gelen Konfigürasyonu Loan'a Çevir ─────────
+function _buildLoansFromConfig(loanConfig, projYil) {
+  const loans = [];
+
+  // KV: her zaman BCH
+  if (loanConfig.kvAmount > 0) {
+    loans.push({
+      type: 'bch_existing',
+      bank: 'KV Banka Kredisi (BCH)',
+      ccy: loanConfig.kvCcy || 'TL',
+      principal: Math.round(loanConfig.kvAmount)
+    });
+  }
+
+  // UV: kullanıcının konfigüre ettiği krediler
+  for (const l of (loanConfig.uvLoans || [])) {
+    if (!l.amount || l.amount <= 0) continue;
+    const ccy = l.ccy || 'TL';
+    const amt = Math.round(l.amount);
+
+    if (l.type === 'bch_existing') {
+      loans.push({
+        type: 'bch_existing',
+        bank: 'UV Banka Kredisi (BCH · ' + ccy + ')',
+        ccy, principal: amt
+      });
+    } else if (l.type === 'installment') {
+      // Kullandırım tarihi geçmiş olabilir; kod disburseMi<1 ise
+      // nakit girişi göstermez, kalan taksitler otomatik hesaplanır.
+      const startDate = l.disbDate
+        ? new Date(l.disbDate).toISOString()
+        : new Date(projYil - 1, 0, 1).toISOString();
+      loans.push({
+        type: 'installment',
+        bank: 'UV Taksitli Kredi (' + ccy + ')',
+        ccy, principal: amt,
+        startDate,
+        term: l.term || 12,
+        rate: l.rate || 0
+      });
+    } else if (l.type === 'spot') {
+      const startDate = l.disbDate
+        ? new Date(l.disbDate).toISOString()
+        : new Date(projYil - 1, 0, 1).toISOString();
+      loans.push({
+        type: 'spot',
+        bank: 'UV Spot Kredi (' + ccy + ')',
+        ccy, principal: amt,
+        startDate,
+        term: l.term || 12,
+        rate: l.rate || 0,
+        spotType: 'bullet'
+      });
+    }
+  }
+
+  return loans;
+}
+
 // ── FinSkor → NakitFlow otomatik aktarım ───────────────────────────────────
 async function importFromFinSkor(){
   const raw = localStorage.getItem('nakit_akis_finskor_data');
@@ -2951,6 +3010,14 @@ async function importFromFinSkor(){
 
   // Tek seferlik okuma
   localStorage.removeItem('nakit_akis_finskor_data');
+
+  // Kredi yapılandırma modal konfigürasyonu (varsa)
+  let loanConfig = null;
+  const loanConfigRaw = localStorage.getItem('nakit_akis_loan_config');
+  if (loanConfigRaw) {
+    try { loanConfig = JSON.parse(loanConfigRaw); } catch(e){}
+    localStorage.removeItem('nakit_akis_loan_config');
+  }
 
   const firmAdı = (p.firmaAdi || 'FinSkor Firması').trim();
   const projYil = (p.veriYili || new Date().getFullYear()) + 1;
@@ -3031,7 +3098,7 @@ async function importFromFinSkor(){
       taxRate: 25, taxMonths: '3,6,9,12'
     },
     expenses: defExp,
-    loans: _buildLoansFromFinskor(p, projYil),
+    loans: loanConfig ? _buildLoansFromConfig(loanConfig, projYil) : _buildLoansFromFinskor(p, projYil),
     manualCf: [],
     fxRates:{
       usdOpen: FX_SPOT.usd,
