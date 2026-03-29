@@ -5201,7 +5201,11 @@ function openNakitAkis() {
     brutSatisKar:    parseFloat(d.brutSatisKar   || 0),
     finansmanGider:  parseFloat(d.finansmanGider || 0),
     donemNetKar:     parseFloat(d.donemNetKarGelir || d.donemNetKar || 0),
-    maddiDuranVar:   parseFloat(d.maddiDuranVar   || 0),
+    // Duran Varlıklar Toplamı = tüm duran varlık kalemleri (25+26+27+28+29+22+23+24)
+    duranVarlikToplami: parseFloat(d.uzunTicAlacak||0) + parseFloat(d.uzunDigAlacak||0)
+                      + parseFloat(d.maliDuranVar||0)  + parseFloat(d.maddiDuranVar||0)
+                      + parseFloat(d.maddiOlmayan||0)  + parseFloat(d.ozelTukenme||0)
+                      + parseFloat(d.gelecekYilGider||0)+ parseFloat(d.digerDuran||0),
   };
 
   const p = _nkmPayload;

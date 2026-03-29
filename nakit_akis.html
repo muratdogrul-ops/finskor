@@ -540,7 +540,7 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
           <div class="field"><label>📥 Ticari Alacak (AR)</label><input id="ob-ar" type="number" placeholder="0"></div>
           <div class="field"><label>📤 Ticari Borç (AP)</label><input id="ob-ap" type="number" placeholder="0"></div>
           <div class="field"><label>📦 Stok</label><input id="ob-inv" type="number" placeholder="0"></div>
-          <div class="field"><label>🏭 Maddi Duran Varlıklar (Net)</label><input id="ob-mdv" type="number" placeholder="0"></div>
+          <div class="field"><label>🏭 Duran Varlıklar Toplamı</label><input id="ob-mdv" type="number" placeholder="0"></div>
           <div class="field"><label>💼 Sermaye (Özkaynak)</label><input id="ob-capital" type="number" placeholder="0"></div>
         </div>
         <div class="btn-group"><button class="btn btn-primary" onclick="saveOpening()">💾 Kaydet</button></div>
@@ -2287,10 +2287,11 @@ const PROJ_ROWS=[
   {key:'kapanıs',   label:'Kapanış Bakiyesi',   type:'kapanis',field:'kapanisNakit'},
   {key:'sep1',      label:'',                   type:'sep'},
   {key:'mevduat',   label:'Mevduat Bakiyesi',   type:'val', field:'mevduat'},
-  {key:'bchend',    label:'BCH Bakiyesi',        type:'val', field:'bchEnd'},
+  {key:'bchend',      label:'BCH Anapara Bakiyesi',            type:'val', field:'bchEnd'},
+  {key:'taksit_bak', label:'Taksitli Kredi Anapara Bakiyesi', type:'val', field:'taksitBak'},
+  {key:'spot_bak',   label:'Spot Kredi Anapara Bakiyesi',     type:'val', field:'spotBak'},
   {key:'ar_bak',    label:'Ticari Alacak',       type:'val', field:'arBak'},
   {key:'ap_bak',    label:'Ticari Borç',         type:'val', field:'apBak'},
-  {key:'spot_bak',   label:'Spot Kredi Bakiyesi',  type:'val', field:'spotBak'},
   {key:'stok',       label:'Stok Bakiyesi',        type:'val', field:'stokBak'},
   {key:'ebt',       label:'VÖK / EBT',           type:'val', field:'ebt'},
 ];
@@ -2329,6 +2330,7 @@ function buildYearlyData(rows, startYear, numYears){
       const spotAnaparaPay = r['Spot Anapara Öd.']||0;    // anapara geri ödeme
       const spotFaizOd     = r['Spot Faiz Öd.']||0;       // faiz (gelir tablosuna girer)
       const spotBak        = r['Spot Bakiye']||0;
+      const taksitBak      = r['Taksit Bakiye']||0;   // Taksitli kredi anapara bakiyesi (bilanço)
       const toplamGirdi    = tahsilat+depFaiz+manuelGelir+sermayeGirdi+krediKullan+spotKullan;
       const tedarikci      = r['Tedarikçi Öd.']||0;
       const opex           = r['Faaliyet Gid.']||0;
@@ -2342,7 +2344,7 @@ function buildYearlyData(rows, startYear, numYears){
         acilis:0, // filled below
         tahsilat,depFaiz,manuelGelir,sermayeGirdi,krediKullan,spotKullan,toplamGirdi,
         tedarikci,opex,taksitAnapara,taksitFaizBsmv,spotAnaparaPay,spotFaizOd,bchFaizOd,vergi,manuelGider,yatirimCikti,toplamCikti,
-        spotBak,
+        spotBak, taksitBak,
         bchKullan,bchRepay,
         kapanisNakit:r['Son.Nakit']||0,
         mevduat:r['Son.Mevduat']||0,
@@ -2363,9 +2365,10 @@ function buildYearlyData(rows, startYear, numYears){
         : months[i-1].kapanisNakit;
     }
     // Yıllık toplamlar
-    const fields=['tahsilat','depFaiz','manuelGelir','sermayeGirdi','krediKullan','spotKullan','toplamGirdi','tedarikci','opex','taksitAnapara','taksitFaizBsmv','spotAnaparaPay','spotFaizOd','bchFaizOd','vergi','manuelGider','yatirimCikti','toplamCikti','bchKullan','bchRepay','spotBak','ebt','yatirimRaw','sermayeRaw'];
+    const fields=['tahsilat','depFaiz','manuelGelir','sermayeGirdi','krediKullan','spotKullan','toplamGirdi','tedarikci','opex','taksitAnapara','taksitFaizBsmv','spotAnaparaPay','spotFaizOd','bchFaizOd','vergi','manuelGider','yatirimCikti','toplamCikti','bchKullan','bchRepay','spotBak','taksitBak','ebt','yatirimRaw','sermayeRaw'];
     const totals={acilis:months[0]?.acilis||0, kapanisNakit:months[months.length-1]?.kapanisNakit||0,
       mevduat:months[months.length-1]?.mevduat||0, bchEnd:months[months.length-1]?.bchEnd||0,
+      taksitBak:months[months.length-1]?.taksitBak||0,
       arBak:months[months.length-1]?.arBak||0, apBak:months[months.length-1]?.apBak||0, stokBak:months[months.length-1]?.stokBak||0};
     for(const f of fields) totals[f]=months.reduce((s,m)=>s+(m[f]||0),0);
     years.push({year:y, months, totals});
@@ -2403,7 +2406,7 @@ function renderProjTable(yearData, firmName){
         cells+='<td class="'+colorClass(v,rd)+'">'+tr(v)+'</td>';
       }
       // Toplam sütunu: stok/ar/ap/bch/mevduat için son ay değerini göster (bakiye = son nokta)
-      const isBalance=['kapanisNakit','mevduat','bchEnd','arBak','apBak','stokBak','spotBak','acilis'].includes(rd.field);
+      const isBalance=['kapanisNakit','mevduat','bchEnd','taksitBak','spotBak','arBak','apBak','stokBak','acilis'].includes(rd.field);
       const tv=isBalance ? (months[months.length-1]?.[rd.field]||0) : ytotal;
       cells+='<td class="toplam-col '+colorClass(tv,rd)+'">'+tr(tv)+'</td>';
     } else {
@@ -2430,7 +2433,7 @@ function renderProjTable(yearData, firmName){
 
 function colorClass(v, rd){
   if(v===0)return '';
-  const isOutflow=['tedarikci','opex','taksitAnapara','taksitFaizBsmv','spotAnaparaPay','spotFaizOd','bchFaizOd','vergi','manuelGider','yatirimCikti','toplamCikti','bchRepay','bchEnd','apBak'].includes(rd.field);
+  const isOutflow=['tedarikci','opex','taksitAnapara','taksitFaizBsmv','spotAnaparaPay','spotFaizOd','bchFaizOd','vergi','manuelGider','yatirimCikti','toplamCikti','bchRepay','bchEnd','taksitBak','spotBak','apBak'].includes(rd.field);
   const isInflow=['tahsilat','depFaiz','krediKullan','spotKullan','manuelGelir','sermayeGirdi','toplamGirdi','bchKullan'].includes(rd.field);
   const isBal=['kapanisNakit','mevduat'].includes(rd.field);
   if(isBal)return v>0?'pos':'neg';
@@ -3133,7 +3136,7 @@ async function importFromFinSkor(){
       ap:        p.kvTicariBorclar   || 0,
       inventory: p.stoklar           || 0,
       capital:   p.ozKaynak          || 0,
-      mdv:       p.maddiDuranVar     || 0,
+      mdv:       p.duranVarlikToplami || p.maddiDuranVar || 0,
     },
     incomeStmt:{
       revenue: p.netSatis    || 0,
