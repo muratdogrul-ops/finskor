@@ -5007,6 +5007,9 @@ const NKM_HIST_RATES = {
   '2025-11':{tl:42,usd:5.0,eur:2.5},'2025-12':{tl:40,usd:5.0,eur:2.5}
 };
 
+// Referans döviz kurları (kalan bakiye TL eşdeğeri hesabında kullanılır — yaklaşık)
+const NKM_FX_REF = {usd: 36.0, eur: 40.0};
+
 let _nkmPayload = null;
 let _nkmRowIdx  = 0;
 
@@ -5035,6 +5038,57 @@ function _nkmAutoRate(idx) {
   const ccy     = document.getElementById('nkm-ccy-'+idx)?.value || 'TL';
   const rate    = _nkmHistRate(dateStr, ccy);
   if (rate !== '') document.getElementById('nkm-rate-'+idx).value = rate;
+  _nkmUpdateRemaining(idx);
+}
+
+// Taksitli kredi kalan bakiye önizlemesi — kullanıcıya modal içinde gösterir
+function _nkmUpdateRemaining(idx) {
+  var tip = (document.getElementById('nkm-tip-'+idx) || {}).value;
+  var preEl = document.getElementById('nkm-rembal-'+idx);
+  if (!preEl) return;
+  if (tip !== 'installment') { preEl.textContent = ''; return; }
+
+  var amt   = Math.round(parseFloat(String((document.getElementById('nkm-tutar-'+idx)||{}).value||'0').replace(/\./g,'').replace(',','.')) || 0);
+  var ccy   = (document.getElementById('nkm-ccy-'+idx)||{}).value || 'TL';
+  var tarih = (document.getElementById('nkm-tarih-'+idx)||{}).value;
+  var vade  = parseInt((document.getElementById('nkm-vade-'+idx)||{}).value);
+  var rate  = parseFloat((document.getElementById('nkm-rate-'+idx)||{}).value);
+
+  if (!amt || !tarih || !vade || vade < 1 || isNaN(rate)) { preEl.textContent = ''; return; }
+
+  var projYil = (_nkmPayload && _nkmPayload.veriYili) ? _nkmPayload.veriYili + 1 : new Date().getFullYear();
+  var loanDt    = new Date(tarih);
+  var projStart = new Date(projYil, 0, 1);
+  var monthsPaid = (projStart.getFullYear() - loanDt.getFullYear()) * 12
+                 + (projStart.getMonth()    - loanDt.getMonth());
+
+  if (monthsPaid <= 0) {
+    preEl.textContent = '→ Yeni kredi (projeksiyon içinde kullanılacak)';
+    preEl.style.color = '#94a3b8'; return;
+  }
+  if (monthsPaid >= vade) {
+    preEl.textContent = '→ Kredi tamamlandı (vade geçmiş)';
+    preEl.style.color = '#f87171'; return;
+  }
+
+  var bsmvR = (ccy === 'TL') ? 0.05 : 0;
+  var rBase = rate / 100 / 12;
+  var rInc  = rBase * (1 + bsmvR);
+  var remN  = vade - monthsPaid;
+  var remBal;
+  if (rInc > 0) {
+    var pmt = amt * rInc / (1 - Math.pow(1 + rInc, -vade));
+    remBal  = Math.round(pmt * (1 - Math.pow(1 + rInc, -remN)) / rInc);
+  } else {
+    remBal = Math.round(amt * remN / vade);
+  }
+  remBal = Math.min(remBal, amt);
+
+  var txt = '✓ 01.01.' + projYil + ' kalan: ' + remBal.toLocaleString('tr-TR') + ' ' + ccy;
+  if (ccy !== 'TL') txt += '  (~' + Math.round(remBal * (ccy==='EUR' ? NKM_FX_REF.eur : NKM_FX_REF.usd)).toLocaleString('tr-TR') + ' TL)';
+  txt += '  |  ' + remN + ' ay kalan taksit';
+  preEl.textContent = txt;
+  preEl.style.color = '#34d399';
 }
 
 function _nkmUpdateKalan() {
@@ -5042,12 +5096,20 @@ function _nkmUpdateKalan() {
   if (!p) return;
   // UV hedef = 40. Hesap (uvMaliBorclar) — KV girişinden BAĞIMSIZ, sabit
   const uvTotal = Math.round(p.uvMaliBorclar || 0);
-  let used = 0;
-  document.querySelectorAll('[id^="nkm-tutar-"]').forEach(el => {
-    const v = Math.round(parseFloat(String(el.value).replace(/\./g,'').replace(',','.')) || 0);
-    if (v > 0) used += v;
+  let usedTL = 0;
+  document.querySelectorAll('[id^="nkm-row-"]').forEach(function(rowEl) {
+    var idx = rowEl.id.replace('nkm-row-', '');
+    var el  = document.getElementById('nkm-tutar-' + idx);
+    if (!el) return;
+    var v = Math.round(parseFloat(String(el.value).replace(/\./g,'').replace(',','.')) || 0);
+    if (v <= 0) return;
+    var ccy = (document.getElementById('nkm-ccy-' + idx) || {}).value || 'TL';
+    // EUR/USD tutarları yaklaşık TL eşdeğerine çevir
+    if (ccy === 'EUR') v = Math.round(v * NKM_FX_REF.eur);
+    else if (ccy === 'USD') v = Math.round(v * NKM_FX_REF.usd);
+    usedTL += v;
   });
-  const kalan = uvTotal - used;
+  const kalan = uvTotal - usedTL;
   const kalanEl = document.getElementById('nkm-uv-kalan');
   if (kalanEl) {
     kalanEl.textContent = kalan.toLocaleString('tr-TR', {maximumFractionDigits:0}) + ' TL';
@@ -5063,8 +5125,8 @@ function nkmAddRow() {
   div.style.cssText = 'background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:10px 12px;margin-bottom:8px';
   div.innerHTML = '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">'
     + '<div style="flex:1;min-width:140px">'
-      + '<div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Tutar (tam TL)</div>'
-      + '<input type="number" id="nkm-tutar-'+idx+'" placeholder="0" min="0" step="1" style="'+inp+'" oninput="_nkmUpdateKalan()">'
+      + '<div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Tutar</div>'
+      + '<input type="number" id="nkm-tutar-'+idx+'" placeholder="0" min="0" step="1" style="'+inp+'" oninput="_nkmUpdateKalan();_nkmUpdateRemaining('+idx+')">'
     + '</div>'
     + '<div style="min-width:110px">'
       + '<div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Kredi Tipi</div>'
@@ -5076,7 +5138,7 @@ function nkmAddRow() {
     + '</div>'
     + '<div style="min-width:80px">'
       + '<div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Döviz</div>'
-      + '<select id="nkm-ccy-'+idx+'" onchange="_nkmRowChange('+idx+')" style="'+inp+'">'
+      + '<select id="nkm-ccy-'+idx+'" onchange="_nkmRowChange('+idx+');_nkmUpdateKalan();_nkmUpdateRemaining('+idx+')" style="'+inp+'">'
         + '<option value="TL">TL</option><option value="USD">USD</option><option value="EUR">EUR</option>'
       + '</select>'
     + '</div>'
@@ -5085,7 +5147,7 @@ function nkmAddRow() {
   + '<div id="nkm-extra-'+idx+'" style="display:none;margin-top:8px;grid-template-columns:90px 1fr 110px;gap:8px;align-items:end">'
     + '<div>'
       + '<div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Vade (ay)</div>'
-      + '<input type="number" id="nkm-vade-'+idx+'" min="1" max="360" step="1" placeholder="24" style="'+inp+'">'
+      + '<input type="number" id="nkm-vade-'+idx+'" min="1" max="360" step="1" placeholder="24" style="'+inp+'" oninput="_nkmUpdateRemaining('+idx+')">'
     + '</div>'
     + '<div>'
       + '<div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Kullandırım Tarihi</div>'
@@ -5093,9 +5155,10 @@ function nkmAddRow() {
     + '</div>'
     + '<div>'
       + '<div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Faiz % (yıllık)</div>'
-      + '<input type="number" id="nkm-rate-'+idx+'" step="0.01" placeholder="—" style="'+inp+'">'
+      + '<input type="number" id="nkm-rate-'+idx+'" step="0.01" placeholder="—" style="'+inp+'" oninput="_nkmUpdateRemaining('+idx+')">'
     + '</div>'
-  + '</div>';
+  + '</div>'
+  + '<div id="nkm-rembal-'+idx+'" style="font-size:11px;margin-top:4px;padding-left:2px"></div>';
   document.getElementById('nkm-uv-rows').appendChild(div);
 }
 
@@ -5114,15 +5177,21 @@ function nkmUygula() {
   var kvRaw    = kvAmtEl ? String(kvAmtEl.value).replace(/\./g,'').replace(',','.') : '0';
   var kvAmount = Math.round(parseFloat(kvRaw) || p.kvMaliBorclar || 0);
 
-  // UV kalan kontrolü
-  // UV hedef = 40. Hesap (uvMaliBorclar) — sabit
+  // UV kalan kontrolü — EUR/USD tutarlar TL eşdeğerine çevrilir
   var uvTotal = Math.round(p.uvMaliBorclar || 0);
-  var uvUsed  = 0;
-  document.querySelectorAll('[id^="nkm-tutar-"]').forEach(function(el) {
+  var uvUsedTL = 0;
+  document.querySelectorAll('[id^="nkm-row-"]').forEach(function(rowEl) {
+    var ridx = rowEl.id.replace('nkm-row-', '');
+    var el   = document.getElementById('nkm-tutar-' + ridx);
+    if (!el) return;
     var v = Math.round(parseFloat(String(el.value).replace(/\./g,'').replace(',','.')) || 0);
-    if (v > 0) uvUsed += v;
+    if (v <= 0) return;
+    var rc = (document.getElementById('nkm-ccy-' + ridx) || {}).value || 'TL';
+    if (rc === 'EUR') v = Math.round(v * NKM_FX_REF.eur);
+    else if (rc === 'USD') v = Math.round(v * NKM_FX_REF.usd);
+    uvUsedTL += v;
   });
-  var uvKalan = uvTotal - uvUsed;
+  var uvKalan = uvTotal - uvUsedTL;
   if (uvTotal > 0 && Math.abs(uvKalan) > 1000) {
     showToast('UV kredi bakiyesi henüz sıfırlanmadı! Kalan: ' + Math.round(uvKalan).toLocaleString('tr-TR') + ' TL', true);
     return;
@@ -5135,7 +5204,7 @@ function nkmUygula() {
     var tutar  = Math.round(parseFloat(String((document.getElementById('nkm-tutar-'+idx)||{}).value||'0').replace(/\./g,'').replace(',','.')) || 0);
     var tip    = (document.getElementById('nkm-tip-'+idx)||{}).value;
     var ccy    = (document.getElementById('nkm-ccy-'+idx)||{}).value || 'TL';
-    if (!tutar || tutar <= 0) { hasError = true; return; }
+    if (!tutar || tutar <= 0) return; // boş satırı atla
     var loan = {amount: tutar, type: tip, ccy: ccy};
     if (tip === 'installment' || tip === 'spot') {
       var vade  = parseInt((document.getElementById('nkm-vade-'+idx)||{}).value);
@@ -5150,7 +5219,7 @@ function nkmUygula() {
   });
 
   if (hasError) {
-    showToast('Lütfen tüm kredi satırlarını eksiksiz doldurun.', true);
+    showToast('Taksitli/Spot krediler için kullandırım tarihi ve vade zorunludur.', true);
     return;
   }
 
@@ -5172,7 +5241,7 @@ function openNakitAkis() {
   const d = (state.yearData[lastYear] || {});
 
   // Firma adı
-  const firmName = (state.lastResult && state.lastResult.firmaAdi)
+  const firmName = (state.lastResult && (state.lastResult.firma || state.lastResult.firmaAdi))
     || localStorage.getItem('kas_client_name') || '';
 
   // Nakit ve bankayı hazirDegerler'den al (tek kalem olarak saklanıyor)
