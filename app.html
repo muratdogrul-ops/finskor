@@ -5151,6 +5151,35 @@ function _nkmRowEffectiveTL(idx) {
   return v;
 }
 
+// KV BCH satırı — tutar × referans kur → TL eşdeğeri (UV BCH ile aynı mantık)
+function _nkmKvRowEffectiveTL(kid) {
+  var tEl = document.getElementById('nkm-kv-tutar-' + kid);
+  if (!tEl) return 0;
+  var v = Math.round(parseFloat(String(tEl.value).replace(/\./g, '').replace(',', '.')) || 0);
+  if (v <= 0) return 0;
+  var ccy = (document.getElementById('nkm-kv-ccy-' + kid) || {}).value || 'TL';
+  if (ccy === 'EUR') return Math.round(v * NKM_FX_REF.eur);
+  if (ccy === 'USD') return Math.round(v * NKM_FX_REF.usd);
+  return v;
+}
+
+function _nkmUpdateKvKalan() {
+  var p = _nkmPayload;
+  if (!p) return;
+  var kvTotal = Math.round(p.kvMaliBorclar || 0);
+  var usedTL = 0;
+  document.querySelectorAll('[id^="nkm-kv-row-"]').forEach(function(rowEl) {
+    var kid = rowEl.id.replace('nkm-kv-row-', '');
+    usedTL += _nkmKvRowEffectiveTL(kid);
+  });
+  var kalan = kvTotal - usedTL;
+  var kalanEl = document.getElementById('nkm-kv-kalan');
+  if (kalanEl) {
+    kalanEl.textContent = kalan.toLocaleString('tr-TR', {maximumFractionDigits: 0}) + ' TL';
+    kalanEl.style.color = kalan < -1000 ? '#f87171' : Math.abs(kalan) <= 1000 ? '#34d399' : '#f59e0b';
+  }
+}
+
 function _nkmUpdateKalan() {
   const p = _nkmPayload;
   if (!p) return;
@@ -5232,11 +5261,11 @@ function nkmAddKvRow(prefillAmt, prefCcy) {
   div.innerHTML = ''
     + '<div style="flex:1;min-width:140px">'
       + '<div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Tutar</div>'
-      + '<input type="text" inputmode="numeric" autocomplete="off" id="nkm-kv-tutar-' + idx + '" placeholder="0" style="' + inp + '" value="' + (amtVal !== '' ? String(amtVal) : '') + '">'
+      + '<input type="text" inputmode="numeric" autocomplete="off" id="nkm-kv-tutar-' + idx + '" placeholder="0" style="' + inp + '" value="' + (amtVal !== '' ? String(amtVal) : '') + '" oninput="_nkmUpdateKvKalan()">'
     + '</div>'
     + '<div style="min-width:100px">'
       + '<div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Döviz</div>'
-      + '<select id="nkm-kv-ccy-' + idx + '" style="' + inp + '">'
+      + '<select id="nkm-kv-ccy-' + idx + '" onchange="_nkmUpdateKvKalan()" style="' + inp + '">'
         + '<option value="TL">TL</option><option value="USD">USD</option><option value="EUR">EUR</option>'
       + '</select>'
     + '</div>'
@@ -5245,10 +5274,11 @@ function nkmAddKvRow(prefillAmt, prefCcy) {
   var ccy = prefCcy || 'TL';
   var sel = document.getElementById('nkm-kv-ccy-' + idx);
   if (sel) sel.value = ccy;
+  _nkmUpdateKvKalan();
 }
 function nkmRemoveKvRow(idx) {
   var el = document.getElementById('nkm-kv-row-' + idx);
-  if (el) el.remove();
+  if (el) { el.remove(); _nkmUpdateKvKalan(); }
 }
 
 function nkmUygula() {
@@ -5265,6 +5295,19 @@ function nkmUygula() {
     if (v <= 0) return;
     kvLoansCfg.push({ amount: v, ccy: (cEl && cEl.value) ? cEl.value : 'TL' });
   });
+
+  // KV kalan kontrolü — satırların TL eşdeğeri toplamı ≈ bilanço KV mali borç
+  var kvTotal = Math.round(p.kvMaliBorclar || 0);
+  var kvUsedTL = 0;
+  document.querySelectorAll('[id^="nkm-kv-row-"]').forEach(function(rowEl) {
+    var kid = rowEl.id.replace('nkm-kv-row-', '');
+    kvUsedTL += _nkmKvRowEffectiveTL(kid);
+  });
+  var kvKalan = kvTotal - kvUsedTL;
+  if (kvTotal > 0 && Math.abs(kvKalan) > 1000) {
+    showToast('KV kredi bakiyesi bilanço ile uyumlu değil! Kalan: ' + Math.round(kvKalan).toLocaleString('tr-TR') + ' TL', true);
+    return;
+  }
 
   // UV kalan kontrolü — kalan bakiye hesabı ile TL eşdeğeri
   var uvTotal = Math.round(p.uvMaliBorclar || 0);
@@ -5413,10 +5456,17 @@ function openNakitAkis() {
     + '</div>'
     + '<div style="padding:20px;display:flex;flex-direction:column;gap:16px">'
       + '<div style="background:rgba(52,211,153,.05);border:1px solid rgba(52,211,153,.2);border-radius:10px;padding:16px">'
-        + '<div style="font-size:12px;font-weight:700;color:#34d399;margin-bottom:6px">🏦 Kısa Vadeli Banka Kredisi (BCH)</div>'
-        + '<div style="font-size:11px;color:#64748b;margin-bottom:8px">Yalnızca <b>BCH</b>. Tutarı ve dövizi siz girin; bilançodaki öneri aşağıda bir satır olarak gelir, <b>istediğiniz gibi değiştirebilir</b> veya <b>+ satır</b> ile örneğin bir kısmı TL bir kısmı USD/EUR ayırabilirsiniz.</div>'
+        + '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:6px">'
+          + '<div style="font-size:12px;font-weight:700;color:#34d399">🏦 Kısa Vadeli Banka Kredisi (BCH)</div>'
+          + '<div style="font-size:11px;color:#64748b">Bilanço (30): <b style="color:#6ee7b7">' + Math.round(p.kvMaliBorclar || 0).toLocaleString('tr-TR', {maximumFractionDigits: 0}) + ' TL</b></div>'
+        + '</div>'
+        + '<div style="font-size:11px;color:#64748b;margin-bottom:8px">Yalnızca <b>BCH</b>. Tutarı ve dövizi siz girin; satırların <b>TL eşdeğeri toplamı</b> yukarıdaki bilanço tutarına yakın olmalı (USD/EUR için yaklaşık kur: ' + NKM_FX_REF.usd + ' / ' + NKM_FX_REF.eur + '). Öneri bir satır olarak gelir; <b>+ satır</b> ile parçalayabilirsiniz.</div>'
         + '<div id="nkm-kv-rows"></div>'
         + '<button type="button" onclick="nkmAddKvRow()" style="margin-top:4px;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35);border-radius:6px;padding:6px 14px;color:#34d399;font-size:12px;cursor:pointer">+ KV BCH satırı ekle</button>'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)">'
+          + '<div style="font-size:12px;color:#94a3b8">Kalan: <span id="nkm-kv-kalan" style="font-weight:700;color:#f59e0b">—</span></div>'
+          + '<div style="font-size:10px;color:#475569">Kalan sıfırlanınca yeşile döner</div>'
+        + '</div>'
       + '</div>'
       + '<div style="background:rgba(99,102,241,.05);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:16px">'
         + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
@@ -5445,6 +5495,7 @@ function openNakitAkis() {
   var kvRows = document.getElementById('nkm-kv-rows');
   if (kvRows) kvRows.innerHTML = '';
   nkmAddKvRow(Math.round(p.kvMaliBorclar || 0), 'TL');
+  _nkmUpdateKvKalan();
   _nkmUpdateKalan();
 }
 
