@@ -540,6 +540,7 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
           <div class="field"><label>📥 Ticari Alacak (AR)</label><input id="ob-ar" type="number" placeholder="0"></div>
           <div class="field"><label>📤 Ticari Borç (AP)</label><input id="ob-ap" type="number" placeholder="0"></div>
           <div class="field"><label>📦 Stok</label><input id="ob-inv" type="number" placeholder="0"></div>
+          <div class="field"><label>🏭 Maddi Duran Varlıklar (Net)</label><input id="ob-mdv" type="number" placeholder="0"></div>
           <div class="field"><label>💼 Sermaye (Özkaynak)</label><input id="ob-capital" type="number" placeholder="0"></div>
         </div>
         <div class="btn-group"><button class="btn btn-primary" onclick="saveOpening()">💾 Kaydet</button></div>
@@ -1242,12 +1243,14 @@ function populateOpening(){
   const f=curFirm();if(!f)return;const o=f.opening||{};
   ['cash','bank','ar','ap'].forEach(k=>{const el=$('ob-'+k);if(el)el.value=o[k]||0;});
   if($('ob-inv'))$('ob-inv').value=o.inventory||0;
+  if($('ob-mdv'))$('ob-mdv').value=o.mdv||0;
   if($('ob-capital'))$('ob-capital').value=o.capital||0;
 }
 function saveOpening(){
   const f=curFirm();if(!f)return;
   f.opening={cash:fnum($('ob-cash').value),bank:fnum($('ob-bank').value),ar:fnum($('ob-ar').value),
-    ap:fnum($('ob-ap').value),inventory:fnum($('ob-inv').value),capital:fnum($('ob-capital').value)};
+    ap:fnum($('ob-ap').value),inventory:fnum($('ob-inv').value),mdv:fnum($('ob-mdv').value),
+    capital:fnum($('ob-capital').value)};
   saveState();showAlert('Açılış bilanço kaydedildi.','ok');
 }
 
@@ -1848,25 +1851,35 @@ function spreadOpening(amount,months,total){
   const m=Math.max(1,Math.min(total,months));const piece=amount/m;
   for(let i=0;i<m;i++)out[i]+=piece;return out;
 }
-// Ticari taksitli kredi amortismanı
-// BSMV = %5 × aylık faiz (sadece faiz üzerinden, KKDF yoktur)
+// ── Taksitli Ticari Kredi — Excel Ödeme Planı Modeli ────────────────────────
+// Excel sabit taksit (annüite) formülü:
+//   r_inc = aylık_baz_oran × (1 + BSMV)       [BSMV dahil tek oran]
+//   PMT   = P × r_inc / (1 − (1+r_inc)^−n)   [Excel PMT — sabit aylık ödeme]
+//   Her ay: Faiz+BSMV = Bakiye × r_inc
+//           Anapara   = PMT − Faiz+BSMV
+// EUR/USD kredilerde BSMV yoktur (bsmvRate = 0 geçilir).
 // Dönen: {payment, interest, bsmv, intPlusBsmv, principal, bal}
-// payment = anapara + interest + bsmv
-const BSMV_RATE = 0.05; // Banka ve Sigorta Muameleleri Vergisi — ticari kredi
+const BSMV_RATE = 0.05; // Banka ve Sigorta Muameleleri Vergisi — sadece TL kredilerde
 
-// bsmvRate: TL kredilerde 0.05, EUR/USD kredilerde 0
+// bsmvRate: TL = 0.05,  EUR/USD = 0
 function amortSched(principal, annualRate, termMonths, bsmvRate = BSMV_RATE){
-  const r=monthRate(annualRate),P=Math.max(0,principal),n=Math.max(1,termMonths);
-  const basePayment = r<=0 ? P/n : P*(r*Math.pow(1+r,n))/(Math.pow(1+r,n)-1);
-  let bal=P;const rows=[];
-  for(let i=0;i<n;i++){
-    const interest    = bal * r;
-    const bsmv        = interest * bsmvRate;
-    const intPlusBsmv = interest + bsmv;
-    const principal_  = basePayment - interest;
-    const payment     = principal_ + intPlusBsmv;
+  const r    = monthRate(annualRate);          // baz aylık oran (BSMV hariç)
+  const rInc = r * (1 + bsmvRate);            // BSMV dahil aylık oran (Excel'deki r)
+  const P    = Math.max(0, principal);
+  const n    = Math.max(1, termMonths);
+  // Excel PMT: P × r_inc / (1 − (1+r_inc)^−n)   → sabit aylık ödeme
+  const PMT  = rInc <= 0 ? P / n
+             : P * rInc / (1 - Math.pow(1 + rInc, -n));
+  let bal = P;
+  const rows = [];
+  for (let i = 0; i < n; i++) {
+    const intPlusBsmv = bal * rInc;                      // Faiz+BSMV = bakiye × r_inc
+    const principal_  = Math.max(0, PMT - intPlusBsmv);  // Anapara = Taksit − Faiz+BSMV
+    const interest    = bal * r;                         // Faiz (gelir tablosu için ayrı)
+    const bsmv        = interest * bsmvRate;             // BSMV bileşeni (bilgi amaçlı)
+    const payment     = PMT;                             // SABİT (eşit taksit)
     bal = Math.max(0, bal - principal_);
-    rows.push({payment, interest, bsmv, intPlusBsmv, principal:principal_, bal});
+    rows.push({payment, interest, bsmv, intPlusBsmv, principal: principal_, bal});
   }
   return rows;
 }
@@ -2451,7 +2464,7 @@ function renderProjection(){
 // ══════════════════════════════════════════════
 // 5Y TABLES
 // ══════════════════════════════════════════════
-function annual5Y(rows,startYear){
+function annual5Y(rows,startYear,mdv0=0){
   const years=[startYear,startYear+1,startYear+2,startYear+3,startYear+4];
   const inc={};const bal={};
   for(const y of years)inc[y]={
@@ -2461,8 +2474,8 @@ function annual5Y(rows,startYear){
     yatirimKumul:0,   // kümülatif yatırım → bilanço MDV
     sermayeKumul:0,   // kümülatif sermaye artışı → bilanço özkaynak
   };
-  // Kümülatif MDV ve sermaye tüm yıllar boyunca taşınır
-  let mdvKumul=0, sermayeEkKumul=0;
+  // Kümülatif MDV: açılış MDV (FinSkor'dan) + projeksiyon dönemindeki yatırımlar
+  let mdvKumul=mdv0||0, sermayeEkKumul=0;
   for(const r of rows){
     const d=r['Tarih'].split('-');const y=parseInt(d[2]);if(!inc[y])continue;
     inc[y].ciro    += r['Satış(TL)']   ||0;
@@ -2545,7 +2558,7 @@ function renderIncome5Y(){
   let proj;try{proj=buildProjection(state.currentFirmId);}catch(e){showAlert(e.message,'err');return;}
   lastProjection=proj;
   const sy=new Date(f.startDate).getFullYear();
-  const{years,inc}=annual5Y(proj.rows,sy);
+  const{years,inc}=annual5Y(proj.rows,sy,(f.opening||{}).mdv||0);
   $('inc5-title').textContent=f.name+' — 5 Yıllık Gelir Tablosu';
   $('inc5-headers').innerHTML='<th style="text-align:left;min-width:240px">Kalem</th>'+years.map(y=>'<th>'+y+'</th>').join('');
 
@@ -2602,7 +2615,8 @@ function renderBalance5Y(){
   let proj;try{proj=buildProjection(state.currentFirmId);}catch(e){showAlert(e.message,'err');return;}
   lastProjection=proj;
   const sy=new Date(f.startDate).getFullYear();
-  const{years,inc,bal}=annual5Y(proj.rows,sy);
+  const mdv0=(f.opening||{}).mdv||0;
+  const{years,inc,bal}=annual5Y(proj.rows,sy,mdv0);
   const retained=computeRetained(years,inc);const capital0=(f.opening||{}).capital||0;
   $('bal5-title').textContent=f.name+' — 5 Yıllık Bilanço';
   $('bal5-headers').innerHTML='<th>Kalem</th>'+years.map(y=>'<th>'+y+'</th>').join('');
@@ -2667,7 +2681,7 @@ function exportCSV5Y(type){
   const f=curFirm();if(!f)return;
   let proj;try{proj=buildProjection(state.currentFirmId);}catch(e){showAlert(e.message,'err');return;}
   const sy=new Date(f.startDate).getFullYear();
-  const{years,inc,bal}=annual5Y(proj.rows,sy);
+  const{years,inc,bal}=annual5Y(proj.rows,sy,(f.opening||{}).mdv||0);
   const retained=computeRetained(years,inc);const c0=(f.opening||{}).capital||0;
   const rows_=type==='income'
     ?[['Kalem',...years],['Ciro',...years.map(y=>inc[y]?.ciro||0)],['COGS',...years.map(y=>inc[y]?.cogs||0)],
@@ -2968,12 +2982,17 @@ function _buildLoansFromConfig(loanConfig, projYil) {
         ccy, principal: amt
       });
     } else if (l.type === 'installment') {
-      // ── Taksitli Ticari Kredi — Excel PMT Ödeme Planı ──────────────────────
-      // Excel formülü: PMT = PV * r / (1 - (1+r)^-n)   [eşit taksit, BSMV ayrıca eklenir]
-      // Kalan bakiye:  P_k  = PMT * (1 - (1+r)^-(n-k)) / r
-      // r = yıllık_faiz / 12 / 100,  n = toplam vade (ay),  k = ödenmiş ay sayısı
+      // ── Taksitli Ticari Kredi — Excel Sabit Taksit (Annüite) Modeli ─────────
+      // Excel formülü:
+      //   r_inc = (yıllık_faiz/100 × (1+BSMV)) / 12   [BSMV TL'de %5, EUR/USD'de 0]
+      //   PMT   = P × r_inc / (1 − (1+r_inc)^−n)      [sabit aylık ödeme]
+      //   Kalan bakiye (k ay sonra): PMT × (1 − (1+r_inc)^−(n−k)) / r_inc
       const totalTerm  = Math.max(1, l.term || 12);
       const annualRate = parseFloat(l.rate) || 0;
+      const bsmvR      = (ccy === 'TL') ? BSMV_RATE : 0;  // BSMV sadece TL kredide
+      const rBase      = annualRate / 100 / 12;            // baz aylık oran
+      const rInc       = rBase * (1 + bsmvR);              // BSMV dahil aylık oran
+
       const loanDt     = (l.disbDate && l.disbDate.length >= 7)
                          ? new Date(l.disbDate) : new Date(projYil - 1, 0, 1);
       const projStartDt = new Date(projYil, 0, 1);
@@ -2985,6 +3004,7 @@ function _buildLoansFromConfig(loanConfig, projYil) {
 
       if (monthsPaid <= 0) {
         // Yeni kredi: kullanım ayında nakit girişi oluşur, sonraki aydan taksit başlar
+        // EUR/USD kredide: amt cinsinden (örn. EUR), nakit akışta o ayın kuruyla TL'ye çevrilir
         loans.push({
           type: 'installment',
           bank: 'UV Taksitli Ticari Kredi (' + ccy + ')',
@@ -2994,24 +3014,20 @@ function _buildLoansFromConfig(loanConfig, projYil) {
           rate: annualRate
         });
       } else if (monthsPaid < totalTerm) {
-        // Geçmiş tarihli kredi — Excel kalan bakiye formülü:
-        // P_k = PMT * (1 - (1+r)^-(n-k)) / r
-        const r    = annualRate / 100 / 12;
+        // Geçmiş tarihli kredi — Excel kalan bakiye formülü (r_inc ile tutarlı):
+        //   PMT    = amt × r_inc / (1 − (1+r_inc)^−n)
+        //   RemBal = PMT × (1 − (1+r_inc)^−(n−k)) / r_inc
         const n    = totalTerm;
         const k    = monthsPaid;
-        const remN = n - k;               // kalan ay
+        const remN = n - k;                // kalan ay sayısı
         let remBal;
-        if (r > 0) {
-          // Excel PMT: PV * r / (1 - (1+r)^-n)
-          const pmt  = amt * r / (1 - Math.pow(1 + r, -n));
-          // Kalan bakiye: PMT * (1 - (1+r)^-(n-k)) / r
-          remBal = Math.round(pmt * (1 - Math.pow(1 + r, -remN)) / r);
+        if (rInc > 0) {
+          const pmt = amt * rInc / (1 - Math.pow(1 + rInc, -n));
+          remBal    = Math.round(pmt * (1 - Math.pow(1 + rInc, -remN)) / rInc);
         } else {
-          // Faizsiz: eşit anapara taksitleri
-          remBal = Math.round(amt * remN / n);
+          remBal = Math.round(amt * remN / n);   // Faizsiz: doğrusal
         }
-        // Güvenlik: kalan bakiye orijinal tutarı aşamaz
-        remBal = Math.min(remBal, amt);
+        remBal = Math.min(remBal, amt);           // Güvenlik: orijinali aşamaz
         if (remBal > 0 && remN > 0) {
           loans.push({
             type: 'installment',
@@ -3117,6 +3133,7 @@ async function importFromFinSkor(){
       ap:        p.kvTicariBorclar   || 0,
       inventory: p.stoklar           || 0,
       capital:   p.ozKaynak          || 0,
+      mdv:       p.maddiDuranVar     || 0,
     },
     incomeStmt:{
       revenue: p.netSatis    || 0,
@@ -3313,7 +3330,7 @@ function exportRaporExcel() {
 
   // === SHEET 2: GELİR TABLOSU ===
   const sy = new Date(f.startDate).getFullYear();
-  const { years, inc } = annual5Y(rows, sy);
+  const { years, inc } = annual5Y(rows, sy, (f.opening || {}).mdv || 0);
   const gelirHdrs = ['Kalem', ...years.map(String)];
   const gelirRows = [
     ['Net Satışlar',                ...years.map(y => inc[y]?.ciro || 0)],
@@ -3341,7 +3358,7 @@ function exportRaporExcel() {
   XLSX.utils.book_append_sheet(wb, makeSheet(gelirHdrs, gelirRows), 'Gelir Tablosu');
 
   // === SHEET 3: BİLANÇO ===
-  const { bal } = annual5Y(rows, sy);
+  const { bal } = annual5Y(rows, sy, (f.opening || {}).mdv || 0);
   const retained = computeRetained(years, inc);
   const c0 = (f.opening || {}).capital || 0;
   const bilHdrs = ['Kalem', ...years.map(String)];
