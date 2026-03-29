@@ -2985,62 +2985,68 @@ function _buildLoansFromConfig(loanConfig, projYil) {
         ccy, principal: amt
       });
     } else if (l.type === 'installment') {
-      // ── Taksitli Ticari Kredi — Excel Sabit Taksit (Annüite) Modeli ─────────
-      // Excel formülü:
-      //   r_inc = (yıllık_faiz/100 × (1+BSMV)) / 12   [BSMV TL'de %5, EUR/USD'de 0]
-      //   PMT   = P × r_inc / (1 − (1+r_inc)^−n)      [sabit aylık ödeme]
-      //   Kalan bakiye (k ay sonra): PMT × (1 − (1+r_inc)^−(n−k)) / r_inc
       const totalTerm  = Math.max(1, l.term || 12);
       const annualRate = parseFloat(l.rate) || 0;
-      const bsmvR      = (ccy === 'TL') ? BSMV_RATE : 0;  // BSMV sadece TL kredide
-      const rBase      = annualRate / 100 / 12;            // baz aylık oran
-      const rInc       = rBase * (1 + bsmvR);              // BSMV dahil aylık oran
-
-      const loanDt     = (l.disbDate && l.disbDate.length >= 7)
-                         ? new Date(l.disbDate) : new Date(projYil - 1, 0, 1);
       const projStartDt = new Date(projYil, 0, 1);
 
-      // Geçen ay sayısı (kullandırımdan projeksiyon başına)
-      const monthsPaid = isNaN(loanDt.getTime()) ? 0
-        : (projStartDt.getFullYear() - loanDt.getFullYear()) * 12
-          + (projStartDt.getMonth()   - loanDt.getMonth());
-
-      if (monthsPaid <= 0) {
-        // Yeni kredi: kullanım ayında nakit girişi oluşur, sonraki aydan taksit başlar
-        // EUR/USD kredide: amt cinsinden (örn. EUR), nakit akışta o ayın kuruyla TL'ye çevrilir
+      // ── Kalan bakiye: modal'da önceden hesaplandıysa onu kullan ──────────────
+      // Modal önizlemesi doğru → aynı değeri burada tekrar hesaplamak yerine
+      // doğrudan precomputedRemBal kullan. Bu sayede parse/timezone farkı olmaz.
+      if (l.isExistingLoan && l.precomputedRemBal > 0 && l.precomputedRemN > 0) {
         loans.push({
           type: 'installment',
-          bank: 'UV Taksitli Ticari Kredi (' + ccy + ')',
-          ccy, principal: amt,
-          startDate: loanDt.toISOString(),
-          term: totalTerm,
+          existing: true,
+          bank: 'UV Taksitli Ticari Kredi (' + ccy + ') — kalan ' + l.precomputedRemN + ' ay',
+          ccy, principal: l.precomputedRemBal,
+          startDate: projStartDt.toISOString(),
+          term: l.precomputedRemN,
           rate: annualRate
         });
-      } else if (monthsPaid < totalTerm) {
-        // Geçmiş tarihli kredi — Excel kalan bakiye formülü (r_inc ile tutarlı):
-        //   PMT    = amt × r_inc / (1 − (1+r_inc)^−n)
-        //   RemBal = PMT × (1 − (1+r_inc)^−(n−k)) / r_inc
-        const n    = totalTerm;
-        const k    = monthsPaid;
-        const remN = n - k;                // kalan ay sayısı
-        let remBal;
-        if (rInc > 0) {
-          const pmt = amt * rInc / (1 - Math.pow(1 + rInc, -n));
-          remBal    = Math.round(pmt * (1 - Math.pow(1 + rInc, -remN)) / rInc);
-        } else {
-          remBal = Math.round(amt * remN / n);   // Faizsiz: doğrusal
-        }
-        remBal = Math.min(remBal, amt);           // Güvenlik: orijinali aşamaz
-        if (remBal > 0 && remN > 0) {
+      } else {
+        // Precomputed yok → disbDate'den hesapla (yeni kredi veya geri plan)
+        const bsmvR   = (ccy === 'TL') ? BSMV_RATE : 0;
+        const rBase   = annualRate / 100 / 12;
+        const rInc    = rBase * (1 + bsmvR);
+
+        const loanDt  = (l.disbDate && l.disbDate.length >= 7)
+                        ? new Date(l.disbDate) : new Date(projYil - 1, 0, 1);
+
+        const monthsPaid = isNaN(loanDt.getTime()) ? 0
+          : (projStartDt.getFullYear() - loanDt.getFullYear()) * 12
+            + (projStartDt.getMonth()   - loanDt.getMonth());
+
+        if (monthsPaid <= 0) {
+          // Yeni kredi: projeksiyon içinde kullanılıyor
+          const safeDt = isNaN(loanDt.getTime()) ? projStartDt : loanDt;
           loans.push({
             type: 'installment',
-            existing: true,   // projeksiyon başında nakit girişi OLMAZ
-            bank: 'UV Taksitli Ticari Kredi (' + ccy + ') — kalan ' + remN + ' ay',
-            ccy, principal: remBal,
-            startDate: projStartDt.toISOString(),
-            term: remN,
+            bank: 'UV Taksitli Ticari Kredi (' + ccy + ')',
+            ccy, principal: amt,
+            startDate: safeDt.toISOString(),
+            term: totalTerm,
             rate: annualRate
           });
+        } else if (monthsPaid < totalTerm) {
+          const remN = totalTerm - monthsPaid;
+          let remBal;
+          if (rInc > 0) {
+            const pmt = amt * rInc / (1 - Math.pow(1 + rInc, -totalTerm));
+            remBal    = Math.round(pmt * (1 - Math.pow(1 + rInc, -remN)) / rInc);
+          } else {
+            remBal = Math.round(amt * remN / totalTerm);
+          }
+          remBal = Math.min(remBal, amt);
+          if (remBal > 0 && remN > 0) {
+            loans.push({
+              type: 'installment',
+              existing: true,
+              bank: 'UV Taksitli Ticari Kredi (' + ccy + ') — kalan ' + remN + ' ay',
+              ccy, principal: remBal,
+              startDate: projStartDt.toISOString(),
+              term: remN,
+              rate: annualRate
+            });
+          }
         }
         // monthsPaid >= totalTerm → kredi tamamlandı, atla
       }

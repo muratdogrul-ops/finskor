@@ -5199,6 +5199,9 @@ function nkmUygula() {
 
   var uvLoans  = [];
   var hasError = false;
+  // projYil: modal'daki önizleme ile aynı yıl kullanılır
+  var _projYilV = (_nkmPayload.veriYili || new Date().getFullYear()) + 1;
+
   document.querySelectorAll('[id^="nkm-row-"]').forEach(function(rowEl) {
     var idx    = rowEl.id.replace('nkm-row-','');
     var tutar  = Math.round(parseFloat(String((document.getElementById('nkm-tutar-'+idx)||{}).value||'0').replace(/\./g,'').replace(',','.')) || 0);
@@ -5214,6 +5217,35 @@ function nkmUygula() {
       loan.term     = vade;
       loan.disbDate = tarih;
       loan.rate     = isNaN(rate) ? 0 : rate;
+
+      // ── Kalan bakiye hesabı (modal önizleme ile aynı formül) ─────────────
+      // Modal'da doğru sonuç verenin aynısını buraya da yazarak
+      // nakit_akis.html'in tekrar hesaplamaya gerek kalmamasını sağlıyoruz.
+      if (tip === 'installment') {
+        var lDt    = new Date(tarih);
+        var psDt   = new Date(_projYilV, 0, 1);
+        var mPaid  = isNaN(lDt.getTime()) ? 0
+          : (psDt.getFullYear() - lDt.getFullYear()) * 12
+            + (psDt.getMonth()  - lDt.getMonth());
+        if (mPaid > 0 && mPaid < vade) {
+          var bsmvRv = (ccy === 'TL') ? 0.05 : 0;
+          var rIncV  = ((isNaN(loan.rate) ? 0 : loan.rate) / 100 / 12) * (1 + bsmvRv);
+          var remNv  = vade - mPaid;
+          var remBalV;
+          if (rIncV > 0) {
+            var pmtV  = tutar * rIncV / (1 - Math.pow(1 + rIncV, -vade));
+            remBalV   = Math.round(pmtV * (1 - Math.pow(1 + rIncV, -remNv)) / rIncV);
+          } else {
+            remBalV = Math.round(tutar * remNv / vade);
+          }
+          remBalV = Math.min(remBalV, tutar);
+          if (remBalV > 0) {
+            loan.precomputedRemBal = remBalV; // nakit_akis.html bunu kullanır
+            loan.precomputedRemN   = remNv;
+            loan.isExistingLoan    = true;
+          }
+        }
+      }
     }
     uvLoans.push(loan);
   });
