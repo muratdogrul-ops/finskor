@@ -1428,16 +1428,27 @@ function saveAssumptions(){
 // ══════════════════════════════════════════════
 // EXPENSES
 // ══════════════════════════════════════════════
+function updateExpenseTotalDisplay(){
+  let s=0;
+  document.querySelectorAll('.exp-input').forEach(function(inp){ s+=fnum(inp.value); });
+  const el=$('expense-monthly-total');
+  if(el) el.textContent=tr(s);
+}
 function renderExpenseGroups(){
   const f=curFirm();if(!f)return;
-  const byName={};for(const v of Object.values(f.expenses||{}))byName[v.name]=v.amount||0;
+  const byName={};let sumAll=0;for(const v of Object.values(f.expenses||{})){byName[v.name]=v.amount||0;sumAll+=v.amount||0;}
   $('expense-groups').innerHTML=EXPENSE_GROUPS.map(({group,items})=>
     '<div class="card" style="margin-bottom:12px"><div class="section-sep">'+esc(group)+'</div>'+
     '<div class="tbl-scroll"><table><thead><tr>'+
-    '<th style="text-align:left">Kalem</th><th style="text-align:right;width:180px">Aylık TL</th></tr></thead><tbody>'+
+    '<th style="text-align:left">Kalem</th><th style="text-align:right;width:180px">Aylık TL (KDV hariç)</th></tr></thead><tbody>'+
     items.map(item=>'<tr><td style="font-family:Syne,sans-serif">'+esc(item)+'</td>'+
-      '<td><input type="number" class="exp-input" data-name="'+esc(item)+'" value="'+(byName[item]||0)+'" style="width:160px;font-size:.8rem;text-align:right" step="any"></td></tr>').join('')+
-    '</tbody></table></div></div>').join('');
+      '<td><input type="number" class="exp-input" data-name="'+esc(item)+'" value="'+(byName[item]||0)+'" style="width:160px;font-size:.8rem;text-align:right" step="any" oninput="updateExpenseTotalDisplay()"></td></tr>').join('')+
+    '</tbody></table></div></div>').join('')+
+    '<div class="card" style="margin-top:16px;border:1px solid rgba(59,130,246,.45);background:rgba(59,130,246,.06)">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;flex-wrap:wrap;gap:10px">'+
+    '<span style="font-weight:700;font-size:1rem">Aylık Toplam Gider (KDV Hariç, TL)</span>'+
+    '<span id="expense-monthly-total" style="font-size:1.2rem;font-weight:700;color:var(--acc)">'+tr(sumAll)+'</span></div>'+
+    '<p style="margin:0 18px 14px;font-size:.75rem;color:var(--tx3)">Tüm kalemlerin aylık toplamıdır. Nakit akış tablosundaki «Faaliyet Giderleri» ve «Aylık Toplam Gider» satırları bu tutarlarla uyumludur.</p></div>';
 }
 function applyBulkExpense() {
   const amount = fnum($('bulk-expense').value);
@@ -1453,8 +1464,8 @@ function applyBulkExpense() {
     }
   });
   if (!found) { showAlert('Kalem bulunamadı — önce Giderler sayfasını açın.', 'err'); return; }
-  // Otomatik kaydet
   saveExpenses();
+  updateExpenseTotalDisplay();
   showAlert('✅ Aylık toplu gider "' + targetName + '" kalemine yazıldı: ' + tr(amount) + ' TL', 'ok');
   $('bulk-expense').value = '';
 }
@@ -1467,7 +1478,7 @@ function saveExpenses(){
     const name=inp.dataset.name;const val=fnum(inp.value);
     for(const v of Object.values(newExp))if(v.name===name){v.amount=val;break;}
   });
-  f.expenses=newExp;saveState();showAlert('Giderler kaydedildi.','ok');
+  f.expenses=newExp;saveState();updateExpenseTotalDisplay();showAlert('Giderler kaydedildi.','ok');
 }
 
 // ══════════════════════════════════════════════
@@ -2478,7 +2489,7 @@ function annual5Y(rows,startYear,mdv0=0){
   const years=[startYear,startYear+1,startYear+2,startYear+3,startYear+4];
   const inc={};const bal={};
   for(const y of years)inc[y]={
-    ciro:0,cogs:0,opex:0,tFaiz:0,bchFaizAccr:0,depFaiz:0,tax:0,ebt:0,
+    ciro:0,cogs:0,opex:0,tedarikci:0,toplamGiderNakit:0,tFaiz:0,bchFaizAccr:0,depFaiz:0,tax:0,ebt:0,
     bchRepay:0,taksitAnapara:0,manuelGelir:0,manuelGider:0,
     // Yatırım ve sermaye artışı gelir tablosuna GİRMEZ
     yatirimKumul:0,   // kümülatif yatırım → bilanço MDV
@@ -2491,6 +2502,7 @@ function annual5Y(rows,startYear,mdv0=0){
     inc[y].ciro    += r['Satış(TL)']   ||0;
     inc[y].cogs    += r['COGS(TL)']    ||0;
     inc[y].opex    += r['Faaliyet Gid.']||0;
+    inc[y].tedarikci += r['Tedarikçi Öd.']||0;
     inc[y].tFaiz   += r['Taksit Faiz+BSMV'] ||0;  // Taksit faiz+BSMV → gelir tablosu
     inc[y].tFaiz   += r['Spot Faiz Öd.']      ||0;  // Spot faiz → gelir tablosu (anapara GİRMEZ)
     inc[y].bchFaizAccr += r['BCH Faiz T.']||0;
@@ -2524,6 +2536,7 @@ function annual5Y(rows,startYear,mdv0=0){
     inc[y].gpM   = ciro>0?gp/ciro*100:0;
     inc[y].faalM = ciro>0?faalKar/ciro*100:0;
     inc[y].netM  = ciro>0?net/ciro*100:0;
+    inc[y].toplamGiderNakit = (inc[y].tedarikci||0) + (inc[y].opex||0);
     const yr=rows.filter(r=>{const d=r['Tarih'].split('-');return parseInt(d[2])===y;});
     if(yr.length){
       const last=yr[yr.length-1];
@@ -2582,6 +2595,8 @@ function renderIncome5Y(){
     {l:'Brüt Kâr',             k:'gp',      bold:true, margin:'gpM'},
     {sep:'FAALİYET GİDERLERİ'},
     {l:'Genel Yönetim & Operasyon', k:'opex', cost:true},
+    {sep:'TOPLAM GİDER (KDV HARİÇ)'},
+    {l:'Tedarikçi + Faaliyet Giderleri (nakit akış ile aynı, yıllık)', k:'toplamGiderNakit', cost:true, bold:true},
     {sep:'FAALİYET KÂRI (EBIT)'},
     {l:'Faaliyet Kârı (EBIT)', k:'faalKar', bold:true, margin:'faalM'},
     {sep:'DİĞER OLAĞAN GELİR / GİDER'},
@@ -2612,7 +2627,7 @@ function renderIncome5Y(){
       if(row.cost) cls=v>0?'neg':'';
       else cls=v>0?'pos':v<0?'neg':'';
       let extra='';
-      if(row.margin){const m=inc[y]?.[row.margin]||0;extra='<br><span style="font-size:.65rem;color:var(--tx3)">'+m.toFixed(1)+'%</span>';}
+      if(row.margin){const m=inc[y]?.[row.margin]||0;extra='<br><span style="font-size:.65rem;color:var(--tx3)">'+tr(m,1)+'%</span>';}
       return'<td class="'+cls+'">'+tr(v)+extra+'</td>';
     }).join('');
     const lbl=(row.bold?'<b>':'')+esc(row.l)+(row.bold?'</b>':'');
@@ -3507,9 +3522,21 @@ function pdfAddFooter(doc, pageNum, totalPages, pageW, pageH) {
   doc.text(pageNum + ' / ' + totalPages, pageW - 10, pageH - 2.5, { align: 'right' });
 }
 
-function pdfNum(v) {
-  if (v == null || (v === 0)) return '';
-  return Number(v).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// PDF'de Helvetica + autoTable bazen toLocaleString çıktısını bozar; elle TR formatı
+function pdfNum(v, fracDigits) {
+  const d = fracDigits !== undefined ? fracDigits : 2;
+  if (v == null || v === '') return d === 2 ? '0,00' : '0';
+  const n = Number(v);
+  if (isNaN(n)) return '';
+  const neg = n < 0;
+  const abs = Math.abs(n);
+  const fixed = abs.toFixed(d);
+  const parts = fixed.split('.');
+  const intRaw = parts[0];
+  const dec = parts[1] !== undefined ? parts[1] : '';
+  let intWithDots = intRaw.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const body = dec.length ? (intWithDots + ',' + dec) : intWithDots;
+  return neg ? ('-' + body) : body;
 }
 
 function pdfBuildCashFlowPages(doc, proj, firmName) {
@@ -3620,6 +3647,7 @@ function pdfBuildIncomePage(doc, proj, firmName) {
     {l:'Satılan Mal Maliyeti (−)',            k:'cogs',        cost:true},
     {l:'Brüt Kâr',                           k:'gp',          bold:true},
     {l:'Faaliyet Giderleri (−)',              k:'opex',        cost:true},
+    {l:'Toplam Gider — Tedarikçi + Faaliyet (yıllık, KDV hariç)', k:'toplamGiderNakit', cost:true, bold:true},
     {l:'BCH Faiz Gideri (−)',                k:'bchFaizAccr', cost:true},
     {l:'Taksitli + Spot Kredi Faizi (−)',    k:'tFaiz',       cost:true},
     {l:'Mevduat Faiz Geliri (+)',             k:'depFaiz',     bold:false},
