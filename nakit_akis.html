@@ -2177,31 +2177,28 @@ function buildProjection(firmId){
       // Taksitli kredi: kullanım girişi − toplam taksit (anapara+faiz+BSMV)
       cash += receipts[t] + otherIn + capitalIn + installDisb[t] + spotIn
             - (supplierPay[t] + opex[t] + installPay[t] + spotOut + (taxPay[t]||0) + otherOut + investOut);
-      // BCH faiz: Türk bankacılığı basit faiz, gerçek gün/360, BSMV dahil (%5)
-      // Formül: (BCH oranı × bakiye × gerçek gün sayısı) / 36000 × 1.05
+      // ── BCH faiz tahakkuku: gelir tablosu için aylık birikir ────────────────
+      // Formül: bakiye × yıllık_oran × gerçek_gün / 36000 × 1,05 (BSMV dahil)
       if(bbal>0&&bchRate>0){
         const dim=new Date(monthDates[t].getFullYear(),monthDates[t].getMonth()+1,0).getDate();
         const bi=bbal*bchRate*dim/36000*1.05;
         bchIntAccr[t]=bi;bchIntAccrued+=bi;
       }
-      // BCH faiz ödemesi: gerçek takvim ayı 3,6,9,12'de (Mart,Haziran,Eylül,Aralık)
+      // ── BCH faiz ödemesi: 3,6,9,12. aylarda KOŞULSUZ nakit çıkışı ──────────
+      // Ödeme zorunludur; nakit eksiyi adım 3'teki mevduat/BCH çekimi kapatır.
       const calMonth=monthDates[t].getMonth()+1;
       if([3,6,9,12].includes(calMonth)&&bchIntAccrued>0){
-        const need=bchIntAccrued;
-        // 1. Mevduat + nakit ile ödemeye çalış
-        if(cash<need&&deposit>0){const take=Math.min(deposit,need-cash);deposit-=take;cash+=take;}
-        // 2. BCH çekimi (limit > 0 ise)
-        if(cash<need){const avail=Math.max(0,bchLimit-bbal);const draw=Math.min(need-cash,avail);if(draw>0){bbal+=draw;cash+=draw;bchDraw[t]+=draw;}}
-        // 3. Elimizdeki nakitle öde (kısmi ödeme de kabul); kalan akrüe taşınır
-        const paid=Math.min(cash,need);
-        if(paid>0){cash-=paid;bchIntPaid[t]=paid;bchIntAccrued-=paid;}
+        bchIntPaid[t]=bchIntAccrued;
+        cash-=bchIntAccrued;
+        bchIntAccrued=0;
       }
+      // ── Adım 3: Nakit negatifse → önce mevduatı boz, sonra BCH çek ─────────
       if(cash<0&&deposit>0){const take=Math.min(deposit,-cash);deposit-=take;cash+=take;}
       if(cash<0){const need=-cash;const avail=Math.max(0,bchLimit-bbal);const draw=Math.min(need,avail);if(draw>0){bbal+=draw;cash+=draw;bchDraw[t]+=draw;}}
-      // Sadece otomatik çekilen kısım (bbal > openingBch) iade edilir.
-      // openingBch = mevcut krediler → anapara sabit, kapatılmaz.
-      if(cash>0&&bbal>openingBch){const repay=Math.min(cash,bbal-openingBch);bbal-=repay;cash-=repay;bchRepay[t]+=repay;}
+      // ── Adım 4: Nakit pozitifse → önce BCH kapat, sonra mevduat yap ─────────
+      if(cash>0&&bbal>0){const repay=Math.min(cash,bbal);bbal-=repay;cash-=repay;bchRepay[t]+=repay;}
       if(cash>0){deposit+=cash;cash=0;}
+      // ── Adım 5: Mevduat faizi ─────────────────────────────────────────────
       if(depRate>0&&deposit>0){const avg=(depStart+deposit)/2;const di=avg*monthRate(depRate);deposit+=di;depInt[t]=di;}
       cashEnd[t]=cash;bchEnd[t]=bbal;depEnd[t]=deposit;
     }
@@ -3019,10 +3016,10 @@ async function importFromFinSkor(){
       months: 60,
       growth:    growthRate,
       expGrowth: growthRate,
-      // stockMult=1.5: her ay aylık COGS'un 1.5 katı hammadde satın alınır.
-      // Açılış stok (inv0=p.stoklar) üzerine her ay 0.5×COGS net stok artışı oluşur.
-      stockMult: 1.5,
-      bchLimit: 0,
+      // stockMult=1.0: her ay COGS kadar hammadde alınır → stok sabit kalır.
+      stockMult: 1.0,
+      // bchLimit: BCH limiti → pratikte sınırsız; ay sonu eksi nakit her zaman BCH ile kapanır.
+      bchLimit: 1e12,
       bchRate: bch1,
       bch1, bch2, bch3, bch4, bch5,
       // EUR BCH faiz oranları (yıllık %6 sabit)
