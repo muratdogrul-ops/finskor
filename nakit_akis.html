@@ -2880,35 +2880,40 @@ function clearLoanPreview() {
 // INIT
 // ══════════════════════════════════════════════
 // ── FinSkor kredi aktarımı yardımcısı ────────────────────────────────────
-function _buildLoansFromFinskor(p, projYil, rate){
+// Kural:
+//   Toplam = KV + UV mali borç
+//   %60 → TL BCH (revolving, anapara sabit, 3/6/9/12 devre sonu faiz)
+//   %40 → EUR taksitli kredi (36 ay, EUR BCH faizi, aylık kur revizyonu)
+function _buildLoansFromFinskor(p, projYil){
   const loans = [];
+  const total = (p.kvMaliBorclar || 0) + (p.uvMaliBorclar || 0);
+  if(total <= 0) return loans;
+
   const projStart = new Date(projYil, 0, 1);
 
-  // Kısa vadeli mali borç → 12 ay taksitli, projeksiyonun başından itibaren
-  const kv = p.kvMaliBorclar || 0;
-  if(kv > 0){
+  // %60 → TL BCH (bch_existing, ccy:TL)
+  const tlBch = Math.round(total * 0.60);
+  if(tlBch > 0){
     loans.push({
-      type: 'installment',
-      bank: 'Mevcut KV Kredi (FinSkor)',
+      type: 'bch_existing',
+      bank: 'Mevcut TL BCH (FinSkor)',
       ccy: 'TL',
-      principal: kv,
-      startDate: projStart.toISOString(),
-      term: 12,
-      rate: rate
+      principal: tlBch
     });
   }
 
-  // Uzun vadeli mali borç → 36 ay taksitli, projeksiyonun başından itibaren
-  const uv = p.uvMaliBorclar || 0;
-  if(uv > 0){
+  // %40 → EUR taksitli (installment, ccy:EUR, 36 ay, EUR BCH faiz %6)
+  const eurTL = total - tlBch;
+  if(eurTL > 0){
+    const eurPrincipal = parseFloat((eurTL / FX_SPOT.eur).toFixed(2));
     loans.push({
       type: 'installment',
-      bank: 'Mevcut UV Kredi (FinSkor)',
-      ccy: 'TL',
-      principal: uv,
+      bank: 'Mevcut EUR Kredi (FinSkor)',
+      ccy: 'EUR',
+      principal: eurPrincipal,
       startDate: projStart.toISOString(),
       term: 36,
-      rate: rate
+      rate: 6  // EUR BCH referans faiz
     });
   }
 
@@ -2994,12 +2999,16 @@ async function importFromFinSkor(){
       bchLimit: 0,
       bchRate: bch1,
       bch1, bch2, bch3, bch4, bch5,
+      // EUR BCH faiz oranları (yıllık %6 sabit)
+      bchEurRate: 6, bchEur1: 6, bchEur2: 6, bchEur3: 6, bchEur4: 6, bchEur5: 6,
+      // USD BCH faiz oranları (yıllık %7 sabit)
+      bchUsdRate: 7, bchUsd1: 7, bchUsd2: 7, bchUsd3: 7, bchUsd4: 7, bchUsd5: 7,
       dep1: TCMB_POLICY.y1, dep2: TCMB_POLICY.y2, dep3: TCMB_POLICY.y3,
       dep4: TCMB_POLICY.y4, dep5: TCMB_POLICY.y5,
       taxRate: 25, taxMonths: '3,6,9,12'
     },
     expenses: defExp,
-    loans: _buildLoansFromFinskor(p, projYil, bch1),
+    loans: _buildLoansFromFinskor(p, projYil),
     manualCf: [],
     fxRates:{
       usdOpen: FX_SPOT.usd,
