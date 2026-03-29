@@ -3490,6 +3490,32 @@ const PDF_CLR = {
   sub:     [90, 100, 120],
 };
 
+// Helvetica WinAnsi: Turkce ve ozel karakterler bozulur. Sadece PDF ciktisi icin ASCII'ye indirger (pdfNum'a dokunma).
+const PDF_AY_KISA = ['Oca','Sub','Mar','Nis','May','Haz','Tem','Agu','Eyl','Eki','Kas','Ara'];
+function pdfTxt(s) {
+  if (s == null || s === '') return '';
+  const map = {
+    'ş':'s','Ş':'S','ğ':'g','Ğ':'G','ü':'u','Ü':'U','ö':'o','Ö':'O','ç':'c','Ç':'C','ı':'i','İ':'I',
+    'â':'a','Â':'A','ê':'e','Ê':'E','î':'i','Î':'I','ô':'o','Ô':'O','û':'u','Û':'U',
+    'à':'a','À':'A','á':'a','Á':'A','è':'e','È':'E','é':'e','É':'E','ì':'i','Ì':'I','í':'i','Í':'I',
+    'ò':'o','Ò':'O','ó':'o','Ó':'O','ù':'u','Ù':'U','ú':'u','Ú':'U','ñ':'n','Ñ':'N',
+    '«':'"','»':'"','"':'"','"':'"',''':'\'',''':'\'','…':'...','–':'-','—':'-','−':'-',
+    '₺':'TL','\u00A0':' ','\u2009':' ','\u202F':' '
+  };
+  let out = '';
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (map[c] !== undefined) out += map[c];
+    else {
+      const code = c.charCodeAt(0);
+      if (code >= 32 && code <= 126) out += c;
+      else if (c === '\n' || c === '\r' || c === '\t') out += ' ';
+      else out += '?';
+    }
+  }
+  return out;
+}
+
 function pdfAddHeader(doc, firmName, reportTitle, pageW) {
   // Koyu şerit
   doc.setFillColor(...PDF_CLR.navy);
@@ -3501,11 +3527,10 @@ function pdfAddHeader(doc, firmName, reportTitle, pageW) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(...PDF_CLR.white);
-  doc.text(firmName || 'NakitFlow', 10, 11.5);
-  // Rapor başlığı (sağ)
+  doc.text(pdfTxt(firmName || 'NakitFlow'), 10, 11.5);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text(reportTitle, pageW - 10, 11.5, { align: 'right' });
+  doc.text(pdfTxt(reportTitle || ''), pageW - 10, 11.5, { align: 'right' });
 }
 
 function pdfAddFooter(doc, pageNum, totalPages, pageW, pageH) {
@@ -3518,7 +3543,7 @@ function pdfAddFooter(doc, pageNum, totalPages, pageW, pageH) {
   doc.setTextColor(...PDF_CLR.sub);
   doc.setFont('helvetica', 'normal');
   const tarih = new Date().toLocaleDateString('tr-TR', { year:'numeric', month:'long', day:'numeric' });
-  doc.text('NakitFlow — FinSkor | ' + tarih, 10, pageH - 2.5);
+  doc.text(pdfTxt('NakitFlow - FinSkor | ' + tarih), 10, pageH - 2.5);
   doc.text(pageNum + ' / ' + totalPages, pageW - 10, pageH - 2.5, { align: 'right' });
 }
 
@@ -3551,11 +3576,11 @@ function pdfBuildCashFlowPages(doc, proj, firmName) {
 
   for (const yData of yearlyData) {
     doc.addPage();
-    pdfAddHeader(doc, firmName, yData.year + ' — Aylık Nakit Akım Projeksiyonu', pageW);
+    pdfAddHeader(doc, firmName, yData.year + ' - Aylik Nakit Akim Projeksiyonu', pageW);
 
     const months  = yData.months;
-    const ayKisa  = months.map(m => AY_KISA[(m.ay - 1) % 12] || ('A' + m.ay));
-    const head    = [['Kalem', ...ayKisa, 'Toplam/Son']];
+    const ayKisa  = months.map(m => PDF_AY_KISA[(m.ay - 1) % 12] || ('Ay' + m.ay));
+    const head    = [[pdfTxt('Kalem'), ...ayKisa.map(function(a){ return pdfTxt(a); }), pdfTxt('Toplam / Son')]];
     const body    = [];
 
     for (const rd of rowDefs) {
@@ -3564,7 +3589,7 @@ function pdfBuildCashFlowPages(doc, proj, firmName) {
       const isBal   = ['kapanisNakit','mevduat','bchEnd','taksitBak','spotBak','arBak','apBak','stokBak','acilis'].includes(rd.field);
       const vals    = months.map(m => m[rd.field] || 0);
       const tv      = isBal ? (vals[vals.length - 1] || 0) : vals.reduce((a,b) => a+b, 0);
-      const cells   = [rd.label, ...vals.map(v => pdfNum(v)), pdfNum(tv)];
+      const cells   = [pdfTxt(rd.label), ...vals.map(v => pdfNum(v)), pdfNum(tv)];
       body.push({ cells, isGrp, isTotal, field: rd.field });
     }
 
@@ -3621,7 +3646,7 @@ function pdfBuildCashFlowPages(doc, proj, firmName) {
         }
       },
       willDrawPage: function(data) {
-        pdfAddHeader(doc, firmName, yData.year + ' — Aylık Nakit Akım Projeksiyonu', pageW);
+        pdfAddHeader(doc, firmName, yData.year + ' - Aylik Nakit Akim Projeksiyonu', pageW);
       },
       didDrawPage: function(data) {
         const info = doc.internal;
@@ -3638,7 +3663,7 @@ function pdfBuildIncomePage(doc, proj, firmName) {
   const { years, inc } = annual5Y(proj.rows, sy, (proj.firm.opening || {}).mdv || 0);
 
   doc.addPage();
-  pdfAddHeader(doc, firmName, '5 Yıllık Gelir Tablosu', pageW);
+  pdfAddHeader(doc, firmName, '5 Yillik Gelir Tablosu', pageW);
 
   const yInts   = years; // annual5Y returns integer year array
   const yLabels = yInts.map(String);
@@ -3660,7 +3685,7 @@ function pdfBuildIncomePage(doc, proj, firmName) {
 
   const head   = [['', ...yLabels]];
   const body   = sections.map(row => [
-    row.l,
+    pdfTxt(row.l),
     ...yInts.map(y => pdfNum(inc[y]?.[row.k] || 0)),
   ]);
 
@@ -3680,7 +3705,7 @@ function pdfBuildIncomePage(doc, proj, firmName) {
         data.cell.styles.fillColor  = PDF_CLR.light;
       }
     },
-    willDrawPage: function() { pdfAddHeader(doc, firmName, '5 Yıllık Gelir Tablosu', pageW); },
+    willDrawPage: function() { pdfAddHeader(doc, firmName, '5 Yillik Gelir Tablosu', pageW); },
     didDrawPage:  function() {
       pdfAddFooter(doc, doc.internal.getCurrentPageInfo().pageNumber, '?', pageW, pageH);
     },
@@ -3699,8 +3724,6 @@ function pdfBuildCoverPage(doc, firmName, reportTitle) {
   doc.setFillColor(...PDF_CLR.light);
   doc.rect(0, pageH * 0.55 + 3, pageW, pageH * 0.45, 'F');
 
-  // Logo placeholder (NF monogram)
-  doc.setFillColor(255, 255, 255, 0.15);
   doc.setDrawColor(...PDF_CLR.accent);
   doc.setLineWidth(1.5);
   doc.roundedRect(14, 14, 28, 28, 4, 4, 'D');
@@ -3709,23 +3732,20 @@ function pdfBuildCoverPage(doc, firmName, reportTitle) {
   doc.setTextColor(...PDF_CLR.accent);
   doc.text('NF', 28, 31, { align: 'center' });
 
-  // NakitFlow ürün adı
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(180, 200, 230);
-  doc.text('NakitFlow — FinSkor Nakit Akış Analizi', pageW / 2, 18, { align: 'center' });
+  doc.text('NakitFlow - FinSkor Nakit Akis Analizi', pageW / 2, 18, { align: 'center' });
 
-  // Firma adı
   doc.setFontSize(26);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...PDF_CLR.white);
-  doc.text(firmName || 'Firma', pageW / 2, pageH * 0.28, { align: 'center' });
+  doc.text(pdfTxt(firmName || 'Firma'), pageW / 2, pageH * 0.28, { align: 'center' });
 
-  // Rapor başlığı
   doc.setFontSize(14);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(180, 200, 240);
-  doc.text(reportTitle, pageW / 2, pageH * 0.36, { align: 'center' });
+  doc.text(pdfTxt(reportTitle || ''), pageW / 2, pageH * 0.36, { align: 'center' });
 
   // Ayraç çizgi
   doc.setDrawColor(...PDF_CLR.accent);
@@ -3736,14 +3756,13 @@ function pdfBuildCoverPage(doc, firmName, reportTitle) {
   const tarih = new Date().toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' });
   doc.setFontSize(10);
   doc.setTextColor(160, 190, 230);
-  doc.text(tarih, pageW / 2, pageH * 0.45, { align: 'center' });
+  doc.text(pdfTxt(tarih), pageW / 2, pageH * 0.45, { align: 'center' });
 
-  // Alt bilgi bölümü (açık arka plan üzerine)
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...PDF_CLR.sub);
-  doc.text('Bu rapor NakitFlow sistemi tarafından otomatik olarak üretilmiştir.', pageW / 2, pageH * 0.65, { align: 'center' });
-  doc.text('Tüm rakamlar Türk Lirası (TRY) cinsindendir, KDV hariçtir.', pageW / 2, pageH * 0.7, { align: 'center' });
+  doc.text('Bu rapor NakitFlow sistemi tarafindan otomatik olarak uretilmistir.', pageW / 2, pageH * 0.65, { align: 'center' });
+  doc.text('Tum rakamlar Turk Lirasi (TRY) cinsindendir, KDV harictir.', pageW / 2, pageH * 0.7, { align: 'center' });
 }
 
 function exportFullPDF(reportTitle) {
@@ -3756,7 +3775,7 @@ function exportFullPDF(reportTitle) {
     const firmName = f.name || 'Firma';
 
     // 1. Kapak
-    pdfBuildCoverPage(doc, firmName, reportTitle || 'Nakit Akış Projeksiyonu Raporu');
+    pdfBuildCoverPage(doc, firmName, reportTitle || 'Nakit Akis Projeksiyonu Raporu');
 
     // 2. Nakit akım tabloları (her yıl ayrı sayfa)
     pdfBuildCashFlowPages(doc, lastProjection, firmName);
