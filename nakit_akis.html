@@ -2364,6 +2364,36 @@ function openingBalAdjFromOpening(o) {
     otherLiab: Number(o.otherLiab) || 0
   };
 }
+
+/** Açılış diğer borç KV/UV ayrımı (FinSkor); yoksa tümü KV. */
+function openingLiabKvUv(ob) {
+  const o = ob || {};
+  const kv = Number(o.openingOtherLiabKv) || 0;
+  const uv = Number(o.openingOtherLiabUv) || 0;
+  const tot = Number(o.otherLiab) || 0;
+  if (kv > 0 || uv > 0) return { kv, uv };
+  return { kv: tot, uv: 0 };
+}
+
+function balDonenToplam(b) {
+  const x = b || {};
+  return (x.nakit || 0) + (x.mevduat || 0) + (x.ar || 0) + (x.stok || 0) + (x.otherAssets || 0);
+}
+function balDuranToplam(b) {
+  return (b || {}).mdv || 0;
+}
+/** KV: AP + BCH + KV diğer borç (FinSkor dengesi). */
+function balKvYukToplam(b, ob) {
+  const x = b || {};
+  const { kv } = openingLiabKvUv(ob);
+  return (x.ap || 0) + (x.bch || 0) + kv;
+}
+/** UV: taksit + spot + UV diğer borç. */
+function balUvYukToplam(b, ob) {
+  const x = b || {};
+  const { uv } = openingLiabKvUv(ob);
+  return (x.taksit || 0) + (x.spot || 0) + uv;
+}
 function annual5Y(rows, startYear, mdv0 = 0, balAdj) {
   const _ba = openingBalAdjFromOpening(balAdj);
   const oa = _ba.otherAssets;
@@ -2625,8 +2655,10 @@ function renderBalance5Y(){
       {l:'Ticari Alacak (AR)',k:'ar'},
       {l:'Stok',             k:'stok'},
       {l:'Diğer alacak + diğer dönen (bilanço dengesi)', k:'otherAssets'},
+      {l:'► Dönen Varlıklar Toplamı', k:'__donen_top__', bold:true, corpTotal:true},
       {sep:'DURAN VARLIKLAR'},
       {l:'Maddi Duran Varlık (kümülatif yatırım)',k:'mdv'},
+      {l:'► Duran Varlıklar Toplamı', k:'__duran_top__', bold:true, corpTotal:true},
       {l:'► AKTİF TOPLAM',  k:'aktifToplam',bold:true,corpTotal:true},
       {sep:'YÜKÜMLÜLÜKLER'},
       {l:'Ticari Borç (AP)', k:'ap',    c:true},
@@ -2634,6 +2666,8 @@ function renderBalance5Y(){
       {l:'Spot Kredi',      k:'spot',  c:true},
       {l:'Taksitli Kredi',   k:'taksit',c:true},
       {l:'Diğer borçlar + alınan avans (bilanço dengesi)', k:'otherLiab', c:true},
+      {l:'► Kısa Vadeli Yükümlülükler Toplamı', k:'__kv_yuk__', c:true, bold:true, corpTotal:true},
+      {l:'► Uzun Vadeli Yükümlülükler Toplamı', k:'__uv_yuk__', c:true, bold:true, corpTotal:true},
       {l:'► Toplam Yükümlülük',k:'toplamYuk',c:true,bold:true,corpTotal:true},
       {sep:'ÖZKAYNAK'},
       {l:'Sermaye (Açılış)', k:'__cap__'},
@@ -2654,7 +2688,11 @@ function renderBalance5Y(){
         v = finSkorBilancoYearCell(f, row.fsEntry, y, bal, inc, ret, capital0, realPasif[y]);
       } else if(row.fark) {
         v=((bal[y]||{}).aktifToplam||0)-(realPasif[y]||0);
-      } else if(row.k==='__cap__')         v=capital0;
+      }       else if(row.k==='__cap__')         v=capital0;
+      else if(row.k==='__donen_top__')  v=balDonenToplam(bal[y]);
+      else if(row.k==='__duran_top__')  v=balDuranToplam(bal[y]);
+      else if(row.k==='__kv_yuk__')     v=balKvYukToplam(bal[y], f.opening);
+      else if(row.k==='__uv_yuk__')     v=balUvYukToplam(bal[y], f.opening);
       else if(row.k==='__gecmis_bfw__')   v=ret.bfw[y]||0;
       else if(row.k==='__donem_net__')    v=inc[y]?.net||0;
       else if(row.k==='__pasif__')  v=realPasif[y]||0;
@@ -2692,9 +2730,13 @@ function exportCSV5Y(type){
     :[['Kalem',...years],['Nakit',...years.map(y=>(bal[y]||{}).nakit||0)],['Mevduat',...years.map(y=>(bal[y]||{}).mevduat||0)],
       ['AR',...years.map(y=>(bal[y]||{}).ar||0)],['Stok',...years.map(y=>(bal[y]||{}).stok||0)],
       ['Diğer alacak+dönen (denge)',...years.map(y=>(bal[y]||{}).otherAssets||0)],
+      ['Dönen varlık toplamı',...years.map(y=>balDonenToplam(bal[y]))],
+      ['MDV',...years.map(y=>(bal[y]||{}).mdv||0)],['Duran varlık toplamı',...years.map(y=>balDuranToplam(bal[y]))],
       ['Aktif Toplam',...years.map(y=>(bal[y]||{}).aktifToplam||0)],['AP',...years.map(y=>(bal[y]||{}).ap||0)],
-      ['BCH',...years.map(y=>(bal[y]||{}).bch||0)],['Taksitli Kredi',...years.map(y=>(bal[y]||{}).taksit||0)],
+      ['BCH',...years.map(y=>(bal[y]||{}).bch||0)],['Spot',...years.map(y=>(bal[y]||{}).spot||0)],['Taksitli Kredi',...years.map(y=>(bal[y]||{}).taksit||0)],
       ['Diğer borç+avans (denge)',...years.map(y=>(bal[y]||{}).otherLiab||0)],
+      ['KV yükümlülük toplamı',...years.map(y=>balKvYukToplam(bal[y],f.opening))],
+      ['UV yükümlülük toplamı',...years.map(y=>balUvYukToplam(bal[y],f.opening))],
       ['Toplam Yük.',...years.map(y=>(bal[y]||{}).toplamYuk||0)],
       ['Sermaye',...years.map(()=>c0)],
       ['Geçmiş yıl k/z (devreden yıl başı)',...years.map(y=>ret.bfw[y]||0)],
@@ -3395,6 +3437,7 @@ function exportRaporExcel() {
   const ret = computeRetained(years, inc, openingRetainedFromSnapshot(f.finskorBilancoSnapshot));
   const c0 = (f.opening || {}).capital || 0;
   const bilHdrs = ['Kalem', ...years.map(String)];
+  const ob = f.opening || {};
   const bilRows = [
     ['── AKTİF ──',           ...years.map(() => '')],
     ['Nakit & Banka',         ...years.map(y => (bal[y] || {}).nakit || 0)],
@@ -3402,12 +3445,18 @@ function exportRaporExcel() {
     ['Ticari Alacak (AR)',    ...years.map(y => (bal[y] || {}).ar || 0)],
     ['Stok',                  ...years.map(y => (bal[y] || {}).stok || 0)],
     ['Diğer alacak + diğer dönen (denge)', ...years.map(y => (bal[y] || {}).otherAssets || 0)],
+    ['Dönen Varlıklar Toplamı', ...years.map(y => balDonenToplam(bal[y]))],
+    ['Maddi Duran Varlık',    ...years.map(y => (bal[y] || {}).mdv || 0)],
+    ['Duran Varlıklar Toplamı', ...years.map(y => balDuranToplam(bal[y]))],
     ['AKTİF TOPLAM',          ...years.map(y => (bal[y] || {}).aktifToplam || 0)],
     ['── PASİF ──',           ...years.map(() => '')],
     ['Ticari Borç (AP)',      ...years.map(y => (bal[y] || {}).ap || 0)],
     ['BCH Borcu',             ...years.map(y => (bal[y] || {}).bch || 0)],
+    ['Spot Kredi',            ...years.map(y => (bal[y] || {}).spot || 0)],
     ['Taksitli Kredi',        ...years.map(y => (bal[y] || {}).taksit || 0)],
     ['Diğer borç + alınan avans (denge)', ...years.map(y => (bal[y] || {}).otherLiab || 0)],
+    ['KV Yükümlülükler Toplamı', ...years.map(y => balKvYukToplam(bal[y], ob))],
+    ['UV Yükümlülükler Toplamı', ...years.map(y => balUvYukToplam(bal[y], ob))],
     ['TOPLAM YÜKÜMLÜLÜKler', ...years.map(y => (bal[y] || {}).toplamYuk || 0)],
     ['── ÖZKAYNAK ──',        ...years.map(() => '')],
     ['Sermaye',               ...years.map(() => c0)],
@@ -3457,17 +3506,24 @@ function exportBilançoExcel() {
   const c0 = (f.opening||{}).capital||0;
   const wb = XLSX.utils.book_new();
   const hdrs = ['Kalem', ...years.map(String)];
+  const ob = f.opening || {};
   const rows2 = [
     ['Nakit', ...years.map(y=>(bal[y]||{}).nakit||0)],
     ['Mevduat', ...years.map(y=>(bal[y]||{}).mevduat||0)],
     ['AR', ...years.map(y=>(bal[y]||{}).ar||0)],
     ['Stok', ...years.map(y=>(bal[y]||{}).stok||0)],
     ['Diğer alacak+dönen (denge)', ...years.map(y=>(bal[y]||{}).otherAssets||0)],
+    ['Dönen varlık toplamı', ...years.map(y=>balDonenToplam(bal[y]))],
+    ['MDV', ...years.map(y=>(bal[y]||{}).mdv||0)],
+    ['Duran varlık toplamı', ...years.map(y=>balDuranToplam(bal[y]))],
     ['AKTİF TOPLAM', ...years.map(y=>(bal[y]||{}).aktifToplam||0)],
     ['AP', ...years.map(y=>(bal[y]||{}).ap||0)],
     ['BCH', ...years.map(y=>(bal[y]||{}).bch||0)],
-    ['Kredi', ...years.map(y=>(bal[y]||{}).taksit||0)],
+    ['Spot', ...years.map(y=>(bal[y]||{}).spot||0)],
+    ['Taksitli kredi', ...years.map(y=>(bal[y]||{}).taksit||0)],
     ['Diğer borç+avans (denge)', ...years.map(y=>(bal[y]||{}).otherLiab||0)],
+    ['KV yükümlülük toplamı', ...years.map(y=>balKvYukToplam(bal[y], ob))],
+    ['UV yükümlülük toplamı', ...years.map(y=>balUvYukToplam(bal[y], ob))],
     ['YÜKÜMLÜLÜKler', ...years.map(y=>(bal[y]||{}).toplamYuk||0)],
     ['Sermaye', ...years.map(()=>c0)],
     ['Geçmiş yıl k/z (devreden yıl başı)', ...years.map(y=>ret.bfw[y]||0)],
@@ -3740,8 +3796,9 @@ function pdfBuildBalancePage(doc, proj, firmName) {
   const pageH = doc.internal.pageSize.getHeight();
   const sy = new Date(proj.firm.startDate).getFullYear();
   const mdv0 = (proj.firm.opening || {}).mdv || 0;
-  const capital0 = (proj.firm.opening || {}).capital || 0;
-  const { years, inc, bal } = annual5Y(proj.rows, sy, mdv0, openingBalAdjFromOpening(proj.firm.opening));
+  const opening = proj.firm.opening || {};
+  const capital0 = opening.capital || 0;
+  const { years, inc, bal } = annual5Y(proj.rows, sy, mdv0, openingBalAdjFromOpening(opening));
   const ret = computeRetained(years, inc, openingRetainedFromSnapshot(proj.firm.finskorBilancoSnapshot));
   const realPasif = {};
   for (const y of years) {
@@ -3751,41 +3808,72 @@ function pdfBuildBalancePage(doc, proj, firmName) {
   const yLabels = years.map(String);
   const bodyMeta = [];
   const pushSep = (t) => { bodyMeta.push({ cells: [t, ...years.map(() => '')], isSep: true }); };
+  const pushBand = (label, vals) => { bodyMeta.push({ cells: [label, ...vals], isBand: true }); };
+
   pushSep('DÖNEN VARLIKLAR');
   [['Nakit & Banka', 'nakit'], ['Mevduat', 'mevduat'], ['Ticari Alacak (AR)', 'ar'], ['Stok', 'stok'],
     ['Diğer alacak + diğer dönen (denge)', 'otherAssets']].forEach(([lab, k]) => {
     bodyMeta.push({ cells: [lab, ...years.map(y => pdfNum((bal[y] || {})[k] || 0))] });
   });
+  pushBand('► Dönen Varlıklar Toplamı', years.map(y => pdfNum(balDonenToplam(bal[y]))));
+
   pushSep('DURAN VARLIKLAR');
   bodyMeta.push({ cells: ['Maddi Duran Varlık (kümülatif yatırım)', ...years.map(y => pdfNum((bal[y] || {}).mdv || 0))] });
-  bodyMeta.push({ cells: ['► AKTİF TOPLAM', ...years.map(y => pdfNum((bal[y] || {}).aktifToplam || 0))], isTotal: true });
+  pushBand('► Duran Varlıklar Toplamı', years.map(y => pdfNum(balDuranToplam(bal[y]))));
+  pushBand('► AKTİF TOPLAM', years.map(y => pdfNum((bal[y] || {}).aktifToplam || 0)));
+
   pushSep('YÜKÜMLÜLÜKLER');
   [['Ticari Borç (AP)', 'ap'], ['BCH', 'bch'], ['Spot Kredi', 'spot'], ['Taksitli Kredi', 'taksit'],
     ['Diğer borç + alınan avans (denge)', 'otherLiab']].forEach(([lab, k]) => {
     bodyMeta.push({ cells: [lab, ...years.map(y => pdfNum((bal[y] || {})[k] || 0))] });
   });
-  bodyMeta.push({ cells: ['► Toplam Yükümlülük', ...years.map(y => pdfNum((bal[y] || {}).toplamYuk || 0))], isTotal: true });
+  pushBand('► KV Yükümlülükler Toplamı', years.map(y => pdfNum(balKvYukToplam(bal[y], opening))));
+  pushBand('► UV Yükümlülükler Toplamı', years.map(y => pdfNum(balUvYukToplam(bal[y], opening))));
+  pushBand('► Toplam Yükümlülük', years.map(y => pdfNum((bal[y] || {}).toplamYuk || 0)));
+
   pushSep('ÖZKAYNAK');
   bodyMeta.push({ cells: ['Sermaye (Açılış)', ...years.map(() => pdfNum(capital0))] });
   bodyMeta.push({ cells: ['Sermaye Artışı (kümülatif)', ...years.map(y => pdfNum((bal[y] || {}).sermayeEk || 0))] });
   bodyMeta.push({ cells: ['Geçmiş yıl k/z (devreden yıl başı)', ...years.map(y => pdfNum(ret.bfw[y] || 0))] });
   bodyMeta.push({ cells: ['Dönem net kâr/zarar', ...years.map(y => pdfNum(inc[y]?.net || 0))] });
-  bodyMeta.push({ cells: ['► PASİF TOPLAM', ...years.map(y => pdfNum(realPasif[y] || 0))], isTotal: true });
+  pushBand('► PASİF TOPLAM', years.map(y => pdfNum(realPasif[y] || 0)));
   bodyMeta.push({ cells: ['Denge Farkı (Aktif − Pasif)', ...years.map(y => {
     const a = (bal[y] || {}).aktifToplam || 0;
     return pdfNum(a - (realPasif[y] || 0));
   })] });
+
+  const margin = 7;
+  const labelCol = 56;
+  const colW = Math.max(22, (pageW - margin * 2 - labelCol) / yLabels.length);
+  const columnStyles = { 0: { halign: 'left', cellWidth: labelCol, fontStyle: 'bold' } };
+  for (let i = 0; i < yLabels.length; i++) columnStyles[i + 1] = { halign: 'right', cellWidth: colW };
 
   doc.addPage();
   pdfAddHeader(doc, firmName, '5 Yıllık Bilanço', pageW);
   doc.autoTable({
     head: [['Kalem', ...yLabels]],
     body: bodyMeta.map(r => r.cells),
-    startY: 22,
-    margin: { left: 12, right: 12 },
-    styles: { fontSize: 8, cellPadding: 2, font: 'NotoSans', textColor: PDF_CLR.text },
-    headStyles: { font: 'NotoSans', fillColor: PDF_CLR.navy, textColor: PDF_CLR.white, fontStyle: 'bold', halign: 'center' },
-    columnStyles: { 0: { halign: 'left', cellWidth: 65, fontStyle: 'bold' } },
+    startY: 20,
+    margin: { left: margin, right: margin, bottom: 9 },
+    tableWidth: pageW - margin * 2,
+    styles: {
+      fontSize: 6.2,
+      cellPadding: 0.85,
+      font: 'NotoSans',
+      textColor: PDF_CLR.text,
+      overflow: 'linebreak',
+      valign: 'middle',
+    },
+    headStyles: {
+      font: 'NotoSans',
+      fillColor: PDF_CLR.navy,
+      textColor: PDF_CLR.white,
+      fontStyle: 'bold',
+      halign: 'center',
+      fontSize: 6.5,
+      cellPadding: 1,
+    },
+    columnStyles,
     bodyStyles: { halign: 'right' },
     didParseCell: function(data) {
       if (data.section !== 'body') return;
@@ -3794,11 +3882,13 @@ function pdfBuildBalancePage(doc, proj, firmName) {
         data.cell.styles.fillColor = PDF_CLR.band;
         data.cell.styles.textColor = PDF_CLR.bandText;
         data.cell.styles.fontStyle = 'bold';
+        data.cell.styles.fontSize = 6.4;
         if (data.column.index > 0) data.cell.text = '';
-      } else if (meta.isTotal) {
+      } else if (meta.isBand) {
         data.cell.styles.fillColor = PDF_CLR.band;
         data.cell.styles.textColor = PDF_CLR.bandText;
         data.cell.styles.fontStyle = 'bold';
+        data.cell.styles.fontSize = 6.3;
       }
     },
     willDrawPage: function() {
