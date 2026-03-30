@@ -2362,17 +2362,26 @@ function fmtN(n) {
   return Number(n).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 
+/** 2025: UV ticari borç (42) KV ticari borç (32) ile toplanır; UV tarafında ticari 0 kabul edilir. */
+function ticBorclarEtkinKvUv(year, row) {
+  const kv = parseFloat((row && row.kvTicBorclar) || 0) || 0;
+  const uv = parseFloat((row && row.uvTicBorclar) || 0) || 0;
+  if (year === 2025) return { kvTic: kv + uv, uvTic: 0 };
+  return { kvTic: kv, uvTic: uv };
+}
+
 function recalc() {
   [2022,2023,2024,2025,2026].forEach(y => {
     const D = k => state.yearData[y][k]||0;
+    const { kvTic, uvTic } = ticBorclarEtkinKvUv(y, state.yearData[y]);
     const donen = D('hazirDegerler')+D('menkKiymetler')+D('ticAlacaklar')+D('digerAlacaklar')+D('stoklar')+D('yilYayginMal')+D('gelecekAyGider')+D('digerDonen');
     setT('donenVarlik',y,donen);
     const duran = D('uzunTicAlacak')+D('uzunDigAlacak')+D('maliDuranVar')+D('maddiDuranVar')+D('maddiOlmayan')+D('ozelTukenme')+D('gelecekYilGider')+D('digerDuran');
     setT('duranVarlik',y,duran);
     setT('aktifToplam',y,donen+duran);
-    const kv = D('kvMaliBorclar')+D('kvTicBorclar')+D('kvDigBorclar')+D('alinanAvans')+D('yilHakediş')+D('odenecekVergi')+D('borcKarsilik')+D('gelecekAyGelir')+D('digerKvYK');
+    const kv = D('kvMaliBorclar')+kvTic+D('kvDigBorclar')+D('alinanAvans')+D('yilHakediş')+D('odenecekVergi')+D('borcKarsilik')+D('gelecekAyGelir')+D('digerKvYK');
     setT('kvYKToplam',y,kv);
-    const uv = D('uvMaliBorclar')+D('uvTicBorclar')+D('uvDigBorclar')+D('uvAlinanAvans')+D('uvBorcKarsilik')+D('uvDigYK');
+    const uv = D('uvMaliBorclar')+uvTic+D('uvDigBorclar')+D('uvAlinanAvans')+D('uvBorcKarsilik')+D('uvDigYK');
     setT('uvYKToplam',y,uv);
     const oz = D('odenmisSermaye')+D('sermaYedek')+D('karYedek')+D('gecmisKar')-D('gecmisZarar')+D('donemNetKar');
     setT('ozKaynak',y,oz);
@@ -2648,8 +2657,9 @@ function calcRatios(refYear) {
   const kvMaliBor   = D('kvMaliBorclar');      // E29 KV Banka Borcu
   const kvDigFin    = 0;                       // E30 Diğer KV Finansal Borç (ayrı alan yok)
   const uvCariTaks  = 0;                       // E31 UV Borç Cari Taksidi (ayrı alan yok)
-  const kvTicBor    = D('kvTicBorclar');       // E32 KV Ticari Borçlar
-  const uvTicBor    = D('uvTicBorclar') || 0;  // Uzun vadeli ticari — ödeme süresinde KV ile birlikte
+  const _ticB = ticBorclarEtkinKvUv(refYear, d);
+  const kvTicBor    = _ticB.kvTic;             // E32 (+ 2025'te 42 ticari)
+  const uvTicBor    = _ticB.uvTic;           // 2025'te UV ticari KV'da toplandı
   // KV borçlar: ham değer içinde hak35 var (yilHakediş KV'da), onu çıkar sonra gelir fazlasını ekle
   const kvBorclar   = _isTaahhut ? D('kvYKToplam') - _hak35 + _gelirFazlasi : D('kvYKToplam');
   const uvMaliBor   = D('uvMaliBorclar');      // E40 UV Finansal Borçlar
@@ -3435,8 +3445,15 @@ function computeOzetTabloData(refYear, prevYear, isTaahhut) {
     if (h.isTotal || _BILANCO_TOTAL_KEYS.has(h.key)) {
       const tip = (h.key === 'aktifToplam' || h.key === 'pasifToplam') ? 'anatoplam' : 'toplam';
       let cv = D(h.key), pv = Dp(h.key);
-      if (h.key === 'kvYKToplam') { cv += uvTicCur; pv += uvTicPrev; }
-      if (h.key === 'uvYKToplam') { cv -= uvTicCur; pv -= uvTicPrev; }
+      // 2025: recalc zaten UV ticariyi KV'ye taşıdı; özet toplamda çift ekleme/çıkarma yapma
+      if (h.key === 'kvYKToplam') {
+        if (refYear !== 2025) cv += uvTicCur;
+        if (prevYear !== 2025) pv += uvTicPrev;
+      }
+      if (h.key === 'uvYKToplam') {
+        if (refYear !== 2025) cv -= uvTicCur;
+        if (prevYear !== 2025) pv -= uvTicPrev;
+      }
       bilancoSatirlar.push({ tip, label: lab, cv, pv });
       continue;
     }
@@ -7765,12 +7782,12 @@ function hesapToplamlar(year) {
   // Aktif Toplam
   d.aktifToplam = (d.donenVarlik||0) + (d.duranVarlik||0);
 
-  // KV Yabancı Kaynak — alt kalemler varsa onlardan hesapla, yoksa PDF'den gelen toplamı kullan
-  const kvAlt = sum('kvMaliBorclar','kvTicBorclar','kvDigBorclar','alinanAvans','yilHakediş','odenecekVergi','borcKarsilik','gelecekAyGelir','digerKvYK');
+  // KV / UV Yabancı Kaynak — 2025'te UV ticari KV ticariye dahil
+  const { kvTic: kvTicEff, uvTic: uvTicEff } = ticBorclarEtkinKvUv(year, d);
+  const kvAlt = sum('kvMaliBorclar','kvDigBorclar','alinanAvans','yilHakediş','odenecekVergi','borcKarsilik','gelecekAyGelir','digerKvYK') + kvTicEff;
   d.kvYKToplam = kvAlt > 0 ? kvAlt : (d.kvYKToplam || 0);
 
-  // UV Yabancı Kaynak
-  const uvAlt = sum('uvMaliBorclar','uvTicBorclar','uvDigBorclar','uvAlinanAvans','uvBorcKarsilik','uvDigYK');
+  const uvAlt = sum('uvMaliBorclar','uvDigBorclar','uvAlinanAvans','uvBorcKarsilik','uvDigYK') + uvTicEff;
   d.uvYKToplam = uvAlt > 0 ? uvAlt : (d.uvYKToplam || 0);
 
   // Öz Kaynak — alt kalemler varsa onlardan hesapla
