@@ -61,7 +61,7 @@ const OWL_TIPS = {
       <li><b>Kur Artışı:</b> "⚡ Döviz Kurlarına Otomatik Uygula" butonu ile Döviz Kurları sayfasını doldurur</li>
       <li><b>Vergi:</b> Kurumlar vergisi oranı ve ödeme ayları</li>
     </ul>
-    <div class="owl-tip"><b>💡 İpucu:</b> BCH bölümündeki "⚡ TCMB Bazlı Otomatik Doldur" butonu güncel politika faizine +3 puan ekleyerek 5 yılı doldurur.</div>`
+    <div class="owl-tip"><b>💡 İpucu:</b> BCH bölümündeki "⚡ TCMB Bazlı Otomatik Doldur" butonu politika tahminine +5 puan (BCH TL); mevduat Y1–Y5 için de aynı yıllarda +5 puan ekler.</div>`
   },
   expenses: {
     title: 'Giderler',
@@ -711,7 +711,7 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
           <div class="field"><label>EUR Y5 %</label><input id="ass-bcheur5" type="number" value="0" step="0.1"></div>
         </div>
         <hr class="divider">
-        <div class="section-sep">Mevduat Faiz Oranları <span style="font-size:.68rem;color:var(--tx3)">(TCMB politika faizi baz alınır — ⚡ butonu doldurur)</span></div>
+        <div class="section-sep">Mevduat Faiz Oranları <span style="font-size:.68rem;color:var(--tx3)">(TCMB politika tahmini + 5 puan — ⚡ butonu doldurur)</span></div>
         <div class="form-grid">
           <div class="field"><label>Mevduat Y1 %</label><input id="ass-dep1" type="number" value="0" step="0.1"></div>
           <div class="field"><label>Mevduat Y2 %</label><input id="ass-dep2" type="number" value="0" step="0.1"></div>
@@ -1651,7 +1651,8 @@ const TCMB_POLICY = {
   y4: 14,   // 2029
   y5: 11,   // 2030
 };
-const BCH_SPREAD = 3; // Politika faizi üstü spread (bankacılık pratiği)
+const BCH_SPREAD = 5; // BCH TL: politika tahmini (Y1..Y5 → 2026..2030) + 5 puan
+const MEVDUAT_SPREAD = 5; // Mevduat: aynı yıl oranları politika + 5 puan
 
 // USD BCH = yıllık %7, EUR BCH = yıllık %6 — tüm 5 yıla yaz ve kaydet
 function autoFillBchUsdEur() {
@@ -1675,18 +1676,18 @@ function autoFillBchDep() {
   // BCH Fallback (Y1 oranı)
   const bchFb = document.getElementById('ass-bchrate');
   if(bchFb) bchFb.value = (TCMB_POLICY.y1 + BCH_SPREAD).toFixed(1);
-  // Mevduat faizleri (politika faizi = mevduat tabanı)
-  $('ass-dep1').value = TCMB_POLICY.y1.toFixed(1);
-  $('ass-dep2').value = TCMB_POLICY.y2.toFixed(1);
-  $('ass-dep3').value = TCMB_POLICY.y3.toFixed(1);
-  $('ass-dep4').value = TCMB_POLICY.y4.toFixed(1);
-  $('ass-dep5').value = TCMB_POLICY.y5.toFixed(1);
+  // Mevduat faizleri (aynı yıllar: politika + MEVDUAT_SPREAD)
+  $('ass-dep1').value = (TCMB_POLICY.y1 + MEVDUAT_SPREAD).toFixed(1);
+  $('ass-dep2').value = (TCMB_POLICY.y2 + MEVDUAT_SPREAD).toFixed(1);
+  $('ass-dep3').value = (TCMB_POLICY.y3 + MEVDUAT_SPREAD).toFixed(1);
+  $('ass-dep4').value = (TCMB_POLICY.y4 + MEVDUAT_SPREAD).toFixed(1);
+  $('ass-dep5').value = (TCMB_POLICY.y5 + MEVDUAT_SPREAD).toFixed(1);
   // Kaydet
   const saveBtn = document.querySelector('[onclick="saveAssumptions()"]');
   saveAssumptions();
   showAlert(
     '✅ BCH: Y1=%'+( TCMB_POLICY.y1+BCH_SPREAD)+'→Y5=%'+(TCMB_POLICY.y5+BCH_SPREAD)+
-    '  |  Mevduat: Y1=%'+TCMB_POLICY.y1+'→Y5=%'+TCMB_POLICY.y5+
+    '  |  Mevduat: Y1=%'+(TCMB_POLICY.y1+MEVDUAT_SPREAD)+'→Y5=%'+(TCMB_POLICY.y5+MEVDUAT_SPREAD)+
     '  (TCMB Ocak 2026: %37, kademeli iniş tahmini)',
     'ok'
   );
@@ -3140,7 +3141,7 @@ async function importFromFinSkor(){
   }
 
   // ── TCMB/FX otomatik değerler ─────────────────────────────────────────────
-  // BCH TL faizleri (TCMB politika + 3 puan spread)
+  // BCH TL faizleri (TCMB politika tahmini + 5 puan); mevduat aynı yıllar + 5 puan
   const bch1 = parseFloat((TCMB_POLICY.y1 + BCH_SPREAD).toFixed(1));
   const bch2 = parseFloat((TCMB_POLICY.y2 + BCH_SPREAD).toFixed(1));
   const bch3 = parseFloat((TCMB_POLICY.y3 + BCH_SPREAD).toFixed(1));
@@ -3195,8 +3196,11 @@ async function importFromFinSkor(){
       bchEurRate: 6, bchEur1: 6, bchEur2: 6, bchEur3: 6, bchEur4: 6, bchEur5: 6,
       // USD BCH faiz oranları (yıllık %7 sabit)
       bchUsdRate: 7, bchUsd1: 7, bchUsd2: 7, bchUsd3: 7, bchUsd4: 7, bchUsd5: 7,
-      dep1: TCMB_POLICY.y1, dep2: TCMB_POLICY.y2, dep3: TCMB_POLICY.y3,
-      dep4: TCMB_POLICY.y4, dep5: TCMB_POLICY.y5,
+      dep1: parseFloat((TCMB_POLICY.y1 + MEVDUAT_SPREAD).toFixed(1)),
+      dep2: parseFloat((TCMB_POLICY.y2 + MEVDUAT_SPREAD).toFixed(1)),
+      dep3: parseFloat((TCMB_POLICY.y3 + MEVDUAT_SPREAD).toFixed(1)),
+      dep4: parseFloat((TCMB_POLICY.y4 + MEVDUAT_SPREAD).toFixed(1)),
+      dep5: parseFloat((TCMB_POLICY.y5 + MEVDUAT_SPREAD).toFixed(1)),
       taxRate: 25, taxMonths: '3,6,9,12'
     },
     expenses: defExp,
