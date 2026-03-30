@@ -734,7 +734,7 @@ section { position: relative; z-index: 1; }
 
 .pricing-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 1px;
   background: var(--border);
   border: 1px solid var(--border);
@@ -1494,27 +1494,9 @@ footer {
         <a href="odeme.html" class="pricing-btn pricing-btn-gold">Hemen Satın Al</a>
       </div>
 
-      <div class="pricing-card featured paket-site-hidden" hidden aria-hidden="true" style="display:none!important;border-color:rgba(99,179,237,0.6)">
-        <div class="pricing-tier" style="color:#63b3ed">Finansal Danışman</div>
-        <div class="pricing-price" style="color:#63b3ed">₺36.000</div>
-        <div class="pricing-period">100 analiz kontörü · tüm özellikler · KDV Dahil</div>
-        <ul class="pricing-features">
-          <li>Tüm finansal oranlar</li>
-          <li>Excel / PDF yükleme</li>
-          <li>3 yıllık trend analizi</li>
-          <li>Senaryo analizi modülü</li>
-          <li>Subjektif faktör değerlendirme</li>
-          <li>ÜFE reel büyüme düzeltmesi</li>
-          <li>Kredi notu artırıcı senaryo önerileri</li>
-          <li>PDF rapor üretimi</li>
-          <li>100 müşteri analizi kapasitesi</li>
-        </ul>
-        <a href="odeme.html?paket=danisan" class="pricing-btn" style="background:linear-gradient(135deg,#3182ce,#2b6cb0);color:#fff;border:none">Hemen Satın Al</a>
-      </div>
-
-      <div class="pricing-card paket-site-hidden" hidden aria-hidden="true" style="display:none!important;border-color:rgba(16,185,129,0.5)">
+      <div class="pricing-card" style="border-color:rgba(16,185,129,0.5)">
         <div class="pricing-tier" style="color:#34d399">NakitFlow</div>
-        <div class="pricing-price" style="color:#34d399">₺48.000</div>
+        <div class="pricing-price" style="color:#34d399">₺4.990</div>
         <div class="pricing-period">KDV Dahil · 60 aylık projeksiyon</div>
         <ul class="pricing-features">
           <li>60 aylık nakit akış projeksiyonu</li>
@@ -1536,6 +1518,25 @@ footer {
           <li>1 yıllık finansal danışmanlık</li>
         </ul>
         <button class="pricing-btn pricing-btn-outline" onclick="openContactModal()" style="cursor:pointer">İletişime Geçin</button>
+      </div>
+
+      <!-- Gizli vitrin paketi — doğrudan odeme.html?paket=danisan -->
+      <div class="pricing-card featured paket-site-hidden" hidden aria-hidden="true" style="display:none!important;border-color:rgba(99,179,237,0.6)">
+        <div class="pricing-tier" style="color:#63b3ed">Finansal Danışman</div>
+        <div class="pricing-price" style="color:#63b3ed">₺36.000</div>
+        <div class="pricing-period">100 analiz kontörü · tüm özellikler · KDV Dahil</div>
+        <ul class="pricing-features">
+          <li>Tüm finansal oranlar</li>
+          <li>Excel / PDF yükleme</li>
+          <li>3 yıllık trend analizi</li>
+          <li>Senaryo analizi modülü</li>
+          <li>Subjektif faktör değerlendirme</li>
+          <li>ÜFE reel büyüme düzeltmesi</li>
+          <li>Kredi notu artırıcı senaryo önerileri</li>
+          <li>PDF rapor üretimi</li>
+          <li>100 müşteri analizi kapasitesi</li>
+        </ul>
+        <a href="odeme.html?paket=danisan" class="pricing-btn" style="background:linear-gradient(135deg,#3182ce,#2b6cb0);color:#fff;border:none">Hemen Satın Al</a>
       </div>
     </div>
   </div>
@@ -1773,7 +1774,8 @@ const observer = new IntersectionObserver((entries) => {
   });
 }, { threshold: 0.1 });
 
-document.querySelectorAll('.feature-card, .how-step, .pricing-card:not(.paket-site-hidden), .scenario-card, .rating-row, .flow-step').forEach(el => {
+/* Fiyat kartları: opacity 0 + observer bazen tetiklenmez → NakitFlow görünmez kalıyordu; vitrin her zaman görünür */
+document.querySelectorAll('.feature-card, .how-step, .scenario-card, .rating-row, .flow-step').forEach(el => {
   el.style.opacity = '0';
   el.style.transform = 'translateY(16px)';
   el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
