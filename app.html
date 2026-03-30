@@ -5506,12 +5506,8 @@ function _nkmFinSkorOtherLiabUvPlug(d) {
 }
 
 function openNakitAkis() {
-  // En çok dolu olan yılı bul (en yüksek yıl değil, en fazla veri girilen yıl)
-  const years = state.activeYears.slice().sort((a,b)=>a-b);
-  const lastYear = years.slice().reverse().find(y => {
-    const d = state.yearData[y] || {};
-    return Object.values(d).some(v => v && v !== 0);
-  }) || years[years.length - 1];
+  // NakitFlow aktarımı: referans bilanço / gelir verisi her zaman 2025
+  const lastYear = 2025;
   const d = (state.yearData[lastYear] || {});
 
   // Firma adı
