@@ -95,6 +95,17 @@ tbody tr:last-child td{border-bottom:none}
 tbody tr:hover td{background:rgba(14,165,233,.04)}
 .pos{color:var(--grn)!important}.neg{color:var(--red)!important}
 .muted-row td{background:var(--s2)!important;color:var(--tx3)!important;font-family:'Syne',sans-serif!important;font-size:.65rem;text-transform:uppercase;letter-spacing:.1em}
+/* 5Y bilanço: kurumsal alt toplam satırları */
+#page-balance5y tbody tr.bal5-corp-total td{
+  background:linear-gradient(90deg,rgba(15,30,60,.62),rgba(14,165,233,.16))!important;
+  border-top:1px solid rgba(14,165,233,.45);
+  font-weight:700;
+  color:var(--tx)!important;
+}
+#page-balance5y tbody tr.bal5-corp-total td:first-child{
+  color:var(--acc3)!important;
+  letter-spacing:.02em;
+}
 .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.63rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
 .badge-blue{background:rgba(14,165,233,.15);color:var(--acc)}
 .badge-green{background:rgba(16,185,129,.15);color:var(--grn)}
@@ -2468,8 +2479,6 @@ function renderIncome5Y(){
     {l:'Brüt Kâr',             k:'gp',      bold:true, margin:'gpM'},
     {sep:'FAALİYET GİDERLERİ'},
     {l:'Genel Yönetim & Operasyon', k:'opex', cost:true},
-    {sep:'TOPLAM GİDER (KDV HARİÇ)'},
-    {l:'Tedarikçi + Faaliyet Giderleri (nakit akış ile aynı, yıllık)', k:'toplamGiderNakit', cost:true, bold:true},
     {sep:'FAALİYET KÂRI (EBIT)'},
     {l:'Faaliyet Kârı (EBIT)', k:'faalKar', bold:true, margin:'faalM'},
     {sep:'DİĞER OLAĞAN GELİR / GİDER'},
@@ -2507,6 +2516,14 @@ function renderIncome5Y(){
     return'<tr><td style="padding-left:12px">'+lbl+'</td>'+cells+'</tr>';
   }).join('');
 }
+
+/** Hesap adından "10. " gibi kod önekini kaldırır. */
+function bilancoAdiNumsiz(s) {
+  if (s == null) return '';
+  return String(s).replace(/^\d+\.\s*/, '').trim();
+}
+
+const BAL5_CORP_TOTAL_KEYS = new Set(['donenVarlik', 'duranVarlik', 'aktifToplam', 'kvYKToplam', 'uvYKToplam', 'ozKaynak', 'pasifToplam']);
 
 /** FinSkor bilanço satırı → yıl y hücresi (NakitFlow projeksiyonu ile hizalı; 32=KV+UV ticari). */
 function finSkorBilancoYearCell(f, entry, y, bal, inc, retained, capital0, realPasifY) {
@@ -2563,9 +2580,10 @@ function renderBalance5Y(){
   let sections;
   if (snap && snap.rows && snap.rows.length) {
     sections = snap.rows.map(entry => ({
-      l: entry.label + (entry.key === 'donemNetKar' ? ' (NakitFlow yıllık net)' : ''),
+      l: bilancoAdiNumsiz(entry.label) + (entry.key === 'donemNetKar' ? ' (NakitFlow yıllık net)' : ''),
       fsEntry: entry,
       bold: !!entry.isTotal,
+      corpTotal: !!entry.isTotal && BAL5_CORP_TOTAL_KEYS.has(entry.key),
       c: ['kvMaliBorclar','kvTicBorclar','kvDigBorclar','alinanAvans','yilHakediş','odenecekVergi','borcKarsilik','gelecekAyGelir','digerKvYK','uvMaliBorclar','uvDigBorclar','uvAlinanAvans','uvBorcKarsilik','uvDigYK','pasifToplam','kvYKToplam','uvYKToplam'].indexOf(entry.key) >= 0
     }));
     sections.push({ l:'⚖ Denge Farkı (Aktif − Pasif)', fark:true });
@@ -2579,25 +2597,26 @@ function renderBalance5Y(){
       {l:'Diğer alacak + diğer dönen (bilanço dengesi)', k:'otherAssets'},
       {sep:'DURAN VARLIKLAR'},
       {l:'Maddi Duran Varlık (kümülatif yatırım)',k:'mdv'},
-      {l:'► AKTİF TOPLAM',  k:'aktifToplam',bold:true},
+      {l:'► AKTİF TOPLAM',  k:'aktifToplam',bold:true,corpTotal:true},
       {sep:'YÜKÜMLÜLÜKLER'},
       {l:'Ticari Borç (AP)', k:'ap',    c:true},
       {l:'BCH',              k:'bch',   c:true},
       {l:'Spot Kredi',      k:'spot',  c:true},
       {l:'Taksitli Kredi',   k:'taksit',c:true},
       {l:'Diğer borçlar + alınan avans (bilanço dengesi)', k:'otherLiab', c:true},
-      {l:'► Toplam Yükümlülük',k:'toplamYuk',c:true,bold:true},
+      {l:'► Toplam Yükümlülük',k:'toplamYuk',c:true,bold:true,corpTotal:true},
       {sep:'ÖZKAYNAK'},
       {l:'Sermaye (Açılış)', k:'__cap__'},
       {l:'Sermaye Artışı (kümülatif)',k:'sermayeEk'},
       {l:'Birikimli Net K/Z (yıl sonu)',  k:'__ret__'},
-      {l:'► PASİF TOPLAM',k:'__pasif__',bold:true},
+      {l:'► PASİF TOPLAM',k:'__pasif__',bold:true,corpTotal:true},
       {l:'⚖ Denge Farkı (Aktif − Pasif)',k:'__fark__',fark:true}
     ];
   }
 
   $('bal5-body').innerHTML=sections.map(row=>{
     if(row.sep)return'<tr class="muted-row"><td colspan="'+(years.length+1)+'">'+row.sep+'</td></tr>';
+    const trCls = row.corpTotal ? ' class="bal5-corp-total"' : '';
     const cells=years.map(y=>{
       let v;
       if (row.fsEntry) {
@@ -2614,7 +2633,7 @@ function renderBalance5Y(){
       else if(row.c) cls=v>0?'neg':'';
       else cls=v>0?'pos':v<0?'neg':'';
       return'<td class="'+cls+'">'+tr(v)+'</td>';}).join('');
-    return'<tr><td>'+(row.bold?'<b>'+esc(row.l)+'</b>':esc(row.l))+'</td>'+cells+'</tr>';
+    return'<tr'+trCls+'><td>'+(row.bold?'<b>'+esc(row.l)+'</b>':esc(row.l))+'</td>'+cells+'</tr>';
   }).join('');
 }
 
@@ -3633,7 +3652,6 @@ function pdfBuildIncomePage(doc, proj, firmName) {
     {l:'Satılan Mal Maliyeti (−)',            k:'cogs',        cost:true},
     {l:'Brüt Kâr',                           k:'gp',          bold:true},
     {l:'Faaliyet Giderleri (−)',              k:'opex',        cost:true},
-    {l:'Toplam Gider — Tedarikçi + Faaliyet (yıllık, KDV hariç)', k:'toplamGiderNakit', cost:true, bold:true},
     {l:'BCH Faiz Gideri (−)',                k:'bchFaizAccr', cost:true},
     {l:'Taksitli + Spot Kredi Faizi (−)',    k:'tFaiz',       cost:true},
     {l:'Mevduat Faiz Geliri (+)',             k:'depFaiz',     bold:false},
