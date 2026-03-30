@@ -324,7 +324,6 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
   <div class="avatar-bubble">
     <h3>Merhaba! Ben Nakit, senin mali rehberinim 👋</h3>
     <p>Bu uygulama ile <strong>60 aylık nakit akış projeksiyonu</strong> oluşturabilirsin. Başlamak çok kolay:</p>
-    <p><strong>Nakit Akış</strong> sayfasında tablo, girdilerine göre <strong>otomatik</strong> dolar; istersen satırları <strong>elle düzenleyip Kaydet</strong> ile kendi senaryona göre kalıcı kaydedebilirsin.</p>
     <ul>
       <li>Önce bu sayfada <strong>+ Yeni Firma</strong> butonuna bas ve firmanı oluştur.</li>
       <li>Firma oluşturulduktan sonra <strong>sol menü otomatik açılır</strong> ve seni Açılış sayfasına yönlendirir.</li>
@@ -849,6 +848,14 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
     <!-- PROJECTION -->
     <div class="page" id="page-projection">
       <div class="page-header"><h1 id="proj-title">Nakit Akış Tablosu</h1><p id="proj-subtitle"></p></div>
+<div class="avatar-guide">
+  <div class="avatar-face">📈</div>
+  <div class="avatar-bubble">
+    <h3>Nakit akış tablosu</h3>
+    <p>Projeksiyonu çalıştırdıktan sonra bu sayfada <strong>60 aylık nakit akış tablosu otomatik</strong> oluşur. İstersen hücrelere <strong>manuel rakam</strong> girip <strong>Kaydet</strong> ile verileri kalıcı olarak değiştirebilirsin.</p>
+    <p>Yeşil satırlar nakit girişi, kırmızı satırlar nakit çıkışıdır. Kapanış bakiyesi negatife düşerse BCH devreye girer. Excel ve PDF ile dışa aktarabilirsin.</p>
+  </div>
+</div>
       <div id="proj-kpis" class="kpi-grid"></div>
       <div class="notice" style="margin-bottom:14px">⚠ Yıllık VÖK(EBT) ≤ 0 ise kurumlar vergisi = 0. Zarar 5 yıl devredilir. Dövizli kredilerde aylık kur × taksit = TL.</div>
       <div id="proj-years-container"></div>
@@ -862,6 +869,13 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
     <!-- INCOME 5Y -->
     <div class="page" id="page-income5y">
       <div class="page-header"><h1 id="inc5-title">5 Yıllık Gelir Tablosu</h1><p>Yıllık toplamlar</p></div>
+<div class="avatar-guide">
+  <div class="avatar-face">📉</div>
+  <div class="avatar-bubble">
+    <h3>5 yıllık gelir özeti</h3>
+    <p>Brüt kâr, faaliyet kârı, vergi öncesi kâr ve net kâr her yıl için toplanır. Taksit ve spot kredi <strong>faizi ile BSMV</strong> gelir tablosuna yazılır; anapara yazılmaz. Yatırım ve sermaye artışı bu tabloya girmez. Net zarar sonraki yılların vergisini düşürür.</p>
+  </div>
+</div>
       <div class="tbl-wrap"><table><thead><tr id="inc5-headers"></tr></thead><tbody id="inc5-body"></tbody></table></div>
       <div class="btn-group" style="margin-top:16px;flex-wrap:wrap;gap:8px">
         <button class="btn btn-primary" onclick="exportGelirExcel()">📊 Excel İndir</button>
@@ -873,6 +887,13 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
     <!-- BALANCE 5Y -->
     <div class="page" id="page-balance5y">
       <div class="page-header"><h1 id="bal5-title">5 Yıllık Bilanço</h1><p>Yıl sonu anlık değerler</p></div>
+<div class="avatar-guide">
+  <div class="avatar-face">🗂️</div>
+  <div class="avatar-bubble">
+    <h3>5 yıllık bilanço</h3>
+    <p>Dönen varlıklar: nakit, mevduat, ticari alacak ve stok. Duran tarafta kümülatif yatırım (MDV). Pasifte ticari borç, BCH, spot ve taksitli kredi bakiyeleri, özkaynakta açılış sermayesi, sermaye artışı ve birikimli net kâr/zarar yer alır. Aktif ile pasif toplamı pratikte dengeli olmalıdır.</p>
+  </div>
+</div>
       <div class="tbl-wrap"><table><thead><tr id="bal5-headers"></tr></thead><tbody id="bal5-body"></tbody></table></div>
       <div class="btn-group" style="margin-top:16px;flex-wrap:wrap;gap:8px">
         <button class="btn btn-primary" onclick="exportBilançoExcel()">📊 Excel İndir</button>
@@ -3321,6 +3342,36 @@ function exportBilançoExcel() {
 // PDF EXPORT — jsPDF + autoTable (kurumsal rapor)
 // ══════════════════════════════════════════════
 
+function pdfArrayBufferToBinary(ab) {
+  const bytes = new Uint8Array(ab);
+  const chunk = 0x8000;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(i + chunk, bytes.length)));
+  }
+  return binary;
+}
+
+const _nakitFontBin = { reg: null, bold: null };
+async function pdfEnsureTrFont(doc) {
+  const base = 'https://cdn.jsdelivr.net/gh/googlefonts/noto-fonts@main/hinted/ttf/NotoSans/';
+  if (!_nakitFontBin.reg) {
+    const r = await fetch(base + 'NotoSans-Regular.ttf');
+    if (!r.ok) throw new Error('Türkçe font indirilemedi (ağ / CDN).');
+    _nakitFontBin.reg = pdfArrayBufferToBinary(await r.arrayBuffer());
+    const rb = await fetch(base + 'NotoSans-Bold.ttf');
+    _nakitFontBin.bold = rb.ok ? pdfArrayBufferToBinary(await rb.arrayBuffer()) : _nakitFontBin.reg;
+  }
+  if (!doc.__nakitNotoAdded) {
+    doc.addFileToVFS('NotoSans-Regular.ttf', _nakitFontBin.reg);
+    doc.addFont('NotoSans-Regular.ttf', 'NotoSans', 'normal');
+    doc.addFileToVFS('NotoSans-Bold.ttf', _nakitFontBin.bold);
+    doc.addFont('NotoSans-Bold.ttf', 'NotoSans', 'bold');
+    doc.__nakitNotoAdded = true;
+  }
+  doc.setFont('NotoSans', 'normal');
+}
+
 // Renk paleti
 const PDF_CLR = {
   navy:    [15, 30, 60],
@@ -3344,13 +3395,13 @@ function pdfAddHeader(doc, firmName, reportTitle, pageW) {
   doc.setFillColor(...PDF_CLR.accent);
   doc.rect(0, 18, pageW, 1.2, 'F');
   // Firma adı
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('NotoSans', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(...PDF_CLR.white);
   doc.text(firmName || 'NakitFlow', 10, 11.5);
   // Rapor başlığı (sağ)
   doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('NotoSans', 'normal');
   doc.text(reportTitle, pageW - 10, 11.5, { align: 'right' });
 }
 
@@ -3362,7 +3413,7 @@ function pdfAddFooter(doc, pageNum, totalPages, pageW, pageH) {
   doc.line(0, pageH - 8, pageW, pageH - 8);
   doc.setFontSize(7);
   doc.setTextColor(...PDF_CLR.sub);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('NotoSans', 'normal');
   const tarih = new Date().toLocaleDateString('tr-TR', { year:'numeric', month:'long', day:'numeric' });
   doc.text('NakitFlow — FinSkor | ' + tarih, 10, pageH - 2.5);
   doc.text(pageNum + ' / ' + totalPages, pageW - 10, pageH - 2.5, { align: 'right' });
@@ -3426,12 +3477,13 @@ function pdfBuildCashFlowPages(doc, proj, firmName) {
       styles: {
         fontSize: 6,
         cellPadding: 1.2,
-        font: 'helvetica',
+        font: 'NotoSans',
         textColor: PDF_CLR.text,
         lineColor: PDF_CLR.mid,
         lineWidth: 0.15,
       },
       headStyles: {
+        font: 'NotoSans',
         fillColor: PDF_CLR.navy,
         textColor: PDF_CLR.white,
         fontStyle: 'bold',
@@ -3466,12 +3518,14 @@ function pdfBuildCashFlowPages(doc, proj, firmName) {
           if (ri % 2 === 0) data.cell.styles.fillColor = [249, 251, 254];
         }
       },
-      willDrawPage: function(data) {
+      willDrawPage: function() {
         pdfAddHeader(doc, firmName, yData.year + ' — Aylık Nakit Akım Projeksiyonu', pageW);
+        doc.setFont('NotoSans', 'normal');
       },
-      didDrawPage: function(data) {
+      didDrawPage: function() {
         const info = doc.internal;
         pdfAddFooter(doc, info.getCurrentPageInfo().pageNumber, '?', pageW, pageH);
+        doc.setFont('NotoSans', 'normal');
       },
     });
   }
@@ -3514,8 +3568,8 @@ function pdfBuildIncomePage(doc, proj, firmName) {
     head, body,
     startY: 22,
     margin: { left: 15, right: 15 },
-    styles:      { fontSize: 8, cellPadding: 2, font: 'helvetica', textColor: PDF_CLR.text },
-    headStyles:  { fillColor: PDF_CLR.navy, textColor: PDF_CLR.white, fontStyle: 'bold', halign: 'center' },
+    styles:      { fontSize: 8, cellPadding: 2, font: 'NotoSans', textColor: PDF_CLR.text },
+    headStyles:  { font: 'NotoSans', fillColor: PDF_CLR.navy, textColor: PDF_CLR.white, fontStyle: 'bold', halign: 'center' },
     columnStyles:{ 0: { halign: 'left', cellWidth: 60, fontStyle: 'bold' } },
     bodyStyles:  { halign: 'right' },
     didParseCell: function(data) {
@@ -3526,9 +3580,86 @@ function pdfBuildIncomePage(doc, proj, firmName) {
         data.cell.styles.fillColor  = PDF_CLR.light;
       }
     },
-    willDrawPage: function() { pdfAddHeader(doc, firmName, '5 Yıllık Gelir Tablosu', pageW); },
+    willDrawPage: function() {
+      pdfAddHeader(doc, firmName, '5 Yıllık Gelir Tablosu', pageW);
+      doc.setFont('NotoSans', 'normal');
+    },
     didDrawPage:  function() {
       pdfAddFooter(doc, doc.internal.getCurrentPageInfo().pageNumber, '?', pageW, pageH);
+      doc.setFont('NotoSans', 'normal');
+    },
+  });
+}
+
+function pdfBuildBalancePage(doc, proj, firmName) {
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const sy = new Date(proj.firm.startDate).getFullYear();
+  const mdv0 = (proj.firm.opening || {}).mdv || 0;
+  const capital0 = (proj.firm.opening || {}).capital || 0;
+  const { years, inc, bal } = annual5Y(proj.rows, sy, mdv0);
+  const retained = computeRetained(years, inc);
+  const realPasif = {};
+  for (const y of years) {
+    const sermEk = (bal[y] || {}).sermayeEk || 0;
+    realPasif[y] = ((bal[y] || {}).toplamYuk || 0) + capital0 + sermEk + (retained[y] || 0);
+  }
+  const yLabels = years.map(String);
+  const bodyMeta = [];
+  const pushSep = (t) => { bodyMeta.push({ cells: [t, ...years.map(() => '')], isSep: true }); };
+  pushSep('DÖNEN VARLIKLAR');
+  [['Nakit & Banka', 'nakit'], ['Mevduat', 'mevduat'], ['Ticari Alacak (AR)', 'ar'], ['Stok', 'stok']].forEach(([lab, k]) => {
+    bodyMeta.push({ cells: [lab, ...years.map(y => pdfNum((bal[y] || {})[k] || 0))] });
+  });
+  pushSep('DURAN VARLIKLAR');
+  bodyMeta.push({ cells: ['Maddi Duran Varlık (kümülatif yatırım)', ...years.map(y => pdfNum((bal[y] || {}).mdv || 0))] });
+  bodyMeta.push({ cells: ['► AKTİF TOPLAM', ...years.map(y => pdfNum((bal[y] || {}).aktifToplam || 0))], isTotal: true });
+  pushSep('YÜKÜMLÜLÜKLER');
+  [['Ticari Borç (AP)', 'ap'], ['BCH', 'bch'], ['Spot Kredi', 'spot'], ['Taksitli Kredi', 'taksit']].forEach(([lab, k]) => {
+    bodyMeta.push({ cells: [lab, ...years.map(y => pdfNum((bal[y] || {})[k] || 0))] });
+  });
+  bodyMeta.push({ cells: ['► Toplam Yükümlülük', ...years.map(y => pdfNum((bal[y] || {}).toplamYuk || 0))], isTotal: true });
+  pushSep('ÖZKAYNAK');
+  bodyMeta.push({ cells: ['Sermaye (Açılış)', ...years.map(() => pdfNum(capital0))] });
+  bodyMeta.push({ cells: ['Sermaye Artışı (kümülatif)', ...years.map(y => pdfNum((bal[y] || {}).sermayeEk || 0))] });
+  bodyMeta.push({ cells: ['Birikimli Net K/Z (yıl sonu)', ...years.map(y => pdfNum(retained[y] || 0))] });
+  bodyMeta.push({ cells: ['► PASİF TOPLAM', ...years.map(y => pdfNum(realPasif[y] || 0))], isTotal: true });
+  bodyMeta.push({ cells: ['Denge Farkı (Aktif − Pasif)', ...years.map(y => {
+    const a = (bal[y] || {}).aktifToplam || 0;
+    return pdfNum(a - (realPasif[y] || 0));
+  })] });
+
+  doc.addPage();
+  pdfAddHeader(doc, firmName, '5 Yıllık Bilanço', pageW);
+  doc.autoTable({
+    head: [['Kalem', ...yLabels]],
+    body: bodyMeta.map(r => r.cells),
+    startY: 22,
+    margin: { left: 12, right: 12 },
+    styles: { fontSize: 8, cellPadding: 2, font: 'NotoSans', textColor: PDF_CLR.text },
+    headStyles: { font: 'NotoSans', fillColor: PDF_CLR.navy, textColor: PDF_CLR.white, fontStyle: 'bold', halign: 'center' },
+    columnStyles: { 0: { halign: 'left', cellWidth: 65, fontStyle: 'bold' } },
+    bodyStyles: { halign: 'right' },
+    didParseCell: function(data) {
+      if (data.section !== 'body') return;
+      const meta = bodyMeta[data.row.index];
+      if (meta.isSep) {
+        data.cell.styles.fillColor = PDF_CLR.navy;
+        data.cell.styles.textColor = PDF_CLR.white;
+        data.cell.styles.fontStyle = 'bold';
+        if (data.column.index > 0) data.cell.text = '';
+      } else if (meta.isTotal) {
+        data.cell.styles.fillColor = PDF_CLR.light;
+        data.cell.styles.fontStyle = 'bold';
+      }
+    },
+    willDrawPage: function() {
+      pdfAddHeader(doc, firmName, '5 Yıllık Bilanço', pageW);
+      doc.setFont('NotoSans', 'normal');
+    },
+    didDrawPage: function() {
+      pdfAddFooter(doc, doc.internal.getCurrentPageInfo().pageNumber, '?', pageW, pageH);
+      doc.setFont('NotoSans', 'normal');
     },
   });
 }
@@ -3550,26 +3681,26 @@ function pdfBuildCoverPage(doc, firmName, reportTitle) {
   doc.setDrawColor(...PDF_CLR.accent);
   doc.setLineWidth(1.5);
   doc.roundedRect(14, 14, 28, 28, 4, 4, 'D');
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('NotoSans', 'bold');
   doc.setFontSize(16);
   doc.setTextColor(...PDF_CLR.accent);
   doc.text('NF', 28, 31, { align: 'center' });
 
   // NakitFlow ürün adı
   doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('NotoSans', 'normal');
   doc.setTextColor(180, 200, 230);
   doc.text('NakitFlow — FinSkor Nakit Akış Analizi', pageW / 2, 18, { align: 'center' });
 
   // Firma adı
   doc.setFontSize(26);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('NotoSans', 'bold');
   doc.setTextColor(...PDF_CLR.white);
   doc.text(firmName || 'Firma', pageW / 2, pageH * 0.28, { align: 'center' });
 
   // Rapor başlığı
   doc.setFontSize(14);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('NotoSans', 'normal');
   doc.setTextColor(180, 200, 240);
   doc.text(reportTitle, pageW / 2, pageH * 0.36, { align: 'center' });
 
@@ -3586,31 +3717,28 @@ function pdfBuildCoverPage(doc, firmName, reportTitle) {
 
   // Alt bilgi bölümü (açık arka plan üzerine)
   doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('NotoSans', 'normal');
   doc.setTextColor(...PDF_CLR.sub);
   doc.text('Bu rapor NakitFlow sistemi tarafından otomatik olarak üretilmiştir.', pageW / 2, pageH * 0.65, { align: 'center' });
   doc.text('Tüm rakamlar Türk Lirası (TRY) cinsindendir, KDV hariçtir.', pageW / 2, pageH * 0.7, { align: 'center' });
 }
 
-function exportFullPDF(reportTitle) {
+async function exportFullPDF(reportTitle) {
   const f = curFirm(); if (!f) return;
   if (!lastProjection) { showAlert('Önce Projeksiyon çalıştırın.', 'err'); return; }
-  showAlert('PDF hazırlanıyor...', 'info');
+  showAlert('PDF hazırlanıyor (Türkçe font yükleniyor)...', 'info');
   try {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    await pdfEnsureTrFont(doc);
     const firmName = f.name || 'Firma';
 
-    // 1. Kapak
     pdfBuildCoverPage(doc, firmName, reportTitle || 'Nakit Akış Projeksiyonu Raporu');
 
-    // 2. Nakit akım tabloları (her yıl ayrı sayfa)
     pdfBuildCashFlowPages(doc, lastProjection, firmName);
-
-    // 3. Gelir tablosu
     pdfBuildIncomePage(doc, lastProjection, firmName);
+    pdfBuildBalancePage(doc, lastProjection, firmName);
 
-    // Sayfa numaralarını güncelle
     const total = doc.internal.getNumberOfPages();
     const pageW = doc.internal.pageSize.getWidth();
     const pageH = doc.internal.pageSize.getHeight();
@@ -3618,6 +3746,7 @@ function exportFullPDF(reportTitle) {
       doc.setPage(i);
       doc.setFillColor(...PDF_CLR.light);
       doc.rect(pageW - 30, pageH - 7, 30, 7, 'F');
+      doc.setFont('NotoSans', 'normal');
       doc.setFontSize(7);
       doc.setTextColor(...PDF_CLR.sub);
       doc.text(i + ' / ' + total, pageW - 10, pageH - 2.5, { align: 'right' });
@@ -3634,22 +3763,22 @@ function exportFullPDF(reportTitle) {
 
 // Eski fonksiyon — artık kullanılmıyor, geriye dönük uyumluluk için bırakıldı
 async function captureAndExportPDF(elementId, filename, title) {
-  exportFullPDF(title);
+  await exportFullPDF(title);
 }
 
 function exportRaporPDF() {
   const f = curFirm(); if (!f) return;
-  exportFullPDF(f.name + ' — Nakit Akış Projeksiyonu');
+  exportFullPDF(f.name + ' — Nakit Akış Projeksiyonu').catch(e => { showAlert('PDF: ' + e.message, 'err'); });
 }
 
 function exportGelirPDF() {
   const f = curFirm(); if (!f) return;
-  exportFullPDF(f.name + ' — 5 Yıllık Gelir Tablosu');
+  exportFullPDF(f.name + ' — 5 Yıllık Gelir Tablosu').catch(e => { showAlert('PDF: ' + e.message, 'err'); });
 }
 
 function exportBilançoPDF() {
   const f = curFirm(); if (!f) return;
-  exportFullPDF(f.name + ' — 5 Yıllık Bilanço');
+  exportFullPDF(f.name + ' — 5 Yıllık Bilanço').catch(e => { showAlert('PDF: ' + e.message, 'err'); });
 }
 
 // ═══════════════════════════════════════════════════════
@@ -3787,6 +3916,9 @@ let owlOpen = false;
 let owlSpeakOn = true;
 try { owlSpeakOn = localStorage.getItem('nakitOwlSpeak') !== '0'; } catch (e) {}
 
+/** Sadece seslendirme: önce bu metin (oturumda bir kez), sonra yalnızca sayfa avatar açıklamaları */
+const OWL_SPEECH_INTRO = 'Nakit akışını tamamladıktan sonra ilk sayfada altmış aylık nakit akış tablosu otomatik oluşur. İstersen manuel giriş yapıp kaydederek verileri değiştirebilirsin.';
+
 function owlPlainFromHtml(html) {
   const d = document.createElement('div');
   d.innerHTML = html || '';
@@ -3801,26 +3933,46 @@ function owlRefreshSpeakUi() {
   b.setAttribute('aria-pressed', owlSpeakOn ? 'true' : 'false');
 }
 
-function owlAnnounceLast() {
+function owlQueueUtterances(texts) {
+  if (!owlSpeakOn || !window.speechSynthesis || !texts || !texts.length) return;
+  speechSynthesis.cancel();
+  let i = 0;
+  function next() {
+    if (i >= texts.length) return;
+    const u = new SpeechSynthesisUtterance(texts[i++]);
+    u.lang = 'tr-TR';
+    u.rate = 0.92;
+    u.onend = next;
+    speechSynthesis.speak(u);
+  }
+  next();
+}
+
+/** Sabit giriş (oturumda bir kez) + yalnızca aktif sayfa .avatar-bubble — panel metni okunmaz */
+function owlSpeakPageExplanations() {
   if (!owlSpeakOn || !window.speechSynthesis) return;
   const parts = [];
-  const el = document.getElementById('owl-content');
-  if (el) {
-    const t = owlPlainFromHtml(el.innerHTML);
+  const sk = 'nakitOwlIntroV2';
+  if (!sessionStorage.getItem(sk)) {
+    parts.push(OWL_SPEECH_INTRO);
+    try { sessionStorage.setItem(sk, '1'); } catch (e) {}
+  }
+  const bubble = document.querySelector('.page.active .avatar-bubble');
+  if (bubble) {
+    const t = owlPlainFromHtml(bubble.innerHTML).trim();
     if (t) parts.push(t);
   }
-  const guide = document.querySelector('.page.active .avatar-bubble');
-  if (guide) {
-    const g = owlPlainFromHtml(guide.innerHTML);
-    if (g) parts.push(g);
-  }
-  const txt = parts.join(' — ');
-  if (!txt) return;
-  speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(txt);
-  u.lang = 'tr-TR';
-  u.rate = 0.92;
-  speechSynthesis.speak(u);
+  if (!parts.length) return;
+  owlQueueUtterances(parts);
+}
+
+let _owlSpeakTimer = null;
+function scheduleOwlSpeak() {
+  if (_owlSpeakTimer) clearTimeout(_owlSpeakTimer);
+  _owlSpeakTimer = setTimeout(function () {
+    _owlSpeakTimer = null;
+    owlSpeakPageExplanations();
+  }, 420);
 }
 
 function owlToggleSpeak() {
@@ -3828,7 +3980,7 @@ function owlToggleSpeak() {
   try { localStorage.setItem('nakitOwlSpeak', owlSpeakOn ? '1' : '0'); } catch (e) {}
   owlRefreshSpeakUi();
   if (!owlSpeakOn && window.speechSynthesis) speechSynthesis.cancel();
-  else if (owlOpen) setTimeout(owlAnnounceLast, 80);
+  else if (owlOpen) scheduleOwlSpeak();
 }
 
 function owlToggle() {
@@ -3838,6 +3990,7 @@ function owlToggle() {
   if (owlOpen) {
     panel.classList.add('open');
     owlUpdate();
+    scheduleOwlSpeak();
   } else {
     panel.classList.remove('open');
     if (window.speechSynthesis) speechSynthesis.cancel();
@@ -3859,7 +4012,6 @@ function owlUpdate() {
   const box = document.getElementById('owl-content');
   if (!box || !tip) return;
   box.innerHTML = '<b style="font-size:.78rem;color:var(--acc2)">📌 ' + tip.title + '</b><br><br>' + tip.text;
-  if (owlOpen && owlSpeakOn) setTimeout(owlAnnounceLast, 140);
 }
 
 function initOwlAssistant() {
@@ -3870,18 +4022,20 @@ function initOwlAssistant() {
     window.navTo = function (page) {
       origNav(page);
       if (owlOpen) setTimeout(owlUpdate, 50);
+      scheduleOwlSpeak();
     };
   }
   setTimeout(function () {
     const activePage = document.querySelector('.page.active');
+    const p = document.getElementById('owl-panel');
     if (activePage && activePage.id === 'page-home') {
       owlOpen = true;
-      const p = document.getElementById('owl-panel');
       owlUpdate();
       if (p) p.classList.add('open');
     } else {
       owlUpdate();
     }
+    scheduleOwlSpeak();
   }, 450);
 }
 

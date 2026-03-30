@@ -2649,6 +2649,7 @@ function calcRatios(refYear) {
   const kvDigFin    = 0;                       // E30 Diğer KV Finansal Borç (ayrı alan yok)
   const uvCariTaks  = 0;                       // E31 UV Borç Cari Taksidi (ayrı alan yok)
   const kvTicBor    = D('kvTicBorclar');       // E32 KV Ticari Borçlar
+  const uvTicBor    = D('uvTicBorclar') || 0;  // Uzun vadeli ticari — ödeme süresinde KV ile birlikte
   // KV borçlar: ham değer içinde hak35 var (yilHakediş KV'da), onu çıkar sonra gelir fazlasını ekle
   const kvBorclar   = _isTaahhut ? D('kvYKToplam') - _hak35 + _gelirFazlasi : D('kvYKToplam');
   const uvMaliBor   = D('uvMaliBorclar');      // E40 UV Finansal Borçlar
@@ -2686,9 +2687,9 @@ function calcRatios(refYear) {
   // ── CARİ ORAN = DonenVar / KVBorç  (D47)
   const cariOran = kvBorclar > 0 ? donenVar / kvBorclar : 0;
 
-  // ── LİKİDİTE ORANI = (E6+E7+E8+E11+E12+E13) / E38  (D48)
-  // = Kasa + Banka + TicAlac + OrtakAlac + DiğerDönen (stoklar dahil değil)
-  const likit   = hazirDeg + banka + ticAlacak + ortakAlac + digerDon;
+  // ── LİKİDİTE ORANI — Excel satırı E11 dâhil; özet gösterimde "diğer alacaklar" yer alır
+  // Oran hesabında yalnızca ticari alacak + nakit benzeri + diğer dönen (E6+E7+E8+E13); E11 hariç
+  const likit   = hazirDeg + banka + ticAlacak + digerDon;
   const likOran = kvBorclar > 0 ? likit / kvBorclar : 0;
 
   // ── BORÇ/ÖZKAYNAK = ToplamBorç / ÖzKaynak  (D50)
@@ -2717,9 +2718,8 @@ function calcRatios(refYear) {
   const ortStok  = (stoklar + prevStoklar) / 2;
   const stokGun  = satMaliyet > 0 ? ortStok / satMaliyet * 360 : 0;
 
-  // ── BORÇ ÖDEME SÜRESİ = (KVTicBorç / SMM) * 360  (D74)
-  // Excel: BİLANÇO.E32 / GelirTab.E13 * 360
-  const borcOdeme = satMaliyet > 0 ? kvTicBor / satMaliyet * 360 : 0;
+  // ── BORÇ ÖDEME SÜRESİ = (KVTic + UVTic) / SMM * 360 — tüm ticari borç ödemesi
+  const borcOdeme = satMaliyet > 0 ? (kvTicBor + uvTicBor) / satMaliyet * 360 : 0;
 
   // ── NAKİT DÖNÜŞÜM SÜRESİ = BorçÖdeme - AlacakTahsil - StokGün  (D75)
   // Excel: D74 - D72 - D73  → Negatif/düşük = iyi (borç ödemesi uzun)
@@ -3401,6 +3401,8 @@ function computeOzetTabloData(refYear, prevYear, isTaahhut) {
   const _BILANCO_TOTAL_KEYS = new Set(['donenVarlik', 'duranVarlik', 'aktifToplam', 'kvYKToplam', 'uvYKToplam', 'ozKaynak', 'pasifToplam']);
   const bilancoSatirlar = [];
   bilancoSatirlar.push({ tip: 'anabablik', label: en ? '🔵 ASSETS' : '🔵 AKTİF' });
+  const uvTicCur = D('uvTicBorclar');
+  const uvTicPrev = Dp('uvTicBorclar');
   for (let hi = 0; hi < HESAPLAR.length; hi++) {
     const h = HESAPLAR[hi];
     if (h.type === 'cat') {
@@ -3413,9 +3415,29 @@ function computeOzetTabloData(refYear, prevYear, isTaahhut) {
     }
     if (!h.key) continue;
     const lab = (en && h.labelEn) ? h.labelEn : h.label;
+    // Özet/PDF: KV + UV ticari borç tek satırda (32); UV satırı sıfır; KV/UV alt toplamları kaydırmalı
+    if (h.key === 'kvTicBorclar') {
+      bilancoSatirlar.push({
+        label: lab,
+        cv: D('kvTicBorclar') + uvTicCur,
+        pv: Dp('kvTicBorclar') + uvTicPrev
+      });
+      continue;
+    }
+    if (h.key === 'uvTicBorclar') {
+      bilancoSatirlar.push({
+        label: lab + (en ? ' (merged into ST trade payables)' : ' (özet: 32. satırda KV ile birleştirilmiştir)'),
+        cv: 0,
+        pv: 0
+      });
+      continue;
+    }
     if (h.isTotal || _BILANCO_TOTAL_KEYS.has(h.key)) {
       const tip = (h.key === 'aktifToplam' || h.key === 'pasifToplam') ? 'anatoplam' : 'toplam';
-      bilancoSatirlar.push({ tip, label: lab, cv: D(h.key), pv: Dp(h.key) });
+      let cv = D(h.key), pv = Dp(h.key);
+      if (h.key === 'kvYKToplam') { cv += uvTicCur; pv += uvTicPrev; }
+      if (h.key === 'uvYKToplam') { cv -= uvTicCur; pv -= uvTicPrev; }
+      bilancoSatirlar.push({ tip, label: lab, cv, pv });
       continue;
     }
     bilancoSatirlar.push({ label: lab, cv: D(h.key), pv: Dp(h.key) });
