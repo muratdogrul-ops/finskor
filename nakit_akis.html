@@ -3526,6 +3526,9 @@ const PDF_CLR = {
   amber:   [160, 100, 0],
   text:    [30, 40, 60],
   sub:     [90, 100, 120],
+  /** Vurgulu satır: açık zemin + koyu yazı (koyu zemin+beyaz bazı görüntüleyicilerde/NotoSans’ta okunaksız kalıyordu) */
+  band:    [228, 232, 242],
+  bandText:[12, 28, 55],
 };
 
 function pdfAddHeader(doc, firmName, reportTitle, pageW) {
@@ -3639,13 +3642,13 @@ function pdfBuildCashFlowPages(doc, proj, firmName) {
         const rd   = body[ri];
         const col  = data.column.index;
         if (rd.isGrp) {
-          data.cell.styles.fillColor = PDF_CLR.navy;
-          data.cell.styles.textColor = PDF_CLR.white;
+          data.cell.styles.fillColor = PDF_CLR.band;
+          data.cell.styles.textColor = PDF_CLR.bandText;
           data.cell.styles.fontStyle = 'bold';
           data.cell.styles.fontSize  = 7;
         } else if (rd.isTotal) {
-          data.cell.styles.fillColor = PDF_CLR.dark;
-          data.cell.styles.textColor = PDF_CLR.white;
+          data.cell.styles.fillColor = PDF_CLR.band;
+          data.cell.styles.textColor = PDF_CLR.bandText;
           data.cell.styles.fontStyle = 'bold';
         } else if (col === 0) {
           data.cell.styles.textColor = PDF_CLR.text;
@@ -3717,7 +3720,8 @@ function pdfBuildIncomePage(doc, proj, firmName) {
       const row = sections[data.row.index];
       if (row.bold) {
         data.cell.styles.fontStyle  = 'bold';
-        data.cell.styles.fillColor  = PDF_CLR.light;
+        data.cell.styles.fillColor  = PDF_CLR.band;
+        data.cell.styles.textColor  = PDF_CLR.bandText;
       }
     },
     willDrawPage: function() {
@@ -3787,12 +3791,13 @@ function pdfBuildBalancePage(doc, proj, firmName) {
       if (data.section !== 'body') return;
       const meta = bodyMeta[data.row.index];
       if (meta.isSep) {
-        data.cell.styles.fillColor = PDF_CLR.navy;
-        data.cell.styles.textColor = PDF_CLR.white;
+        data.cell.styles.fillColor = PDF_CLR.band;
+        data.cell.styles.textColor = PDF_CLR.bandText;
         data.cell.styles.fontStyle = 'bold';
         if (data.column.index > 0) data.cell.text = '';
       } else if (meta.isTotal) {
-        data.cell.styles.fillColor = PDF_CLR.light;
+        data.cell.styles.fillColor = PDF_CLR.band;
+        data.cell.styles.textColor = PDF_CLR.bandText;
         data.cell.styles.fontStyle = 'bold';
       }
     },
