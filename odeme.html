@@ -350,14 +350,13 @@ nav {
         <div class="card-body">
 
           <div class="method-tabs">
-            <button class="method-tab active" onclick="switchMethod('eft',this)">
+            <button type="button" class="method-tab active" id="tabEft" onclick="switchMethod('eft',this)">
               <span class="tab-icon">🏦</span>
               EFT / Havale
             </button>
-            <button class="method-tab" onclick="switchMethod('card',this)">
+            <button type="button" class="method-tab" id="tabCard" onclick="switchMethod('card',this)">
               <span class="tab-icon">💳</span>
               Kredi Kartı
-              <span class="tab-badge">YAKINDA</span>
             </button>
           </div>
 
@@ -374,13 +373,13 @@ nav {
             </div>
           </div>
 
-          <!-- KREDİ KARTI PANELİ -->
+          <!-- KREDİ KARTI PANELİ — Vakıfbank ortak ödeme; Netlify env: VAKIF_* -->
           <div class="card-panel" id="panel-card">
-            <div class="card-coming">
+            <div class="card-coming" style="border-style:solid">
               <div class="coming-icon">🔐</div>
-              <h3>Kredi Kartı ile Ödeme</h3>
-              <p>3D Secure altyapısı kurulum aşamasındadır. En kısa sürede aktif olacaktır.</p>
-              <div class="badge-3d">3D SECURE · Sanal POS Entegrasyonu</div>
+              <h3>Vakıfbank güvenli ödeme</h3>
+              <p style="max-width:28em;margin-left:auto;margin-right:auto">Aşağıdaki butona bastığınızda <strong>3D Secure</strong> ile Vakıfbank ödeme sayfasına yönlendirilirsiniz. Kart bilgileri yalnızca bankada girilir.</p>
+              <div class="badge-3d">Ortak ödeme · Sanal POS</div>
             </div>
           </div>
 
@@ -448,6 +447,7 @@ nav {
             <button class="btn-pay" id="payBtn" onclick="submitPayment()">
               ✓ Ödeme Talebini Gönder
             </button>
+            <p id="payBtnHint" style="font-size:11px;color:var(--white-muted);margin-top:10px;text-align:center;display:none">Kart seçiliyken tıklamak sizi banka sayfasına götürür.</p>
             <div class="pay-security">
               🔒 Bilgileriniz şifrelenmiş olarak iletilmektedir
             </div>
@@ -622,6 +622,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('totalVal').textContent  = '₺ ' + CONFIG.toplamFiyat;
   document.getElementById('productName').textContent = SECILI_PAKET.ad;
   document.getElementById('productDesc').textContent = SECILI_PAKET.desc;
+  syncPayButtonLabel();
 });
 
 // ═══════════════════════════════════════
@@ -632,6 +633,21 @@ function switchMethod(method, btn) {
   btn.classList.add('active');
   document.getElementById('panel-eft').style.display  = method === 'eft'  ? 'block' : 'none';
   document.getElementById('panel-card').style.display = method === 'card' ? 'block' : 'none';
+  syncPayButtonLabel();
+}
+
+function syncPayButtonLabel() {
+  const card = document.getElementById('tabCard');
+  const pay = document.getElementById('payBtn');
+  const hint = document.getElementById('payBtnHint');
+  if (!pay || !card) return;
+  if (card.classList.contains('active')) {
+    pay.textContent = '💳 Kredi kartı ile öde (3D Secure)';
+    if (hint) { hint.style.display = 'block'; }
+  } else {
+    pay.textContent = '✓ Ödeme Talebini Gönder';
+    if (hint) { hint.style.display = 'none'; }
+  }
 }
 
 // ═══════════════════════════════════════
@@ -672,13 +688,42 @@ async function submitPayment() {
   if (!document.getElementById('sozlesmeOnay').checked) { showToast('Lütfen Mesafeli Satış Sözleşmesi\'ni kabul ediniz.', true); return; }
 
   const btn = document.getElementById('payBtn');
-  btn.disabled = true;
-  btn.textContent = '⏳ Kaydediliyor...';
+  const cardActive = document.getElementById('tabCard') && document.getElementById('tabCard').classList.contains('active');
 
-  const odemeYontemi = document.querySelector('.method-tab.active .tab-icon')?.nextSibling?.textContent?.trim() || 'EFT';
+  btn.disabled = true;
+  btn.textContent = cardActive ? '⏳ Bankaya bağlanılıyor...' : '⏳ Kaydediliyor...';
+
+  const odemeYontemi = cardActive ? 'Kredi Kartı (Vakıfbank)' : 'EFT / Havale';
 
   try {
-    // Supabase kaydı + mail + WhatsApp send-notification fonksiyonu içinde yapılıyor
+    if (cardActive) {
+      const ir = await fetch('/.netlify/functions/vakifbank-init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adSoyad, email, telefon, firmaAdi, vkn, vd,
+          faturaTipi: bireysel ? 'bireysel' : 'kurumsal',
+          paketKey: _paketKey
+        })
+      });
+      const j = await ir.json().catch(() => ({}));
+      if (j.code === 'NOT_CONFIGURED') {
+        showToast('Kart ödemesi için Netlify ortamında Vakıfbank POS bilgileri tanımlanmalıdır. Şimdilik EFT/Havale kullanın.', true);
+        btn.disabled = false;
+        syncPayButtonLabel();
+        return;
+      }
+      if (!j.ok || !j.redirectUrl) {
+        showToast(j.message || 'Kart ödemesi başlatılamadı.', true);
+        btn.disabled = false;
+        syncPayButtonLabel();
+        return;
+      }
+      window.location.href = j.redirectUrl;
+      return;
+    }
+
+    // —— EFT / Havale ——
     try {
       await fetch('/.netlify/functions/send-notification', {
         method: 'POST',
@@ -689,16 +734,13 @@ async function submitPayment() {
       });
     } catch(mailErr) {
       console.warn('Mail gönderilemedi:', mailErr.message);
-      // Mail hatası formu durdurmaz
     }
 
-    // 3. Başarı ekranı
     document.getElementById('mainContent').style.display = 'none';
     const suc = document.getElementById('successState');
     suc.style.display = 'block';
     document.getElementById('successEmail').textContent = email;
     document.getElementById('successPhone').textContent = telefon;
-    // WhatsApp linkini güncelle
     const waBtn = document.getElementById('waContactBtn');
     if (waBtn) {
       const msg = encodeURIComponent(`Merhaba, FinSkor ödeme talebinde bulundum.\nAd Soyad: ${adSoyad}\nE-posta: ${email}`);
@@ -709,7 +751,7 @@ async function submitPayment() {
     console.error(e);
     showToast('Kayıt sırasında hata oluştu. Lütfen tekrar deneyin.', true);
     btn.disabled = false;
-    btn.textContent = '✓ Ödeme Talebini Gönder';
+    syncPayButtonLabel();
   }
 }
 

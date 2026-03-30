@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kart ödemesi — FinSkor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root { --navy:#071221; --gold:#C9A84C; --green:#2ECC9A; --red:#f87171; --dim:rgba(244,246,249,.65); }
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--navy);color:#F4F6F9;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;line-height:1.55;}
+.card{max-width:480px;width:100%;background:#0D1E35;border:1px solid rgba(201,168,76,.2);border-radius:14px;padding:32px 28px;text-align:center;}
+h1{font-size:1.25rem;font-weight:700;margin-bottom:10px;color:var(--gold);}
+p{font-size:.9rem;color:var(--dim);margin-bottom:16px;}
+.spinner{width:40px;height:40px;border:3px solid rgba(201,168,76,.2);border-top-color:var(--gold);border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 20px;}
+@keyframes sp{to{transform:rotate(360deg)}}
+.code{font-size:1.75rem;font-weight:800;letter-spacing:.15em;color:var(--gold);font-family:ui-monospace,monospace;margin:16px 0;padding:16px;background:rgba(201,168,76,.08);border-radius:10px;border:1px solid rgba(201,168,76,.35);}
+.err{color:var(--red);}
+a.btn{display:inline-block;margin-top:12px;padding:12px 24px;background:linear-gradient(135deg,var(--gold),#a07828);color:#071221;font-weight:700;text-decoration:none;border-radius:8px;font-size:.9rem;}
+a.link{color:var(--gold);font-size:.85rem;}
+</style>
+</head>
+<body>
+<div class="card" id="root">
+  <div id="loading">
+    <div class="spinner"></div>
+    <h1>Ödeme doğrulanıyor</h1>
+    <p>Lütfen bekleyin…</p>
+  </div>
+  <div id="ok" style="display:none">
+    <h1>Ödeme başarılı</h1>
+    <p>Erişim kodunuz e-posta adresinize de gönderildi.</p>
+    <div class="code" id="codeEl">—</div>
+    <a class="btn" href="https://finskor.tr/app.html">Platforma giriş</a>
+    <p style="margin-top:20px"><a class="link" href="/">Ana sayfa</a></p>
+  </div>
+  <div id="bad" style="display:none">
+    <h1 class="err">Ödeme tamamlanamadı</h1>
+    <p id="badMsg">Kart işlemi onaylanmadı veya süre doldu.</p>
+    <a class="btn" href="/odeme.html">Ödeme sayfasına dön</a>
+    <p style="margin-top:16px"><a class="link" href="mailto:info@finskor.tr">info@finskor.tr</a></p>
+  </div>
+</div>
+<script>
+(function(){
+  const params = {};
+  new URLSearchParams(location.search).forEach(function(v,k){ params[k.toLowerCase()] = v; });
+  var TransactionId = params.transactionid || params.transaction_id;
+  var PaymentToken = params.paymenttoken || params.payment_token;
+
+  function show(id){
+    document.getElementById('loading').style.display = id==='loading'?'block':'none';
+    document.getElementById('ok').style.display = id==='ok'?'block':'none';
+    document.getElementById('bad').style.display = id==='bad'?'block':'none';
+  }
+
+  if(!TransactionId || !PaymentToken){
+    show('bad');
+    document.getElementById('badMsg').textContent = 'Banka yanıtı eksik. Ödeme sayfasından tekrar deneyin.';
+    return;
+  }
+
+  fetch('/.netlify/functions/vakifbank-verify',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ TransactionId:TransactionId, PaymentToken:PaymentToken })
+  })
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if(data.ok && data.code){
+      document.getElementById('codeEl').textContent = data.code;
+      show('ok');
+    } else if(data.ok && data.already){
+      document.getElementById('ok').querySelector('h1').textContent = 'İşlem zaten tamamlandı';
+      document.getElementById('ok').querySelector('p').textContent = 'Erişim kodunuz daha önce e-postanıza gönderilmiş olmalı. Gelen kutunuzu kontrol edin.';
+      document.getElementById('codeEl').style.display = 'none';
+      show('ok');
+    } else {
+      document.getElementById('badMsg').textContent = data.message || 'İşlem onaylanmadı.';
+      show('bad');
+    }
+  })
+  .catch(function(){
+    document.getElementById('badMsg').textContent = 'Bağlantı hatası. Bir süre sonra tekrar deneyin veya bize yazın.';
+    show('bad');
+  });
+})();
+</script>
+</body>
+</html>

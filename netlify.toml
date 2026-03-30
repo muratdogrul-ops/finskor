@@ -1,3 +1,8 @@
+# Vakıfbank kart: Netlify → Site settings → Environment variables
+#   VAKIF_INIT=test veya prod
+#   VAKIF_HOST_MERCHANT_ID, VAKIF_MERCHANT_PASSWORD, VAKIF_HOST_TERMINAL_ID
+#   SITE_URL=https://finskor.tr  (callback: /kart-odeme-sonuc.html)
+
 [build]
   command   = "npm install && node build.js"
   publish   = "dist"
