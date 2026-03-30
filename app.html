@@ -3418,7 +3418,7 @@ function computeOzetTabloData(refYear, prevYear, isTaahhut) {
     // Özet/PDF: KV + UV ticari borç tek satırda (32); UV satırı sıfır; KV/UV alt toplamları kaydırmalı
     if (h.key === 'kvTicBorclar') {
       bilancoSatirlar.push({
-        label: lab,
+        label: lab + (en ? ' (incl. LT trade payables)' : ' (KV+UV birleşik)'),
         cv: D('kvTicBorclar') + uvTicCur,
         pv: Dp('kvTicBorclar') + uvTicPrev
       });
@@ -5503,7 +5503,12 @@ function openNakitAkis() {
     kasaBanka:       kasaBanka,
     ticariAlacaklar: parseFloat(d.ticAlacaklar   || 0),
     stoklar:         parseFloat(d.stoklar        || 0),
-    kvTicariBorclar: parseFloat(d.kvTicBorclar   || 0),
+    // 32+42: özet bilanço ile uyum — NakitFlow AP ve DPO tek satırda KV+UV ticari
+    kvTicariBorclar: parseFloat(d.kvTicBorclar || 0) + parseFloat(d.uvTicBorclar || 0),
+    digerAlacaklar:  parseFloat(d.digerAlacaklar || 0),
+    digerDonen:      parseFloat(d.digerDonen     || 0),
+    kvDigBorclar:    parseFloat(d.kvDigBorclar   || 0),
+    alinanAvans:     parseFloat(d.alinanAvans    || 0),
     kvMaliBorclar:   parseFloat(d.kvMaliBorclar  || 0),
     uvMaliBorclar:   parseFloat(d.uvMaliBorclar  || 0),
     ozKaynak:        parseFloat(d.ozKaynak       || 0),

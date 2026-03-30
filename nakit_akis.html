@@ -373,9 +373,11 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
           <div class="field"><label>📦 Stok</label><input id="ob-inv" type="number" placeholder="0"></div>
           <div class="field"><label>🏭 Duran Varlıklar Toplamı</label><input id="ob-mdv" type="number" placeholder="0"></div>
           <div class="field"><label>💼 Sermaye (Özkaynak)</label><input id="ob-capital" type="number" placeholder="0"></div>
+          <div class="field"><label>📎 Diğer alacak + diğer dönen (FinSkor dengesi)</label><input id="ob-other-assets" type="number" placeholder="0" title="Nakit akışta ve DSO’da kullanılmaz; 5Y bilanço aktifine eklenir."></div>
+          <div class="field"><label>📎 Diğer borç + alınan avans (FinSkor dengesi)</label><input id="ob-other-liab" type="number" placeholder="0" title="Nakit akışta ayrı ödeme yok; 5Y bilanço yükümlülüğüne eklenir."></div>
         </div>
         <div class="btn-group"><button class="btn btn-primary" onclick="saveOpening()">💾 Kaydet</button></div>
-        <div class="notice">Sermaye nakit değildir; özkaynak kalemidir.</div>
+        <div class="notice">Sermaye nakit değildir; özkaynak kalemidir. “FinSkor dengesi” alanları yalnızca 5Y bilanço özetini FinSkor ile hizalar; ticari alacak/borç satırları projeksiyon motorunda kalır.</div>
       </div>
     </div>
 
@@ -1033,7 +1035,7 @@ function createFirm(){
   for(const{group,items}of EXPENSE_GROUPS)for(const item of items)defExp[i++]={group,name:item,amount:0};
   const fxRates={usdOpen:0,eurOpen:0,monthly:Array.from({length:60},()=>({usd:0,eur:0}))};
   state.firms[id]={id,name,startDate:dt.toISOString(),createdAt:new Date().toISOString(),
-    opening:{cash:0,bank:0,ar:0,ap:0,inventory:0,capital:0},
+    opening:{cash:0,bank:0,ar:0,ap:0,inventory:0,capital:0,otherAssets:0,otherLiab:0},
     incomeStmt:{revenue:0,cogs:0},
     ciro:{mode:'uniform',monthly:new Array(12).fill(100/12)},
     assumptions:{months:60,growth:0,expGrowth:0,stockMult:1.5,bchLimit:0,bchRate:0,
@@ -1098,12 +1100,16 @@ function populateOpening(){
   if($('ob-inv'))$('ob-inv').value=o.inventory||0;
   if($('ob-mdv'))$('ob-mdv').value=o.mdv||0;
   if($('ob-capital'))$('ob-capital').value=o.capital||0;
+  if($('ob-other-assets'))$('ob-other-assets').value=o.otherAssets||0;
+  if($('ob-other-liab'))$('ob-other-liab').value=o.otherLiab||0;
 }
 function saveOpening(){
   const f=curFirm();if(!f)return;
   f.opening={cash:fnum($('ob-cash').value),bank:fnum($('ob-bank').value),ar:fnum($('ob-ar').value),
     ap:fnum($('ob-ap').value),inventory:fnum($('ob-inv').value),mdv:fnum($('ob-mdv').value),
-    capital:fnum($('ob-capital').value)};
+    capital:fnum($('ob-capital').value),
+    otherAssets:fnum($('ob-other-assets')?.value),
+    otherLiab:fnum($('ob-other-liab')?.value)};
   saveState();showAlert('Açılış bilanço kaydedildi.','ok');
 }
 
@@ -2339,7 +2345,18 @@ function renderProjection(){
 // ══════════════════════════════════════════════
 // 5Y TABLES
 // ══════════════════════════════════════════════
-function annual5Y(rows,startYear,mdv0=0){
+/** FinSkor dengesi: diğer alacak/dönen (aktif), diğer borç+avans (pasif) — nakit/DSO motoruna girmez. */
+function openingBalAdjFromOpening(o) {
+  if (o == null || typeof o !== 'object') o = {};
+  return {
+    otherAssets: Number(o.otherAssets) || 0,
+    otherLiab: Number(o.otherLiab) || 0
+  };
+}
+function annual5Y(rows, startYear, mdv0 = 0, balAdj) {
+  const _ba = openingBalAdjFromOpening(balAdj);
+  const oa = _ba.otherAssets;
+  const ol = _ba.otherLiab;
   const years=[startYear,startYear+1,startYear+2,startYear+3,startYear+4];
   const inc={};const bal={};
   for(const y of years)inc[y]={
@@ -2397,19 +2414,21 @@ function annual5Y(rows,startYear,mdv0=0){
       const mdv   = inc[y].yatirimKumul||0;   // Maddi Duran Varlık
       const sermEk= inc[y].sermayeKumul||0;   // Ek sermaye birikimi
       // Dönen varlıklar
-      const donen = (last['Son.Nakit']||0)+(last['Son.Mevduat']||0)+(last['AR Bakiye']||0)+(last['Stok Bakiye']||0);
+      const donen = (last['Son.Nakit']||0)+(last['Son.Mevduat']||0)+(last['AR Bakiye']||0)+(last['Stok Bakiye']||0) + oa;
       const aktifToplam = donen + mdv;         // MDV aktife eklenir
-      const liab  = (last['AP Bakiye']||0)+(last['Son.BCH']||0)+(last['Taksit Bakiye']||0)+(last['Spot Bakiye']||0);
+      const liab  = (last['AP Bakiye']||0)+(last['Son.BCH']||0)+(last['Taksit Bakiye']||0)+(last['Spot Bakiye']||0) + ol;
       bal[y]={
         nakit:  last['Son.Nakit']  ||0,
         mevduat:last['Son.Mevduat']||0,
         ar:     last['AR Bakiye']  ||0,
         stok:   last['Stok Bakiye']||0,
+        otherAssets: oa,
         mdv,
         ap:     last['AP Bakiye']  ||0,
         bch:    last['Son.BCH']    ||0,
         taksit: last['Taksit Bakiye']||0,
         spot:   last['Spot Bakiye'] ||0,
+        otherLiab: ol,
         toplamYuk: liab,
         aktifToplam,
         pasifToplam: aktifToplam,
@@ -2435,7 +2454,7 @@ function renderIncome5Y(){
   let proj;try{proj=buildProjection(state.currentFirmId);}catch(e){showAlert(e.message,'err');return;}
   lastProjection=proj;
   const sy=new Date(f.startDate).getFullYear();
-  const{years,inc}=annual5Y(proj.rows,sy,(f.opening||{}).mdv||0);
+  const{years,inc}=annual5Y(proj.rows,sy,(f.opening||{}).mdv||0,openingBalAdjFromOpening(f.opening));
   $('inc5-title').textContent=f.name+' — 5 Yıllık Gelir Tablosu';
   $('inc5-headers').innerHTML='<th style="text-align:left;min-width:240px">Kalem</th>'+years.map(y=>'<th>'+y+'</th>').join('');
 
@@ -2495,7 +2514,7 @@ function renderBalance5Y(){
   lastProjection=proj;
   const sy=new Date(f.startDate).getFullYear();
   const mdv0=(f.opening||{}).mdv||0;
-  const{years,inc,bal}=annual5Y(proj.rows,sy,mdv0);
+  const{years,inc,bal}=annual5Y(proj.rows,sy,mdv0,openingBalAdjFromOpening(f.opening));
   const retained=computeRetained(years,inc);const capital0=(f.opening||{}).capital||0;
   $('bal5-title').textContent=f.name+' — 5 Yıllık Bilanço';
   $('bal5-headers').innerHTML='<th>Kalem</th>'+years.map(y=>'<th>'+y+'</th>').join('');
@@ -2512,6 +2531,7 @@ function renderBalance5Y(){
     {l:'Mevduat',          k:'mevduat'},
     {l:'Ticari Alacak (AR)',k:'ar'},
     {l:'Stok',             k:'stok'},
+    {l:'Diğer alacak + diğer dönen (bilanço dengesi)', k:'otherAssets'},
     {sep:'DURAN VARLIKLAR'},
     {l:'Maddi Duran Varlık (kümülatif yatırım)',k:'mdv'},
     {l:'► AKTİF TOPLAM',  k:'aktifToplam',bold:true},
@@ -2520,6 +2540,7 @@ function renderBalance5Y(){
     {l:'BCH',              k:'bch',   c:true},
     {l:'Spot Kredi',      k:'spot',  c:true},
     {l:'Taksitli Kredi',   k:'taksit',c:true},
+    {l:'Diğer borçlar + alınan avans (bilanço dengesi)', k:'otherLiab', c:true},
     {l:'► Toplam Yükümlülük',k:'toplamYuk',c:true,bold:true},
     {sep:'ÖZKAYNAK'},
     {l:'Sermaye (Açılış)', k:'__cap__'},
@@ -2560,7 +2581,7 @@ function exportCSV5Y(type){
   const f=curFirm();if(!f)return;
   let proj;try{proj=buildProjection(state.currentFirmId);}catch(e){showAlert(e.message,'err');return;}
   const sy=new Date(f.startDate).getFullYear();
-  const{years,inc,bal}=annual5Y(proj.rows,sy,(f.opening||{}).mdv||0);
+  const{years,inc,bal}=annual5Y(proj.rows,sy,(f.opening||{}).mdv||0,openingBalAdjFromOpening(f.opening));
   const retained=computeRetained(years,inc);const c0=(f.opening||{}).capital||0;
   const rows_=type==='income'
     ?[['Kalem',...years],['Ciro',...years.map(y=>inc[y]?.ciro||0)],['COGS',...years.map(y=>inc[y]?.cogs||0)],
@@ -2568,8 +2589,10 @@ function exportCSV5Y(type){
       ['EBT',...years.map(y=>inc[y]?.ebt||0)],['K.Vergisi',...years.map(y=>inc[y]?.tax||0)],['Net Kâr',...years.map(y=>inc[y]?.net||0)]]
     :[['Kalem',...years],['Nakit',...years.map(y=>(bal[y]||{}).nakit||0)],['Mevduat',...years.map(y=>(bal[y]||{}).mevduat||0)],
       ['AR',...years.map(y=>(bal[y]||{}).ar||0)],['Stok',...years.map(y=>(bal[y]||{}).stok||0)],
+      ['Diğer alacak+dönen (denge)',...years.map(y=>(bal[y]||{}).otherAssets||0)],
       ['Aktif Toplam',...years.map(y=>(bal[y]||{}).aktifToplam||0)],['AP',...years.map(y=>(bal[y]||{}).ap||0)],
       ['BCH',...years.map(y=>(bal[y]||{}).bch||0)],['Taksitli Kredi',...years.map(y=>(bal[y]||{}).taksit||0)],
+      ['Diğer borç+avans (denge)',...years.map(y=>(bal[y]||{}).otherLiab||0)],
       ['Toplam Yük.',...years.map(y=>(bal[y]||{}).toplamYuk||0)],
       ['Sermaye',...years.map(()=>c0)],['Geçmiş K/Z',...years.map(y=>retained[y]||0)],
       ['Pasif Toplam',...years.map(y=>(bal[y]||{}).pasifToplam||0)]];
@@ -3029,6 +3052,8 @@ async function importFromFinSkor(){
       inventory: p.stoklar           || 0,
       capital:   p.ozKaynak          || 0,
       mdv:       p.duranVarlikToplami || p.maddiDuranVar || 0,
+      otherAssets: (Number(p.digerAlacaklar)||0) + (Number(p.digerDonen)||0),
+      otherLiab:   (Number(p.kvDigBorclar)||0) + (Number(p.alinanAvans)||0),
     },
     incomeStmt:{
       revenue: p.netSatis    || 0,
@@ -3228,7 +3253,7 @@ function exportRaporExcel() {
 
   // === SHEET 2: GELİR TABLOSU ===
   const sy = new Date(f.startDate).getFullYear();
-  const { years, inc } = annual5Y(rows, sy, (f.opening || {}).mdv || 0);
+  const { years, inc } = annual5Y(rows, sy, (f.opening || {}).mdv || 0, openingBalAdjFromOpening(f.opening));
   const gelirHdrs = ['Kalem', ...years.map(String)];
   const gelirRows = [
     ['Net Satışlar',                ...years.map(y => inc[y]?.ciro || 0)],
@@ -3256,7 +3281,7 @@ function exportRaporExcel() {
   XLSX.utils.book_append_sheet(wb, makeSheet(gelirHdrs, gelirRows), 'Gelir Tablosu');
 
   // === SHEET 3: BİLANÇO ===
-  const { bal } = annual5Y(rows, sy, (f.opening || {}).mdv || 0);
+  const { bal } = annual5Y(rows, sy, (f.opening || {}).mdv || 0, openingBalAdjFromOpening(f.opening));
   const retained = computeRetained(years, inc);
   const c0 = (f.opening || {}).capital || 0;
   const bilHdrs = ['Kalem', ...years.map(String)];
@@ -3266,11 +3291,13 @@ function exportRaporExcel() {
     ['Mevduat',               ...years.map(y => (bal[y] || {}).mevduat || 0)],
     ['Ticari Alacak (AR)',    ...years.map(y => (bal[y] || {}).ar || 0)],
     ['Stok',                  ...years.map(y => (bal[y] || {}).stok || 0)],
+    ['Diğer alacak + diğer dönen (denge)', ...years.map(y => (bal[y] || {}).otherAssets || 0)],
     ['AKTİF TOPLAM',          ...years.map(y => (bal[y] || {}).aktifToplam || 0)],
     ['── PASİF ──',           ...years.map(() => '')],
     ['Ticari Borç (AP)',      ...years.map(y => (bal[y] || {}).ap || 0)],
     ['BCH Borcu',             ...years.map(y => (bal[y] || {}).bch || 0)],
     ['Taksitli Kredi',        ...years.map(y => (bal[y] || {}).taksit || 0)],
+    ['Diğer borç + alınan avans (denge)', ...years.map(y => (bal[y] || {}).otherLiab || 0)],
     ['TOPLAM YÜKÜMLÜLÜKler', ...years.map(y => (bal[y] || {}).toplamYuk || 0)],
     ['── ÖZKAYNAK ──',        ...years.map(() => '')],
     ['Sermaye',               ...years.map(() => c0)],
@@ -3289,7 +3316,7 @@ function exportGelirExcel() {
   const f = curFirm(); if (!f) return;
   let proj; try { proj = buildProjection(state.currentFirmId); } catch(e) { showAlert(e.message,'err'); return; }
   const sy = new Date(f.startDate).getFullYear();
-  const { years, inc } = annual5Y(proj.rows, sy);
+  const { years, inc } = annual5Y(proj.rows, sy, (f.opening || {}).mdv || 0, openingBalAdjFromOpening(f.opening));
   const wb = XLSX.utils.book_new();
   const hdrs = ['Kalem', ...years.map(String)];
   const rows2 = [
@@ -3314,7 +3341,7 @@ function exportBilançoExcel() {
   const f = curFirm(); if (!f) return;
   let proj; try { proj = buildProjection(state.currentFirmId); } catch(e) { showAlert(e.message,'err'); return; }
   const sy = new Date(f.startDate).getFullYear();
-  const { years, inc, bal } = annual5Y(proj.rows, sy);
+  const { years, inc, bal } = annual5Y(proj.rows, sy, (f.opening || {}).mdv || 0, openingBalAdjFromOpening(f.opening));
   const retained = computeRetained(years, inc);
   const c0 = (f.opening||{}).capital||0;
   const wb = XLSX.utils.book_new();
@@ -3324,10 +3351,12 @@ function exportBilançoExcel() {
     ['Mevduat', ...years.map(y=>(bal[y]||{}).mevduat||0)],
     ['AR', ...years.map(y=>(bal[y]||{}).ar||0)],
     ['Stok', ...years.map(y=>(bal[y]||{}).stok||0)],
+    ['Diğer alacak+dönen (denge)', ...years.map(y=>(bal[y]||{}).otherAssets||0)],
     ['AKTİF TOPLAM', ...years.map(y=>(bal[y]||{}).aktifToplam||0)],
     ['AP', ...years.map(y=>(bal[y]||{}).ap||0)],
     ['BCH', ...years.map(y=>(bal[y]||{}).bch||0)],
     ['Kredi', ...years.map(y=>(bal[y]||{}).taksit||0)],
+    ['Diğer borç+avans (denge)', ...years.map(y=>(bal[y]||{}).otherLiab||0)],
     ['YÜKÜMLÜLÜKler', ...years.map(y=>(bal[y]||{}).toplamYuk||0)],
     ['Sermaye', ...years.map(()=>c0)],
     ['Geçmiş K/Z', ...years.map(y=>retained[y]||0)],
@@ -3535,7 +3564,7 @@ function pdfBuildIncomePage(doc, proj, firmName) {
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const sy = new Date(proj.firm.startDate).getFullYear();
-  const { years, inc } = annual5Y(proj.rows, sy, (proj.firm.opening || {}).mdv || 0);
+  const { years, inc } = annual5Y(proj.rows, sy, (proj.firm.opening || {}).mdv || 0, openingBalAdjFromOpening(proj.firm.opening));
 
   doc.addPage();
   pdfAddHeader(doc, firmName, '5 Yıllık Gelir Tablosu', pageW);
@@ -3597,7 +3626,7 @@ function pdfBuildBalancePage(doc, proj, firmName) {
   const sy = new Date(proj.firm.startDate).getFullYear();
   const mdv0 = (proj.firm.opening || {}).mdv || 0;
   const capital0 = (proj.firm.opening || {}).capital || 0;
-  const { years, inc, bal } = annual5Y(proj.rows, sy, mdv0);
+  const { years, inc, bal } = annual5Y(proj.rows, sy, mdv0, openingBalAdjFromOpening(proj.firm.opening));
   const retained = computeRetained(years, inc);
   const realPasif = {};
   for (const y of years) {
@@ -3608,14 +3637,16 @@ function pdfBuildBalancePage(doc, proj, firmName) {
   const bodyMeta = [];
   const pushSep = (t) => { bodyMeta.push({ cells: [t, ...years.map(() => '')], isSep: true }); };
   pushSep('DÖNEN VARLIKLAR');
-  [['Nakit & Banka', 'nakit'], ['Mevduat', 'mevduat'], ['Ticari Alacak (AR)', 'ar'], ['Stok', 'stok']].forEach(([lab, k]) => {
+  [['Nakit & Banka', 'nakit'], ['Mevduat', 'mevduat'], ['Ticari Alacak (AR)', 'ar'], ['Stok', 'stok'],
+    ['Diğer alacak + diğer dönen (denge)', 'otherAssets']].forEach(([lab, k]) => {
     bodyMeta.push({ cells: [lab, ...years.map(y => pdfNum((bal[y] || {})[k] || 0))] });
   });
   pushSep('DURAN VARLIKLAR');
   bodyMeta.push({ cells: ['Maddi Duran Varlık (kümülatif yatırım)', ...years.map(y => pdfNum((bal[y] || {}).mdv || 0))] });
   bodyMeta.push({ cells: ['► AKTİF TOPLAM', ...years.map(y => pdfNum((bal[y] || {}).aktifToplam || 0))], isTotal: true });
   pushSep('YÜKÜMLÜLÜKLER');
-  [['Ticari Borç (AP)', 'ap'], ['BCH', 'bch'], ['Spot Kredi', 'spot'], ['Taksitli Kredi', 'taksit']].forEach(([lab, k]) => {
+  [['Ticari Borç (AP)', 'ap'], ['BCH', 'bch'], ['Spot Kredi', 'spot'], ['Taksitli Kredi', 'taksit'],
+    ['Diğer borç + alınan avans (denge)', 'otherLiab']].forEach(([lab, k]) => {
     bodyMeta.push({ cells: [lab, ...years.map(y => pdfNum((bal[y] || {})[k] || 0))] });
   });
   bodyMeta.push({ cells: ['► Toplam Yükümlülük', ...years.map(y => pdfNum((bal[y] || {}).toplamYuk || 0))], isTotal: true });
