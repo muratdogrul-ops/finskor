@@ -2449,15 +2449,41 @@ function annual5Y(rows, startYear, mdv0 = 0, balAdj) {
   }
   return{years,inc,bal};
 }
-// computeRetained: her yıl için o yıla kadar biriken kümülatif net kar
-// Bilanço'da ilgili yılın özkaynağına yansır (Geçmiş Yıl K/Z + Bu Yıl Net Kâr)
-function computeRetained(years,inc){
-  const ret={};let cum=0;
-  for(let i=0;i<years.length;i++){
-    cum+=(inc[years[i]]?.net||0); // O yılın net karını da dahil et
-    ret[years[i]]=cum;            // Bilanço: yıl sonu özkaynakta gösterilir
+/** FinSkor bilanço anlık görüntüsünden: 57 − 58 + 59 (yıl sonu kapanış → projeksiyon yılı başı devreden). */
+function openingRetainedFromSnapshot(snap) {
+  if (!snap || !Array.isArray(snap.rows)) return 0;
+  let gk = 0, gz = 0, dnk = 0;
+  for (const row of snap.rows) {
+    if (!row || !row.key) continue;
+    const t = Number(row.tutar) || 0;
+    if (row.key === 'gecmisKar') gk = t;
+    if (row.key === 'gecmisZarar') gz = Math.abs(t);
+    if (row.key === 'donemNetKar') dnk = t;
   }
-  return ret;
+  return gk - gz + dnk;
+}
+
+/**
+ * ret.bfw[y]: yıl y başında devreden (önceki yıl sonu birikimli kâr/zarar).
+ * ret.end[y]: yıl y sonunda birikimli (devreden + o yıl net kârı); sonraki yılın devredenine eşit.
+ * Açılış toplam özkaynak (capital) zaten FinSkor’daki R0’ı içerir; pasif toplamında yalnızca projeksiyon netleri eklenir.
+ */
+function computeRetained(years, inc, openingRetained) {
+  const R0 = Number(openingRetained) || 0;
+  const r = { opening: R0, bfw: {}, end: {} };
+  let cum = R0;
+  for (let i = 0; i < years.length; i++) {
+    const y = years[i];
+    r.bfw[y] = cum;
+    cum += (inc[y]?.net || 0);
+    r.end[y] = cum;
+  }
+  return r;
+}
+
+/** Özkaynak / pasif: açılış özkaynağa ek olarak sadece projeksiyon dönemi netleri (çift sayım yok). */
+function retainedProjectionOnly(ret, y) {
+  return (ret.end[y] || 0) - (ret.opening || 0);
 }
 
 function renderIncome5Y(){
@@ -2526,12 +2552,13 @@ function bilancoAdiNumsiz(s) {
 const BAL5_CORP_TOTAL_KEYS = new Set(['donenVarlik', 'duranVarlik', 'aktifToplam', 'kvYKToplam', 'uvYKToplam', 'ozKaynak', 'pasifToplam']);
 
 /** FinSkor bilanço satırı → yıl y hücresi (NakitFlow projeksiyonu ile hizalı; 32=KV+UV ticari). */
-function finSkorBilancoYearCell(f, entry, y, bal, inc, retained, capital0, realPasifY) {
+function finSkorBilancoYearCell(f, entry, y, bal, inc, ret, capital0, realPasifY) {
   const b = bal[y] || {};
   const ob = f.opening || {};
   const base = Number(entry.tutar) || 0;
   const kvLiab = Number(ob.openingOtherLiabKv) || 0;
   const uvLiab = Number(ob.openingOtherLiabUv) || 0;
+  const bfw = ret.bfw[y] != null ? ret.bfw[y] : 0;
   if (entry.isTotal && entry.key === 'aktifToplam') return b.aktifToplam || 0;
   if (entry.isTotal && entry.key === 'pasifToplam') return realPasifY || 0;
   if (entry.isTotal && entry.key === 'donenVarlik')
@@ -2540,7 +2567,7 @@ function finSkorBilancoYearCell(f, entry, y, bal, inc, retained, capital0, realP
   if (entry.isTotal && entry.key === 'kvYKToplam') return (b.bch || 0) + (b.ap || 0) + kvLiab;
   if (entry.isTotal && entry.key === 'uvYKToplam') return (b.taksit || 0) + (b.spot || 0) + uvLiab;
   if (entry.isTotal && entry.key === 'ozKaynak')
-    return (capital0 || 0) + (b.sermayeEk || 0) + (retained[y] || 0);
+    return (capital0 || 0) + (b.sermayeEk || 0) + retainedProjectionOnly(ret, y);
   if (entry.isTotal) return base;
   switch (entry.key) {
     case 'hazirDegerler': return (b.nakit || 0) + (b.mevduat || 0);
@@ -2550,7 +2577,8 @@ function finSkorBilancoYearCell(f, entry, y, bal, inc, retained, capital0, realP
     case 'kvTicBorclar': return b.ap || 0;
     case 'uvMaliBorclar': return (b.taksit || 0) + (b.spot || 0);
     case 'uvTicBorclar': return 0;
-    case 'gecmisZarar': return -Math.abs(base);
+    case 'gecmisKar': return Math.max(0, bfw);
+    case 'gecmisZarar': return bfw < 0 ? bfw : 0;
     case 'donemNetKar': return (inc[y] && inc[y].net != null) ? inc[y].net : base;
     default: return base;
   }
@@ -2563,7 +2591,9 @@ function renderBalance5Y(){
   const sy=new Date(f.startDate).getFullYear();
   const mdv0=(f.opening||{}).mdv||0;
   const{years,inc,bal}=annual5Y(proj.rows,sy,mdv0,openingBalAdjFromOpening(f.opening));
-  const retained=computeRetained(years,inc);const capital0=(f.opening||{}).capital||0;
+  const openRE = openingRetainedFromSnapshot(f.finskorBilancoSnapshot);
+  const ret = computeRetained(years, inc, openRE);
+  const capital0=(f.opening||{}).capital||0;
   $('bal5-title').textContent=f.name+' — 5 Yıllık Bilanço';
   const snap=f.finskorBilancoSnapshot;
   const snapNote = (snap && snap.yil) ? ' · FinSkor '+snap.yil+' hesap adları (yıl sütunları NakitFlow yıl sonu)' : '';
@@ -2574,7 +2604,7 @@ function renderBalance5Y(){
   const realPasif={};
   for(const y of years){
     const sermEk=(bal[y]||{}).sermayeEk||0;
-    realPasif[y]=((bal[y]||{}).toplamYuk||0)+capital0+sermEk+(retained[y]||0);
+    realPasif[y]=((bal[y]||{}).toplamYuk||0)+capital0+sermEk+retainedProjectionOnly(ret,y);
   }
 
   let sections;
@@ -2608,7 +2638,8 @@ function renderBalance5Y(){
       {sep:'ÖZKAYNAK'},
       {l:'Sermaye (Açılış)', k:'__cap__'},
       {l:'Sermaye Artışı (kümülatif)',k:'sermayeEk'},
-      {l:'Birikimli Net K/Z (yıl sonu)',  k:'__ret__'},
+      {l:'Geçmiş yıl kar/zarar (devreden, yıl başı)', k:'__gecmis_bfw__'},
+      {l:'Dönem net kar/zarar', k:'__donem_net__'},
       {l:'► PASİF TOPLAM',k:'__pasif__',bold:true,corpTotal:true},
       {l:'⚖ Denge Farkı (Aktif − Pasif)',k:'__fark__',fark:true}
     ];
@@ -2620,11 +2651,12 @@ function renderBalance5Y(){
     const cells=years.map(y=>{
       let v;
       if (row.fsEntry) {
-        v = finSkorBilancoYearCell(f, row.fsEntry, y, bal, inc, retained, capital0, realPasif[y]);
+        v = finSkorBilancoYearCell(f, row.fsEntry, y, bal, inc, ret, capital0, realPasif[y]);
       } else if(row.fark) {
         v=((bal[y]||{}).aktifToplam||0)-(realPasif[y]||0);
       } else if(row.k==='__cap__')         v=capital0;
-      else if(row.k==='__ret__')    v=retained[y]||0;
+      else if(row.k==='__gecmis_bfw__')   v=ret.bfw[y]||0;
+      else if(row.k==='__donem_net__')    v=inc[y]?.net||0;
       else if(row.k==='__pasif__')  v=realPasif[y]||0;
       else if(row.k==='__fark__')   v=((bal[y]||{}).aktifToplam||0)-(realPasif[y]||0);
       else                          v=(bal[y]||{})[row.k]||0;
@@ -2652,7 +2684,7 @@ function exportCSV5Y(type){
   let proj;try{proj=buildProjection(state.currentFirmId);}catch(e){showAlert(e.message,'err');return;}
   const sy=new Date(f.startDate).getFullYear();
   const{years,inc,bal}=annual5Y(proj.rows,sy,(f.opening||{}).mdv||0,openingBalAdjFromOpening(f.opening));
-  const retained=computeRetained(years,inc);const c0=(f.opening||{}).capital||0;
+  const ret=computeRetained(years,inc,openingRetainedFromSnapshot(f.finskorBilancoSnapshot));const c0=(f.opening||{}).capital||0;
   const rows_=type==='income'
     ?[['Kalem',...years],['Ciro',...years.map(y=>inc[y]?.ciro||0)],['COGS',...years.map(y=>inc[y]?.cogs||0)],
       ['Brüt Kâr',...years.map(y=>inc[y]?.gp||0)],['Faaliyet Kârı',...years.map(y=>inc[y]?.faaliyetKar||0)],
@@ -2664,7 +2696,9 @@ function exportCSV5Y(type){
       ['BCH',...years.map(y=>(bal[y]||{}).bch||0)],['Taksitli Kredi',...years.map(y=>(bal[y]||{}).taksit||0)],
       ['Diğer borç+avans (denge)',...years.map(y=>(bal[y]||{}).otherLiab||0)],
       ['Toplam Yük.',...years.map(y=>(bal[y]||{}).toplamYuk||0)],
-      ['Sermaye',...years.map(()=>c0)],['Geçmiş K/Z',...years.map(y=>retained[y]||0)],
+      ['Sermaye',...years.map(()=>c0)],
+      ['Geçmiş yıl k/z (devreden yıl başı)',...years.map(y=>ret.bfw[y]||0)],
+      ['Dönem net kâr/zarar',...years.map(y=>inc[y]?.net||0)],
       ['Pasif Toplam',...years.map(y=>(bal[y]||{}).pasifToplam||0)]];
   download(rows_.map(r=>r.join(';')).join('\n'),(type==='income'?'Gelir':'Bilanco')+'_5Y_'+f.name+'.csv');
 }
@@ -3358,7 +3392,7 @@ function exportRaporExcel() {
 
   // === SHEET 3: BİLANÇO ===
   const { bal } = annual5Y(rows, sy, (f.opening || {}).mdv || 0, openingBalAdjFromOpening(f.opening));
-  const retained = computeRetained(years, inc);
+  const ret = computeRetained(years, inc, openingRetainedFromSnapshot(f.finskorBilancoSnapshot));
   const c0 = (f.opening || {}).capital || 0;
   const bilHdrs = ['Kalem', ...years.map(String)];
   const bilRows = [
@@ -3377,7 +3411,8 @@ function exportRaporExcel() {
     ['TOPLAM YÜKÜMLÜLÜKler', ...years.map(y => (bal[y] || {}).toplamYuk || 0)],
     ['── ÖZKAYNAK ──',        ...years.map(() => '')],
     ['Sermaye',               ...years.map(() => c0)],
-    ['Geçmiş Yıl K/Z',       ...years.map(y => retained[y] || 0)],
+    ['Geçmiş yıl k/z (devreden yıl başı)', ...years.map(y => ret.bfw[y] || 0)],
+    ['Dönem net kâr/zarar',   ...years.map(y => inc[y]?.net || 0)],
     ['PASİF TOPLAM',          ...years.map(y => (bal[y] || {}).pasifToplam || 0)],
   ];
   XLSX.utils.book_append_sheet(wb, makeSheet(bilHdrs, bilRows), 'Bilanço');
@@ -3418,7 +3453,7 @@ function exportBilançoExcel() {
   let proj; try { proj = buildProjection(state.currentFirmId); } catch(e) { showAlert(e.message,'err'); return; }
   const sy = new Date(f.startDate).getFullYear();
   const { years, inc, bal } = annual5Y(proj.rows, sy, (f.opening || {}).mdv || 0, openingBalAdjFromOpening(f.opening));
-  const retained = computeRetained(years, inc);
+  const ret = computeRetained(years, inc, openingRetainedFromSnapshot(f.finskorBilancoSnapshot));
   const c0 = (f.opening||{}).capital||0;
   const wb = XLSX.utils.book_new();
   const hdrs = ['Kalem', ...years.map(String)];
@@ -3435,7 +3470,8 @@ function exportBilançoExcel() {
     ['Diğer borç+avans (denge)', ...years.map(y=>(bal[y]||{}).otherLiab||0)],
     ['YÜKÜMLÜLÜKler', ...years.map(y=>(bal[y]||{}).toplamYuk||0)],
     ['Sermaye', ...years.map(()=>c0)],
-    ['Geçmiş K/Z', ...years.map(y=>retained[y]||0)],
+    ['Geçmiş yıl k/z (devreden yıl başı)', ...years.map(y=>ret.bfw[y]||0)],
+    ['Dönem net kâr/zarar', ...years.map(y=>inc[y]?.net||0)],
     ['PASİF TOPLAM', ...years.map(y=>(bal[y]||{}).pasifToplam||0)],
   ];
   XLSX.utils.book_append_sheet(wb, makeSheet(hdrs, rows2), 'Bilanço');
@@ -3702,11 +3738,11 @@ function pdfBuildBalancePage(doc, proj, firmName) {
   const mdv0 = (proj.firm.opening || {}).mdv || 0;
   const capital0 = (proj.firm.opening || {}).capital || 0;
   const { years, inc, bal } = annual5Y(proj.rows, sy, mdv0, openingBalAdjFromOpening(proj.firm.opening));
-  const retained = computeRetained(years, inc);
+  const ret = computeRetained(years, inc, openingRetainedFromSnapshot(proj.firm.finskorBilancoSnapshot));
   const realPasif = {};
   for (const y of years) {
     const sermEk = (bal[y] || {}).sermayeEk || 0;
-    realPasif[y] = ((bal[y] || {}).toplamYuk || 0) + capital0 + sermEk + (retained[y] || 0);
+    realPasif[y] = ((bal[y] || {}).toplamYuk || 0) + capital0 + sermEk + retainedProjectionOnly(ret, y);
   }
   const yLabels = years.map(String);
   const bodyMeta = [];
@@ -3728,7 +3764,8 @@ function pdfBuildBalancePage(doc, proj, firmName) {
   pushSep('ÖZKAYNAK');
   bodyMeta.push({ cells: ['Sermaye (Açılış)', ...years.map(() => pdfNum(capital0))] });
   bodyMeta.push({ cells: ['Sermaye Artışı (kümülatif)', ...years.map(y => pdfNum((bal[y] || {}).sermayeEk || 0))] });
-  bodyMeta.push({ cells: ['Birikimli Net K/Z (yıl sonu)', ...years.map(y => pdfNum(retained[y] || 0))] });
+  bodyMeta.push({ cells: ['Geçmiş yıl k/z (devreden yıl başı)', ...years.map(y => pdfNum(ret.bfw[y] || 0))] });
+  bodyMeta.push({ cells: ['Dönem net kâr/zarar', ...years.map(y => pdfNum(inc[y]?.net || 0))] });
   bodyMeta.push({ cells: ['► PASİF TOPLAM', ...years.map(y => pdfNum(realPasif[y] || 0))], isTotal: true });
   bodyMeta.push({ cells: ['Denge Farkı (Aktif − Pasif)', ...years.map(y => {
     const a = (bal[y] || {}).aktifToplam || 0;
