@@ -5475,6 +5475,36 @@ function nkmUygula() {
 }
 
 // ── NakitFlow entegrasyonu ─────────────────────────────────────────────────
+function _nkmNum(v) { const n = parseFloat(v); return isFinite(n) ? n : 0; }
+/** FinSkor bilanço satırları (GELİR TABLOSU’na kadar); 42 → 0, 32 = KV+UV ticari birleşik. */
+function _nkmBuildFinskorBilancoRowsForPayload(d) {
+  const rows = [];
+  for (let i = 0; i < HESAPLAR.length; i++) {
+    const h = HESAPLAR[i];
+    if (h.label === 'GELİR TABLOSU' || h.labelEn === 'INCOME STATEMENT') break;
+    if (h.type === 'cat' || !h.key) continue;
+    if (h.key === 'uvTicBorclar') {
+      rows.push({ key: h.key, label: h.label + ' (32 ile birleşik)', tutar: 0, isTotal: !!h.isTotal });
+      continue;
+    }
+    let tutar = _nkmNum(d[h.key]);
+    if (h.key === 'kvTicBorclar') tutar = _nkmNum(d.kvTicBorclar) + _nkmNum(d.uvTicBorclar);
+    rows.push({ key: h.key, label: h.label, tutar, isTotal: !!h.isTotal });
+  }
+  return rows;
+}
+function _nkmFinSkorOtherAssetsPlug(d) {
+  return _nkmNum(d.menkKiymetler) + _nkmNum(d.digerAlacaklar) + _nkmNum(d.yilYayginMal)
+    + _nkmNum(d.gelecekAyGider) + _nkmNum(d.digerDonen);
+}
+function _nkmFinSkorOtherLiabKvPlug(d) {
+  return _nkmNum(d.kvDigBorclar) + _nkmNum(d.alinanAvans) + _nkmNum(d.yilHakediş) + _nkmNum(d.odenecekVergi)
+    + _nkmNum(d.borcKarsilik) + _nkmNum(d.gelecekAyGelir) + _nkmNum(d.digerKvYK);
+}
+function _nkmFinSkorOtherLiabUvPlug(d) {
+  return _nkmNum(d.uvDigBorclar) + _nkmNum(d.uvAlinanAvans) + _nkmNum(d.uvBorcKarsilik) + _nkmNum(d.uvDigYK);
+}
+
 function openNakitAkis() {
   // En çok dolu olan yılı bul (en yüksek yıl değil, en fazla veri girilen yıl)
   const years = state.activeYears.slice().sort((a,b)=>a-b);
@@ -5503,12 +5533,14 @@ function openNakitAkis() {
     kasaBanka:       kasaBanka,
     ticariAlacaklar: parseFloat(d.ticAlacaklar   || 0),
     stoklar:         parseFloat(d.stoklar        || 0),
-    // 32+42: özet bilanço ile uyum — NakitFlow AP ve DPO tek satırda KV+UV ticari
+    // 32+42: yalnızca UV ticari → KV ticari; diğer UV kalemleri ayrı kalır
     kvTicariBorclar: parseFloat(d.kvTicBorclar || 0) + parseFloat(d.uvTicBorclar || 0),
-    digerAlacaklar:  parseFloat(d.digerAlacaklar || 0),
-    digerDonen:      parseFloat(d.digerDonen     || 0),
-    kvDigBorclar:    parseFloat(d.kvDigBorclar   || 0),
-    alinanAvans:     parseFloat(d.alinanAvans    || 0),
+    // Projeksiyon dışı dönen / yükümlülük tarafları (tam FinSkor bilanço dengesi)
+    otherAssets:     _nkmFinSkorOtherAssetsPlug(d),
+    otherLiabKv:     _nkmFinSkorOtherLiabKvPlug(d),
+    otherLiabUv:     _nkmFinSkorOtherLiabUvPlug(d),
+    otherLiab:       _nkmFinSkorOtherLiabKvPlug(d) + _nkmFinSkorOtherLiabUvPlug(d),
+    finskorBilancoRows: _nkmBuildFinskorBilancoRowsForPayload(d),
     kvMaliBorclar:   parseFloat(d.kvMaliBorclar  || 0),
     uvMaliBorclar:   parseFloat(d.uvMaliBorclar  || 0),
     ozKaynak:        parseFloat(d.ozKaynak       || 0),

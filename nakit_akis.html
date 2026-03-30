@@ -2508,6 +2508,37 @@ function renderIncome5Y(){
   }).join('');
 }
 
+/** FinSkor bilanço satırı → yıl y hücresi (NakitFlow projeksiyonu ile hizalı; 32=KV+UV ticari). */
+function finSkorBilancoYearCell(f, entry, y, bal, inc, retained, capital0, realPasifY) {
+  const b = bal[y] || {};
+  const ob = f.opening || {};
+  const base = Number(entry.tutar) || 0;
+  const kvLiab = Number(ob.openingOtherLiabKv) || 0;
+  const uvLiab = Number(ob.openingOtherLiabUv) || 0;
+  if (entry.isTotal && entry.key === 'aktifToplam') return b.aktifToplam || 0;
+  if (entry.isTotal && entry.key === 'pasifToplam') return realPasifY || 0;
+  if (entry.isTotal && entry.key === 'donenVarlik')
+    return (b.nakit || 0) + (b.mevduat || 0) + (b.ar || 0) + (b.stok || 0) + (b.otherAssets || 0);
+  if (entry.isTotal && entry.key === 'duranVarlik') return b.mdv || 0;
+  if (entry.isTotal && entry.key === 'kvYKToplam') return (b.bch || 0) + (b.ap || 0) + kvLiab;
+  if (entry.isTotal && entry.key === 'uvYKToplam') return (b.taksit || 0) + (b.spot || 0) + uvLiab;
+  if (entry.isTotal && entry.key === 'ozKaynak')
+    return (capital0 || 0) + (b.sermayeEk || 0) + (retained[y] || 0);
+  if (entry.isTotal) return base;
+  switch (entry.key) {
+    case 'hazirDegerler': return (b.nakit || 0) + (b.mevduat || 0);
+    case 'ticAlacaklar': return b.ar || 0;
+    case 'stoklar': return b.stok || 0;
+    case 'kvMaliBorclar': return b.bch || 0;
+    case 'kvTicBorclar': return b.ap || 0;
+    case 'uvMaliBorclar': return (b.taksit || 0) + (b.spot || 0);
+    case 'uvTicBorclar': return 0;
+    case 'gecmisZarar': return -Math.abs(base);
+    case 'donemNetKar': return (inc[y] && inc[y].net != null) ? inc[y].net : base;
+    default: return base;
+  }
+}
+
 function renderBalance5Y(){
   const f=curFirm();if(!f)return;
   let proj;try{proj=buildProjection(state.currentFirmId);}catch(e){showAlert(e.message,'err');return;}
@@ -2517,49 +2548,69 @@ function renderBalance5Y(){
   const{years,inc,bal}=annual5Y(proj.rows,sy,mdv0,openingBalAdjFromOpening(f.opening));
   const retained=computeRetained(years,inc);const capital0=(f.opening||{}).capital||0;
   $('bal5-title').textContent=f.name+' — 5 Yıllık Bilanço';
+  const snap=f.finskorBilancoSnapshot;
+  const snapNote = (snap && snap.yil) ? ' · FinSkor '+snap.yil+' hesap adları (yıl sütunları NakitFlow yıl sonu)' : '';
+  const ph=document.querySelector('#page-balance5y .page-header p');
+  if(ph)ph.textContent='Yıl sonu anlık değerler'+snapNote;
+
   $('bal5-headers').innerHTML='<th>Kalem</th>'+years.map(y=>'<th>'+y+'</th>').join('');
-  // Gerçek pasif toplamı = Yükümlülükler + Özkaynak (her yıl bağımsız hesaplanır)
   const realPasif={};
   for(const y of years){
     const sermEk=(bal[y]||{}).sermayeEk||0;
     realPasif[y]=((bal[y]||{}).toplamYuk||0)+capital0+sermEk+(retained[y]||0);
   }
 
-  const sections=[
-    {sep:'DÖNEN VARLIKLAR'},
-    {l:'Nakit & Banka',    k:'nakit'},
-    {l:'Mevduat',          k:'mevduat'},
-    {l:'Ticari Alacak (AR)',k:'ar'},
-    {l:'Stok',             k:'stok'},
-    {l:'Diğer alacak + diğer dönen (bilanço dengesi)', k:'otherAssets'},
-    {sep:'DURAN VARLIKLAR'},
-    {l:'Maddi Duran Varlık (kümülatif yatırım)',k:'mdv'},
-    {l:'► AKTİF TOPLAM',  k:'aktifToplam',bold:true},
-    {sep:'YÜKÜMLÜLÜKLER'},
-    {l:'Ticari Borç (AP)', k:'ap',    c:true},
-    {l:'BCH',              k:'bch',   c:true},
-    {l:'Spot Kredi',      k:'spot',  c:true},
-    {l:'Taksitli Kredi',   k:'taksit',c:true},
-    {l:'Diğer borçlar + alınan avans (bilanço dengesi)', k:'otherLiab', c:true},
-    {l:'► Toplam Yükümlülük',k:'toplamYuk',c:true,bold:true},
-    {sep:'ÖZKAYNAK'},
-    {l:'Sermaye (Açılış)', k:'__cap__'},
-    {l:'Sermaye Artışı (kümülatif)',k:'sermayeEk'},
-    {l:'Birikimli Net K/Z (yıl sonu)',  k:'__ret__'},
-    {l:'► PASİF TOPLAM',k:'__pasif__',bold:true},
-    {l:'⚖ Denge Farkı (Aktif − Pasif)',k:'__fark__',fark:true}
-  ];
+  let sections;
+  if (snap && snap.rows && snap.rows.length) {
+    sections = snap.rows.map(entry => ({
+      l: entry.label + (entry.key === 'donemNetKar' ? ' (NakitFlow yıllık net)' : ''),
+      fsEntry: entry,
+      bold: !!entry.isTotal,
+      c: ['kvMaliBorclar','kvTicBorclar','kvDigBorclar','alinanAvans','yilHakediş','odenecekVergi','borcKarsilik','gelecekAyGelir','digerKvYK','uvMaliBorclar','uvDigBorclar','uvAlinanAvans','uvBorcKarsilik','uvDigYK','pasifToplam','kvYKToplam','uvYKToplam'].indexOf(entry.key) >= 0
+    }));
+    sections.push({ l:'⚖ Denge Farkı (Aktif − Pasif)', fark:true });
+  } else {
+    sections=[
+      {sep:'DÖNEN VARLIKLAR'},
+      {l:'Nakit & Banka',    k:'nakit'},
+      {l:'Mevduat',          k:'mevduat'},
+      {l:'Ticari Alacak (AR)',k:'ar'},
+      {l:'Stok',             k:'stok'},
+      {l:'Diğer alacak + diğer dönen (bilanço dengesi)', k:'otherAssets'},
+      {sep:'DURAN VARLIKLAR'},
+      {l:'Maddi Duran Varlık (kümülatif yatırım)',k:'mdv'},
+      {l:'► AKTİF TOPLAM',  k:'aktifToplam',bold:true},
+      {sep:'YÜKÜMLÜLÜKLER'},
+      {l:'Ticari Borç (AP)', k:'ap',    c:true},
+      {l:'BCH',              k:'bch',   c:true},
+      {l:'Spot Kredi',      k:'spot',  c:true},
+      {l:'Taksitli Kredi',   k:'taksit',c:true},
+      {l:'Diğer borçlar + alınan avans (bilanço dengesi)', k:'otherLiab', c:true},
+      {l:'► Toplam Yükümlülük',k:'toplamYuk',c:true,bold:true},
+      {sep:'ÖZKAYNAK'},
+      {l:'Sermaye (Açılış)', k:'__cap__'},
+      {l:'Sermaye Artışı (kümülatif)',k:'sermayeEk'},
+      {l:'Birikimli Net K/Z (yıl sonu)',  k:'__ret__'},
+      {l:'► PASİF TOPLAM',k:'__pasif__',bold:true},
+      {l:'⚖ Denge Farkı (Aktif − Pasif)',k:'__fark__',fark:true}
+    ];
+  }
+
   $('bal5-body').innerHTML=sections.map(row=>{
     if(row.sep)return'<tr class="muted-row"><td colspan="'+(years.length+1)+'">'+row.sep+'</td></tr>';
     const cells=years.map(y=>{
       let v;
-      if(row.k==='__cap__')         v=capital0;
+      if (row.fsEntry) {
+        v = finSkorBilancoYearCell(f, row.fsEntry, y, bal, inc, retained, capital0, realPasif[y]);
+      } else if(row.fark) {
+        v=((bal[y]||{}).aktifToplam||0)-(realPasif[y]||0);
+      } else if(row.k==='__cap__')         v=capital0;
       else if(row.k==='__ret__')    v=retained[y]||0;
       else if(row.k==='__pasif__')  v=realPasif[y]||0;
       else if(row.k==='__fark__')   v=((bal[y]||{}).aktifToplam||0)-(realPasif[y]||0);
       else                          v=(bal[y]||{})[row.k]||0;
       let cls='';
-      if(row.fark) cls=Math.abs(v)<1?'pos':'neg'; // Fark 1 TL'den küçükse yeşil (dengeli)
+      if(row.fark) cls=Math.abs(v)<1?'pos':'neg';
       else if(row.c) cls=v>0?'neg':'';
       else cls=v>0?'pos':v<0?'neg':'';
       return'<td class="'+cls+'">'+tr(v)+'</td>';}).join('');
@@ -3052,8 +3103,14 @@ async function importFromFinSkor(){
       inventory: p.stoklar           || 0,
       capital:   p.ozKaynak          || 0,
       mdv:       p.duranVarlikToplami || p.maddiDuranVar || 0,
-      otherAssets: (Number(p.digerAlacaklar)||0) + (Number(p.digerDonen)||0),
-      otherLiab:   (Number(p.kvDigBorclar)||0) + (Number(p.alinanAvans)||0),
+      otherAssets: Number(p.otherAssets) || 0,
+      otherLiab:   Number(p.otherLiab)   || 0,
+      openingOtherLiabKv: Number(p.otherLiabKv) || 0,
+      openingOtherLiabUv: Number(p.otherLiabUv) || 0,
+    },
+    finskorBilancoSnapshot: {
+      yil: p.veriYili,
+      rows: Array.isArray(p.finskorBilancoRows) ? p.finskorBilancoRows : []
     },
     incomeStmt:{
       revenue: p.netSatis    || 0,
