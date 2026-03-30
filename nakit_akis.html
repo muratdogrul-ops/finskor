@@ -3842,9 +3842,9 @@ function pdfBuildBalancePage(doc, proj, firmName) {
     return pdfNum(a - (realPasif[y] || 0));
   })] });
 
-  const margin = 7;
-  const labelCol = 56;
-  const colW = Math.max(22, (pageW - margin * 2 - labelCol) / yLabels.length);
+  const margin = 6;
+  const labelCol = 52;
+  const colW = Math.max(24, (pageW - margin * 2 - labelCol) / yLabels.length);
   const columnStyles = { 0: { halign: 'left', cellWidth: labelCol, fontStyle: 'bold' } };
   for (let i = 0; i < yLabels.length; i++) columnStyles[i + 1] = { halign: 'right', cellWidth: colW };
 
@@ -3853,12 +3853,12 @@ function pdfBuildBalancePage(doc, proj, firmName) {
   doc.autoTable({
     head: [['Kalem', ...yLabels]],
     body: bodyMeta.map(r => r.cells),
-    startY: 20,
-    margin: { left: margin, right: margin, bottom: 9 },
+    startY: 19,
+    margin: { left: margin, right: margin, bottom: 8 },
     tableWidth: pageW - margin * 2,
     styles: {
-      fontSize: 6.2,
-      cellPadding: 0.85,
+      fontSize: 8,
+      cellPadding: { top: 0.9, bottom: 0.9, left: 1, right: 1 },
       font: 'NotoSans',
       textColor: PDF_CLR.text,
       overflow: 'linebreak',
@@ -3870,8 +3870,8 @@ function pdfBuildBalancePage(doc, proj, firmName) {
       textColor: PDF_CLR.white,
       fontStyle: 'bold',
       halign: 'center',
-      fontSize: 6.5,
-      cellPadding: 1,
+      fontSize: 8.5,
+      cellPadding: { top: 1.1, bottom: 1.1, left: 1, right: 1 },
     },
     columnStyles,
     bodyStyles: { halign: 'right' },
@@ -3882,13 +3882,13 @@ function pdfBuildBalancePage(doc, proj, firmName) {
         data.cell.styles.fillColor = PDF_CLR.band;
         data.cell.styles.textColor = PDF_CLR.bandText;
         data.cell.styles.fontStyle = 'bold';
-        data.cell.styles.fontSize = 6.4;
+        data.cell.styles.fontSize = 8.2;
         if (data.column.index > 0) data.cell.text = '';
       } else if (meta.isBand) {
         data.cell.styles.fillColor = PDF_CLR.band;
         data.cell.styles.textColor = PDF_CLR.bandText;
         data.cell.styles.fontStyle = 'bold';
-        data.cell.styles.fontSize = 6.3;
+        data.cell.styles.fontSize = 8.1;
       }
     },
     willDrawPage: function() {
