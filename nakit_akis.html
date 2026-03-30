@@ -2573,10 +2573,10 @@ function renderIncome5Y(){
   }).join('');
 }
 
-/** Hesap adından "10. " gibi kod önekini kaldırır. */
+/** FinSkor bilanço satır etiketi; çift hane hesap kodu öneki korunur (örn. "10. Hazır Değerler"). */
 function bilancoAdiNumsiz(s) {
   if (s == null) return '';
-  return String(s).replace(/^\d+\.\s*/, '').trim();
+  return String(s).trim();
 }
 
 const BAL5_CORP_TOTAL_KEYS = new Set(['donenVarlik', 'duranVarlik', 'aktifToplam', 'kvYKToplam', 'uvYKToplam', 'ozKaynak', 'pasifToplam']);
