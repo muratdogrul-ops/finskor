@@ -2786,6 +2786,54 @@ function calcRatios(refYear) {
   };
 }
 
+/** calcRatios sonrası: büyüme, reel büyüme, ihracat, önceki yıl faaliyet karı vb. — PDF ve skor ile aynı kaynak */
+function enrichRatiosAfterCalc(r, refYear) {
+  const allYears = [2022, 2023, 2024, 2025, 2026];
+  const prevYear = allYears[allYears.indexOf(refYear) - 1] || refYear;
+  const D  = k => ((state.yearData[refYear]  || {})[k] || 0);
+  const Dp = k => ((state.yearData[prevYear] || {})[k] || 0);
+
+  r.donenVarlik        = r.donenVar;
+  r.alacakTahsilSuresi = r.alacakTahsil;
+  r.stokGunSayisi      = r.stokGun;
+  r.brutKarMarj        = r.brutMarj;
+  r.faalKarMarj        = r.faalMarj;
+  r.netKarOzKay        = r.roe;
+  r.netKarAktif        = r.roa;
+  r.kvBorcAktif        = r.aktif > 0 ? r.kvBorclar / r.aktif * 100 : 0;
+  r.gecmisZarar        = D('gecmisZarar') || 0;
+
+  const isTaahhutCalc2 = (state.firmType === 'taahhut');
+  const prevNetSatis0 = Dp('netSatis');
+  const prevHakCari   = Dp('yilHakediş');
+  const prevHakPrev   = ((state.yearData[refYear - 2] || {})['yilHakediş'] || 0);
+  const prevCiro      = isTaahhutCalc2
+    ? prevNetSatis0 + prevHakCari - prevHakPrev
+    : prevNetSatis0;
+  const prevNetSatis  = prevCiro;
+  const _prevBrutKarDuz = prevCiro - Dp('satMaliyet');
+  const _prevFaalKarDuz = _prevBrutKarDuz - Dp('faalGider');
+  const prevFaalKar  = isTaahhutCalc2 ? _prevFaalKarDuz : Dp('faalKar');
+  r.satisBuy   = prevNetSatis > 0 ? (r.netSatis - prevNetSatis) / prevNetSatis * 100 : 0;
+  r.faalKarBuy = prevFaalKar  > 0 ? (r.faalKar  - prevFaalKar)  / prevFaalKar  * 100 : 0;
+  r.ozKaynakBuy = Dp('ozKaynak') > 0 ? (r.ozKaynak - Dp('ozKaynak')) / Dp('ozKaynak') * 100 : 0;
+
+  const enflasyon = getUfe(refYear);
+  r.reelFaalKarBuy = prevFaalKar > 0
+    ? ((r.faalKar / prevFaalKar) / (1 + enflasyon) - 1) * 100
+    : 0;
+  r.reelSatisBuy = prevNetSatis > 0
+    ? ((r.netSatis / prevNetSatis) / (1 + enflasyon) - 1) * 100
+    : 0;
+  r.faalKarYillik = r.faalKar - prevFaalKar;
+  r.prevFaalKar   = prevFaalKar;
+  r.prevNetSatis  = prevNetSatis;
+  r.ihracatSatis  = r.netSatis > 0 ? (D('ihracat') || 0) / r.netSatis * 100 : 0;
+  r.ihracatPuan = (state.firmType === 'pazarlama')
+    ? (r.ihracatSatis > 49 ? 3 : r.ihracatSatis > 29 ? 2 : r.ihracatSatis > 9  ? 1 : 0)
+    : (r.ihracatSatis > 39 ? 3 : r.ihracatSatis > 24 ? 2 : r.ihracatSatis > 4  ? 1 : 0);
+}
+
 function XXXX_OLD_RUN(){}
 
 
@@ -2895,66 +2943,8 @@ function _doRunAnalysis() {
     return;
   }
 
-  // calcRatios sadece tek yıl alıyor
   const r = calcRatios(refYear);
-
-  // Önceki yıl için ayrı hesap
-  const D  = k => ((state.yearData[refYear]  || {})[k] || 0);
-  const Dp = k => ((state.yearData[prevYear] || {})[k] || 0);
-
-  // calcRatios artık tüm Excel formüllerini doğru hesaplıyor
-  // Sadece compat alias'lar ve büyüme oranları kalıyor
-  r.donenVarlik        = r.donenVar;
-  r.alacakTahsilSuresi = r.alacakTahsil;
-  r.stokGunSayisi      = r.stokGun;
-  r.brutKarMarj        = r.brutMarj;
-  r.faalKarMarj        = r.faalMarj;
-  r.netKarOzKay        = r.roe;
-  r.netKarAktif        = r.roa;
-  r.kvBorcAktif        = r.aktif > 0 ? r.kvBorclar / r.aktif * 100 : 0;
-
-  // Nominal büyüme oranları
-  // Taahhüt için ciro = netSatis + hakediş(cari) - hakediş(önceki)
-  // Önceki yıl cirosunu da aynı formülle hesapla
-  const isTaahhutCalc2 = (state.firmType === 'taahhut');
-  const prevNetSatis0 = Dp('netSatis');
-  const prevHakCari   = Dp('yilHakediş');                              // önceki yılın hakedişi
-  const prevHakPrev   = ((state.yearData[refYear-2]||{})['yilHakediş']||0); // 2 yıl öncesinin hakedişi
-  const prevCiro      = isTaahhutCalc2
-    ? prevNetSatis0 + prevHakCari - prevHakPrev
-    : prevNetSatis0;
-  const prevNetSatis  = prevCiro;  // büyüme hesaplarında kullanılacak ciro
-  // Taahhüt: önceki yıl faaliyet karı da düzeltilmiş gelir tablosundan (ciro formülü ile)
-  const _prevBrutKarDuz = prevCiro - Dp('satMaliyet');
-  const _prevFaalKarDuz = _prevBrutKarDuz - Dp('faalGider');
-  const prevFaalKar  = isTaahhutCalc2 ? _prevFaalKarDuz : Dp('faalKar');
-  r.satisBuy   = prevNetSatis > 0 ? (r.netSatis - prevNetSatis) / prevNetSatis * 100 : 0;
-  r.faalKarBuy = prevFaalKar  > 0 ? (r.faalKar  - prevFaalKar)  / prevFaalKar  * 100 : 0;
-  r.ozKaynakBuy = Dp('ozKaynak') > 0 ? (r.ozKaynak - Dp('ozKaynak')) / Dp('ozKaynak') * 100 : 0;
-
-  // ── REEL BÜYÜME (ÜFE düzeltmeli) — Excel B117/B122 birebir
-  const enflasyon = getUfe(refYear);  // Analiz yılı ÜFE oranı (örn: 2024 için 0.4393)
-
-  // Reel Faaliyet Karı Artışı: ((D13/C13)/(1+ÜFE)-1)*100  (Excel B117)
-  r.reelFaalKarBuy = prevFaalKar > 0
-    ? ((r.faalKar / prevFaalKar) / (1 + enflasyon) - 1) * 100
-    : 0;
-
-  // Reel Net Satış/Ciro Büyümesi: ((D11/C11)/(1+ÜFE)-1)*100  (Excel B122)
-  // Taahhüt: ciro formülüyle hesaplanmış prevNetSatis kullanılır
-  r.reelSatisBuy = prevNetSatis > 0
-    ? ((r.netSatis / prevNetSatis) / (1 + enflasyon) - 1) * 100
-    : 0;
-
-  // Faaliyet karı yıllık karşılaştırma (Excel: faalKar > prevFaalKar → +5)
-  r.faalKarYillik = r.faalKar - prevFaalKar;
-  r.prevFaalKar   = prevFaalKar;  // Kriter 6 için (Excel C13 < 0 kontrolü)
-  r.prevNetSatis  = prevNetSatis;  // debug için
-  r.ihracatSatis  = r.netSatis > 0 ? (D('ihracat') || 0) / r.netSatis * 100 : 0;
-  // ihracat puanını da kaydet — öneri için güvenilir kaynak
-  r.ihracatPuan = (state.firmType === 'pazarlama')
-    ? (r.ihracatSatis > 49 ? 3 : r.ihracatSatis > 29 ? 2 : r.ihracatSatis > 9  ? 1 : 0)
-    : (r.ihracatSatis > 39 ? 3 : r.ihracatSatis > 24 ? 2 : r.ihracatSatis > 4  ? 1 : 0);
+  enrichRatiosAfterCalc(r, refYear);
 
   // ── SKOR HESAPLA (Excel B127+B128 birebir)
   const _objHesaplanan = calcObjScore(r, state.firmType);  // maks 75
@@ -3026,6 +3016,8 @@ function _doRunAnalysis() {
     {label:isEn?'Sales Growth':'Satış Büyüme',      value:(r.satisBuy>=0?'+':'')+r.satisBuy.toFixed(1)+'%',    sub:isEn?'vs Prior Year':'Önceki yıla göre',  color:r.satisBuy>=10?'green':r.satisBuy>=0?'yellow':'red'},
     {label:isEn?'Subj. Score':'Subj. Puan',         value:subjPuan.toFixed(2),                                   sub:isEn?'Subjective / max 30':'Subjektif / maks 30',    color:'purple'},
   ].map(m=>'<div class="metric-card '+m.color+'"><div class="metric-label">'+m.label+'</div><div class="metric-value">'+m.value+'</div><div class="metric-sub">'+m.sub+'</div></div>').join('');
+
+  const enflasyon = getUfe(refYear);
 
   // ── ORAN TABLOLARI
   const setEl = (id, html) => { const el=document.getElementById(id); if(el) el.innerHTML=html; };
@@ -5588,13 +5580,16 @@ function generatePDF() {
   const d = state.yearData[refYear];
   if (!d || !d.aktifToplam) { showToast('Önce analizi çalıştırın!', true); return; }
 
-  const r   = window._lastR || calcRatios(refYear);
+  const r = calcRatios(refYear);
+  enrichRatiosAfterCalc(r, refYear);
   const tip = state.firmType==='uretim' ? 'Üretim' : state.firmType==='pazarlama' ? 'Pazarlama' : 'Taahhüt';
   // Prev değerlerini generatePDF başında set et — senaryo bölümü için
-  window._senaryoPrevC5  = r.reelFaalKarBuy > 14 ? 5 : r.reelFaalKarBuy > 9 ? 4 : r.reelFaalKarBuy > 5 ? 3 : r.reelFaalKarBuy > 2 ? 2 : r.reelFaalKarBuy > 0 ? 1 : 0;
+  const _rfcb = Number(r.reelFaalKarBuy) || 0;
+  window._senaryoPrevC5  = _rfcb > 14 ? 5 : _rfcb > 9 ? 4 : _rfcb > 5 ? 3 : _rfcb > 2 ? 2 : _rfcb > 0 ? 1 : 0;
   window._senaryoPrevFaalKar = r.prevFaalKar || 0;
   window._senaryoPrevC9  = r.ihracatPuan || 0;
-  window._senaryoPrevC11 = r.reelSatisBuy > 150 ? 0 : r.reelSatisBuy > 110 ? 1 : r.reelSatisBuy > 70 ? 4 : r.reelSatisBuy > 20 ? 5 : r.reelSatisBuy > 4 ? 4 : r.reelSatisBuy > 0 ? 1 : 0;
+  const _rsb = Number(r.reelSatisBuy) || 0;
+  window._senaryoPrevC11 = _rsb > 150 ? 0 : _rsb > 110 ? 1 : _rsb > 70 ? 4 : _rsb > 20 ? 5 : _rsb > 4 ? 4 : _rsb > 0 ? 1 : 0;
   const donem = state.period==='12' ? 'Aralık (Yıl Sonu)' : state.period+'. Ay Sonu';
 
   // Alias ekle — generatePDF için
@@ -5988,7 +5983,7 @@ ${(function(){
     setTimeout(function() {
       printWin.print();
       printWin.onafterprint = function() { printWin.close(); };
-    }, 800);
+    }, 1200);
     showToast('✓ PDF olarak kaydetmek için açılan pencerede "PDF olarak kaydet" seçin');
   } catch(e) {
     showToast('Rapor hatası: ' + e.message, true);

@@ -6,183 +6,7 @@
 <title>NakitFlow v3 — 60 Aylık Nakit Akış</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
-// ═══════════════════════════════════════════════════════
-// BAYKUŞ AVATAR — Sayfa bazlı yardım sistemi
-// ═══════════════════════════════════════════════════════
-const OWL_TIPS = {
-  home: {
-    title: 'Hoş Geldiniz!',
-    text: `Bu uygulama ile <b>60 aylık nakit akış projeksiyonu</b> oluşturabilirsin. Başlamak çok kolay:
-    <ul>
-      <li>Bu sayfada <b>+ Yeni Firma</b> butonuna bas ve firmanı oluştur</li>
-      <li>Firma oluşturulduktan sonra <b>sol menü otomatik açılır</b> — hemen Açılış sayfasına geçersin</li>
-      <li>Adım adım ilerle: <b>Açılış → Gelir → Varsayımlar → Giderler → Krediler → Projeksiyon</b></li>
-      <li>Her sayfada seni yönlendireceğim 😊</li>
-    </ul>
-    <div class="owl-tip"><b>💡 İpucu:</b> Mevcut firmaya dönmek için firma kartındaki <b>✎ Düzenle</b> butonuna bas.</div>`
-  },
-  opening: {
-    title: 'Açılış Bilanço',
-    text: `<b>Projeksiyon başlangıç değerlerini</b> buraya girin.
-    <ul>
-      <li><b>Nakit:</b> Başlangıç kasası (TL)</li>
-      <li><b>Alacaklar / Borçlar:</b> Mevcut stok bakiyeleri</li>
-      <li><b>Kredi bakiyeleri:</b> Mevcut taksitli kredi ve BCH borcu</li>
-    </ul>
-    <div class="owl-tip"><b>💡 İpucu:</b> Tüm değerler KDV hariç girilmelidir.</div>`
-  },
-  income: {
-    title: 'Referans Gelir Tablosu',
-    text: `<b>Yıl 1 bazlı gelir ve maliyet</b> verilerini girin.
-    <ul>
-      <li><b>Net Satış:</b> Yıllık toplam ciro (KDV hariç)</li>
-      <li><b>COGS %:</b> Satış maliyeti oranı</li>
-      <li><b>DSO / DPO:</b> Tahsilat ve ödeme günleri</li>
-    </ul>
-    <div class="owl-tip"><b>💡 İpucu:</b> Büyüme oranı "Varsayımlar" sayfasından Y2–Y5 için uygulanır.</div>`
-  },
-  ciro: {
-    title: 'Ciro Dağılımı',
-    text: `<b>Sezonsal firmalar için</b> aylık % dağılım tanımlayın.
-    <ul>
-      <li>12 ayın toplamı <b>%100</b> olmalı</li>
-      <li>Dağılım tüm 5 yıla uygulanır</li>
-      <li>Eşit dağılım için "Eşit Dağıt" kullanın</li>
-    </ul>
-    <div class="owl-tip"><b>💡 İpucu:</b> Yaz sezonu yoğun sektörler için Haziran–Ağustos aylarını artırın.</div>`
-  },
-  assumptions: {
-    title: 'Varsayımlar',
-    text: `<b>5 yıllık projeksiyon parametreleri</b> bu sayfadan yönetilir.
-    <ul>
-      <li><b>BCH Faiz:</b> Yıl bazında TL/USD/EUR oranları — TCMB butonu ile otomatik doldurulur</li>
-      <li><b>Mevduat Faizi:</b> Yıl bazında getiri oranı</li>
-      <li><b>Kur Artışı:</b> "⚡ Döviz Kurlarına Otomatik Uygula" butonu ile Döviz Kurları sayfasını doldurur</li>
-      <li><b>Vergi:</b> Kurumlar vergisi oranı ve ödeme ayları</li>
-    </ul>
-    <div class="owl-tip"><b>💡 İpucu:</b> BCH bölümündeki "⚡ TCMB Bazlı Otomatik Doldur" butonu politika tahminine +5 puan (BCH TL); mevduat Y1–Y5 için de aynı yıllarda +5 puan ekler.</div>`
-  },
-  expenses: {
-    title: 'Giderler',
-    text: `<b>Aylık sabit giderleri</b> kalem kalem veya toplu girin.
-    <ul>
-      <li><b>Toplu Giriş:</b> Üstteki ⚡ kutuya aylık toplam yazın, kalem seçin</li>
-      <li><b>Kalem kalem:</b> Her grubu ayrı ayrı doldurun</li>
-      <li>Gider artışı "Varsayımlar" → Gider Büyümesi ile uygulanır</li>
-    </ul>
-    <div class="owl-tip"><b>💡 İpucu:</b> Personel maliyetleri için "Ücret ve Faydalar" + "Resmi Yükümlülükler" kalemlerini kullanın.</div>`
-  },
-  loans: {
-    title: 'Krediler',
-    text: `<b>Taksitli, Spot ve BCH</b> kredileri buradan ekleyin.
-    <ul>
-      <li><b>Taksitli:</b> Eşit taksit — anapara + faiz + %5 BSMV ayrı izlenir (KKDF yok)</li>
-      <li><b>Spot — Toplu:</b> Vade sonunda tüm anapara + basit faiz bir seferde ödenir</li>
-      <li><b>Spot — Sadece Faiz:</b> Her ay faiz, vade sonunda anapara ödenir</li>
-      <li><b>BCH:</b> Limit dahilinde döner kredi; nakit açığında otomatik çekilir</li>
-    </ul>
-    <div class="owl-tip"><b>💡 İpucu:</b> Taksitli kredide kullanım tarihi = nakit girişi, ilk taksit bir ay sonra başlar.</div>`
-  },
-  fx: {
-    title: 'Döviz Kurları',
-    text: `<b>USD ve EUR kurlarını</b> aylık bazda girin.
-    <ul>
-      <li><b>Açılış Kuru:</b> Projeksiyon başlangıç kuru</li>
-      <li><b>⚡ Otomatik Hesapla:</b> Yıllık büyüme oranına göre 60 ayı doldurur</li>
-      <li><b>📋 Sadece Açılış:</b> Boş aylara açılış kurunu uygular</li>
-    </ul>
-    <div class="owl-tip"><b>💡 İpucu:</b> "Varsayımlar" sayfasındaki ⚡ buton USD %7, EUR %6 büyüme ile tüm tabloyu otomatik doldurur ve kaydeder.</div>`
-  },
-  manual: {
-    title: 'Manuel Nakit Satırları',
-    text: `<b>Üç tip manuel kalem</b> eklenebilir:
-    <ul>
-      <li><b>📋 Diğer:</b> Hem nakit akışına hem gelir tablosuna girer</li>
-      <li><b>🏭 Yatırım / MDV:</b> Nakit çıkışı + bilançoda duran varlık (gelir tablosuna girmez)</li>
-      <li><b>💼 Sermaye Artışı:</b> Nakit girişi + bilançoda özkaynak (gelir tablosuna girmez)</li>
-    </ul>
-    <div class="owl-tip"><b>💡 İpucu:</b> Makine alımı için "Yatırım/MDV", ortak sermaye koyması için "Sermaye Artışı" seçin.</div>`
-  },
-  projection: {
-    title: 'Nakit Akış Tablosu',
-    text: `<b>60 aylık aylık nakit akış</b> projeksiyonu.
-    <ul>
-      <li>Yeşil = nakit girişi, Kırmızı = nakit çıkışı</li>
-      <li><b>Kapanış Bakiyesi</b> negatife düşerse BCH devreye girer</li>
-      <li>Excel ve PDF ile dışa aktarabilirsiniz</li>
-    </ul>
-    <div class="owl-tip"><b>💡 İpucu:</b> Tablo başlığına tıklayarak sütunları sabitleyebilirsiniz.</div>`
-  },
-  income5y: {
-    title: '5 Yıllık Gelir Tablosu',
-    text: `<b>Yıllık bazda gelir tablosu</b> özeti.
-    <ul>
-      <li>Brüt Kâr, EBITDA, EBT ve Net Kâr her yıl ayrı gösterilir</li>
-      <li>Taksit faizi + BSMV gelir tablosuna girer; <b>anapara girmez</b></li>
-      <li>Yatırım harcamaları ve sermaye artışı gelir tablosuna yansımaz</li>
-    </ul>
-    <div class="owl-tip"><b>💡 İpucu:</b> Net zarar 5 yıl devredilir ve sonraki yılların vergisini azaltır.</div>`
-  },
-  balance5y: {
-    title: '5 Yıllık Bilanço',
-    text: `<b>Yıl sonu bilanço</b> değerleri.
-    <ul>
-      <li><b>Dönen Varlıklar:</b> Nakit, Mevduat, Alacak, Stok</li>
-      <li><b>Duran Varlıklar:</b> Kümülatif MDV yatırımları</li>
-      <li><b>Özkaynak:</b> Açılış + Sermaye Artışı + Birikimli Net K/Z</li>
-    </ul>
-    <div class="owl-tip"><b>💡 İpucu:</b> Aktif ≠ Pasif ise açılış bilanço veya gelir/bilanço bağlantısını kontrol edin.</div>`
-  }
-};
-
-let owlOpen = false;
-
-function owlToggle(){
-  owlOpen = !owlOpen;
-  const panel = document.getElementById('owl-panel');
-  if(owlOpen){ panel.classList.add('open'); owlUpdate(); }
-  else        { panel.classList.remove('open'); }
-}
-function owlClose(){
-  owlOpen = false;
-  document.getElementById('owl-panel').classList.remove('open');
-}
-function owlUpdate(){
-  // Aktif sayfayı bul
-  const activePage = document.querySelector('.page.active');
-  if(!activePage) return;
-  const pageId = activePage.id.replace('page-','');
-  const tip = OWL_TIPS[pageId];
-  if(tip){
-    document.getElementById('owl-content').innerHTML =
-      '<b style="font-size:.78rem;color:var(--acc2)">📌 '+tip.title+'</b><br><br>' + tip.text;
-  }
-}
-// Sayfa değiştiğinde baykuş paneli güncelle
-const _origNavTo = typeof navTo === 'function' ? navTo : null;
-// navTo'yu wrap et — sayfa geçişlerinde owl güncelle
-document.addEventListener('DOMContentLoaded', ()=>{
-  // navTo zaten tanımlandıktan sonra wrap et
-  const origNav = window.navTo;
-  if(origNav){
-    window.navTo = function(page){
-      origNav(page);
-      if(owlOpen) setTimeout(owlUpdate, 60);
-    };
-  }
-  // Başlangıçta aktif sayfa için güncelle + home'da otomatik aç
-  setTimeout(()=>{
-    owlUpdate();
-    const activePage = document.querySelector('.page.active');
-    if(activePage && activePage.id === 'page-home'){
-      owlOpen = true;
-      document.getElementById('owl-panel').classList.add('open');
-    }
-  }, 400);
-});
-
-</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
 <style>
@@ -414,8 +238,15 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
 }
 .owl-name{font-weight:700;font-size:.82rem;color:var(--acc2);}
 .owl-title{font-size:.68rem;color:var(--tx3);margin-top:1px;}
+.owl-head-actions{margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0}
+.owl-speak{
+  background:rgba(14,165,233,.12);border:1px solid var(--bd2);color:var(--acc2);
+  font-size:.62rem;font-weight:600;cursor:pointer;padding:4px 8px;border-radius:6px;white-space:nowrap;
+}
+.owl-speak:hover{background:rgba(14,165,233,.22);}
+.owl-speak.muted{color:var(--tx3);opacity:.8;}
 .owl-close{
-  margin-left:auto;background:none;border:none;color:var(--tx3);
+  background:none;border:none;color:var(--tx3);
   font-size:1.1rem;cursor:pointer;padding:2px 5px;border-radius:4px;transition:color .15s;
 }
 .owl-close:hover{color:var(--tx);}
@@ -493,6 +324,7 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
   <div class="avatar-bubble">
     <h3>Merhaba! Ben Nakit, senin mali rehberinim 👋</h3>
     <p>Bu uygulama ile <strong>60 aylık nakit akış projeksiyonu</strong> oluşturabilirsin. Başlamak çok kolay:</p>
+    <p><strong>Nakit Akış</strong> sayfasında tablo, girdilerine göre <strong>otomatik</strong> dolar; istersen satırları <strong>elle düzenleyip Kaydet</strong> ile kendi senaryona göre kalıcı kaydedebilirsin.</p>
     <ul>
       <li>Önce bu sayfada <strong>+ Yeni Firma</strong> butonuna bas ve firmanı oluştur.</li>
       <li>Firma oluşturulduktan sonra <strong>sol menü otomatik açılır</strong> ve seni Açılış sayfasına yönlendirir.</li>
@@ -3819,6 +3651,245 @@ function exportBilançoPDF() {
   const f = curFirm(); if (!f) return;
   exportFullPDF(f.name + ' — 5 Yıllık Bilanço');
 }
+
+// ═══════════════════════════════════════════════════════
+// Baykuş — sayfa yardımı + sesli anlatım (Web Speech API)
+// ═══════════════════════════════════════════════════════
+const OWL_TIPS = {
+  home: {
+    title: 'Hoş Geldiniz!',
+    text: `Bu uygulama ile <b>60 aylık nakit akış projeksiyonu</b> oluşturabilirsin. Başlamak çok kolay:
+    <ul>
+      <li>Bu sayfada <b>+ Yeni Firma</b> butonuna bas ve firmanı oluştur</li>
+      <li>Firma oluşturulduktan sonra <b>sol menü otomatik açılır</b> — hemen Açılış sayfasına geçersin</li>
+      <li>Adım adım ilerle: <b>Açılış → Gelir → Varsayımlar → Giderler → Krediler → Projeksiyon</b></li>
+      <li>Her sayfada bu panelde kısa özet veririm; istersen <b>sesli</b> de dinleyebilirsin</li>
+    </ul>
+    <p><b>Nakit Akış</b> sayfasında, girdileri tamamladıktan sonra <b>60 aylık nakit akış tablosu otomatik</b> oluşur. İstersen hücrelere <b>elle giriş</b> yapıp <b>Kaydet</b> ile verileri kalıcı olarak değiştirebilirsin.</p>
+    <div class="owl-tip"><b>💡 İpucu:</b> Mevcut firmaya dönmek için firma kartındaki <b>✎ Düzenle</b> butonuna bas.</div>`
+  },
+  opening: {
+    title: 'Açılış Bilanço',
+    text: `<b>Projeksiyon başlangıç değerlerini</b> buraya girin.
+    <ul>
+      <li><b>Nakit:</b> Başlangıç kasası (TL)</li>
+      <li><b>Alacaklar / Borçlar:</b> Mevcut stok bakiyeleri</li>
+      <li><b>Kredi bakiyeleri:</b> Mevcut taksitli kredi ve BCH borcu</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> Tüm değerler KDV hariç girilmelidir.</div>`
+  },
+  income: {
+    title: 'Referans Gelir Tablosu',
+    text: `<b>Yıl 1 bazlı gelir ve maliyet</b> verilerini girin.
+    <ul>
+      <li><b>Net Satış:</b> Yıllık toplam ciro (KDV hariç)</li>
+      <li><b>COGS %:</b> Satış maliyeti oranı</li>
+      <li><b>DSO / DPO:</b> Tahsilat ve ödeme günleri</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> Büyüme oranı "Varsayımlar" sayfasından Y2–Y5 için uygulanır.</div>`
+  },
+  ciro: {
+    title: 'Ciro Dağılımı',
+    text: `<b>Sezonsal firmalar için</b> aylık % dağılım tanımlayın.
+    <ul>
+      <li>12 ayın toplamı <b>%100</b> olmalı</li>
+      <li>Dağılım tüm 5 yıla uygulanır</li>
+      <li>Eşit dağılım için "Eşit Dağıt" kullanın</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> Yaz sezonu yoğun sektörler için Haziran–Ağustos aylarını artırın.</div>`
+  },
+  assumptions: {
+    title: 'Varsayımlar',
+    text: `<b>5 yıllık projeksiyon parametreleri</b> bu sayfadan yönetilir.
+    <ul>
+      <li><b>BCH Faiz:</b> Yıl bazında TL/USD/EUR oranları — TCMB butonu ile otomatik doldurulur</li>
+      <li><b>Mevduat Faizi:</b> Yıl bazında getiri oranı</li>
+      <li><b>Kur Artışı:</b> "⚡ Döviz Kurlarına Otomatik Uygula" butonu ile Döviz Kurları sayfasını doldurur</li>
+      <li><b>Vergi:</b> Kurumlar vergisi oranı ve ödeme ayları</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> BCH bölümündeki "⚡ TCMB Bazlı Otomatik Doldur" butonu politika tahminine +5 puan (BCH TL); mevduat Y1–Y5 için de aynı yıllarda +5 puan ekler.</div>`
+  },
+  expenses: {
+    title: 'Giderler',
+    text: `<b>Aylık sabit giderleri</b> kalem kalem veya toplu girin.
+    <ul>
+      <li><b>Toplu Giriş:</b> Üstteki ⚡ kutuya aylık toplam yazın, kalem seçin</li>
+      <li><b>Kalem kalem:</b> Her grubu ayrı ayrı doldurun</li>
+      <li>Gider artışı "Varsayımlar" → Gider Büyümesi ile uygulanır</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> Personel maliyetleri için "Ücret ve Faydalar" + "Resmi Yükümlülükler" kalemlerini kullanın.</div>`
+  },
+  loans: {
+    title: 'Krediler',
+    text: `<b>Taksitli, Spot ve BCH</b> kredileri buradan ekleyin.
+    <ul>
+      <li><b>Taksitli:</b> Eşit taksit — anapara + faiz + %5 BSMV ayrı izlenir (KKDF yok)</li>
+      <li><b>Spot — Toplu:</b> Vade sonunda tüm anapara + basit faiz bir seferde ödenir</li>
+      <li><b>Spot — Sadece Faiz:</b> Her ay faiz, vade sonunda anapara ödenir</li>
+      <li><b>BCH:</b> Limit dahilinde döner kredi; nakit açığında otomatik çekilir</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> Taksitli kredide kullanım tarihi = nakit girişi, ilk taksit bir ay sonra başlar.</div>`
+  },
+  fx: {
+    title: 'Döviz Kurları',
+    text: `<b>USD ve EUR kurlarını</b> aylık bazda girin.
+    <ul>
+      <li><b>Açılış Kuru:</b> Projeksiyon başlangıç kuru</li>
+      <li><b>⚡ Otomatik Hesapla:</b> Yıllık büyüme oranına göre 60 ayı doldurur</li>
+      <li><b>📋 Sadece Açılış:</b> Boş aylara açılış kurunu uygular</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> "Varsayımlar" sayfasındaki ⚡ buton USD %7, EUR %6 büyüme ile tüm tabloyu otomatik doldurur ve kaydeder.</div>`
+  },
+  manual: {
+    title: 'Manuel Nakit Satırları',
+    text: `<b>Üç tip manuel kalem</b> eklenebilir:
+    <ul>
+      <li><b>📋 Diğer:</b> Hem nakit akışına hem gelir tablosuna girer</li>
+      <li><b>🏭 Yatırım / MDV:</b> Nakit çıkışı + bilançoda duran varlık (gelir tablosuna girmez)</li>
+      <li><b>💼 Sermaye Artışı:</b> Nakit girişi + bilançoda özkaynak (gelir tablosuna girmez)</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> Makine alımı için "Yatırım/MDV", ortak sermaye koyması için "Sermaye Artışı" seçin.</div>`
+  },
+  projection: {
+    title: 'Nakit Akış Tablosu',
+    text: `<b>60 aylık aylık nakit akış</b> projeksiyonu burada görünür; motor satırları <b>otomatik doldurur</b>.
+    <ul>
+      <li>İstersen ilgili hücrelere <b>manuel rakam</b> girip <b>Kaydet</b> ile tabloyu kendi senaryona göre güncelleyebilirsin</li>
+      <li>Yeşil = nakit girişi, Kırmızı = nakit çıkışı</li>
+      <li><b>Kapanış Bakiyesi</b> negatife düşerse BCH devreye girer</li>
+      <li>Excel ve PDF ile dışa aktarabilirsiniz</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> Tablo başlığına tıklayarak sütunları sabitleyebilirsiniz.</div>`
+  },
+  income5y: {
+    title: '5 Yıllık Gelir Tablosu',
+    text: `<b>Yıllık bazda gelir tablosu</b> özeti.
+    <ul>
+      <li>Brüt Kâr, EBITDA, EBT ve Net Kâr her yıl ayrı gösterilir</li>
+      <li>Taksit faizi + BSMV gelir tablosuna girer; <b>anapara girmez</b></li>
+      <li>Yatırım harcamaları ve sermaye artışı gelir tablosuna yansımaz</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> Net zarar 5 yıl devredilir ve sonraki yılların vergisini azaltır.</div>`
+  },
+  balance5y: {
+    title: '5 Yıllık Bilanço',
+    text: `<b>Yıl sonu bilanço</b> değerleri.
+    <ul>
+      <li><b>Dönen Varlıklar:</b> Nakit, Mevduat, Alacak, Stok</li>
+      <li><b>Duran Varlıklar:</b> Kümülatif MDV yatırımları</li>
+      <li><b>Özkaynak:</b> Açılış + Sermaye Artışı + Birikimli Net K/Z</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> Aktif ≠ Pasif ise açılış bilanço veya gelir/bilanço bağlantısını kontrol edin.</div>`
+  }
+};
+
+let owlOpen = false;
+let owlSpeakOn = true;
+try { owlSpeakOn = localStorage.getItem('nakitOwlSpeak') !== '0'; } catch (e) {}
+
+function owlPlainFromHtml(html) {
+  const d = document.createElement('div');
+  d.innerHTML = html || '';
+  return (d.innerText || d.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
+function owlRefreshSpeakUi() {
+  const b = document.getElementById('owl-speak-btn');
+  if (!b) return;
+  b.textContent = owlSpeakOn ? '🔊 Ses' : '🔇 Kapalı';
+  b.classList.toggle('muted', !owlSpeakOn);
+  b.setAttribute('aria-pressed', owlSpeakOn ? 'true' : 'false');
+}
+
+function owlAnnounceLast() {
+  if (!owlSpeakOn || !window.speechSynthesis) return;
+  const parts = [];
+  const el = document.getElementById('owl-content');
+  if (el) {
+    const t = owlPlainFromHtml(el.innerHTML);
+    if (t) parts.push(t);
+  }
+  const guide = document.querySelector('.page.active .avatar-bubble');
+  if (guide) {
+    const g = owlPlainFromHtml(guide.innerHTML);
+    if (g) parts.push(g);
+  }
+  const txt = parts.join(' — ');
+  if (!txt) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(txt);
+  u.lang = 'tr-TR';
+  u.rate = 0.92;
+  speechSynthesis.speak(u);
+}
+
+function owlToggleSpeak() {
+  owlSpeakOn = !owlSpeakOn;
+  try { localStorage.setItem('nakitOwlSpeak', owlSpeakOn ? '1' : '0'); } catch (e) {}
+  owlRefreshSpeakUi();
+  if (!owlSpeakOn && window.speechSynthesis) speechSynthesis.cancel();
+  else if (owlOpen) setTimeout(owlAnnounceLast, 80);
+}
+
+function owlToggle() {
+  owlOpen = !owlOpen;
+  const panel = document.getElementById('owl-panel');
+  if (!panel) return;
+  if (owlOpen) {
+    panel.classList.add('open');
+    owlUpdate();
+  } else {
+    panel.classList.remove('open');
+    if (window.speechSynthesis) speechSynthesis.cancel();
+  }
+}
+
+function owlClose() {
+  owlOpen = false;
+  const panel = document.getElementById('owl-panel');
+  if (panel) panel.classList.remove('open');
+  if (window.speechSynthesis) speechSynthesis.cancel();
+}
+
+function owlUpdate() {
+  const activePage = document.querySelector('.page.active');
+  if (!activePage) return;
+  const pageId = activePage.id.replace('page-', '');
+  const tip = OWL_TIPS[pageId];
+  const box = document.getElementById('owl-content');
+  if (!box || !tip) return;
+  box.innerHTML = '<b style="font-size:.78rem;color:var(--acc2)">📌 ' + tip.title + '</b><br><br>' + tip.text;
+  if (owlOpen && owlSpeakOn) setTimeout(owlAnnounceLast, 140);
+}
+
+function initOwlAssistant() {
+  owlRefreshSpeakUi();
+  const origNav = window.navTo;
+  if (origNav && !window._nakitOwlNavWrapped) {
+    window._nakitOwlNavWrapped = true;
+    window.navTo = function (page) {
+      origNav(page);
+      if (owlOpen) setTimeout(owlUpdate, 50);
+    };
+  }
+  setTimeout(function () {
+    const activePage = document.querySelector('.page.active');
+    if (activePage && activePage.id === 'page-home') {
+      owlOpen = true;
+      const p = document.getElementById('owl-panel');
+      owlUpdate();
+      if (p) p.classList.add('open');
+    } else {
+      owlUpdate();
+    }
+  }, 450);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initOwlAssistant);
+} else {
+  initOwlAssistant();
+}
 </script>
 
   <!-- ═══════════════════════════════════
@@ -3832,7 +3903,10 @@ function exportBilançoPDF() {
           <div class="owl-name">Baykuş</div>
           <div class="owl-title">Nakit Akış Asistanı</div>
         </div>
-        <button class="owl-close" onclick="owlClose()">✕</button>
+        <div class="owl-head-actions">
+          <button type="button" class="owl-speak" id="owl-speak-btn" onclick="owlToggleSpeak()" title="Sesli anlatım aç/kapa" aria-pressed="true">🔊 Ses</button>
+          <button type="button" class="owl-close" onclick="owlClose()">✕</button>
+        </div>
       </div>
       <div class="owl-content" id="owl-content">
         Bir sayfa seçin.
