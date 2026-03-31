@@ -290,6 +290,7 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
     <button class="nav-item" data-page="fx"           onclick="navTo('fx')">          <span class="icon">💱</span> Döviz Kurları</button>
     <button class="nav-item" data-page="manual"       onclick="navTo('manual')">      <span class="icon">✏️</span> Manuel Satırlar</button>
     <div class="nav-divider"></div>
+    <button class="nav-item" data-page="ina"         onclick="navTo('ina')">         <span class="icon">💎</span> İNA / Değerleme</button>
     <button class="nav-item" data-page="projection"   onclick="navTo('projection')">  <span class="icon">📈</span> Nakit Akış</button>
     <button class="nav-item" data-page="income5y"     onclick="navTo('income5y')">    <span class="icon">📉</span> 5Y Gelir</button>
     <button class="nav-item" data-page="balance5y"    onclick="navTo('balance5y')">   <span class="icon">🗂️</span> 5Y Bilanço</button>
@@ -841,6 +842,39 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
       </div>
     </div>
 
+    <!-- İNA (İndirgenmiş Nakit Akımı) — parametreler; nakit/borç projeksiyondan -->
+    <div class="page" id="page-ina">
+      <div class="page-header"><h1>İNA — İndirgenmiş nakit akımı</h1><p>İskonto ve terminal varsayımları; nakit ile borç tutarları projeksiyon tablosundan (son yıl sonu) okunur</p></div>
+      <div class="avatar-guide">
+        <div class="avatar-face">💎</div>
+        <div class="avatar-bubble">
+          <h3>Bugünkü değer (özet)</h3>
+          <p>Bu sayfa <strong>FinSkor NakitFlow projeksiyonundaki</strong> yıllık toplamlardan <strong>operasyonel nakit vekili</strong> üretir (tahsilat + mevduat faizi + manuel gelir − tedarikçi − faaliyet gideri − vergi − yatırım; <strong>finansman ve sermaye kalemleri hariç</strong>). İskonto oranı ve terminal büyümeyi siz girersiniz; <strong>net borç</strong> son projeksiyon yılının taksit + spot + BCH bakiyeleri eksi kasa + mevduat olarak alınır.</p>
+          <span class="avatar-tip">Tam UFCE/WACC analizi değil; hızlı senaryo içindir. Önce <strong>Nakit Akış</strong> sayfasının dolu olduğundan emin olun.</span>
+        </div>
+      </div>
+      <div id="ina-proj-missing" class="alert alert-err" style="display:none"><span>✕</span><span>Projeksiyon oluşturulamadı. Varsayımlar ve gelir verilerini tamamlayıp <b>Nakit Akış</b> sayfasını bir kez açın.</span></div>
+      <div id="ina-form-wrap">
+        <div class="card glow">
+          <div class="card-header"><div class="card-icon">⚙️</div><div class="card-title">Parametreler</div></div>
+          <div class="form-grid cols2">
+            <div class="field"><label>İskonto oranı (yıllık %)</label><input type="number" id="ina-wacc" step="0.1" min="0.1" placeholder="Örn. 15"></div>
+            <div class="field"><label>Terminal sürekli büyüme (yıllık %)</label><input type="number" id="ina-terminal" step="0.1" min="0" placeholder="Örn. 2"></div>
+            <div class="field" style="grid-column:span 2">
+              <label>İlk indirgenen nakit yılı (takvim yılı)</label>
+              <select id="ina-first-year"></select>
+              <div class="notice" style="margin-top:8px">Bu yıldan itibaren yıllık vekiller toplanır; terminal değer son yıl vekiline bağlanır. İskonto: yıl sonu nakitleri bugüne, üsler 1…N.</div>
+            </div>
+          </div>
+          <div class="btn-group">
+            <button type="button" class="btn btn-primary" onclick="saveInaParams()">💾 Kaydet ve hesapla</button>
+            <button type="button" class="btn btn-secondary" onclick="refreshInaResults()">↻ Sadece hesapla (kaydetmez)</button>
+          </div>
+        </div>
+        <div id="ina-results" class="card" style="margin-top:16px"></div>
+      </div>
+    </div>
+
     <!-- PROJECTION -->
     <div class="page" id="page-projection">
       <div class="page-header"><h1 id="proj-title">Nakit Akış Tablosu</h1><p id="proj-subtitle"></p></div>
@@ -955,7 +989,7 @@ async function loadState(){
 // ══════════════════════════════════════════════
 const PAGE_TITLES={home:'Firmalar',opening:'Açılış Bilanço',income:'Referans Gelir',ciro:'Ciro Dağılımı',
   assumptions:'Varsayımlar',expenses:'Giderler',loans:'Krediler',fx:'Döviz Kurları',
-  manual:'Manuel Satırlar',projection:'Nakit Akış',income5y:'5Y Gelir',balance5y:'5Y Bilanço'};
+  manual:'Manuel Satırlar',ina:'İNA / Değerleme',projection:'Nakit Akış',income5y:'5Y Gelir',balance5y:'5Y Bilanço'};
 
 function navTo(page){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -969,7 +1003,7 @@ function navTo(page){
   }
   const handlers={opening:populateOpening,income:populateIncome,ciro:populateCiro,assumptions:populateAssumptions,
     expenses:renderExpenseGroups,loans:renderLoans,fx:populateFx,manual:renderManual,
-    projection:renderProjection,income5y:renderIncome5Y,balance5y:renderBalance5Y};
+    ina:renderIna,projection:renderProjection,income5y:renderIncome5Y,balance5y:renderBalance5Y};
   if(handlers[page])handlers[page]();
 }
 
@@ -1033,7 +1067,8 @@ function createFirm(){
     ciro:{mode:'uniform',monthly:new Array(12).fill(100/12)},
     assumptions:{months:60,growth:0,expGrowth:0,bchLimit:0,bchRate:0,
       bch1:0,bch2:0,bch3:0,bch4:0,bch5:0,dep1:0,dep2:0,dep3:0,dep4:0,dep5:0,taxRate:25,taxMonths:'3,6,9,12'},
-    expenses:defExp,loans:[],manualCf:[],fxRates};
+    expenses:defExp,loans:[],manualCf:[],fxRates,
+    ina:{wacc:15,terminalGrowth:2,firstFcfYear:null}};
   saveState();closeModal('new-firm-modal');renderFirmList();
   showAlert('"'+name+'" oluşturuldu. Sol menü açıldı — adım adım ilerleyebilirsin.','ok');
   // Firma oluşturulduktan hemen sonra otomatik seç → sol menü açılır, Açılış'a geçilir
@@ -2237,6 +2272,174 @@ function buildYearlyData(rows, startYear, numYears){
     years.push({year:y, months, totals});
   }
   return years;
+}
+
+/** Firma İNA alanı — eski kayıtlar için varsayılan */
+function ensureFirmIna(f) {
+  if (!f) return;
+  if (!f.ina || typeof f.ina !== 'object') f.ina = {};
+  if (f.ina.wacc == null || f.ina.wacc === '') f.ina.wacc = 15;
+  if (f.ina.terminalGrowth == null || f.ina.terminalGrowth === '') f.ina.terminalGrowth = 2;
+}
+
+/**
+ * İNA özeti: operasyonel nakit vekili (finansman/sermaye hariç) + Gordon terminali.
+ * Net borç = son yıl taksit+spot+BCH − (kasa+mevduat). buildYearlyData için lastProjection geçici atanır.
+ */
+function computeInaValuation(proj, ina) {
+  const wacc = Number(ina && ina.wacc);
+  const g = Number(ina && ina.terminalGrowth);
+  const firstYear = parseInt(ina && ina.firstFcfYear, 10);
+  if (!proj || !proj.rows || !proj.rows.length) return { error: 'Projeksiyon verisi yok.' };
+  if (!Number.isFinite(firstYear)) return { error: 'İlk indirgenen nakit yılını seçin.' };
+  if (!Number.isFinite(wacc) || wacc <= 0) return { error: 'İskonto oranı pozitif olmalı.' };
+  if (!Number.isFinite(g) || g < 0 || g >= wacc) return { error: 'Terminal büyüme 0 ile iskonto arasında olmalı (g < iskonto %).' };
+  const r = wacc / 100;
+  const gDec = g / 100;
+  const f = proj.firm;
+  const startYear = new Date(f.startDate).getFullYear();
+  const months = (proj.summary && proj.summary.months) ? proj.summary.months : 60;
+  const numYears = Math.max(1, Math.ceil(months / 12));
+  const prevLp = lastProjection;
+  lastProjection = proj;
+  let yearlyData;
+  try {
+    yearlyData = buildYearlyData(proj.rows, startYear, numYears);
+  } finally {
+    lastProjection = prevLp;
+  }
+  if (!yearlyData.length) return { error: 'Yıllık veri oluşturulamadı.' };
+  const iy = yearlyData.findIndex(function (yd) { return yd.year === firstYear; });
+  if (iy < 0) return { error: 'Seçilen yıl projeksiyonda yok.' };
+  const explicit = yearlyData.slice(iy);
+  const fcfArr = explicit.map(function (yd) {
+    const t = yd.totals || {};
+    return (t.tahsilat || 0) + (t.depFaiz || 0) + (t.manuelGelir || 0)
+      - (t.tedarikci || 0) - (t.opex || 0) - (t.vergi || 0) - (t.yatirimCikti || 0);
+  });
+  const n = fcfArr.length;
+  if (!n) return { error: 'Açık dönem nakit vekili yok.' };
+  let pvExplicit = 0;
+  const tableRows = [];
+  for (let i = 0; i < n; i++) {
+    const disc = Math.pow(1 + r, i + 1);
+    const pv = fcfArr[i] / disc;
+    pvExplicit += pv;
+    tableRows.push({ year: explicit[i].year, fcf: fcfArr[i], disc: disc, pv: pv });
+  }
+  const lastFcf = fcfArr[n - 1];
+  const tv = lastFcf * (1 + gDec) / (r - gDec);
+  const pvTv = tv / Math.pow(1 + r, n);
+  const enterpriseValue = pvExplicit + pvTv;
+  const lastT = explicit[n - 1].totals || {};
+  const financialDebt = (lastT.taksitBak || 0) + (lastT.spotBak || 0) + (lastT.bchEnd || 0);
+  const cashLike = (lastT.kapanisNakit || 0) + (lastT.mevduat || 0);
+  const netDebt = financialDebt - cashLike;
+  const equityValue = enterpriseValue - netDebt;
+  return {
+    tableRows: tableRows, pvExplicit: pvExplicit, tv: tv, pvTv: pvTv,
+    enterpriseValue: enterpriseValue, financialDebt: financialDebt, cashLike: cashLike,
+    netDebt: netDebt, equityValue: equityValue, n: n,
+    firstYear: explicit[0].year, lastYear: explicit[n - 1].year, lastFcf: lastFcf,
+    waccPct: wacc, gPct: g
+  };
+}
+
+function renderIna() {
+  const f = curFirm();
+  const miss = $('ina-proj-missing');
+  const wrap = $('ina-form-wrap');
+  if (!f) return;
+  ensureFirmIna(f);
+  let proj;
+  try {
+    proj = buildProjection(state.currentFirmId);
+  } catch (e) {
+    if (miss) miss.style.display = 'flex';
+    if (wrap) wrap.style.display = 'none';
+    return;
+  }
+  if (miss) miss.style.display = 'none';
+  if (wrap) wrap.style.display = '';
+  lastProjection = proj;
+  const startYear = new Date(f.startDate).getFullYear();
+  const numYears = Math.max(1, Math.ceil(proj.summary.months / 12));
+  const yearlyData = buildYearlyData(proj.rows, startYear, numYears);
+  const yEl = $('ina-first-year');
+  if (yEl) {
+    yEl.innerHTML = yearlyData.map(function (yd) {
+      return '<option value="' + yd.year + '">' + yd.year + '</option>';
+    }).join('');
+    const fy = f.ina.firstFcfYear != null ? f.ina.firstFcfYear : startYear;
+    yEl.value = yearlyData.some(function (y) { return y.year === fy; }) ? String(fy) : String(yearlyData[0].year);
+  }
+  const wEl = $('ina-wacc');
+  const tEl = $('ina-terminal');
+  if (wEl) wEl.value = f.ina.wacc;
+  if (tEl) tEl.value = f.ina.terminalGrowth;
+  refreshInaResults();
+}
+
+function saveInaParams() {
+  const f = curFirm();
+  if (!f) return;
+  ensureFirmIna(f);
+  f.ina.wacc = fnum($('ina-wacc') && $('ina-wacc').value, 15);
+  f.ina.terminalGrowth = fnum($('ina-terminal') && $('ina-terminal').value, 2);
+  f.ina.firstFcfYear = parseInt(($('ina-first-year') && $('ina-first-year').value) || '', 10);
+  if (!Number.isFinite(f.ina.firstFcfYear)) f.ina.firstFcfYear = null;
+  saveState();
+  showAlert('İNA parametreleri kaydedildi.', 'ok');
+  refreshInaResults();
+}
+
+function refreshInaResults() {
+  const box = $('ina-results');
+  if (!box) return;
+  const f = curFirm();
+  if (!f) {
+    box.innerHTML = '';
+    return;
+  }
+  ensureFirmIna(f);
+  let proj;
+  try {
+    proj = buildProjection(state.currentFirmId);
+  } catch (e) {
+    box.innerHTML = '<div class="alert alert-err"><span>✕</span><span>' + esc(e.message) + '</span></div>';
+    return;
+  }
+  lastProjection = proj;
+  const inaLive = {
+    wacc: fnum($('ina-wacc') && $('ina-wacc').value, f.ina.wacc),
+    terminalGrowth: fnum($('ina-terminal') && $('ina-terminal').value, f.ina.terminalGrowth),
+    firstFcfYear: parseInt(($('ina-first-year') && $('ina-first-year').value) || String(f.ina.firstFcfYear || new Date(f.startDate).getFullYear()), 10)
+  };
+  const res = computeInaValuation(proj, inaLive);
+  if (res.error) {
+    box.innerHTML = '<div class="alert alert-err"><span>✕</span><span>' + esc(res.error) + '</span></div>';
+    return;
+  }
+  let tbl = '<div class="card-header" style="border-bottom:1px solid var(--bd);margin-bottom:14px;padding-bottom:12px"><div class="card-icon">📊</div><div class="card-title">Sonuç özeti</div></div>';
+  tbl += '<div class="kpi-grid" style="margin-bottom:18px">';
+  tbl += '<div class="kpi"><div class="kpi-label">İşletme değeri (vekil)</div><div class="kpi-val blue">' + tr(res.enterpriseValue, 0) + ' TL</div></div>';
+  tbl += '<div class="kpi"><div class="kpi-label">Özsermaye değeri (vekil)</div><div class="kpi-val green">' + tr(res.equityValue, 0) + ' TL</div></div>';
+  tbl += '<div class="kpi"><div class="kpi-label">Net borç (proj. son yıl)</div><div class="kpi-val ' + (res.netDebt >= 0 ? 'red' : 'green') + '">' + tr(res.netDebt, 0) + ' TL</div></div>';
+  tbl += '<div class="kpi"><div class="kpi-label">Finansal borç (taksit+spot+BCH)</div><div class="kpi-val">' + tr(res.financialDebt, 0) + ' TL</div></div>';
+  tbl += '<div class="kpi"><div class="kpi-label">Nakit + mevduat</div><div class="kpi-val">' + tr(res.cashLike, 0) + ' TL</div></div>';
+  tbl += '<div class="kpi"><div class="kpi-label">Terminal değeri (brüt)</div><div class="kpi-val">' + tr(res.tv, 0) + ' TL</div></div>';
+  tbl += '</div>';
+  tbl += '<div class="section-sep">Yıllık operasyonel nakit vekili ve bugünkü değer</div>';
+  tbl += '<div class="tbl-wrap"><table><thead><tr><th>Yıl</th><th>Vekil FCF (TL)</th><th>İskonto çarpanı 1/(1+r)^t</th><th>Bugünkü değer (TL)</th></tr></thead><tbody>';
+  for (let i = 0; i < res.tableRows.length; i++) {
+    const row = res.tableRows[i];
+    tbl += '<tr><td>' + row.year + '</td><td>' + tr(row.fcf, 0) + '</td><td>' + tr(1 / row.disc, 4) + '</td><td>' + tr(row.pv, 0) + '</td></tr>';
+  }
+  tbl += '<tr class="muted-row"><td colspan="3">Açık dönem PV toplamı</td><td>' + tr(res.pvExplicit, 0) + '</td></tr>';
+  tbl += '<tr class="muted-row"><td colspan="3">Terminal PV (Gordon, g=%' + tr(res.gPct, 1) + ', r=%' + tr(res.waccPct, 1) + ')</td><td>' + tr(res.pvTv, 0) + '</td></tr>';
+  tbl += '</tbody></table></div>';
+  tbl += '<p class="notice" style="margin-top:14px">Dönem: ' + res.firstYear + '–' + res.lastYear + ' · Son yıl vekil FCF: ' + tr(res.lastFcf, 0) + ' TL. Bu tablo yatırım tavsiyesi değildir.</p>';
+  box.innerHTML = tbl;
 }
 
 function renderProjTable(yearData, firmName){
@@ -4089,6 +4292,16 @@ const OWL_TIPS = {
       <li><b>💼 Sermaye Artışı:</b> Nakit girişi + bilançoda özkaynak (gelir tablosuna girmez)</li>
     </ul>
     <div class="owl-tip"><b>💡 İpucu:</b> Makine alımı için "Yatırım/MDV", ortak sermaye koyması için "Sermaye Artışı" seçin.</div>`
+  },
+  ina: {
+    title: 'İNA / Değerleme',
+    text: `<b>İndirgenmiş nakit akımı</b> için iskonto oranı, terminal büyüme ve <b>ilk nakit yılını</b> burada girin.
+    <ul>
+      <li>Operasyonel nakit <b>vekili</b> projeksiyondaki yıllık toplamlardan üretilir (finansman hariç)</li>
+      <li><b>Net borç</b> son yılın taksit + spot + BCH eksi kasa ve mevduatıdır</li>
+      <li>Önce diğer sayfaları doldurun; <b>Nakit Akış</b> en az bir kez çalışmış olmalı</li>
+    </ul>
+    <div class="owl-tip"><b>💡 İpucu:</b> Parametreleri <b>Kaydet ve hesapla</b> ile firmaya yazın; sadece denemek için <b>Sadece hesapla</b> kullanın.</div>`
   },
   projection: {
     title: 'Nakit Akış Tablosu',
