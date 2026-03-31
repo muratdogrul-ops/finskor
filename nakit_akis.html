@@ -810,6 +810,7 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
           <button class="btn btn-secondary" onclick="fillFxFromOpen()">📋 Sadece Açılış Kurunu Uygula</button>
         </div>
         <div class="notice" style="margin-top:10px">Otomatik hesap: Açılış kurundan başlar, seçilen yıllık artış oranını aylık bileşik büyüme olarak uygular. İstediğiniz ayı manuel değiştirebilirsiniz.</div>
+        <div class="notice" style="margin-top:8px"><b>TCMB’den Güncelle:</b> <code>finskor.tr</code> gibi Netlify canlı sitede sunucu proxy’si kullanılır (güvenilir). <code>file://</code> veya önizlemede çalışmazsa yerelde <code>netlify dev</code> çalıştırın veya kurları elle girin.</div>
       </div>
       <div class="card">
         <div class="card-header"><div class="card-icon">📅</div><div class="card-title">Aylık Kur Tablosu</div></div>
@@ -1601,7 +1602,26 @@ function _isLikelyTcmbXml(text) {
 function _sleep(ms) {
   return new Promise(function (resolve) { setTimeout(resolve, ms); });
 }
+/** Canlı sitede Netlify Function (CORS’suz TCMB); file:// veya proxy yoksa atlanır */
+function _tcmbNetlifyProxyUrl(targetTcmbHttps) {
+  var o = window.location && window.location.origin;
+  if (!o || o === 'null' || /^file:/i.test(o)) return '';
+  return o.replace(/\/$/, '') + '/.netlify/functions/tcmb-xml?u=' + encodeURIComponent(targetTcmbHttps);
+}
 async function fetchTcmbXmlText(url) {
+  const tryNetlifyFn = async function () {
+    var proxy = _tcmbNetlifyProxyUrl(url);
+    if (!proxy) throw new Error('netlify skip');
+    var r = await fetch(proxy, { method: 'GET', cache: 'no-store' });
+    if (!r.ok) {
+      var errTxt = '';
+      try { errTxt = (await r.text()).slice(0, 120); } catch (e) { /* ignore */ }
+      throw new Error('netlify ' + r.status + (errTxt ? ' ' + errTxt : ''));
+    }
+    var t = await r.text();
+    if (!_isLikelyTcmbXml(t)) throw new Error('netlify bad');
+    return t;
+  };
   const tryDirect = async function () {
     const r = await fetch(url, { mode: 'cors', cache: 'no-store' });
     if (!r.ok) throw new Error('direct');
@@ -1634,7 +1654,7 @@ async function fetchTcmbXmlText(url) {
     if (!_isLikelyTcmbXml(t)) throw new Error('codetabs bad');
     return t;
   };
-  const attempts = [tryDirect, tryAlloriginsRaw, tryAlloriginsGet, tryCodetabs];
+  const attempts = [tryNetlifyFn, tryDirect, tryAlloriginsRaw, tryAlloriginsGet, tryCodetabs];
   let last = null;
   for (let a = 0; a < attempts.length; a++) {
     try {
