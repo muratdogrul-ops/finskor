@@ -3262,6 +3262,9 @@ function annual5Y(rows, startYear, mdv0 = 0, balAdj) {
     const net = ebtBridged - tax;
     inc[y].gp=gp; inc[y].faalGid=faalGid; inc[y].faalKar=faalKar;
     inc[y].finGid=finGid; inc[y].dgerGelir=dgerGelir; inc[y].dgerGider=dgerGider;
+    inc[y].finSonrasi = faalKar - finGid;
+    inc[y].kambiyoSonrasi = faalKar - finGid - kambiyoLoss;
+    inc[y].dgerNet = dgerGelir - dgerGider;
     inc[y].net=net;
     inc[y].gpM   = ciro>0?gp/ciro*100:0;
     inc[y].faalM = ciro>0?faalKar/ciro*100:0;
@@ -3362,8 +3365,13 @@ function renderIncome5Y(){
     {l:'Taksit Kredi Faizi',   k:'tFaiz',   cost:true},
     {l:'BCH Faiz Gideri',      k:'bchFaizAccr', cost:true},
     {l:'Toplam Finansman Gideri', k:'finGid', cost:true, bold:true},
+    {sep:'ARA — EBIT − FİNANSMAN'},
+    {l:'Finansman sonrası (EBIT − toplam finansman)', k:'finSonrasi', bold:true, bridge:true},
     {sep:'KUR FARKI (DÖVİZ KREDİ)'},
     {l:'Kambiyo net (646/656)', k:'kambiyoKredi', kambi:true},
+    {sep:'ARA — KAMBİYO SONRASI'},
+    {l:'Kambiyo sonrası işlem sonucu', k:'kambiyoSonrasi', bold:true, bridge:true},
+    {l:'+ Mevduat/diğer olağan net (VÖK köprüsü)', k:'dgerNet', bridge:true},
     {sep:'VERGİ ÖNCESİ KÂR (VÖK / EBT)'},
     {l:'VÖK / EBT',            k:'ebt',     bold:true},
     {sep:'VERGİ'},
@@ -3383,6 +3391,7 @@ function renderIncome5Y(){
       const v=cellVal(y,row.k);
       let cls='';
       if(row.kambi) cls=v>0?'neg':(v<0?'pos':'');
+      else if(row.bridge) cls=v>0?'pos':(v<0?'neg':'');
       else if(row.cost) cls=v>0?'neg':'';
       else cls=v>0?'pos':v<0?'neg':'';
       let extra='';
@@ -4253,7 +4262,10 @@ function exportRaporExcel() {
     ['Taksit Faizi',                ...years.map(y => inc[y]?.tFaiz || 0)],
     ['BCH Faiz Gideri',             ...years.map(y => inc[y]?.bchFaizAccr || 0)],
     ['Toplam Finansman Gideri',     ...years.map(y => inc[y]?.finGid || 0)],
+    ['Finansman sonrası (EBIT−fin)', ...years.map(y => inc[y]?.finSonrasi ?? ((inc[y]?.faalKar || 0) - (inc[y]?.finGid || 0)))],
     ['Kambiyo net (646/656)',       ...years.map(y => inc[y]?.kambiyoKredi || 0)],
+    ['Kambiyo sonrası işlem sonucu', ...years.map(y => inc[y]?.kambiyoSonrasi ?? 0)],
+    ['+ Mevduat/diğer olağan net',   ...years.map(y => inc[y]?.dgerNet ?? 0)],
     ['────────────────',            ...years.map(() => '')],
     ['VÖK / EBT',                  ...years.map(y => inc[y]?.ebt || 0)],
     ['Kurumlar Vergisi',            ...years.map(y => inc[y]?.tax || 0)],
@@ -4370,6 +4382,10 @@ function exportGelirExcel() {
     ['Faaliyet Giderleri', ...years.map(y => inc[y]?.faalGid||0)],
     ['Faaliyet Kârı (EBIT)', ...years.map(y => inc[y]?.faalKar||0)],
     ['Finansman Gideri', ...years.map(y => inc[y]?.finGid||0)],
+    ['Finansman sonrası (EBIT−fin)', ...years.map(y => inc[y]?.finSonrasi ?? 0)],
+    ['Kambiyo net (646/656)', ...years.map(y => inc[y]?.kambiyoKredi||0)],
+    ['Kambiyo sonrası işlem sonucu', ...years.map(y => inc[y]?.kambiyoSonrasi ?? 0)],
+    ['+ Mevduat/diğer olağan net', ...years.map(y => inc[y]?.dgerNet ?? 0)],
     ['VÖK / EBT', ...years.map(y => inc[y]?.ebt||0)],
     ['Kurumlar Vergisi', ...years.map(y => inc[y]?.tax||0)],
     ['Net Kâr', ...years.map(y => inc[y]?.net||0)],
@@ -4528,94 +4544,119 @@ function pdfBuildCashFlowPages(doc, proj, firmName) {
   const pageH = doc.internal.pageSize.getHeight();
   const sy     = new Date(proj.firm.startDate).getFullYear();
   const numYrs = Math.ceil((proj.summary.months || 60) / 12);
-  // buildYearlyData → [{year, months:[{ay,tarih,...}], totals}]
   const yearlyData = buildYearlyData(proj.rows, sy, numYrs);
+  if (!yearlyData.length) return;
+
+  doc.addPage();
+  pdfAddHeader(doc, firmName, 'Nakit Akış — Yıllık özet (tüm yıllar, tek sayfa)', pageW);
 
   const rowDefs = PROJ_ROWS.filter(r => r.field && r.type !== 'sep');
+  const isBalField = function (f) {
+    return ['kapanisNakit', 'mevduat', 'bchEnd', 'taksitBak', 'spotBak', 'arBak', 'apBak', 'stokBak', 'acilis', 'ebt'].includes(f);
+  };
+  const isOutF = function (f) {
+    return ['tedarikci', 'opex', 'toplamGider', 'taksitAnapara', 'taksitFaizBsmv', 'spotAnaparaPay', 'spotFaizOd', 'bchFaizOd', 'vergi', 'manuelGider', 'yatirimCikti', 'toplamCikti', 'bchRepay'].includes(f);
+  };
+  const isInF = function (f) {
+    return ['tahsilat', 'depFaiz', 'krediKullan', 'spotKullan', 'manuelGelir', 'sermayeGirdi', 'toplamGirdi', 'bchKullan'].includes(f);
+  };
 
-  for (const yData of yearlyData) {
-    doc.addPage();
-    pdfAddHeader(doc, firmName, yData.year + ' — Aylık Nakit Akım Projeksiyonu', pageW);
-
-    const months  = yData.months;
-    const ayKisa  = months.map(m => AY_KISA[(m.ay - 1) % 12] || ('A' + m.ay));
-    const head    = [['Kalem', ...ayKisa, 'Toplam/Son']];
-    const body    = [];
-
-    for (const rd of rowDefs) {
-      const isGrp   = rd.type === 'grp';
-      const isTotal = rd.type === 'total' || rd.type === 'kapanis';
-      const isBal   = ['kapanisNakit','mevduat','bchEnd','taksitBak','spotBak','arBak','apBak','stokBak','acilis'].includes(rd.field);
-      const vals    = months.map(m => m[rd.field] || 0);
-      const tv      = isBal ? (vals[vals.length - 1] || 0) : vals.reduce((a,b) => a+b, 0);
-      const cells   = [rd.label, ...vals.map(v => pdfNum(v)), pdfNum(tv)];
-      body.push({ cells, isGrp, isTotal, field: rd.field });
+  const yearLabels = yearlyData.map(function (yd) { return String(yd.year); });
+  const head = [['Kalem', ...yearLabels]];
+  const body = [];
+  for (let ri = 0; ri < rowDefs.length; ri++) {
+    const rd = rowDefs[ri];
+    const isGrp = rd.type === 'grp';
+    const isTotal = rd.type === 'total' || rd.type === 'kapanis';
+    const cells = [rd.label];
+    for (let yi = 0; yi < yearlyData.length; yi++) {
+      const yd = yearlyData[yi];
+      const months = yd.months;
+      const totals = yd.totals || {};
+      let v = 0;
+      if (isBalField(rd.field)) {
+        if (rd.field === 'acilis') v = months[0] ? (months[0].acilis || 0) : 0;
+        else if (months.length) v = months[months.length - 1][rd.field] || 0;
+      } else {
+        v = totals[rd.field] || 0;
+      }
+      cells.push(pdfNum(v));
     }
-
-    const isOutF = (f) => ['tedarikci','opex','toplamGider','taksitAnapara','taksitFaizBsmv','spotAnaparaPay','spotFaizOd','bchFaizOd','vergi','manuelGider','yatirimCikti','toplamCikti','bchRepay','bchEnd','taksitBak','spotBak','apBak'].includes(f);
-    const isInF  = (f) => ['tahsilat','depFaiz','krediKullan','spotKullan','manuelGelir','sermayeGirdi','toplamGirdi','bchKullan'].includes(f);
-
-    doc.autoTable({
-      head,
-      body: body.map(r => r.cells),
-      startY: 22,
-      margin: { left: 6, right: 6 },
-      tableWidth: 'auto',
-      styles: {
-        fontSize: 6,
-        cellPadding: 1.2,
-        font: 'NotoSans',
-        textColor: PDF_CLR.text,
-        lineColor: PDF_CLR.mid,
-        lineWidth: 0.15,
-      },
-      headStyles: {
-        font: 'NotoSans',
-        fillColor: PDF_CLR.navy,
-        textColor: PDF_CLR.white,
-        fontStyle: 'bold',
-        fontSize: 6.5,
-        halign: 'center',
-      },
-      columnStyles: { 0: { halign: 'left', cellWidth: 44, fontStyle: 'bold' } },
-      bodyStyles: { halign: 'right' },
-      didParseCell: function(data) {
-        if (data.section !== 'body') return;
-        const ri   = data.row.index;
-        const rd   = body[ri];
-        const col  = data.column.index;
-        if (rd.isGrp) {
-          data.cell.styles.fillColor = PDF_CLR.band;
-          data.cell.styles.textColor = PDF_CLR.bandText;
-          data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fontSize  = 7;
-        } else if (rd.isTotal) {
-          data.cell.styles.fillColor = PDF_CLR.band;
-          data.cell.styles.textColor = PDF_CLR.bandText;
-          data.cell.styles.fontStyle = 'bold';
-        } else if (col === 0) {
-          data.cell.styles.textColor = PDF_CLR.text;
-          data.cell.styles.fillColor = [252, 253, 255];
-        } else {
-          // Renk: çıkış/giriş
-          const v = months[col - 1]?.[rd.field] || 0;
-          if (isOutF(rd.field) && v > 0)      data.cell.styles.textColor = PDF_CLR.neg;
-          else if (isInF(rd.field) && v > 0)  data.cell.styles.textColor = PDF_CLR.pos;
-          // Satır zebra
-          if (ri % 2 === 0) data.cell.styles.fillColor = [249, 251, 254];
-        }
-      },
-      willDrawPage: function() {
-        pdfAddHeader(doc, firmName, yData.year + ' — Aylık Nakit Akım Projeksiyonu', pageW);
-        doc.setFont('NotoSans', 'normal');
-      },
-      didDrawPage: function() {
-        const info = doc.internal;
-        pdfAddFooter(doc, info.getCurrentPageInfo().pageNumber, '?', pageW, pageH);
-        doc.setFont('NotoSans', 'normal');
-      },
-    });
+    body.push({ cells: cells, isGrp: isGrp, isTotal: isTotal, field: rd.field });
   }
+
+  const margin = 4;
+  const nY = yearLabels.length;
+  const labelW = Math.min(52, pageW * 0.22);
+  const avail = pageW - margin * 2 - labelW;
+  const colW = Math.max(12, Math.min(24, avail / Math.max(1, nY)));
+  const fs = nY > 8 ? 4.8 : (nY > 5 ? 5.2 : 5.8);
+  const columnStyles = { 0: { halign: 'left', cellWidth: labelW, fontStyle: 'bold', fontSize: fs + 0.2 } };
+  for (let c = 0; c < nY; c++) columnStyles[c + 1] = { halign: 'right', cellWidth: colW, fontSize: fs };
+
+  doc.autoTable({
+    head: head,
+    body: body.map(function (r) { return r.cells; }),
+    startY: 21,
+    margin: { left: margin, right: margin, bottom: 9 },
+    tableWidth: labelW + colW * nY,
+    styles: {
+      fontSize: fs,
+      cellPadding: 0.55,
+      font: 'NotoSans',
+      textColor: PDF_CLR.text,
+      lineColor: PDF_CLR.mid,
+      lineWidth: 0.12,
+      overflow: 'linebreak',
+    },
+    headStyles: {
+      font: 'NotoSans',
+      fillColor: PDF_CLR.navy,
+      textColor: PDF_CLR.white,
+      fontStyle: 'bold',
+      fontSize: fs + 0.3,
+      halign: 'center',
+    },
+    columnStyles: columnStyles,
+    bodyStyles: { halign: 'right', valign: 'middle' },
+    didParseCell: function (data) {
+      if (data.section !== 'body') return;
+      const rd = body[data.row.index];
+      const col = data.column.index;
+      if (rd.isGrp) {
+        data.cell.styles.fillColor = PDF_CLR.band;
+        data.cell.styles.textColor = PDF_CLR.bandText;
+        data.cell.styles.fontStyle = 'bold';
+      } else if (rd.isTotal) {
+        data.cell.styles.fillColor = PDF_CLR.band;
+        data.cell.styles.textColor = PDF_CLR.bandText;
+        data.cell.styles.fontStyle = 'bold';
+      } else if (col === 0) {
+        data.cell.styles.textColor = PDF_CLR.text;
+        data.cell.styles.fillColor = [252, 253, 255];
+      } else {
+        const yd = yearlyData[col - 1];
+        const months = yd.months;
+        const totals = yd.totals || {};
+        let v = 0;
+        if (isBalField(rd.field)) {
+          if (rd.field === 'acilis') v = months[0] ? (months[0].acilis || 0) : 0;
+          else if (months.length) v = months[months.length - 1][rd.field] || 0;
+        } else v = totals[rd.field] || 0;
+        if (isOutF(rd.field) && v > 0) data.cell.styles.textColor = PDF_CLR.neg;
+        else if (isInF(rd.field) && v > 0) data.cell.styles.textColor = PDF_CLR.pos;
+        if (data.row.index % 2 === 0) data.cell.styles.fillColor = [249, 251, 254];
+      }
+    },
+    willDrawPage: function () {
+      pdfAddHeader(doc, firmName, 'Nakit Akış — Yıllık özet (tüm yıllar, tek sayfa)', pageW);
+      doc.setFont('NotoSans', 'normal');
+    },
+    didDrawPage: function () {
+      pdfAddFooter(doc, doc.internal.getCurrentPageInfo().pageNumber, '?', pageW, pageH);
+      doc.setFont('NotoSans', 'normal');
+    },
+  });
 }
 
 function pdfBuildIncomePage(doc, proj, firmName) {
@@ -4640,6 +4681,10 @@ function pdfBuildIncomePage(doc, proj, firmName) {
     {l:'Taksitli + Spot Kredi Faizi (−)',    k:'tFaiz',       cost:true},
     {l:'BCH Faiz Gideri (−)',                k:'bchFaizAccr', cost:true},
     {l:'Toplam Finansman Gideri (−)',        k:'finGid',      bold:true},
+    {l:'Finansman sonrası (EBIT − finansman)', k:'finSonrasi', bridge:true, bold:true},
+    {l:'Kambiyo net (646/656)',              k:'kambiyoKredi', kambi:true},
+    {l:'Kambiyo sonrası işlem sonucu',       k:'kambiyoSonrasi', bridge:true, bold:true},
+    {l:'+ Mevduat/diğer olağan net (VÖK köprüsü)', k:'dgerNet', bridge:true},
     {l:'Vergi Öncesi Kâr (VÖK / EBT)',       k:'ebt',         bold:true},
     {l:'Kurumlar Vergisi (−)',               k:'tax',         cost:true},
     {l:'Net Kâr',                            k:'net',         bold:true},
@@ -4654,19 +4699,34 @@ function pdfBuildIncomePage(doc, proj, firmName) {
   doc.autoTable({
     head, body,
     startY: 22,
-    margin: { left: 15, right: 15 },
-    styles:      { fontSize: 8, cellPadding: 2, font: 'NotoSans', textColor: PDF_CLR.text },
+    margin: { left: 12, right: 12 },
+    styles:      { fontSize: 7.5, cellPadding: 1.4, font: 'NotoSans', textColor: PDF_CLR.text },
     headStyles:  { font: 'NotoSans', fillColor: PDF_CLR.navy, textColor: PDF_CLR.white, fontStyle: 'bold', halign: 'center' },
-    columnStyles:{ 0: { halign: 'left', cellWidth: 60, fontStyle: 'bold' } },
+    columnStyles:{ 0: { halign: 'left', cellWidth: 78, fontStyle: 'bold' } },
     bodyStyles:  { halign: 'right' },
     didParseCell: function(data) {
       if (data.section !== 'body') return;
       const row = sections[data.row.index];
-      if (row.bold) {
-        data.cell.styles.fontStyle  = 'bold';
-        data.cell.styles.fillColor  = PDF_CLR.band;
-        data.cell.styles.textColor  = PDF_CLR.bandText;
+      const col = data.column.index;
+      if (col === 0) {
+        if (row.bold) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = PDF_CLR.band;
+          data.cell.styles.textColor = PDF_CLR.bandText;
+        }
+        return;
       }
+      const y = yInts[col - 1];
+      const v = inc[y]?.[row.k] || 0;
+      if (row.bold) {
+        data.cell.styles.fontStyle = 'bold';
+        data.cell.styles.fillColor = PDF_CLR.band;
+      }
+      if (row.kambi) data.cell.styles.textColor = v > 0 ? PDF_CLR.neg : (v < 0 ? PDF_CLR.pos : PDF_CLR.text);
+      else if (row.bridge) data.cell.styles.textColor = v >= 0 ? PDF_CLR.pos : PDF_CLR.neg;
+      else if (row.cost && v > 0) data.cell.styles.textColor = PDF_CLR.neg;
+      else if (row.bold) data.cell.styles.textColor = PDF_CLR.bandText;
+      else data.cell.styles.textColor = PDF_CLR.text;
     },
     willDrawPage: function() {
       pdfAddHeader(doc, firmName, '5 Yıllık Gelir Tablosu', pageW);
