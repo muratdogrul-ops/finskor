@@ -778,11 +778,11 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
 <div class="avatar-guide">
   <div class="avatar-face">💱</div>
   <div class="avatar-bubble">
-    <h3>Döviz Kurları — 60 aylık USD ve EUR kur tahmini</h3>
+    <h3>Döviz Kurları — 120 aya kadar USD ve EUR kur tahmini</h3>
     <p>USD ve EUR cinsinden her türlü işlem (kredi, gelir, gider) için TL kuru buradan alınır.</p>
     <ul>
       <li><strong>Açılış Kuru:</strong> Projeksiyon başlangıcındaki USD/TL ve EUR/TL kurunu gir</li>
-      <li><strong>⚡ Otomatik Hesapla:</strong> Yıllık büyüme oranına göre 60 ayı otomatik doldurur</li>
+      <li><strong>⚡ Otomatik Hesapla:</strong> Yıllık büyüme oranına göre 120 ayı otomatik doldurur</li>
       <li><strong>📋 Sadece Açılış:</strong> Tüm ayları sabit açılış kuruyla doldurur</li>
       <li>İstediğin ayı manuel olarak değiştirebilirsin</li>
     </ul>
@@ -924,7 +924,7 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
   <div class="avatar-face">📈</div>
   <div class="avatar-bubble">
     <h3>Nakit akış tablosu</h3>
-    <p>Projeksiyonu çalıştırdıktan sonra bu sayfada <strong>60 aylık nakit akış tablosu otomatik</strong> oluşur. İstersen hücrelere <strong>manuel rakam</strong> girip <strong>Kaydet</strong> ile verileri kalıcı olarak değiştirebilirsin.</p>
+    <p>Projeksiyonu çalıştırdıktan sonra bu sayfada <strong>120 aya kadar nakit akış tablosu otomatik</strong> oluşur. İstersen hücrelere <strong>manuel rakam</strong> girip <strong>Kaydet</strong> ile verileri kalıcı olarak değiştirebilirsin.</p>
     <p>Yeşil satırlar nakit girişi, kırmızı satırlar nakit çıkışıdır. Kapanış bakiyesi negatife düşerse BCH devreye girer. Excel ve PDF ile dışa aktarabilirsin.</p>
   </div>
 </div>
@@ -1102,7 +1102,7 @@ function createFirm(){
   const id=genId();
   const defExp={};let i=0;
   for(const{group,items}of EXPENSE_GROUPS)for(const item of items)defExp[i++]={group,name:item,amount:0};
-  const fxRates={usdOpen:0,eurOpen:0,monthly:Array.from({length:60},()=>({usd:0,eur:0}))};
+  const fxRates={usdOpen:0,eurOpen:0,monthly:Array.from({length:FX_TABLE_MONTHS},()=>({usd:0,eur:0}))};
   state.firms[id]={id,name,startDate:dt.toISOString(),createdAt:new Date().toISOString(),
     opening:{cash:0,bank:0,ar:0,ap:0,inventory:0,capital:0,otherAssets:0,otherLiab:0},
     incomeStmt:{revenue:0,cogs:0},
@@ -1553,12 +1553,17 @@ function deleteLoan(i){
 const FX_SPOT = {usd: 43.93, eur: 51.90};
 // Geçmiş 1 yıllık artış oranları
 const FX_HIST_GROWTH = {usd: 21, eur: 37}; // Tarihsel büyüme referansı
+const FX_TABLE_MONTHS = 120; // Aylık kur tablosu ve projeksiyon ile uyumlu (max 120 ay)
 
 function populateFx(){
   const f=curFirm();if(!f)return;
   if(!f.fxRates)f.fxRates={usdOpen:0,eurOpen:0,usdGrowth:FX_HIST_GROWTH.usd,eurGrowth:FX_HIST_GROWTH.eur,monthly:[]};
   const fx=f.fxRates;
-  if(!fx.monthly||fx.monthly.length<60)fx.monthly=Array.from({length:60},(_,i)=>fx.monthly?.[i]||{usd:0,eur:0});
+  if(!fx.monthly||fx.monthly.length<FX_TABLE_MONTHS){
+    const src=fx.monthly||[];const L=src.length;
+    const tail=L>0?src[L-1]:{usd:0,eur:0};
+    fx.monthly=Array.from({length:FX_TABLE_MONTHS},(_,i)=>(i<L?src[i]:{usd:tail.usd||0,eur:tail.eur||0}));
+  }
   // Açılış kuru: kayıtlı yoksa spot kullan
   const usdOpen = fx.usdOpen||FX_SPOT.usd;
   const eurOpen = fx.eurOpen||FX_SPOT.eur;
@@ -1567,7 +1572,7 @@ function populateFx(){
   $('fx-usd-growth').value = fx.usdGrowth||FX_HIST_GROWTH.usd;
   $('fx-eur-growth').value = fx.eurGrowth||FX_HIST_GROWTH.eur;
   const startDt=new Date(f.startDate);
-  $('fx-tbody').innerHTML=Array.from({length:60},(_,t)=>{
+  $('fx-tbody').innerHTML=Array.from({length:FX_TABLE_MONTHS},(_,t)=>{
     const d=addMonths(startDt,t);const m=fx.monthly[t]||{usd:0,eur:0};
     return '<tr><td>'+(t+1)+'</td><td style="color:var(--tx3)">'+fmtDate(d)+'</td>'+
       '<td><input class="fx-inp" type="number" step="0.01" id="fx-usd-'+t+'" value="'+(m.usd||'')+'" placeholder="—"></td>'+
@@ -1631,7 +1636,7 @@ function autoFillBchDep() {
 
 // Varsayımlar sayfasındaki butondan çağrılır.
 // Döviz Kurları sayfasının growth inputlarına USD=%7, EUR=%6 yazar
-// ve 60 aylık kur tablosunu hesaplayıp doldurur, ardından kaydeder.
+// ve FX_TABLE_MONTHS aylık kur tablosunu hesaplayıp doldurur, ardından kaydeder.
 function autoFillFxGrowth(){
   // 1) Büyüme oranlarını Döviz Kurları sayfasına yaz
   const usdGrowthEl = document.getElementById('fx-usd-growth');
@@ -1648,11 +1653,11 @@ function autoFillFxGrowth(){
   if(usdOpenEl && !fnum(usdOpenEl.value,0)) usdOpenEl.value = usdOpen.toFixed(4);
   if(eurOpenEl && !fnum(eurOpenEl.value,0)) eurOpenEl.value = eurOpen.toFixed(4);
 
-  // 3) Aylık bileşik büyüme ile 60 aylık tabloyu doldur
+  // 3) Aylık bileşik büyüme ile tabloyu doldur
   const usdMonthly = Math.pow(1 + 0.07, 1/12);
   const eurMonthly = Math.pow(1 + 0.06, 1/12);
   let usdCur = usdOpen, eurCur = eurOpen;
-  for(let t = 0; t < 60; t++){
+  for(let t = 0; t < FX_TABLE_MONTHS; t++){
     const usdEl = document.getElementById('fx-usd-'+t);
     const eurEl = document.getElementById('fx-eur-'+t);
     if(usdEl) usdEl.value = usdCur.toFixed(4);
@@ -1675,7 +1680,7 @@ function autoFillFx(){
   const usdMonthly = Math.pow(1+usdGrowth, 1/12);
   const eurMonthly = Math.pow(1+eurGrowth, 1/12);
   let usdCur=usdOpen, eurCur=eurOpen;
-  for(let t=0;t<60;t++){
+  for(let t=0;t<FX_TABLE_MONTHS;t++){
     const usdEl=$('fx-usd-'+t);const eurEl=$('fx-eur-'+t);
     if(usdEl) usdEl.value = usdCur.toFixed(4);
     if(eurEl) eurEl.value = eurCur.toFixed(4);
@@ -1687,7 +1692,7 @@ function autoFillFx(){
 
 function fillFxFromOpen(){
   const usd=fnum($('fx-usd-open').value,0);const eur=fnum($('fx-eur-open').value,0);
-  for(let t=0;t<60;t++){
+  for(let t=0;t<FX_TABLE_MONTHS;t++){
     if(usd>0){const el=$('fx-usd-'+t);if(el&&!fnum(el.value,0))el.value=usd;}
     if(eur>0){const el=$('fx-eur-'+t);if(el&&!fnum(el.value,0))el.value=eur;}
   }
@@ -1701,7 +1706,7 @@ function saveFx(){
     eurOpen:fnum($('fx-eur-open').value,0),
     usdGrowth:fnum($('fx-usd-growth').value,FX_HIST_GROWTH.usd),
     eurGrowth:fnum($('fx-eur-growth').value,FX_HIST_GROWTH.eur),
-    monthly:Array.from({length:60},(_,t)=>({usd:fnum($('fx-usd-'+t)?.value,0),eur:fnum($('fx-eur-'+t)?.value,0)}))
+    monthly:Array.from({length:FX_TABLE_MONTHS},(_,t)=>({usd:fnum($('fx-usd-'+t)?.value,0),eur:fnum($('fx-eur-'+t)?.value,0)}))
   };
   saveState();showAlert('Döviz kurları kaydedildi.','ok');
 }
@@ -3441,12 +3446,12 @@ async function importFromFinSkor(){
   // Büyüme: TCMB politika faizi baz alınarak enflasyon + 5 puan (Y1)
   const growthRate = parseFloat((TCMB_POLICY.y1 * 0.6 + 5).toFixed(1)); // ~26%
 
-  // 60 aylık FX projeksiyonu (USD %7, EUR %6 yıllık)
+  // FX_TABLE_MONTHS aylık FX projeksiyonu (USD %7, EUR %6 yıllık)
   const usdMonthly = Math.pow(1.07, 1/12);
   const eurMonthly = Math.pow(1.06, 1/12);
   let usdCur = FX_SPOT.usd, eurCur = FX_SPOT.eur;
   const fxMonthly = [];
-  for(let t = 0; t < 60; t++){
+  for(let t = 0; t < FX_TABLE_MONTHS; t++){
     fxMonthly.push({usd: parseFloat(usdCur.toFixed(4)), eur: parseFloat(eurCur.toFixed(4))});
     usdCur *= usdMonthly;
     eurCur *= eurMonthly;
@@ -4293,14 +4298,14 @@ function exportBilançoPDF() {
 const OWL_TIPS = {
   home: {
     title: 'Hoş Geldiniz!',
-    text: `Bu uygulama ile <b>60 aylık nakit akış projeksiyonu</b> oluşturabilirsin. Başlamak çok kolay:
+    text: `Bu uygulama ile <b>120 aya kadar nakit akış projeksiyonu</b> oluşturabilirsin. Başlamak çok kolay:
     <ul>
       <li>Bu sayfada <b>+ Yeni Firma</b> butonuna bas ve firmanı oluştur</li>
       <li>Firma oluşturulduktan sonra <b>sol menü otomatik açılır</b> — hemen Açılış sayfasına geçersin</li>
       <li>Adım adım ilerle: <b>Açılış → Gelir → Varsayımlar → Giderler → Krediler → Projeksiyon</b></li>
       <li>Her sayfada bu panelde kısa özet veririm; istersen <b>sesli</b> de dinleyebilirsin</li>
     </ul>
-    <p><b>Nakit Akış</b> sayfasında, girdileri tamamladıktan sonra <b>60 aylık nakit akış tablosu otomatik</b> oluşur. İstersen hücrelere <b>elle giriş</b> yapıp <b>Kaydet</b> ile verileri kalıcı olarak değiştirebilirsin.</p>
+    <p><b>Nakit Akış</b> sayfasında, girdileri tamamladıktan sonra <b>120 aya kadar nakit akış tablosu otomatik</b> oluşur. İstersen hücrelere <b>elle giriş</b> yapıp <b>Kaydet</b> ile verileri kalıcı olarak değiştirebilirsin.</p>
     <div class="owl-tip"><b>💡 İpucu:</b> Mevcut firmaya dönmek için firma kartındaki <b>✎ Düzenle</b> butonuna bas.</div>`
   },
   opening: {
@@ -4370,7 +4375,7 @@ const OWL_TIPS = {
     text: `<b>USD ve EUR kurlarını</b> aylık bazda girin.
     <ul>
       <li><b>Açılış Kuru:</b> Projeksiyon başlangıç kuru</li>
-      <li><b>⚡ Otomatik Hesapla:</b> Yıllık büyüme oranına göre 60 ayı doldurur</li>
+      <li><b>⚡ Otomatik Hesapla:</b> Yıllık büyüme oranına göre 120 ayı doldurur</li>
       <li><b>📋 Sadece Açılış:</b> Boş aylara açılış kurunu uygular</li>
     </ul>
     <div class="owl-tip"><b>💡 İpucu:</b> "Varsayımlar" sayfasındaki ⚡ buton USD %7, EUR %6 büyüme ile tüm tabloyu otomatik doldurur ve kaydeder.</div>`
@@ -4397,7 +4402,7 @@ const OWL_TIPS = {
   },
   projection: {
     title: 'Nakit Akış Tablosu',
-    text: `<b>60 aylık aylık nakit akış</b> projeksiyonu burada görünür; motor satırları <b>otomatik doldurur</b>.
+    text: `<b>120 aya kadar aylık nakit akış</b> projeksiyonu burada görünür; motor satırları <b>otomatik doldurur</b>.
     <ul>
       <li>İstersen ilgili hücrelere <b>manuel rakam</b> girip <b>Kaydet</b> ile tabloyu kendi senaryona göre güncelleyebilirsin</li>
       <li>Yeşil = nakit girişi, Kırmızı = nakit çıkışı</li>
