@@ -487,7 +487,7 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
       <li><strong>BCH Faiz Oranları:</strong> Yıl bazında TL/USD/EUR BCH faizleri — TCMB baz alınır, <em>otomatik doldur</em> tuşunu kullan</li>
       <li><strong>Mevduat Faizi:</strong> Nakit rezerv üzerinden kazanılan getiri</li>
       <li><strong>Kurumlar Vergisi:</strong> Oran ve ödeme ayları</li>
-      <li><strong>Döviz Kuru:</strong> ⚡ butonu ile USD %7 / EUR %6 büyümeyi <strong>Döviz Kurları</strong> sayfasına otomatik uygular</li>
+      <li><strong>Döviz Kuru:</strong> ⚡ butonu ile <strong>01.01.2024–31.03.2026</strong> TCMB satış kurlarından türetilen yıllık bileşik ortalamayı <strong>Döviz Kurları</strong> sayfasına yazar</li>
     </ul>
     <span class="avatar-tip">💡 TCMB Ocak 2026 politika faizi %37 — BCH için otomatik doldur butonunu kullan!</span>
   </div>
@@ -786,21 +786,21 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
       <li><strong>📋 Sadece Açılış:</strong> Tüm ayları sabit açılış kuruyla doldurur</li>
       <li>İstediğin ayı manuel olarak değiştirebilirsin</li>
     </ul>
-    <span class="avatar-tip">💡 Varsayımlar sayfasındaki ⚡ butonu USD %7 / EUR %6 büyümeyi buraya otomatik uygular!</span>
+    <span class="avatar-tip">💡 Varsayımlar sayfasındaki ⚡ butonu, 2024–2026 dönemi TCMB kurlarından türetilen yıllık bileşik ortalamayı buraya yazar ve tabloyu doldurur.</span>
   </div>
 </div>
 
       <div class="card glow">
         <div class="card-header"><div class="card-icon">💱</div><div class="card-title">Otomatik Kur Tahmini</div></div>
         <div class="notice" style="margin-bottom:12px">
-          Güncel spot kurlar ve geçmiş yıl artış oranları baz alınarak hesaplanır. Manuel olarak değiştirebilirsiniz.
-          <br><b>Güncel:</b> USD/TL ≈ 43.93 (1Y: +%21) &nbsp;|&nbsp; EUR/TL ≈ 51.90 (1Y: +%37)
+          Varsayılan yıllık artış oranları: <b>01.01.2024 – 31.03.2026</b> arası TCMB gösterge <b>satış</b> kurlarından hesaplanan bileşik yıllık ortalama (otomatik doldur / hesapla ile uygulanır). İsterseniz manuel değiştirirsiniz.
+          <br><b>Referans:</b> USD <span id="fx-ref-usd-range"></span> &nbsp;|&nbsp; EUR <span id="fx-ref-eur-range"></span>
         </div>
         <div class="form-grid">
           <div class="field"><label>USD Açılış Kuru (1 USD = ? TL)</label><input id="fx-usd-open" type="number" placeholder="43.93" step="0.01"></div>
           <div class="field"><label>EUR Açılış Kuru (1 EUR = ? TL)</label><input id="fx-eur-open" type="number" placeholder="51.90" step="0.01"></div>
-          <div class="field"><label>USD Yıllık Artış Tahmini (%)</label><input id="fx-usd-growth" type="number" value="21" step="0.1"></div>
-          <div class="field"><label>EUR Yıllık Artış Tahmini (%)</label><input id="fx-eur-growth" type="number" value="37" step="0.1"></div>
+          <div class="field"><label>USD Yıllık Artış Tahmini (%)</label><input id="fx-usd-growth" type="number" value="" step="0.1" placeholder="Otomatik"></div>
+          <div class="field"><label>EUR Yıllık Artış Tahmini (%)</label><input id="fx-eur-growth" type="number" value="" step="0.1" placeholder="Otomatik"></div>
         </div>
         <div class="btn-group">
           <button class="btn btn-primary" onclick="autoFillFx()">⚡ Otomatik Hesapla &amp; Doldur</button>
@@ -1551,9 +1551,36 @@ function deleteLoan(i){
 // ══════════════════════════════════════════════
 // Spot kurlar (1 Mart 2026 itibarıyla)
 const FX_SPOT = {usd: 43.93, eur: 51.90};
-// Geçmiş 1 yıllık artış oranları
-const FX_HIST_GROWTH = {usd: 21, eur: 37}; // Tarihsel büyüme referansı
+// 01.01.2024 – 31.03.2026 TCMB gösterge satış (USD/EUR); gün sayısı yerel takvim farkı
+const FX_GROWTH_WINDOW = (function(){
+  const t0 = new Date(2024, 0, 1), t1 = new Date(2026, 2, 31);
+  const days = Math.max(1, Math.round((t1 - t0) / 864e5));
+  return {
+    days,
+    usdStart: 29.561,
+    usdEnd: 44.4761,
+    eurStart: 32.629,
+    eurEnd: 51.0212
+  };
+})();
+function fxAnnualizedGrowthPct(start, end, days){
+  if (!(start > 0 && end > 0 && days > 0)) return 0;
+  return (Math.pow(end / start, 365 / days) - 1) * 100;
+}
+// Varsayılan kur artış tahmini = bu dönem bileşik yıllık ortalama
+const FX_HIST_GROWTH = {
+  usd: fxAnnualizedGrowthPct(FX_GROWTH_WINDOW.usdStart, FX_GROWTH_WINDOW.usdEnd, FX_GROWTH_WINDOW.days),
+  eur: fxAnnualizedGrowthPct(FX_GROWTH_WINDOW.eurStart, FX_GROWTH_WINDOW.eurEnd, FX_GROWTH_WINDOW.days)
+};
 const FX_TABLE_MONTHS = 120; // Aylık kur tablosu ve projeksiyon ile uyumlu (max 120 ay)
+
+function updateFxGrowthRefLabels(){
+  const us = document.getElementById('fx-ref-usd-range'), eu = document.getElementById('fx-ref-eur-range');
+  if (!us || !eu) return;
+  const w = FX_GROWTH_WINDOW;
+  us.textContent = w.usdStart + ' → ' + w.usdEnd + ' TL (' + w.days + ' gün; ~%' + FX_HIST_GROWTH.usd.toFixed(1) + ' yıllık bileşik)';
+  eu.textContent = w.eurStart + ' → ' + w.eurEnd + ' TL (~%' + FX_HIST_GROWTH.eur.toFixed(1) + ' yıllık bileşik)';
+}
 
 function populateFx(){
   const f=curFirm();if(!f)return;
@@ -1569,8 +1596,14 @@ function populateFx(){
   const eurOpen = fx.eurOpen||FX_SPOT.eur;
   $('fx-usd-open').value = usdOpen;
   $('fx-eur-open').value = eurOpen;
-  $('fx-usd-growth').value = fx.usdGrowth||FX_HIST_GROWTH.usd;
-  $('fx-eur-growth').value = fx.eurGrowth||FX_HIST_GROWTH.eur;
+  const uG = fx.usdGrowth, eG = fx.eurGrowth;
+  $('fx-usd-growth').value = (uG !== undefined && uG !== null && uG !== '')
+    ? (typeof uG === 'number' ? uG.toFixed(2) : uG)
+    : FX_HIST_GROWTH.usd.toFixed(2);
+  $('fx-eur-growth').value = (eG !== undefined && eG !== null && eG !== '')
+    ? (typeof eG === 'number' ? eG.toFixed(2) : eG)
+    : FX_HIST_GROWTH.eur.toFixed(2);
+  updateFxGrowthRefLabels();
   const startDt=new Date(f.startDate);
   $('fx-tbody').innerHTML=Array.from({length:FX_TABLE_MONTHS},(_,t)=>{
     const d=addMonths(startDt,t);const m=fx.monthly[t]||{usd:0,eur:0};
@@ -1635,14 +1668,15 @@ function autoFillBchDep() {
 }
 
 // Varsayımlar sayfasındaki butondan çağrılır.
-// Döviz Kurları sayfasının growth inputlarına USD=%7, EUR=%6 yazar
+// Döviz Kurları growth alanlarına FX_HIST_GROWTH (2024–2026 TCMB bileşik ortalama) yazar
 // ve FX_TABLE_MONTHS aylık kur tablosunu hesaplayıp doldurur, ardından kaydeder.
 function autoFillFxGrowth(){
+  const uPct = FX_HIST_GROWTH.usd / 100, ePct = FX_HIST_GROWTH.eur / 100;
   // 1) Büyüme oranlarını Döviz Kurları sayfasına yaz
   const usdGrowthEl = document.getElementById('fx-usd-growth');
   const eurGrowthEl = document.getElementById('fx-eur-growth');
-  if(usdGrowthEl) usdGrowthEl.value = 7;
-  if(eurGrowthEl) eurGrowthEl.value = 6;
+  if(usdGrowthEl) usdGrowthEl.value = FX_HIST_GROWTH.usd.toFixed(2);
+  if(eurGrowthEl) eurGrowthEl.value = FX_HIST_GROWTH.eur.toFixed(2);
 
   // 2) Açılış kurlarını oku (Döviz Kurları sayfasındaki input yoksa FX_SPOT kullan)
   const usdOpenEl = document.getElementById('fx-usd-open');
@@ -1654,8 +1688,8 @@ function autoFillFxGrowth(){
   if(eurOpenEl && !fnum(eurOpenEl.value,0)) eurOpenEl.value = eurOpen.toFixed(4);
 
   // 3) Aylık bileşik büyüme ile tabloyu doldur
-  const usdMonthly = Math.pow(1 + 0.07, 1/12);
-  const eurMonthly = Math.pow(1 + 0.06, 1/12);
+  const usdMonthly = Math.pow(1 + uPct, 1/12);
+  const eurMonthly = Math.pow(1 + ePct, 1/12);
   let usdCur = usdOpen, eurCur = eurOpen;
   for(let t = 0; t < FX_TABLE_MONTHS; t++){
     const usdEl = document.getElementById('fx-usd-'+t);
@@ -1668,7 +1702,7 @@ function autoFillFxGrowth(){
 
   // 4) Kaydet
   saveFx();
-  showAlert('✅ USD yıllık %7, EUR yıllık %6 büyüme Döviz Kurları sayfasına uygulandı ve kaydedildi.','ok');
+  showAlert('✅ USD ~%'+FX_HIST_GROWTH.usd.toFixed(1)+', EUR ~%'+FX_HIST_GROWTH.eur.toFixed(1)+' (01.01.2024–31.03.2026 TCMB bileşik ortalama) uygulandı ve kaydedildi.','ok');
 }
 
 function autoFillFx(){
@@ -3446,10 +3480,13 @@ async function importFromFinSkor(){
   // Büyüme: TCMB politika faizi baz alınarak enflasyon + 5 puan (Y1)
   const growthRate = parseFloat((TCMB_POLICY.y1 * 0.6 + 5).toFixed(1)); // ~26%
 
-  // FX_TABLE_MONTHS aylık FX projeksiyonu (USD %7, EUR %6 yıllık)
-  const usdMonthly = Math.pow(1.07, 1/12);
-  const eurMonthly = Math.pow(1.06, 1/12);
-  let usdCur = FX_SPOT.usd, eurCur = FX_SPOT.eur;
+  // FX: ay0 = FinSkor modal ile aynı (veri yılı 31.12. TCMB); sonrası FX_HIST_GROWTH bileşik
+  const yfx = p.tcmbYearendFx;
+  const usd0 = (yfx && yfx.usd > 0) ? Number(yfx.usd) : FX_SPOT.usd;
+  const eur0 = (yfx && yfx.eur > 0) ? Number(yfx.eur) : FX_SPOT.eur;
+  const usdMonthly = Math.pow(1 + FX_HIST_GROWTH.usd / 100, 1/12);
+  const eurMonthly = Math.pow(1 + FX_HIST_GROWTH.eur / 100, 1/12);
+  let usdCur = usd0, eurCur = eur0;
   const fxMonthly = [];
   for(let t = 0; t < FX_TABLE_MONTHS; t++){
     fxMonthly.push({usd: parseFloat(usdCur.toFixed(4)), eur: parseFloat(eurCur.toFixed(4))});
@@ -3510,10 +3547,10 @@ async function importFromFinSkor(){
     loans: loanConfig ? _buildLoansFromConfig(loanConfig, projYil) : _buildLoansFromFinskor(p, projYil),
     manualCf: [],
     fxRates:{
-      usdOpen: FX_SPOT.usd,
-      eurOpen:  FX_SPOT.eur,
-      usdGrowth: 7,
-      eurGrowth: 6,
+      usdOpen: usd0,
+      eurOpen: eur0,
+      usdGrowth: FX_HIST_GROWTH.usd,
+      eurGrowth: FX_HIST_GROWTH.eur,
       monthly: fxMonthly
     },
   };
@@ -3561,6 +3598,7 @@ async function init(){
   setTimeout(()=>{if(typeof setSpotType==="function")setSpotType("bullet");},100);
   // Manuel tip butonlarını başlat
   setTimeout(()=>{if(typeof setManualType==="function")setManualType("other");},100);
+  setTimeout(()=>{if(typeof updateFxGrowthRefLabels==="function")updateFxGrowthRefLabels();},50);
 }
 init();
 
@@ -4378,7 +4416,7 @@ const OWL_TIPS = {
       <li><b>⚡ Otomatik Hesapla:</b> Yıllık büyüme oranına göre 120 ayı doldurur</li>
       <li><b>📋 Sadece Açılış:</b> Boş aylara açılış kurunu uygular</li>
     </ul>
-    <div class="owl-tip"><b>💡 İpucu:</b> "Varsayımlar" sayfasındaki ⚡ buton USD %7, EUR %6 büyüme ile tüm tabloyu otomatik doldurur ve kaydeder.</div>`
+    <div class="owl-tip"><b>💡 İpucu:</b> "Varsayımlar" sayfasındaki ⚡ buton, 01.01.2024–31.03.2026 TCMB kurlarından türetilen yıllık bileşik ortalamayı yazar ve 120 aylık tabloyu doldurur.</div>`
   },
   manual: {
     title: 'Manuel Nakit Satırları',

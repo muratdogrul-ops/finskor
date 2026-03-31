@@ -5613,10 +5613,13 @@ function openNakitAkis() {
     || (parseFloat(d.brutSatis||0) - parseFloat(d.satisInd||0))
     || 0);
 
+  const _nkmYeFx = _nkmTcmbYearendFx(lastYear);
   _nkmPayload = {
     kaynak: 'finskor',
     firmaAdi:        firmName,
     veriYili:        lastYear,
+    // NakitFlow kur tablosu ay0 = modal KV/UV TL eşdeğeri ile aynı TCMB yıl sonu
+    tcmbYearendFx:   { usd: _nkmYeFx.usd, eur: _nkmYeFx.eur, labelY: _nkmYeFx.labelY },
     kasaBanka:       kasaBanka,
     ticariAlacaklar: parseFloat(d.ticAlacaklar   || 0),
     stoklar:         parseFloat(d.stoklar        || 0),
@@ -5647,7 +5650,7 @@ function openNakitAkis() {
 
   const p = _nkmPayload;
   _nkmRowIdx = 0;
-  var _nkmFxModal = _nkmTcmbYearendFx(p.veriYili);
+  var _nkmFxModal = _nkmYeFx;
   var _nkmFxLbl = _nkmFxModal.labelY != null ? '31.12.' + _nkmFxModal.labelY + ' TCMB gösterge satış' : 'TCMB gösterge satış';
 
   // Modal'ı dinamik oluştur (her açılışta yenile)
