@@ -78,11 +78,6 @@ hr.divider{border:none;border-top:1px solid var(--bd);margin:18px 0}
 .btn-sm{padding:5px 11px;font-size:.75rem}
 .btn-xs{padding:3px 8px;font-size:.7rem}
 .btn-group{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}
-.mult-btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
-.mult-btn{padding:6px 14px;border-radius:var(--r);font-family:'JetBrains Mono',monospace;font-size:.8rem;font-weight:600;cursor:pointer;border:1px solid var(--bd);background:var(--s3);color:var(--tx2);transition:all .15s}
-.mult-btn:hover{border-color:var(--acc);color:var(--acc)}
-.mult-btn.selected{background:var(--acc);color:#fff;border-color:var(--acc)}
-.mult-custom{width:90px!important;padding:6px 10px;text-align:center}
 .tbl-wrap{overflow-x:auto;border:1px solid var(--bd);border-radius:var(--r2)}
 /* Scroll kendi içinde — header sabit kalır */
 .tbl-scroll{overflow-x:auto;overflow-y:auto;max-height:420px;border:1px solid var(--bd);border-radius:var(--r2)}
@@ -329,7 +324,7 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
 
     <!-- HOME -->
     <div class="page active" id="page-home">
-      <div class="page-header"><h1>Firmalar</h1><p>60 aylık nakit akış projeksiyon sistemi — Döviz, Sezonsal Ciro, Stok Çarpanı</p></div>
+      <div class="page-header"><h1>Firmalar</h1><p>60 aylık nakit akış projeksiyon sistemi — Döviz, Sezonsal Ciro, Stok (ciro büyümesi ile)</p></div>
 <div class="avatar-guide">
   <div class="avatar-face">🏢</div>
   <div class="avatar-bubble">
@@ -404,7 +399,7 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
       <li><strong>Yıllık Net Satış:</strong> KDV hariç toplam ciro</li>
       <li><strong>COGS (Satılan Mal Maliyeti):</strong> Satışın doğrudan maliyeti — brüt kâr marjı buradan hesaplanır</li>
       <li><strong>DSO / DPO:</strong> Ortalama tahsilat ve ödeme gün sayısı — nakit döngüsünü belirler</li>
-      <li><strong>Stok Çarpanı:</strong> Aylık satışın kaç katı stok tutulduğunu gösterir</li>
+      <li><strong>Stok:</strong> Varsayımlardaki ciro artış oranında yıllık hedeflenir; satın alma buna göre hesaplanır</li>
     </ul>
     <span class="avatar-tip">💡 Büyüme oranını <strong>Varsayımlar</strong> sayfasından ayarlayabilirsin.</span>
   </div>
@@ -506,20 +501,8 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
           <div class="field"><label>Gider Artış (Yıllık %)</label><input id="ass-expgrowth" type="number" value="0" step="0.1"></div>
         </div>
         <hr class="divider">
-        <div class="section-sep">📦 Stok Hedef Çarpanı — Aylık COGS Katı</div>
-        <div class="notice" style="margin-bottom:10px">Firma kaç aylık satış maliyeti tutarında stok bulundursun?</div>
-        <div class="mult-btns" id="mult-btns">
-          <button class="mult-btn" onclick="setMult(0.5)">0.50×</button>
-          <button class="mult-btn" onclick="setMult(0.75)">0.75×</button>
-          <button class="mult-btn" onclick="setMult(1.0)">1.00×</button>
-          <button class="mult-btn" onclick="setMult(1.25)">1.25×</button>
-          <button class="mult-btn" onclick="setMult(1.5)">1.50×</button>
-          <button class="mult-btn" onclick="setMult(1.75)">1.75×</button>
-          <button class="mult-btn" onclick="setMult(2.0)">2.00×</button>
-          <button class="mult-btn" onclick="setMult(3.0)">3.00×</button>
-          <input class="mult-custom" id="mult-custom" type="number" step="0.05" min="0.1" max="12" placeholder="Özel..." oninput="setMultCustom()">
-        </div>
-        <div style="margin-top:8px;font-size:.75rem;color:var(--acc)">Seçili: <b id="mult-display">1.50×</b></div>
+        <div class="section-sep">📦 Stok</div>
+        <div class="notice" style="margin-bottom:10px">Stok bakiyesi, <strong>Ciro Artış (Yıllık %)</strong> ile aynı oranda hedeflenir: her takvim yılında dönem sonu stok ≈ yıl başı stok × (1 + ciro büyümesi). Satın almalar bu hedefe göre hesaplanır (COGS + stok değişimi).</div>
         <hr class="divider">
         <div class="section-sep" style="display:flex;align-items:center;justify-content:space-between">
           <span>BCH (Borçlu Cari Hesap) — TL Faiz Oranları</span>
@@ -939,7 +922,6 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
 // GLOBAL STATE
 // ══════════════════════════════════════════════
 let state = { firms: {}, currentFirmId: null };
-let currentMult = 1.5;
 
 const AY_ADI = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
 
@@ -1049,7 +1031,7 @@ function createFirm(){
     opening:{cash:0,bank:0,ar:0,ap:0,inventory:0,capital:0,otherAssets:0,otherLiab:0},
     incomeStmt:{revenue:0,cogs:0},
     ciro:{mode:'uniform',monthly:new Array(12).fill(100/12)},
-    assumptions:{months:60,growth:0,expGrowth:0,stockMult:1.5,bchLimit:0,bchRate:0,
+    assumptions:{months:60,growth:0,expGrowth:0,bchLimit:0,bchRate:0,
       bch1:0,bch2:0,bch3:0,bch4:0,bch5:0,dep1:0,dep2:0,dep3:0,dep4:0,dep5:0,taxRate:25,taxMonths:'3,6,9,12'},
     expenses:defExp,loans:[],manualCf:[],fxRates};
   saveState();closeModal('new-firm-modal');renderFirmList();
@@ -1236,26 +1218,6 @@ function saveCiro(){
 }
 
 // ══════════════════════════════════════════════
-// STOK ÇARPANI
-// ══════════════════════════════════════════════
-function setMult(val){
-  currentMult=val;
-  document.querySelectorAll('.mult-btn').forEach(b=>{
-    const bv=parseFloat(b.textContent);
-    b.classList.toggle('selected',Math.abs(bv-val)<0.001);
-  });
-  $('mult-display').textContent=val.toFixed(2)+'×';
-}
-function setMultCustom(){
-  const v=parseFloat($('mult-custom').value);
-  if(!isNaN(v)&&v>0){
-    currentMult=v;
-    document.querySelectorAll('.mult-btn').forEach(b=>b.classList.remove('selected'));
-    $('mult-display').textContent=v.toFixed(2)+'×';
-  }
-}
-
-// ══════════════════════════════════════════════
 // ASSUMPTIONS
 // ══════════════════════════════════════════════
 function populateAssumptions(){
@@ -1270,15 +1232,12 @@ function populateAssumptions(){
   for(const[id,key]of Object.entries(map)){
     const el=$(id);if(el)el.value=a[key]!==undefined?a[key]:(key==='taxRate'?25:key==='months'?60:key==='taxMonths'?'3,6,9,12':0);
   }
-  currentMult=a.stockMult||1.5;
-  setMult(currentMult);
 }
 function saveAssumptions(){
   const f=curFirm();if(!f)return;
   f.assumptions={
     months:Math.max(1,Math.min(120,parseInt($('ass-months').value)||60)),
     growth:fnum($('ass-growth').value),expGrowth:fnum($('ass-expgrowth').value),
-    stockMult:currentMult,
     bchLimit:fnum($('ass-bchlimit').value),bchRate:fnum($('ass-bchrate').value),
     bch1:fnum($('ass-bch1').value),bch2:fnum($('ass-bch2').value),bch3:fnum($('ass-bch3').value),
     bch4:fnum($('ass-bch4').value),bch5:fnum($('ass-bch5').value),
@@ -1812,14 +1771,13 @@ function computeTaxSchedule(months,ebtMonthly,taxRate,payMonths){
 function buildProjection(firmId){
   const f=state.firms[firmId];if(!f)throw new Error('Firma bulunamadı.');
   const ob=f.opening||{};const is_=f.incomeStmt||{};
-  const ass=f.assumptions||{months:60,growth:0,expGrowth:0,stockMult:1.5};
+  const ass=f.assumptions||{months:60,growth:0,expGrowth:0};
   const ciro=f.ciro||{mode:'uniform',monthly:new Array(12).fill(100/12)};
   const fx=f.fxRates||{usdOpen:1,eurOpen:1,monthly:[]};
   if(!fx.monthly||fx.monthly.length<60)fx.monthly=Array.from({length:60},(_,i)=>fx.monthly?.[i]||{usd:0,eur:0});
 
   const months=Math.max(1,Math.min(120,ass.months||60));
   const growth=(ass.growth||0)/100,expGrowth=(ass.expGrowth||0)/100;
-  const stockMult=ass.stockMult||1.5;
   const bchLimit=ass.bchLimit||0,bchFallback=ass.bchRate||0;
   const taxRate=(ass.taxRate||25)/100;
   const payMonths=parseIntList(ass.taxMonths||'3,6,9,12');
@@ -1845,14 +1803,21 @@ function buildProjection(firmId){
 
   const cogsArr=sales.map(s=>s*(1-gm));
 
-  // STOK — hedef: aylık COGS'un X katı (maliyet bazlı, bilanço değeri gerçekçi)
-  // Sabit satın alma politikası: her ay COGS × stockMult kadar hammadde/mal alınır.
-  // Stok = açılış + net değişim (alış - satış maliyeti)
-  // stockMult=1.5 → her ay 1.5×COGS alınır, 1×COGS kullanılır → stok 0.5×COGS artar
-  const purchases = cogsArr.map(c => Math.max(0, c * stockMult));
-  const inv = new Array(months).fill(0);
-  inv[0] = Math.max(0, inv0 + purchases[0] - cogsArr[0]);
-  for(let t=1;t<months;t++) inv[t] = Math.max(0, inv[t-1] + purchases[t] - cogsArr[t]);
+  // STOK — ciro ile aynı yıllık büyüme: her yıl içinde hedef stok doğrusal olarak (1+g) ile büyür
+  const purchases = new Array(months);
+  const inv = new Array(months);
+  let invPrev = inv0;
+  for (let t = 0; t < months; t++) {
+    const yi = Math.floor(t / 12) + 1;
+    const moy = t % 12;
+    const yr0 = (yi - 1) * 12;
+    const invYearStart = yr0 === 0 ? inv0 : inv[yr0 - 1];
+    const targetEnd = invYearStart * (1 + growth * (moy + 1) / 12);
+    const purch = cogsArr[t] + targetEnd - invPrev;
+    purchases[t] = Math.max(0, purch);
+    inv[t] = Math.max(0, invPrev + purchases[t] - cogsArr[t]);
+    invPrev = inv[t];
+  }
 
   // AR / AP — Nakit akışı: interpolateLagged (gecikme bazlı tahsilat/ödeme)
   // Açılış AR ve AP: eski alacak/borç, yine gecikmeye göre tahsil/ödenir
@@ -2105,13 +2070,22 @@ function buildProjection(firmId){
     return{bchIntAccr,bchIntPaid,bchDraw,bchRepay,depInt,depEnd,cashEnd,bchEnd};
   }
 
-  const p1=runLoop(new Array(months).fill(0));
-  // EBT: spotFaizPay + installInt (faiz+BSMV) gelir tablosuna girer
-  // Yatırım ve Sermaye Artışı GELİR TABLOSUNA GİRMEZ
-  const ebtMonthly=Array.from({length:months},(_,t)=>
-    (sales[t]-cogsArr[t])-opex[t]-installInt[t]-spotFaizPay[t]-p1.bchIntAccr[t]+p1.depInt[t]+manualTotal[t]);
-  const taxPay=computeTaxSchedule(months,ebtMonthly,taxRate,payMonths);
-  const p2=runLoop(taxPay);
+  // EBT, satırlardaki mevduat/BCH faizi ile aynı nakit döngüsünden (p2) gelmeli; vergi ↔ nakit sabit noktaya yakınsar
+  let taxPay = new Array(months).fill(0);
+  let p2 = runLoop(taxPay);
+  let ebtMonthly = [];
+  for (let iter = 0; iter < 5; iter++) {
+    ebtMonthly = Array.from({length: months}, (_, t) =>
+      (sales[t] - cogsArr[t]) - opex[t] - installInt[t] - spotFaizPay[t] - p2.bchIntAccr[t] + p2.depInt[t] + manualTotal[t]);
+    const nextTax = computeTaxSchedule(months, ebtMonthly, taxRate, payMonths);
+    let diff = 0;
+    for (let t = 0; t < months; t++) diff += Math.abs((nextTax[t] || 0) - (taxPay[t] || 0));
+    taxPay = nextTax;
+    p2 = runLoop(taxPay);
+    if (diff < 1e-3) break;
+  }
+  ebtMonthly = Array.from({length: months}, (_, t) =>
+    (sales[t] - cogsArr[t]) - opex[t] - installInt[t] - spotFaizPay[t] - p2.bchIntAccr[t] + p2.depInt[t] + manualTotal[t]);
 
   const rows=[];
   for(let t=0;t<months;t++){
@@ -2135,7 +2109,7 @@ function buildProjection(firmId){
     });
   }
   const summary={gm:gm*100,dso:dsoDays,dpo:dpoDays,cash0,bch0:openingBch,capital0,months,
-    startDate:fmtDate(startDt),stockMult};
+    startDate:fmtDate(startDt),revenueGrowthPct:ass.growth||0};
   return{firm:f,summary,rows,arEnd,apEnd,inv,ebtMonthly,taxPay};
 }
 
@@ -2337,7 +2311,7 @@ function renderProjection(){
   lastProjection=proj;
   const{summary,rows}=proj;
   $('proj-title').textContent=f.name+' — Aylık Nakit Akım Projeksiyonu';
-  $('proj-subtitle').textContent='Başlangıç: '+summary.startDate+' · '+summary.months+' ay · Stok çarpanı: '+summary.stockMult+'×';
+  $('proj-subtitle').textContent='Başlangıç: '+summary.startDate+' · '+summary.months+' ay · Ciro büyümesi: %'+tr(summary.revenueGrowthPct,1)+' (stok aynı oranda)';
   $('proj-kpis').innerHTML=
     '<div class="kpi"><div class="kpi-label">Açılış Nakit</div><div class="kpi-val blue">'+tr(summary.cash0)+'</div></div>'+
     '<div class="kpi"><div class="kpi-label">Açılış Banka Kredisi</div><div class="kpi-val red">'+tr(summary.bch0)+'</div></div>'+
@@ -2345,7 +2319,7 @@ function renderProjection(){
     '<div class="kpi"><div class="kpi-label">Brüt Kâr Marjı</div><div class="kpi-val '+(summary.gm>0?'green':'red')+'">'+tr(summary.gm,1)+'%</div></div>'+
     '<div class="kpi"><div class="kpi-label">DSO</div><div class="kpi-val">'+tr(summary.dso,0)+' gün</div></div>'+
     '<div class="kpi"><div class="kpi-label">DPO</div><div class="kpi-val">'+tr(summary.dpo,0)+' gün</div></div>'+
-    '<div class="kpi"><div class="kpi-label">Stok Çarpanı</div><div class="kpi-val amber">'+summary.stockMult+'×</div></div>';
+    '<div class="kpi"><div class="kpi-label">Stok (ciro ile)</div><div class="kpi-val amber">%'+tr(summary.revenueGrowthPct,1)+'/yıl</div></div>';
   if(!rows.length)return;
   const startYear=new Date(f.startDate).getFullYear();
   const numYears=Math.ceil(summary.months/12);
@@ -2420,7 +2394,6 @@ function annual5Y(rows, startYear, mdv0 = 0, balAdj) {
     inc[y].bchFaizAccr += r['BCH Faiz T.']||0;
     inc[y].depFaiz += r['Mevduat Faiz']||0;
     inc[y].tax     += r['K.Vergisi']   ||0;
-    inc[y].ebt     += r['EBT/VÖK']     ||0;
     // YALNIZCA 'other' tipi manuel gelir tablosuna girer
     inc[y].manuelGelir += Math.max(0,  r['Manuel']||0);
     inc[y].manuelGider += Math.max(0, -(r['Manuel']||0));
@@ -2433,7 +2406,7 @@ function annual5Y(rows, startYear, mdv0 = 0, balAdj) {
     inc[y].sermayeKumul   = sermayeEkKumul;
   }
   for(const y of years){
-    const{ciro,cogs,opex,tFaiz,bchFaizAccr,depFaiz,tax,ebt,manuelGelir,manuelGider}=inc[y];
+    const{ciro,cogs,opex,tFaiz,bchFaizAccr,depFaiz,tax,manuelGelir,manuelGider}=inc[y];
     const gp      = ciro - cogs;
     const faalGid = opex;
     const faalKar = gp - faalGid;
@@ -2441,7 +2414,9 @@ function annual5Y(rows, startYear, mdv0 = 0, balAdj) {
     // Diğer gelir/gider: YALNIZCA 'other' tipi manuel + mevduat faizi
     const dgerGelir = depFaiz + manuelGelir;
     const dgerGider = manuelGider;
-    const net     = ebt - tax;
+    const ebtBridged = faalKar + dgerGelir - dgerGider - finGid;
+    inc[y].ebt = ebtBridged;
+    const net = ebtBridged - tax;
     inc[y].gp=gp; inc[y].faalGid=faalGid; inc[y].faalKar=faalKar;
     inc[y].finGid=finGid; inc[y].dgerGelir=dgerGelir; inc[y].dgerGider=dgerGider;
     inc[y].net=net;
@@ -3216,8 +3191,6 @@ async function importFromFinSkor(){
       months: 60,
       growth:    growthRate,
       expGrowth: growthRate,
-      // stockMult=1.0: her ay COGS kadar hammadde alınır → stok sabit kalır.
-      stockMult: 1.0,
       // bchLimit: BCH limiti → pratikte sınırsız; ay sonu eksi nakit her zaman BCH ile kapanır.
       bchLimit: 1e12,
       bchRate: bch1,
@@ -3284,7 +3257,6 @@ async function init(){
     else if(action==='save')exportFirmaJSON(id);
     else if(action==='del')deleteFirm(id);
   });
-  setMult(1.5);
   // Spot tip butonlarını başlat
   setTimeout(()=>{if(typeof setSpotType==="function")setSpotType("bullet");},100);
   // Manuel tip butonlarını başlat
@@ -3747,13 +3719,14 @@ function pdfBuildIncomePage(doc, proj, firmName) {
     {l:'Satılan Mal Maliyeti (−)',            k:'cogs',        cost:true},
     {l:'Brüt Kâr',                           k:'gp',          bold:true},
     {l:'Faaliyet Giderleri (−)',              k:'opex',        cost:true},
-    {l:'BCH Faiz Gideri (−)',                k:'bchFaizAccr', cost:true},
+    {l:'Faaliyet Kârı (EBIT)',               k:'faalKar',     bold:true},
+    {l:'Mevduat & Diğer Faiz Geliri (+)',    k:'dgerGelir',   bold:false},
+    {l:'Diğer Olağan Gider (−)',             k:'dgerGider',   cost:true},
     {l:'Taksitli + Spot Kredi Faizi (−)',    k:'tFaiz',       cost:true},
-    {l:'Mevduat Faiz Geliri (+)',             k:'depFaiz',     bold:false},
-    {l:'Diğer Gelir',                        k:'manuelGelir', bold:false},
-    {l:'Diğer Gider (−)',                    k:'manuelGider', cost:true},
-    {l:'Vergi Öncesi Kâr (EBT)',             k:'ebt',         bold:true},
-    {l:'Kurumlar Vergisi (%25) (−)',          k:'tax',         cost:true},
+    {l:'BCH Faiz Gideri (−)',                k:'bchFaizAccr', cost:true},
+    {l:'Toplam Finansman Gideri (−)',        k:'finGid',      bold:true},
+    {l:'Vergi Öncesi Kâr (VÖK / EBT)',       k:'ebt',         bold:true},
+    {l:'Kurumlar Vergisi (−)',               k:'tax',         cost:true},
     {l:'Net Kâr',                            k:'net',         bold:true},
   ];
 
@@ -4132,7 +4105,7 @@ const OWL_TIPS = {
     title: '5 Yıllık Gelir Tablosu',
     text: `<b>Yıllık bazda gelir tablosu</b> özeti.
     <ul>
-      <li>Brüt Kâr, EBITDA, EBT ve Net Kâr her yıl ayrı gösterilir</li>
+      <li>Brüt Kâr, Faaliyet Kârı (EBIT), VÖK/EBT ve Net Kâr her yıl ayrı gösterilir</li>
       <li>Taksit faizi + BSMV gelir tablosuna girer; <b>anapara girmez</b></li>
       <li>Yatırım harcamaları ve sermaye artışı gelir tablosuna yansımaz</li>
     </ul>
