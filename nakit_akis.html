@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>NakitFlow v3 — 60 Aylık Nakit Akış</title>
+<title>NakitFlow v3 — 120 Aya Kadar Nakit Akış</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -325,12 +325,12 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
 
     <!-- HOME -->
     <div class="page active" id="page-home">
-      <div class="page-header"><h1>Firmalar</h1><p>60 aylık nakit akış projeksiyon sistemi — Döviz, Sezonsal Ciro, Stok (ciro büyümesi ile)</p></div>
+      <div class="page-header"><h1>Firmalar</h1><p>120 aya kadar nakit akış projeksiyonu — Döviz, Sezonsal Ciro, Stok (yıllık ciro büyümesi ile)</p></div>
 <div class="avatar-guide">
   <div class="avatar-face">🏢</div>
   <div class="avatar-bubble">
     <h3>Merhaba! Ben Nakit, senin mali rehberinim 👋</h3>
-    <p>Bu uygulama ile <strong>60 aylık nakit akış projeksiyonu</strong> oluşturabilirsin. Başlamak çok kolay:</p>
+    <p>Bu uygulama ile <strong>120 aya kadar nakit akış projeksiyonu</strong> oluşturabilirsin. Başlamak çok kolay:</p>
     <ul>
       <li>Önce bu sayfada <strong>+ Yeni Firma</strong> butonuna bas ve firmanı oluştur.</li>
       <li>Firma oluşturulduktan sonra <strong>sol menü otomatik açılır</strong> ve seni Açılış sayfasına yönlendirir.</li>
@@ -427,7 +427,7 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
         <div class="btn-group"><button class="btn btn-primary" onclick="saveIncome()">💾 Kaydet</button></div>
         <div class="notice">
           <b>SMM (Satışların Maliyeti)</b> = Ciro × (1 − Brüt Kâr Marjı%/100)<br>
-          Projeksiyon boyunca brüt kâr marjı sabit tutulur. İki giriş yöntemi: ya ciro+SMM girin, ya da ciro+brüt kâr marjı% girin.
+          İlk projeksiyon yılı (Y1) marjı buradan hesaplanır. Y2–Y5 için marjı <strong>Varsayımlar</strong> sayfasından ayrı girebilirsin; boş bırakırsan Y1 marjı uygulanır. İki giriş: ciro+SMM veya ciro+brüt kâr marjı %.
         </div>
       </div>
     </div>
@@ -483,7 +483,7 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
     <h3>Varsayımlar — Projeksiyon parametrelerin</h3>
     <p>Projeksiyon motorunun tüm ayarları burada. Her parametre sonuçları doğrudan etkiler.</p>
     <ul>
-      <li><strong>Gelir/Gider Büyüme %:</strong> Her yıl satış ve giderler bu oranda artar</li>
+      <li><strong>Yıllık tablo (Y1…Y5):</strong> Takvim yıllarına göre ciro ve gider büyüme %; Y1 brüt marjı gelir tablosundan, Y2–Y5 marjı isteğe bağlı</li>
       <li><strong>BCH Faiz Oranları:</strong> Yıl bazında TL/USD/EUR BCH faizleri — TCMB baz alınır, <em>otomatik doldur</em> tuşunu kullan</li>
       <li><strong>Mevduat Faizi:</strong> Nakit rezerv üzerinden kazanılan getiri</li>
       <li><strong>Kurumlar Vergisi:</strong> Oran ve ödeme ayları</li>
@@ -497,13 +497,55 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
         <div class="card-header"><div class="card-icon">⚙️</div><div class="card-title">Büyüme & Projeksiyon</div></div>
         <div class="section-sep">Projeksiyon</div>
         <div class="form-grid">
-          <div class="field"><label>Projeksiyon (ay)</label><input id="ass-months" type="number" value="60" min="1" max="120"></div>
-          <div class="field"><label>Ciro Artış (Yıllık %)</label><input id="ass-growth" type="number" value="0" step="0.1"></div>
-          <div class="field"><label>Gider Artış (Yıllık %)</label><input id="ass-expgrowth" type="number" value="0" step="0.1"></div>
+          <div class="field"><label>Projeksiyon (ay)</label><input id="ass-months" type="number" value="120" min="1" max="120"></div>
+        </div>
+        <div class="section-sep" style="margin-top:12px">Yıllık ciro / gider / marj (Y1…Y5)</div>
+        <div class="notice" style="margin-bottom:10px;font-size:.72rem">Y1, firma <strong>başlangıç tarihinin</strong> bulunduğu projeksiyon yılıdır. <strong>Y6 ve sonrası</strong> için ciro ve gider büyümesi ile brüt kâr marjı, <strong>Y5</strong> sütunundaki oranlarla sürer. BCH (TL/USD/EUR) ve mevduat faizi de Y6+ için Y5 oranını kullanır.</div>
+        <div class="tbl-scroll" style="margin-bottom:12px">
+          <table style="width:100%;font-size:.78rem;border-collapse:collapse">
+            <thead><tr style="border-bottom:1px solid var(--bd2)">
+              <th style="text-align:left;padding:6px 8px">Yıl</th>
+              <th style="text-align:right;padding:6px 8px">Ciro büyüme %</th>
+              <th style="text-align:right;padding:6px 8px">Gider büyüme %</th>
+              <th style="text-align:right;padding:6px 8px">Brüt kâr marjı %</th>
+            </tr></thead>
+            <tbody>
+              <tr style="border-bottom:1px solid rgba(255,255,255,.06)">
+                <td style="padding:6px 8px;font-weight:600"><span id="ass-year-lbl-1">—</span> <span style="font-weight:400;color:var(--tx3);font-size:.65rem">(Y1)</span></td>
+                <td style="padding:4px"><input id="ass-year-ciro-1" type="number" step="0.1" style="width:100%;max-width:120px;text-align:right;font-size:.78rem"></td>
+                <td style="padding:4px"><input id="ass-year-exp-1" type="number" step="0.1" style="width:100%;max-width:120px;text-align:right;font-size:.78rem"></td>
+                <td style="padding:6px 8px;text-align:right;color:var(--acc)"><span id="ass-gm-y1-ro">—</span><span style="display:block;font-size:.62rem;color:var(--tx3);font-weight:400">Gelir tablosu</span></td>
+              </tr>
+              <tr style="border-bottom:1px solid rgba(255,255,255,.06)">
+                <td style="padding:6px 8px;font-weight:600"><span id="ass-year-lbl-2">—</span></td>
+                <td style="padding:4px"><input id="ass-year-ciro-2" type="number" step="0.1" style="width:100%;max-width:120px;text-align:right;font-size:.78rem"></td>
+                <td style="padding:4px"><input id="ass-year-exp-2" type="number" step="0.1" style="width:100%;max-width:120px;text-align:right;font-size:.78rem"></td>
+                <td style="padding:4px"><input id="ass-gm-y2" type="number" step="0.1" placeholder="Otomatik" title="Boş bırakılırsa Y1 marjı uygulanır" style="width:100%;max-width:120px;text-align:right;font-size:.78rem"></td>
+              </tr>
+              <tr style="border-bottom:1px solid rgba(255,255,255,.06)">
+                <td style="padding:6px 8px;font-weight:600"><span id="ass-year-lbl-3">—</span></td>
+                <td style="padding:4px"><input id="ass-year-ciro-3" type="number" step="0.1" style="width:100%;max-width:120px;text-align:right;font-size:.78rem"></td>
+                <td style="padding:4px"><input id="ass-year-exp-3" type="number" step="0.1" style="width:100%;max-width:120px;text-align:right;font-size:.78rem"></td>
+                <td style="padding:4px"><input id="ass-gm-y3" type="number" step="0.1" placeholder="Otomatik" title="Boş bırakılırsa Y1 marjı uygulanır" style="width:100%;max-width:120px;text-align:right;font-size:.78rem"></td>
+              </tr>
+              <tr style="border-bottom:1px solid rgba(255,255,255,.06)">
+                <td style="padding:6px 8px;font-weight:600"><span id="ass-year-lbl-4">—</span></td>
+                <td style="padding:4px"><input id="ass-year-ciro-4" type="number" step="0.1" style="width:100%;max-width:120px;text-align:right;font-size:.78rem"></td>
+                <td style="padding:4px"><input id="ass-year-exp-4" type="number" step="0.1" style="width:100%;max-width:120px;text-align:right;font-size:.78rem"></td>
+                <td style="padding:4px"><input id="ass-gm-y4" type="number" step="0.1" placeholder="Otomatik" title="Boş bırakılırsa Y1 marjı uygulanır" style="width:100%;max-width:120px;text-align:right;font-size:.78rem"></td>
+              </tr>
+              <tr>
+                <td style="padding:6px 8px;font-weight:600"><span id="ass-year-lbl-5">—</span></td>
+                <td style="padding:4px"><input id="ass-year-ciro-5" type="number" step="0.1" style="width:100%;max-width:120px;text-align:right;font-size:.78rem"></td>
+                <td style="padding:4px"><input id="ass-year-exp-5" type="number" step="0.1" style="width:100%;max-width:120px;text-align:right;font-size:.78rem"></td>
+                <td style="padding:4px"><input id="ass-gm-y5" type="number" step="0.1" placeholder="Otomatik" title="Boş bırakılırsa Y1 marjı uygulanır" style="width:100%;max-width:120px;text-align:right;font-size:.78rem"></td>
+              </tr>
+            </tbody>
+          </table>
         </div>
         <hr class="divider">
         <div class="section-sep">📦 Stok</div>
-        <div class="notice" style="margin-bottom:10px">Stok bakiyesi, <strong>Ciro Artış (Yıllık %)</strong> ile aynı oranda hedeflenir: her takvim yılında dönem sonu stok ≈ yıl başı stok × (1 + ciro büyümesi). Satın almalar bu hedefe göre hesaplanır (COGS + stok değişimi).</div>
+        <div class="notice" style="margin-bottom:10px">Stok hedefi, ilgili yılın <strong>ciro büyüme %</strong> sütunu ile aynı oranda büyür (yıl içinde doğrusal). Satın almalar COGS + stok değişimine göre hesaplanır.</div>
         <hr class="divider">
         <div class="section-sep" style="display:flex;align-items:center;justify-content:space-between">
           <span>BCH (Borçlu Cari Hesap) — TL Faiz Oranları</span>
@@ -1065,7 +1107,7 @@ function createFirm(){
     opening:{cash:0,bank:0,ar:0,ap:0,inventory:0,capital:0,otherAssets:0,otherLiab:0},
     incomeStmt:{revenue:0,cogs:0},
     ciro:{mode:'uniform',monthly:new Array(12).fill(100/12)},
-    assumptions:{months:60,growth:0,expGrowth:0,bchLimit:0,bchRate:0,
+    assumptions:{months:120,growth:0,expGrowth:0,bchLimit:0,bchRate:0,
       bch1:0,bch2:0,bch3:0,bch4:0,bch5:0,dep1:0,dep2:0,dep3:0,dep4:0,dep5:0,taxRate:25,taxMonths:'3,6,9,12'},
     expenses:defExp,loans:[],manualCf:[],fxRates,
     ina:{wacc:15,terminalGrowth:2,firstFcfYear:null}};
@@ -1257,7 +1299,7 @@ function saveCiro(){
 // ══════════════════════════════════════════════
 function populateAssumptions(){
   const f=curFirm();if(!f)return;const a=f.assumptions||{};
-  const map={'ass-months':'months','ass-growth':'growth','ass-expgrowth':'expGrowth',
+  const map={'ass-months':'months',
     'ass-bchlimit':'bchLimit','ass-bchrate':'bchRate',
     'ass-bch1':'bch1','ass-bch2':'bch2','ass-bch3':'bch3','ass-bch4':'bch4','ass-bch5':'bch5',
     'ass-bchusdrate':'bchUsdRate','ass-bchusd1':'bchUsd1','ass-bchusd2':'bchUsd2','ass-bchusd3':'bchUsd3','ass-bchusd4':'bchUsd4','ass-bchusd5':'bchUsd5',
@@ -1265,14 +1307,39 @@ function populateAssumptions(){
     'ass-dep1':'dep1','ass-dep2':'dep2','ass-dep3':'dep3','ass-dep4':'dep4','ass-dep5':'dep5',
     'ass-taxrate':'taxRate','ass-taxmonths':'taxMonths'};
   for(const[id,key]of Object.entries(map)){
-    const el=$(id);if(el)el.value=a[key]!==undefined?a[key]:(key==='taxRate'?25:key==='months'?60:key==='taxMonths'?'3,6,9,12':0);
+    const el=$(id);if(el)el.value=a[key]!==undefined?a[key]:(key==='taxRate'?25:key==='months'?120:key==='taxMonths'?'3,6,9,12':0);
+  }
+  const legG=a.growth??0,legE=a.expGrowth??0;
+  const sd=new Date(f.startDate);
+  for(let i=0;i<5;i++){
+    const calY=new Date(sd.getFullYear(),sd.getMonth()+i*12,1).getFullYear();
+    const lbl=$('ass-year-lbl-'+(i+1));if(lbl)lbl.textContent=String(calY);
+    const cy=$('ass-year-ciro-'+(i+1)),ey=$('ass-year-exp-'+(i+1));
+    const k='ciroY'+(i+1),ek='expY'+(i+1);
+    if(cy)cy.value=(a[k]!==undefined&&a[k]!==null&&a[k]!=='')?a[k]:legG;
+    if(ey)ey.value=(a[ek]!==undefined&&a[ek]!==null&&a[ek]!=='')?a[ek]:legE;
+  }
+  const rev=f.incomeStmt?.revenue||0,cogs=f.incomeStmt?.cogs||0;
+  const gm1=$('ass-gm-y1-ro');
+  if(gm1)gm1.textContent=rev>0?(((rev-cogs)/rev*100).toFixed(2)+'%'):'—';
+  for(let yi=2;yi<=5;yi++){
+    const inp=$('ass-gm-y'+yi);if(!inp)continue;
+    const gv=a['gmY'+yi];
+    inp.value=(gv!==undefined&&gv!==null&&gv!=='')?gv:'';
   }
 }
 function saveAssumptions(){
   const f=curFirm();if(!f)return;
+  function rowPct(id,def){
+    const raw=($(id)?.value||'').trim();
+    return raw===''?def:fnum(raw,def);
+  }
+  const g1=rowPct('ass-year-ciro-1',0),e1=rowPct('ass-year-exp-1',0);
   f.assumptions={
-    months:Math.max(1,Math.min(120,parseInt($('ass-months').value)||60)),
-    growth:fnum($('ass-growth').value),expGrowth:fnum($('ass-expgrowth').value),
+    months:Math.max(1,Math.min(120,parseInt($('ass-months').value)||120)),
+    growth:g1,expGrowth:e1,
+    ciroY1:rowPct('ass-year-ciro-1',g1),ciroY2:rowPct('ass-year-ciro-2',g1),ciroY3:rowPct('ass-year-ciro-3',g1),ciroY4:rowPct('ass-year-ciro-4',g1),ciroY5:rowPct('ass-year-ciro-5',g1),
+    expY1:rowPct('ass-year-exp-1',e1),expY2:rowPct('ass-year-exp-2',e1),expY3:rowPct('ass-year-exp-3',e1),expY4:rowPct('ass-year-exp-4',e1),expY5:rowPct('ass-year-exp-5',e1),
     bchLimit:fnum($('ass-bchlimit').value),bchRate:fnum($('ass-bchrate').value),
     bch1:fnum($('ass-bch1').value),bch2:fnum($('ass-bch2').value),bch3:fnum($('ass-bch3').value),
     bch4:fnum($('ass-bch4').value),bch5:fnum($('ass-bch5').value),
@@ -1286,6 +1353,11 @@ function saveAssumptions(){
     dep4:fnum($('ass-dep4').value),dep5:fnum($('ass-dep5').value),
     taxRate:fnum($('ass-taxrate').value,25),taxMonths:($('ass-taxmonths').value||'3,6,9,12').trim()
   };
+  for(let yi=2;yi<=5;yi++){
+    const raw=($('ass-gm-y'+yi)?.value||'').trim();
+    if(raw==='')delete f.assumptions['gmY'+yi];
+    else f.assumptions['gmY'+yi]=fnum(raw);
+  }
   saveState();showAlert('Varsayımlar kaydedildi.','ok');
 }
 
@@ -1764,13 +1836,15 @@ function amortSched(principal, annualRate, termMonths, bsmvRate = BSMV_RATE){
 }
 function getFxRate(fx,ccy,t){
   if(!ccy||ccy==='TL')return 1;
-  const maxT=Math.min(t,59);const monthly=fx?.monthly||[];
+  const monthly=fx?.monthly||[];
+  const maxT=Math.min(t,Math.max(0,monthly.length-1));
   let rate=ccy==='USD'?(fx?.usdOpen||1):(fx?.eurOpen||1);if(rate<=0)rate=1;
   for(let i=0;i<=maxT;i++){const v=(monthly[i]?.[ccy==='USD'?'usd':'eur'])||0;if(v>0)rate=v;}
   return rate||1;
 }
 function pickRateByYear(t,rates,fallback){
-  const yi=Math.floor(t/12)+1;const r=rates[yi]||0;return r!==0?r:(fallback||0);
+  let yi=Math.floor(t/12)+1;if(yi>5)yi=5;
+  const r=rates[yi]||0;return r!==0?r:(fallback||0);
 }
 function applyLosses(profit,losses){
   let p=Math.max(0,profit);const nl=[];
@@ -1806,13 +1880,22 @@ function computeTaxSchedule(months,ebtMonthly,taxRate,payMonths){
 function buildProjection(firmId){
   const f=state.firms[firmId];if(!f)throw new Error('Firma bulunamadı.');
   const ob=f.opening||{};const is_=f.incomeStmt||{};
-  const ass=f.assumptions||{months:60,growth:0,expGrowth:0};
+  const ass=f.assumptions||{months:120,growth:0,expGrowth:0};
   const ciro=f.ciro||{mode:'uniform',monthly:new Array(12).fill(100/12)};
   const fx=f.fxRates||{usdOpen:1,eurOpen:1,monthly:[]};
-  if(!fx.monthly||fx.monthly.length<60)fx.monthly=Array.from({length:60},(_,i)=>fx.monthly?.[i]||{usd:0,eur:0});
+  {
+    const src=(!fx.monthly||!fx.monthly.length)?[]:[...fx.monthly];
+    const pad=120,lastIx=src.length>0?src.length-1:0;
+    fx.monthly=Array.from({length:pad},(_,i)=>src[Math.min(i,lastIx)]||{usd:0,eur:0});
+  }
 
-  const months=Math.max(1,Math.min(120,ass.months||60));
-  const growth=(ass.growth||0)/100,expGrowth=(ass.expGrowth||0)/100;
+  const months=Math.max(1,Math.min(120,ass.months||120));
+  const legCiro=ass.growth??0,legExp=ass.expGrowth??0;
+  function _assPct(a,key,leg){const v=a[key];if(v!=null&&v!==''&&!Number.isNaN(Number(v)))return fnum(v,leg);return leg;}
+  function ciroAnnualPct(yi){const k=yi<=1?1:yi>=5?5:yi;return _assPct(ass,'ciroY'+k,legCiro);}
+  function expAnnualPct(yi){const k=yi<=1?1:yi>=5?5:yi;return _assPct(ass,'expY'+k,legExp);}
+  function cumCiroFactor(yi){let p=1;for(let k=1;k<=yi;k++)p*=1+ciroAnnualPct(k)/100;return p;}
+  function cumExpFactor(yi){let p=1;for(let k=1;k<=yi;k++)p*=1+expAnnualPct(k)/100;return p;}
   const bchLimit=ass.bchLimit||0,bchFallback=ass.bchRate||0;
   const taxRate=(ass.taxRate||25)/100;
   const payMonths=parseIntList(ass.taxMonths||'3,6,9,12');
@@ -1821,7 +1904,14 @@ function buildProjection(firmId){
   const cash0=(ob.cash||0)+(ob.bank||0);
   const ar0=Math.max(0,ob.ar||0),ap0=Math.max(0,ob.ap||0),inv0=Math.max(0,ob.inventory||0),capital0=ob.capital||0;
   const prevRev=is_.revenue||0,prevCogs=is_.cogs||0;
-  const gm=grossMargin(prevRev,prevCogs);
+  const gmBase=grossMargin(prevRev,prevCogs);
+  function gmDecForYi(yi){
+    if(yi<=1)return gmBase;
+    const effYi=Math.min(yi,5);
+    const v=ass['gmY'+effYi];
+    if(effYi>=2&&v!=null&&v!==''&&!Number.isNaN(Number(v))){const pct=Math.max(0,Math.min(100,fnum(v,gmBase*100)));return pct/100;}
+    return gmBase;
+  }
   const{dso:dsoDays,dpo:dpoDays}=computeDsoDpo(ar0,ap0,prevRev,prevCogs);
   // DSO/DPO: 0 gün (peşin) → 0 ay gecikme. max(1,...) YANLIŞ — kaldırıldı.
   const dsoM=Math.max(0,dsoDays/30);   // Peşin = 0 → aynı ay tahsilat
@@ -1830,13 +1920,12 @@ function buildProjection(firmId){
   // SATIŞ — sezonsal veya eşit
   const pcts=ciro.mode==='manual'?(ciro.monthly||new Array(12).fill(100/12)):new Array(12).fill(100/12);
   const sales=Array.from({length:months},(_,t)=>{
-    // yi=1 ilk projeksiyon yılı (prevRev önceki yıl referansı, büyüme ilk yıldan itibaren uygulanır)
     const yi=Math.floor(t/12)+1,moy=t%12;
-    const yFactor=Math.pow(1+growth,yi);
+    const yFactor=cumCiroFactor(yi);
     return Math.max(0,prevRev)*(pcts[moy]||0)/100*yFactor;
   });
 
-  const cogsArr=sales.map(s=>s*(1-gm));
+  const cogsArr=sales.map((s,t)=>{const yi=Math.floor(t/12)+1;return s*(1-gmDecForYi(yi));});
 
   // STOK — ciro ile aynı yıllık büyüme: her yıl içinde hedef stok doğrusal olarak (1+g) ile büyür
   const purchases = new Array(months);
@@ -1847,7 +1936,8 @@ function buildProjection(firmId){
     const moy = t % 12;
     const yr0 = (yi - 1) * 12;
     const invYearStart = yr0 === 0 ? inv0 : inv[yr0 - 1];
-    const targetEnd = invYearStart * (1 + growth * (moy + 1) / 12);
+    const gDec=ciroAnnualPct(yi)/100;
+    const targetEnd = invYearStart * (1 + gDec * (moy + 1) / 12);
     const purch = cogsArr[t] + targetEnd - invPrev;
     purchases[t] = Math.max(0, purch);
     inv[t] = Math.max(0, invPrev + purchases[t] - cogsArr[t]);
@@ -1891,7 +1981,7 @@ function buildProjection(firmId){
   // Satışlarla simetrik: prevRev × (1+g)^1 = Y1 satış, baseOpex × (1+g)^1 = Y1 gider
   // Math.floor(t/12)+1 = 1 for Y1, 2 for Y2, 3 for Y3, ...
   const baseOpex=Object.values(f.expenses||{}).reduce((s,e)=>s+(e.amount||0),0);
-  const opex=Array.from({length:months},(_,t)=>baseOpex*Math.pow(1+expGrowth,Math.floor(t/12)+1));
+  const opex=Array.from({length:months},(_,t)=>baseOpex*cumExpFactor(Math.floor(t/12)+1));
 
   // MANUEL SATIRLAR — tip bazında ayrıştır
   // other:      nakit akış + gelir tablosu (mevcut davranış)
@@ -2047,7 +2137,7 @@ function buildProjection(firmId){
   const wTL=bchTLOpen/bchTotalOpen, wUSD=bchUSDOpen/bchTotalOpen, wEUR=bchEUROpen/bchTotalOpen;
 
   function getBchRate(t){
-    const yi=Math.floor(t/12)+1;
+    const yi=Math.min(Math.floor(t/12)+1,5);
     const rTL=bchRatesTL[yi]||bchFallbackTL;
     const rUSD=bchUsdRates[yi]||(ass.bchUsdRate||0);
     const rEUR=bchEurRates[yi]||(ass.bchEurRate||0);
@@ -2143,8 +2233,8 @@ function buildProjection(firmId){
       'Taksit Bakiye':installBal[t],'EBT/VÖK':ebtMonthly[t]
     });
   }
-  const summary={gm:gm*100,dso:dsoDays,dpo:dpoDays,cash0,bch0:openingBch,capital0,months,
-    startDate:fmtDate(startDt),revenueGrowthPct:ass.growth||0};
+  const summary={gm:gmBase*100,dso:dsoDays,dpo:dpoDays,cash0,bch0:openingBch,capital0,months,
+    startDate:fmtDate(startDt),revenueGrowthPct:ciroAnnualPct(1)};
   return{firm:f,summary,rows,arEnd,apEnd,inv,ebtMonthly,taxPay};
 }
 
@@ -2514,7 +2604,7 @@ function renderProjection(){
   lastProjection=proj;
   const{summary,rows}=proj;
   $('proj-title').textContent=f.name+' — Aylık Nakit Akım Projeksiyonu';
-  $('proj-subtitle').textContent='Başlangıç: '+summary.startDate+' · '+summary.months+' ay · Ciro büyümesi: %'+tr(summary.revenueGrowthPct,1)+' (stok aynı oranda)';
+  $('proj-subtitle').textContent='Başlangıç: '+summary.startDate+' · '+summary.months+' ay · Y1 ciro büyümesi: %'+tr(summary.revenueGrowthPct,1)+' (stok yıllık ciro % ile)';
   $('proj-kpis').innerHTML=
     '<div class="kpi"><div class="kpi-label">Açılış Nakit</div><div class="kpi-val blue">'+tr(summary.cash0)+'</div></div>'+
     '<div class="kpi"><div class="kpi-label">Açılış Banka Kredisi</div><div class="kpi-val red">'+tr(summary.bch0)+'</div></div>'+
@@ -3391,9 +3481,11 @@ async function importFromFinSkor(){
     },
     ciro:{mode:'uniform', monthly:new Array(12).fill(100/12)},
     assumptions:{
-      months: 60,
+      months: 120,
       growth:    growthRate,
       expGrowth: growthRate,
+      ciroY1: growthRate, ciroY2: growthRate, ciroY3: growthRate, ciroY4: growthRate, ciroY5: growthRate,
+      expY1: growthRate, expY2: growthRate, expY3: growthRate, expY4: growthRate, expY5: growthRate,
       // bchLimit: BCH limiti → pratikte sınırsız; ay sonu eksi nakit her zaman BCH ile kapanır.
       bchLimit: 1e12,
       bchRate: bch1,
@@ -3435,7 +3527,7 @@ async function importFromFinSkor(){
     showAlert(
       `✅ "${firmAdı}" FinSkor'dan aktarıldı (${p.veriYili} yıl sonu). `
       + `Açılış bilanço + gelir tablosu + kur/faiz dolduruldu. `
-      + `Büyüme %${growthRate} · BCH Y1 %${bch1} · USD ${FX_SPOT.usd} → 60 ay.`
+      + `Büyüme %${growthRate} · BCH Y1 %${bch1} · USD ${FX_SPOT.usd} → 120 ay projeksiyon.`
       + borcMsg,
       'ok'
     );
