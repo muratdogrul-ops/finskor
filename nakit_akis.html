@@ -955,7 +955,15 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
             <div class="field" style="grid-column:span 2">
               <label>İlk indirgenen nakit yılı (takvim yılı)</label>
               <select id="ina-first-year"></select>
-              <div class="notice" style="margin-top:8px"><b>Ne seçeceğim?</b> Bu liste, projeksiyondaki <b>takvim yıllarını</b> gösterir; seçtiğiniz yıl <b>1. indirgenen nakit yılı</b> olur, sonrası 2., 3.… yıl olarak devam eder. <b>5 yıllık değerleme</b> için tipik kullanım: proje/açılış hangi yılsa (ör. 2026) onu seçin — böylece açık dönem projedeki ilk beş takvim yılına hizalanır (projeksiyon 5 yıldan kısaysa o kadar yıl indirgenir). İsterseniz listeden <b>başka bir başlangıç yılı</b> da seçebilirsiniz; terminal her zaman <b>seçilen aralığın son yılı</b> vekiline bağlanır. Sabit modda iskonto (1+r)<sup>t</sup>; aşamalı/dinamikte yıl bazlı bileşik çarpan.</div>
+            </div>
+            <div class="field" style="grid-column:span 2">
+              <label>Açık dönem süresi (yıl)</label>
+              <input type="number" id="ina-explicit-years" min="1" max="30" step="1" placeholder="Boş = projeksiyon sonuna kadar (tümü)" oninput="updateInaHorizonBanner()" onchange="updateInaHorizonBanner()">
+              <div class="notice" style="margin-top:6px;font-size:.74rem">Varsayılan nakit projeksiyonu genelde <b>120 ay (~10 yıl)</b>. Sadece <b>5 yıl FCF + terminal</b> istiyorsanız buraya <b>5</b> yazın; nakit tablosunu kısaltmanız gerekmez.</div>
+            </div>
+            <div class="field" style="grid-column:span 2">
+              <div id="ina-horizon-banner" class="notice" style="margin-top:4px;border-left:3px solid var(--acc);padding-left:10px"></div>
+              <div class="notice" style="margin-top:8px;font-size:.74rem"><b>Özet:</b> Aşağıdaki kutu, seçimlerinize göre <b>hangi takvim yıllarının</b> indirgeneceğini ve terminalin hangi yıla bağlandığını gösterir. Terminal, <b>açık dönemin son yılı</b> vekil nakdine bağlıdır.</div>
             </div>
           </div>
           <div class="btn-group">
@@ -1161,7 +1169,7 @@ function createFirm(){
     assumptions:{months:120,growth:0,expGrowth:0,bchLimit:0,bchRate:0,
       bch1:0,bch2:0,bch3:0,bch4:0,bch5:0,dep1:0,dep2:0,dep3:0,dep4:0,dep5:0,taxRate:25,taxMonths:'3,6,9,12'},
     expenses:defExp,loans:[],manualCf:[],fxRates,
-    ina:{wacc:15,terminalGrowth:2,firstFcfYear:null,waccMode:'constant',waccStaged:[15,15,15,15,15],waccDynamicBase:15,dynamicRisk:{currentRatio:null,netDebtEbitda:null,ebitdaMargin:null,marginTrend:null}}};
+    ina:{wacc:15,terminalGrowth:2,firstFcfYear:null,explicitYears:null,waccMode:'constant',waccStaged:[15,15,15,15,15],waccDynamicBase:15,dynamicRisk:{currentRatio:null,netDebtEbitda:null,ebitdaMargin:null,marginTrend:null}}};
   saveState();closeModal('new-firm-modal');renderFirmList();
   showAlert('"'+name+'" oluşturuldu. Sol menü açıldı — adım adım ilerleyebilirsin.','ok');
   // Firma oluşturulduktan hemen sonra otomatik seç → sol menü açılır, Açılış'a geçilir
@@ -2656,6 +2664,7 @@ function ensureFirmIna(f) {
   }
   if (f.ina.waccDynamicBase == null || f.ina.waccDynamicBase === '') f.ina.waccDynamicBase = f.ina.wacc;
   if (!f.ina.dynamicRisk || typeof f.ina.dynamicRisk !== 'object') f.ina.dynamicRisk = { currentRatio: null, netDebtEbitda: null, ebitdaMargin: null, marginTrend: null };
+  if (!('explicitYears' in f.ina)) f.ina.explicitYears = null;
 }
 
 /** Excel/PDF: kayıtlı firma İNA parametreleri (sayfada olmadan da dışa aktarım) */
@@ -2674,6 +2683,8 @@ function inaParamsFromSavedFirm(f) {
     waccDynamicBase: (f.ina.waccDynamicBase != null && f.ina.waccDynamicBase !== '') ? Number(f.ina.waccDynamicBase) : (Number(f.ina.wacc) || 15),
     terminalGrowth: Number(f.ina.terminalGrowth) || 2,
     firstFcfYear: fy,
+    explicitYears: (f.ina.explicitYears != null && f.ina.explicitYears !== '' && Number.isFinite(Number(f.ina.explicitYears)) && Number(f.ina.explicitYears) > 0)
+      ? Math.floor(Number(f.ina.explicitYears)) : null,
     dynamicRisk: f.ina.dynamicRisk || {}
   };
 }
@@ -2746,7 +2757,13 @@ function computeInaValuation(proj, ina) {
   if (!yearlyData.length) return { error: 'Yıllık veri oluşturulamadı.' };
   const iy = yearlyData.findIndex(function (yd) { return yd.year === firstYear; });
   if (iy < 0) return { error: 'Seçilen yıl projeksiyonda yok.' };
-  const explicit = yearlyData.slice(iy);
+  const fullTail = yearlyData.slice(iy);
+  let capN = null;
+  const capRaw = ina && ina.explicitYears;
+  if (capRaw != null && capRaw !== '' && Number.isFinite(Number(capRaw)) && Number(capRaw) > 0) {
+    capN = Math.min(Math.floor(Number(capRaw)), fullTail.length);
+  }
+  const explicit = capN != null ? fullTail.slice(0, capN) : fullTail;
   const fcfArr = explicit.map(function (yd) {
     const t = yd.totals || {};
     return (t.tahsilat || 0) + (t.depFaiz || 0) + (t.manuelGelir || 0)
@@ -2828,9 +2845,63 @@ function computeInaValuation(proj, ina) {
     yearlyWaccPct: yearlyWaccPct,
     terminalWaccPct: yearlyWaccPct[n - 1],
     gPct: g,
-    dynMeta: dynMeta
+    dynMeta: dynMeta,
+    projectionMonths: months,
+    projectionYearBuckets: numYears,
+    inaYearsAvailableFromFirst: fullTail.length,
+    explicitYearsCap: capN
   };
   return out;
+}
+
+/** İNA: projeksiyon ayı vs hangi yılların indirgeneceği (form canlı özet) */
+function updateInaHorizonBanner() {
+  const box = $('ina-horizon-banner');
+  if (!box) return;
+  const f = curFirm();
+  if (!f || !state.currentFirmId) {
+    box.innerHTML = '';
+    return;
+  }
+  let proj;
+  try {
+    proj = buildProjection(state.currentFirmId);
+  } catch (e) {
+    box.innerHTML = '';
+    return;
+  }
+  const months = (proj.summary && proj.summary.months) ? proj.summary.months : 60;
+  const numY = Math.max(1, Math.ceil(months / 12));
+  const startYear = new Date(f.startDate).getFullYear();
+  let yearlyData;
+  try {
+    yearlyData = buildYearlyData(proj.rows, startYear, numY);
+  } catch (e2) {
+    box.textContent = 'Yıllık özet oluşturulamadı.';
+    return;
+  }
+  const fyEl = $('ina-first-year');
+  const fy = parseInt((fyEl && fyEl.value) || String(f.ina.firstFcfYear != null ? f.ina.firstFcfYear : startYear), 10);
+  const iy = yearlyData.findIndex(function (yd) { return yd.year === fy; });
+  if (iy < 0) {
+    box.textContent = 'Seçilen ilk yıl, projeksiyon yılları listesinde yok.';
+    return;
+  }
+  const tail = yearlyData.length - iy;
+  let capIn = null;
+  const exEl = $('ina-explicit-years');
+  if (exEl && String(exEl.value).trim() !== '') {
+    const c = parseInt(exEl.value, 10);
+    if (Number.isFinite(c) && c > 0) capIn = c;
+  }
+  const eff = capIn != null ? Math.min(capIn, tail) : tail;
+  const lastY = yearlyData[iy + eff - 1].year;
+  let html = '<b>Projeksiyon süresi:</b> ' + months + ' ay (yıllık özet ~' + numY + ' satır). ';
+  html += '<b>İNA indirgeme aralığı:</b> ' + fy + ' – ' + lastY + ' → <b>' + eff + ' yıl</b> açık dönem, ardından <b>terminal</b> (' + lastY + ' vekil FCF üzerinden).';
+  if (capIn != null && capIn > tail) {
+    html += ' <span style="opacity:.9">Not: ' + capIn + ' yıl istediniz; bu ilk yıldan sonra projede yalnızca ' + tail + ' yıl var.</span>';
+  }
+  box.innerHTML = html;
 }
 
 function collectInaFromForm(f) {
@@ -2854,6 +2925,12 @@ function collectInaFromForm(f) {
     waccDynamicBase: dynBase,
     terminalGrowth: fnum($('ina-terminal') && $('ina-terminal').value, f.ina.terminalGrowth),
     firstFcfYear: parseInt(($('ina-first-year') && $('ina-first-year').value) || String(f.ina.firstFcfYear || new Date(f.startDate).getFullYear()), 10),
+    explicitYears: (function () {
+      const exEl = $('ina-explicit-years');
+      if (!exEl || String(exEl.value).trim() === '') return null;
+      const nx = parseInt(exEl.value, 10);
+      return (Number.isFinite(nx) && nx > 0) ? nx : null;
+    })(),
     dynamicRisk: {
       currentRatio: _inaParseNullable($('ina-dyn-cr')),
       netDebtEbitda: _inaParseNullable($('ina-dyn-nde')),
@@ -2912,7 +2989,22 @@ function renderIna() {
   if (nde) nde.value = dr.netDebtEbitda != null && dr.netDebtEbitda !== '' ? dr.netDebtEbitda : '';
   if (mg) mg.value = dr.ebitdaMargin != null && dr.ebitdaMargin !== '' ? dr.ebitdaMargin : '';
   if (tr) tr.value = dr.marginTrend || '';
+  const exY = $('ina-explicit-years');
+  if (exY) {
+    exY.value = (f.ina.explicitYears != null && f.ina.explicitYears !== '') ? String(f.ina.explicitYears) : '';
+    if (!exY._inaHorizonBound) {
+      exY._inaHorizonBound = true;
+      exY.addEventListener('input', updateInaHorizonBanner);
+      exY.addEventListener('change', updateInaHorizonBanner);
+    }
+  }
+  const fySel = $('ina-first-year');
+  if (fySel && !fySel._inaHorizonBound) {
+    fySel._inaHorizonBound = true;
+    fySel.addEventListener('change', updateInaHorizonBanner);
+  }
   inaWaccModeChanged();
+  updateInaHorizonBanner();
   refreshInaResults();
 }
 
@@ -2930,6 +3022,7 @@ function saveInaParams() {
   f.ina.terminalGrowth = live.terminalGrowth;
   f.ina.firstFcfYear = live.firstFcfYear;
   if (!Number.isFinite(f.ina.firstFcfYear)) f.ina.firstFcfYear = null;
+  f.ina.explicitYears = live.explicitYears;
   f.ina.dynamicRisk = live.dynamicRisk;
   saveState();
   showAlert('İNA parametreleri kaydedildi.', 'ok');
@@ -2969,6 +3062,7 @@ function refreshInaResults() {
   tbl += '<div class="kpi"><div class="kpi-label">Terminal değeri (brüt)</div><div class="kpi-val">' + tr(res.tv, 0) + ' TL</div></div>';
   tbl += '</div>';
   tbl += '<div class="section-sep">Yıllık operasyonel nakit vekili ve bugünkü değer</div>';
+  tbl += '<p class="notice" style="margin-bottom:10px">Projeksiyon <b>' + res.projectionMonths + ' ay</b> · İNA indirgeme: <b>' + res.firstYear + ' – ' + res.lastYear + '</b> (<b>' + res.n + ' yıl</b> açık dönem)' + (res.explicitYearsCap != null ? ' · Üst sınır: <b>' + res.explicitYearsCap + '</b> yıl' : ' · Üst sınır yok (ilk yıldan projeksiyon sonuna kadar)') + '.</p>';
   if (res.dynMeta) {
     tbl += '<p class="notice" style="margin-bottom:10px">Dinamik WACC: risk skoru <b>' + res.dynMeta.riskScore + '</b>, yıllık düşüş adımı ~%' + tr(res.dynMeta.annualImprovementPct, 2) + ', başlangıç %' + tr(res.dynMeta.baseWaccPct, 1) + '.</p>';
   }
@@ -4225,6 +4319,8 @@ function exportRaporExcel() {
     inaRows.push(inaPad5(['WACC modu', inaModeLbl, '', '', '']));
     inaRows.push(inaPad5(['İlk indirgenen yıl', inaRes.firstYear, '', '', '']));
     inaRows.push(inaPad5(['Son açık yıl', inaRes.lastYear, '', '', '']));
+    inaRows.push(inaPad5(['Projeksiyon süresi (ay)', inaRes.projectionMonths, '', '', '']));
+    inaRows.push(inaPad5(['Açık dönem üst sınırı (yıl)', inaP.explicitYears != null ? inaP.explicitYears : 'Yok — sonuna kadar', '', '', '']));
     inaRows.push(inaPad5(['Terminal büyüme g %', inaRes.gPct, '', '', '']));
     inaRows.push(inaPad5(['Son yıl WACC (terminal r) %', inaRes.terminalWaccPct != null ? inaRes.terminalWaccPct : inaRes.waccPct, '', '', '']));
     if (inaP.waccMode === 'staged') {
@@ -4777,16 +4873,20 @@ function pdfBuildInaPage(doc, proj, firmName, f) {
       ['WACC modu', modeLbl],
       ['İlk indirgenen yıl', String(res.firstYear)],
       ['Son açık yıl', String(res.lastYear)],
+      ['Projeksiyon süresi (ay)', String(res.projectionMonths)],
+      ['Açık dönem üst sınırı (yıl)', inaP.explicitYears != null ? String(inaP.explicitYears) : 'Yok — sonuna kadar'],
       ['Terminal g %', pdfNum(res.gPct, 2)],
       ['Son yıl WACC (terminal r) %', pdfNum(res.terminalWaccPct != null ? res.terminalWaccPct : res.waccPct, 2)],
-      ['İşletme değeri (vekil) TL', pdfNum(res.enterpriseValue, 0)],
-      ['Özsermaye değeri (vekil) TL', pdfNum(res.equityValue, 0)],
-      ['Net borç (son yıl) TL', pdfNum(res.netDebt, 0)],
     ];
     if (res.dynMeta) {
-      sumLines.splice(5, 0, ['Dinamik risk skoru', String(res.dynMeta.riskScore)]);
-      sumLines.splice(6, 0, ['Dinamik yıllık düşüş ~%', pdfNum(res.dynMeta.annualImprovementPct, 2)]);
+      sumLines.push(['Dinamik risk skoru', String(res.dynMeta.riskScore)]);
+      sumLines.push(['Dinamik yıllık düşüş ~%', pdfNum(res.dynMeta.annualImprovementPct, 2)]);
     }
+    sumLines.push(
+      ['İşletme değeri (vekil) TL', pdfNum(res.enterpriseValue, 0)],
+      ['Özsermaye değeri (vekil) TL', pdfNum(res.equityValue, 0)],
+      ['Net borç (son yıl) TL', pdfNum(res.netDebt, 0)]
+    );
     const head1 = [['Kalem', 'Değer']];
     const body1 = sumLines;
     doc.autoTable({
@@ -5024,9 +5124,10 @@ const OWL_TIPS = {
   },
   ina: {
     title: 'İNA / Değerleme',
-    text: `<b>İndirgenmiş nakit akımı</b> için <b>WACC modu</b> (sabit / 5 yıl aşamalı manuel / dinamik risk), terminal büyüme ve <b>ilk indirgenen nakit yılını</b> (açılır listeden) seçin.
+    text: `<b>İndirgenmiş nakit akımı</b> için <b>WACC modu</b>, terminal büyüme, <b>ilk nakit yılı</b> ve isteğe bağlı <b>açık dönem süresi (yıl)</b> kullanılır.
     <ul>
-      <li><b>5 yıllık değerleme:</b> Genelde proje başı takvim yılını seçin; açık dönem o yıldan projeksiyon sonuna kadar gider (5 yıllık projede beş yıl + terminal)</li>
+      <li><b>Hangi yıllar indirgenir?</b> Mavi özet kutusu ve sonuç üst metni, <b>hangi takvim yılları</b> aralığında FCF alındığını gösterir</li>
+      <li><b>120 ay nakit ama 5 yıl İNA:</b> <b>Açık dönem süresi</b> alanına <b>5</b> yazın; nakit tablosunu kısaltmanız gerekmez</li>
       <li>Operasyonel nakit <b>vekili</b> projeksiyondaki yıllık toplamlardan üretilir (finansman hariç)</li>
       <li><b>Net borç</b> son yılın taksit + spot + BCH eksi kasa ve mevduatıdır</li>
       <li>Aşamalı modda 6+ yıl için 5. yıl WACC’si tekrarlanır; terminalde <b>son açık yıl</b> iskontosu kullanılır</li>
