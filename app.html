@@ -4908,7 +4908,7 @@ function pdfHtmlOzetBilancoRows(bilancoSatirlar, TL, pyLabel, yyLabel) {
     if (tip === 'anabablik') {
       body += '<tr class="row-section"><td colspan="3">' + lab + '</td></tr>';
     } else if (tip === 'baslik') {
-      body += '<tr style="background:#f8fafc"><td colspan="3" style="font-weight:700;color:#1e3a5f;font-size:11px">' + lab + '</td></tr>';
+      body += '<tr style="background:#f8fafc"><td colspan="3" style="font-weight:700;color:#1e3a5f;font-size:8px;line-height:1.15;padding:2px 5px">' + lab + '</td></tr>';
     } else if (tip === 'toplam') {
       body += '<tr class="row-subtotal"><td>' + lab + '</td>' + tdNumPv(s.pv, (s.pv || 0) < 0) + tdNumCv(s.cv, (s.cv || 0) < 0) + '</tr>';
     } else if (tip === 'anatoplam') {
@@ -4917,12 +4917,12 @@ function pdfHtmlOzetBilancoRows(bilancoSatirlar, TL, pyLabel, yyLabel) {
       body += '<tr style="background:#fffbeb"><td style="font-style:italic;color:#d97706">' + lab + '</td><td class="num" style="color:#d97706;font-weight:600">' + TL(s.pv) + '</td><td class="num" style="color:#d97706;font-weight:600">' + TL(s.cv) + '</td></tr>';
     } else if (tip === 'fark') {
       const ok = Math.abs(s.cv || 0) < 1 && Math.abs(s.pv || 0) < 1;
-      body += '<tr class="row-diff ' + (!ok ? 'negative' : '') + '"><td colspan="3" style="text-align:center;font-size:11px">' + lab + ': <b>' + yyH + '</b> ' + TL(s.cv) + ' &nbsp;|&nbsp; <b>' + pyH + '</b> ' + TL(s.pv) + '</td></tr>';
+      body += '<tr class="row-diff ' + (!ok ? 'negative' : '') + '"><td colspan="3" style="text-align:center;font-size:8px;line-height:1.2;padding:2px 4px">' + lab + ': <b>' + yyH + '</b> ' + TL(s.cv) + ' &nbsp;|&nbsp; <b>' + pyH + '</b> ' + TL(s.pv) + '</td></tr>';
     } else {
-      body += '<tr><td style="padding-left:16px;color:#475569">' + lab + '</td>' + tdNumPv(s.pv, (s.pv || 0) < 0) + tdNumCv(s.cv, (s.cv || 0) < 0) + '</tr>';
+      body += '<tr><td style="padding-left:8px;color:#475569;line-height:1.15">' + lab + '</td>' + tdNumPv(s.pv, (s.pv || 0) < 0) + tdNumCv(s.cv, (s.cv || 0) < 0) + '</tr>';
     }
   }
-  return '<table class="fin-table bilanco-pdf-2y" style="width:100%;page-break-inside:auto">\n'
+  return '<table class="fin-table bilanco-pdf-2y" style="width:100%;page-break-inside:avoid;break-inside:avoid">\n'
     + '<colgroup><col style="width:52%"><col style="width:24%"><col style="width:24%"></colgroup>\n'
     + '<tr class="row-header"><th>KALEM</th><th class="num">' + pyH + ' (TL)</th><th class="num">' + yyH + ' (TL)</th></tr>\n'
     + body + '</table>';
@@ -5686,6 +5686,7 @@ function generatePDF() {
   const risk  = pct >= 70 ? 'DÜŞÜK' : pct >= 45 ? 'ORTA' : 'YÜKSEK';
   const date  = new Date().toLocaleDateString('tr-TR');
   const TL    = n => Number(n||0).toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' TL';
+  const TLpdfBil = n => Number(n||0).toLocaleString('tr-TR', {maximumFractionDigits:0}) + ' TL';
   const PCT   = n => (n||0).toFixed(2) + '%';
   const N2    = n => (n||0).toFixed(2);
 
@@ -5769,7 +5770,7 @@ function generatePDF() {
 \x3cstyle\x3e
   *{box-sizing:border-box;margin:0;padding:0;}
   body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#1e293b;background:#fff;font-size:14px;line-height:1.45;}
-  @page{size:A4;margin:14mm;}
+  @page{size:A4;margin:11mm;}
   .cover{background:linear-gradient(145deg,#0b1220 0%,#1e293b 55%,#0f172a 100%);color:#fff;padding:44px 36px;min-height:100vh;box-sizing:border-box;}
   .cover-logo{font-size:28px;font-weight:800;letter-spacing:4px;text-transform:uppercase;color:#f8fafc;margin-bottom:4px;}
   .cover-logo span{background:linear-gradient(135deg,#f59e0b,#fbbf24);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;}
@@ -5802,6 +5803,17 @@ function generatePDF() {
   .fin-table .pct{text-align:right;color:#475569;font-size:11px}
   .fin-table .positive{color:#16a34a;font-weight:600}
   .fin-table .negative-val{color:#dc2626;font-weight:600}
+  /* PDF: bilanço tek sayfada — ayrı sayfa + mümkün olan en sıkı dikey yerleşim */
+  .pdf-bilanco-sheet{page-break-before:always;page-break-inside:avoid;break-inside:avoid}
+  .pdf-bilanco-sheet h2{font-size:10px!important;margin:0 0 3px!important;padding-bottom:4px!important;line-height:1.2!important;letter-spacing:.2px!important}
+  .pdf-bilanco-sheet .pdf-bilanco-note{font-size:7.5px;color:#64748b;margin:0 0 3px;line-height:1.25}
+  .pdf-bilanco-sheet .fin-table{font-size:7pt;line-height:1.15;border-collapse:collapse}
+  .pdf-bilanco-sheet .fin-table td,.pdf-bilanco-sheet .fin-table th{padding:1px 5px!important;border-width:0.5px!important}
+  .pdf-bilanco-sheet .fin-table .row-header{font-size:6.5pt!important;padding:2px 5px!important}
+  .pdf-bilanco-sheet .fin-table .row-total-bilanco td{font-size:8pt!important;padding:2px 5px!important;line-height:1.15!important}
+  .pdf-bilanco-sheet .fin-table .row-section td{font-size:7pt!important;padding:1px 5px!important}
+  .pdf-bilanco-sheet .fin-table .row-subtotal td{font-size:7pt!important;padding:1px 5px!important}
+  .pdf-bilanco-sheet .fin-table .row-diff td{font-size:7pt!important;padding:2px 5px!important}
   .fin-two-col{display:table;width:100%;page-break-inside:avoid}
   .fin-two-col table.fin-table{display:inline-table;width:49%;vertical-align:top}
   .fin-two-col table.fin-table:first-child{margin-right:1%}
@@ -5829,6 +5841,10 @@ function generatePDF() {
   @media print{
     body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
     .cover{min-height:0;page-break-after:always;}
+    .body{padding:12px 16px!important;}
+    .pdf-bilanco-sheet{zoom:0.9;}
+    .pdf-bilanco-sheet .fin-table{font-size:6.5pt;}
+    .pdf-bilanco-sheet h2{font-size:9px!important;}
   }
 </style></head><body>
 
@@ -5875,9 +5891,11 @@ function generatePDF() {
   <div class="metric-box"><div class="label">Öz Kaynak</div><div class="value">${TL(r.ozKaynak)}</div><div class="sub">Net Varlık</div></div>
 </div>
 
-<h2 id="i18nBilanco" style="page-break-before:auto;page-break-after:avoid">📋 Bilanço (FinSkor mizan kalemleri)</h2>
-<p style="font-size:11px;color:#64748b;margin:-4px 0 10px">10–59 hesap grupları veri girişi ekranı ile aynıdır; sütunlar analiz özet tablosu ile uyumludur.</p>
-${pdfHtmlOzetBilancoRows(ozPdf.bilancoSatirlar, TL, ozPdf.py, ozPdf.yy)}
+<div class="pdf-bilanco-sheet">
+<h2 id="i18nBilanco" style="page-break-after:avoid">📋 Bilanço (FinSkor mizan kalemleri)</h2>
+<p class="pdf-bilanco-note">10–59 hesap grupları veri girişi ekranı ile aynıdır; sütunlar analiz özet tablosu ile uyumludur.</p>
+${pdfHtmlOzetBilancoRows(ozPdf.bilancoSatirlar, TLpdfBil, ozPdf.py, ozPdf.yy)}
+</div>
 
 <h2 id="i18nGelirTab" style="page-break-after:avoid">📈 Özet gelir tablosu</h2>
 ${ozPdf._per < 12 ? '<p style="font-size:11px;color:#64748b;margin:-6px 0 10px">(Cari sütun: seçili aylar yıllıklaştırılmış; tam yıl simülasyonu)</p>' : ''}
