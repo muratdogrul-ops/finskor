@@ -968,7 +968,7 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
           </div>
           <div class="btn-group">
             <button type="button" class="btn btn-primary" onclick="saveInaParams()">💾 Kaydet ve hesapla</button>
-            <button type="button" class="btn btn-secondary" onclick="refreshInaResults()">↻ Sadece hesapla (kaydetmez)</button>
+            <button type="button" class="btn btn-secondary" onclick="refreshInaResults({ showInaPopup: true })">↻ Sadece hesapla (kaydetmez)</button>
           </div>
         </div>
         <div id="ina-results" class="card" style="margin-top:16px"></div>
@@ -1049,6 +1049,17 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
       <button class="btn btn-ghost"   onclick="closeModal('new-firm-modal')">İptal</button>
     </div>
     <div class="notice">GG.AA.YYYY / YYYY-AA-GG formatları da kabul edilir.</div>
+  </div>
+</div>
+
+<!-- MODAL: İNA şirket değeri özeti (hesap sonrası + baykuş sesi) -->
+<div class="modal-bg" id="ina-summary-modal" onclick="if(event.target===this)closeModal('ina-summary-modal')">
+  <div class="modal modal--ina" onclick="event.stopPropagation()" style="max-width:580px">
+    <div id="ina-summary-modal-body"></div>
+    <div class="btn-group" style="margin-top:18px;flex-wrap:wrap">
+      <button type="button" class="btn btn-secondary" onclick="inaSummaryReplaySpeak()">🔊 Baykuşu tekrar dinle</button>
+      <button type="button" class="btn btn-primary" onclick="closeModal('ina-summary-modal')">Tamam</button>
+    </div>
   </div>
 </div>
 
@@ -3026,10 +3037,72 @@ function saveInaParams() {
   f.ina.dynamicRisk = live.dynamicRisk;
   saveState();
   showAlert('İNA parametreleri kaydedildi.', 'ok');
-  refreshInaResults();
+  refreshInaResults({ showInaPopup: true });
 }
 
-function refreshInaResults() {
+/** Son İNA özet penceresi için baykuş metni (tekrar dinle) */
+let _inaSummarySpeechParts = [];
+
+function inaSummaryReplaySpeak() {
+  if (_inaSummarySpeechParts && _inaSummarySpeechParts.length) {
+    owlQueueUtterances(_inaSummarySpeechParts.slice());
+  }
+}
+
+function _inaSayNumber(n) {
+  const x = Math.round(Number(n) || 0);
+  return String(x).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function showInaSummaryPopup(res, inaLive, firmName) {
+  const modeLabel = res.waccMode === 'constant' ? 'Sabit WACC' : (res.waccMode === 'staged' ? 'Aşamalı WACC' : 'Dinamik WACC');
+  const tw = res.terminalWaccPct != null ? res.terminalWaccPct : res.waccPct;
+  const capReq = inaLive.explicitYears != null ? inaLive.explicitYears : res.explicitYearsCap;
+  const capNote = res.explicitYearsCap != null
+    ? ('Açık dönem üst sınırı: <b>' + esc(String(capReq != null ? capReq : res.explicitYearsCap)) + '</b> yıl; bu senaryoda <b>' + res.explicitYearsCap + '</b> yıl FCF indirgendi.')
+    : 'Açık dönem üst sınırı yok: ilk indirgenen yıldan projeksiyon sonuna kadar.';
+
+  let html = '';
+  html += '<div class="modal-title" style="display:flex;align-items:center;gap:10px;margin-bottom:4px"><span style="font-size:1.4rem">🦉</span><span>İNA — Şirket değeri özeti</span></div>';
+  html += '<p style="color:var(--tx2);font-size:.76rem;margin:0 0 14px;line-height:1.5">' + esc(firmName || 'Firma') + ' · <b>Vekil</b> değerleme (operasyonel nakit vekili + Gordon terminali). Yatırım tavsiyesi değildir.</p>';
+  html += '<div class="kpi-grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">';
+  html += '<div class="kpi"><div class="kpi-label">İşletme değeri (vekil)</div><div class="kpi-val blue">' + tr(res.enterpriseValue, 0) + ' TL</div></div>';
+  html += '<div class="kpi"><div class="kpi-label">Özsermaye değeri (vekil)</div><div class="kpi-val green">' + tr(res.equityValue, 0) + ' TL</div></div>';
+  html += '<div class="kpi"><div class="kpi-label">Açık dönem PV</div><div class="kpi-val">' + tr(res.pvExplicit, 0) + ' TL</div></div>';
+  html += '<div class="kpi"><div class="kpi-label">Terminal PV</div><div class="kpi-val">' + tr(res.pvTv, 0) + ' TL</div></div>';
+  html += '<div class="kpi"><div class="kpi-label">Terminal değeri (brüt)</div><div class="kpi-val">' + tr(res.tv, 0) + ' TL</div></div>';
+  html += '<div class="kpi"><div class="kpi-label">Net borç (son yıl)</div><div class="kpi-val ' + (res.netDebt >= 0 ? 'red' : '') + '">' + tr(res.netDebt, 0) + ' TL</div></div>';
+  html += '</div>';
+  html += '<div class="notice" style="font-size:.78rem;line-height:1.65;text-align:left">';
+  html += '<p style="margin:0 0 10px"><b>Kaç yıl indirgendi?</b> <b>' + res.n + ' yıl</b> açık dönem: takvim <b>' + res.firstYear + ' – ' + res.lastYear + '</b>. Projeksiyon süresi <b>' + res.projectionMonths + ' ay</b>. ' + capNote + '</p>';
+  html += '<p style="margin:0 0 10px"><b>Terminal nedir?</b> Son yıl vekil serbest nakitten sonra sürekli <b>g = %' + tr(res.gPct, 1) + '</b> büyümeyle sonsuza uzanan nakit; iskonto son yıl <b>WACC %' + tr(tw, 1) + '</b> (Gordon). <b>Brüt terminal</b> ' + tr(res.tv, 0) + ' TL; bugüne indirgenmiş <b>terminal PV</b> ' + tr(res.pvTv, 0) + ' TL.</p>';
+  html += '<p style="margin:0 0 10px"><b>İşletme değeri</b> = açık dönem PV + terminal PV. <b>Özsermaye vekili</b> = işletme değeri − net borç (finansal borç eksi nakit/mevduat, son yıl).</p>';
+  html += '<p style="margin:0"><b>WACC modu:</b> ' + esc(modeLabel) + '.';
+  if (res.dynMeta) {
+    html += ' Dinamik WACC: risk skoru <b>' + res.dynMeta.riskScore + '</b>, yıllık düşüş adımı ~<b>%' + tr(res.dynMeta.annualImprovementPct, 2) + '</b>.';
+  }
+  html += '</p></div>';
+
+  const bodyEl = $('ina-summary-modal-body');
+  if (bodyEl) bodyEl.innerHTML = html;
+  const modalBg = $('ina-summary-modal');
+  if (modalBg) modalBg.classList.add('open');
+
+  const fn = _inaSayNumber;
+  const s1 = 'İNA özeti. ' + (firmName || 'Firma') + '. İşletme değeri vekili ' + fn(res.enterpriseValue) + ' TL. Özsermaye değeri vekili ' + fn(res.equityValue) + ' TL.';
+  const s2 = 'Açık dönem ' + res.n + ' yıl: ' + res.firstYear + ' ile ' + res.lastYear + ' arası. Projeksiyon ' + res.projectionMonths + ' ay. ' + (res.explicitYearsCap != null ? 'Üst süre sınırı ' + res.explicitYearsCap + ' yıl uygulandı.' : 'Üst süre sınırı yok, projeksiyon sonuna kadar.');
+  const s3 = 'Terminal sürekli büyüme yüzde ' + String(res.gPct).replace('.', ',') + '. Son yıl iskonto yüzde ' + String(tw).replace('.', ',') + '. Terminal brüt ' + fn(res.tv) + ' TL, bugünkü değeri ' + fn(res.pvTv) + ' TL. Açık dönem bugünkü değer toplamı ' + fn(res.pvExplicit) + ' TL. Net borç ' + fn(res.netDebt) + ' TL düşülerek özsermaye bulundu.';
+  _inaSummarySpeechParts = [s1, s2, s3];
+  if (res.dynMeta) {
+    _inaSummarySpeechParts.push('Dinamik WACC risk skoru ' + res.dynMeta.riskScore + ', yaklaşık yıllık düşüş yüzde ' + String(res.dynMeta.annualImprovementPct).replace('.', ',') + '.');
+  }
+  _inaSummarySpeechParts.push('Bu rakamlar vekil değerlemedir; yatırım tavsiyesi değildir.');
+  owlQueueUtterances(_inaSummarySpeechParts.slice());
+}
+
+function refreshInaResults(options) {
+  const opts = (options && typeof options === 'object') ? options : {};
+  const showInaPopup = !!opts.showInaPopup;
   const box = $('ina-results');
   if (!box) return;
   const f = curFirm();
@@ -3078,6 +3151,9 @@ function refreshInaResults() {
   tbl += '</tbody></table></div>';
   tbl += '<p class="notice" style="margin-top:14px">Mod: <b>' + modeLabel + '</b> · Dönem: ' + res.firstYear + '–' + res.lastYear + ' · Son yıl vekil FCF: ' + tr(res.lastFcf, 0) + ' TL. Bu tablo yatırım tavsiyesi değildir.</p>';
   box.innerHTML = tbl;
+  if (showInaPopup) {
+    showInaSummaryPopup(res, inaLive, f.name);
+  }
 }
 
 function renderProjTable(yearData, firmName){
@@ -5192,8 +5268,9 @@ const OWL_TIPS = {
       <li><b>Net borç</b> son yılın taksit + spot + BCH eksi kasa ve mevduatıdır</li>
       <li>Aşamalı modda 6+ yıl için 5. yıl WACC’si tekrarlanır; terminalde <b>son açık yıl</b> iskontosu kullanılır</li>
       <li>Rapor <b>Excel/PDF</b> indirildiğinde İNA özeti, <b>Kaydet ve hesapla</b> ile yazdığınız parametrelerle eklenir</li>
+      <li><b>Kaydet ve hesapla</b> veya <b>Sadece hesapla</b> sonrası <b>özet pencere</b> açılır; baykuş rakamları sesli özetler (sessiz: üstteki 🔊)</li>
     </ul>
-    <div class="owl-tip"><b>💡 İpucu:</b> Parametreleri <b>Kaydet ve hesapla</b> ile firmaya yazın; sadece denemek için <b>Sadece hesapla</b> kullanın.</div>`
+    <div class="owl-tip"><b>💡 İpucu:</b> Özet pencerede <b>Tekrar dinle</b> ile anlatımı yenileyebilirsiniz.</div>`
   },
   projection: {
     title: 'Nakit Akış Tablosu',
