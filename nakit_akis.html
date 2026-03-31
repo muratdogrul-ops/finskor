@@ -955,7 +955,7 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
             <div class="field" style="grid-column:span 2">
               <label>İlk indirgenen nakit yılı (takvim yılı)</label>
               <select id="ina-first-year"></select>
-              <div class="notice" style="margin-top:8px">Bu yıldan itibaren yıllık vekiller toplanır; terminal değer son yıl vekiline bağlanır. Sabit modda iskonto (1+r)<sup>t</sup>; aşamalı/dinamikte yıl bazlı bileşik çarpan.</div>
+              <div class="notice" style="margin-top:8px"><b>Ne seçeceğim?</b> Bu liste, projeksiyondaki <b>takvim yıllarını</b> gösterir; seçtiğiniz yıl <b>1. indirgenen nakit yılı</b> olur, sonrası 2., 3.… yıl olarak devam eder. <b>5 yıllık değerleme</b> için tipik kullanım: proje/açılış hangi yılsa (ör. 2026) onu seçin — böylece açık dönem projedeki ilk beş takvim yılına hizalanır (projeksiyon 5 yıldan kısaysa o kadar yıl indirgenir). İsterseniz listeden <b>başka bir başlangıç yılı</b> da seçebilirsiniz; terminal her zaman <b>seçilen aralığın son yılı</b> vekiline bağlanır. Sabit modda iskonto (1+r)<sup>t</sup>; aşamalı/dinamikte yıl bazlı bileşik çarpan.</div>
             </div>
           </div>
           <div class="btn-group">
@@ -981,6 +981,7 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
       <div id="proj-kpis" class="kpi-grid"></div>
       <div class="notice" style="margin-bottom:14px">⚠ Yıllık VÖK(EBT) ≤ 0 ise kurumlar vergisi = 0. Zarar 5 yıl devredilir. Dövizli kredilerde aylık kur × taksit = TL.</div>
       <div id="proj-years-container"></div>
+      <div class="notice" style="margin-top:12px;font-size:.76rem">Excel ve PDF paketinde <b>İNA</b> sayfası da vardır; rakamlar <b>İNA / Değerleme</b> ekranında <b>Kaydet ve hesapla</b> ile kaydettiğiniz parametrelere göre üretilir.</div>
       <div class="btn-group" style="margin-top:16px;flex-wrap:wrap;gap:8px">
         <button class="btn btn-primary" onclick="exportRaporExcel()">📊 Excel İndir (.xlsx)</button>
         <button class="btn btn-secondary" onclick="exportRaporPDF()">📄 PDF İndir</button>
@@ -2657,6 +2658,26 @@ function ensureFirmIna(f) {
   if (!f.ina.dynamicRisk || typeof f.ina.dynamicRisk !== 'object') f.ina.dynamicRisk = { currentRatio: null, netDebtEbitda: null, ebitdaMargin: null, marginTrend: null };
 }
 
+/** Excel/PDF: kayıtlı firma İNA parametreleri (sayfada olmadan da dışa aktarım) */
+function inaParamsFromSavedFirm(f) {
+  ensureFirmIna(f);
+  const sy = new Date(f.startDate).getFullYear();
+  let fy = f.ina.firstFcfYear != null ? parseInt(String(f.ina.firstFcfYear), 10) : NaN;
+  if (!Number.isFinite(fy)) fy = sy;
+  const staged = (Array.isArray(f.ina.waccStaged) && f.ina.waccStaged.length === 5)
+    ? f.ina.waccStaged.map(function (x) { return Number(x); })
+    : [15, 15, 15, 15, 15];
+  return {
+    waccMode: f.ina.waccMode || 'constant',
+    wacc: Number(f.ina.wacc) || 15,
+    waccStaged: staged,
+    waccDynamicBase: (f.ina.waccDynamicBase != null && f.ina.waccDynamicBase !== '') ? Number(f.ina.waccDynamicBase) : (Number(f.ina.wacc) || 15),
+    terminalGrowth: Number(f.ina.terminalGrowth) || 2,
+    firstFcfYear: fy,
+    dynamicRisk: f.ina.dynamicRisk || {}
+  };
+}
+
 function _inaParseNullable(el) {
   if (!el || el.value === '' || el.value == null) return null;
   const n = Number(String(el.value).replace(',', '.'));
@@ -4185,6 +4206,53 @@ function exportRaporExcel() {
   ];
   XLSX.utils.book_append_sheet(wb, makeSheet(bilHdrs, bilRows), 'Bilanço');
 
+  // === SHEET 4: İNA (kayıtlı parametreler) ===
+  const inaP = inaParamsFromSavedFirm(f);
+  const inaRes = computeInaValuation(proj, inaP);
+  const inaModeLbl = inaP.waccMode === 'constant' ? 'Sabit WACC' : (inaP.waccMode === 'staged' ? 'Aşamalı (5 yıl)' : 'Dinamik WACC');
+  const inaPad5 = function (a) {
+    const row = a.slice();
+    while (row.length < 5) row.push('');
+    return row;
+  };
+  const inaRows = [];
+  if (inaRes.error) {
+    inaRows.push(inaPad5(['İNA / Değerleme', '', '', '', '']));
+    inaRows.push(inaPad5(['Hata', inaRes.error, '', '', '']));
+    inaRows.push(inaPad5(['Not', 'İNA sayfasında Kaydet ve hesapla ile parametreleri yazın.', '', '', '']));
+  } else {
+    inaRows.push(inaPad5(['İNA — İndirgenmiş nakit akışı özeti', '', '', '', '']));
+    inaRows.push(inaPad5(['WACC modu', inaModeLbl, '', '', '']));
+    inaRows.push(inaPad5(['İlk indirgenen yıl', inaRes.firstYear, '', '', '']));
+    inaRows.push(inaPad5(['Son açık yıl', inaRes.lastYear, '', '', '']));
+    inaRows.push(inaPad5(['Terminal büyüme g %', inaRes.gPct, '', '', '']));
+    inaRows.push(inaPad5(['Son yıl WACC (terminal r) %', inaRes.terminalWaccPct != null ? inaRes.terminalWaccPct : inaRes.waccPct, '', '', '']));
+    if (inaP.waccMode === 'staged') {
+      inaRows.push(inaPad5(['Manuel WACC Y1–Y5 %', inaP.waccStaged.join('; '), '', '', '']));
+    }
+    if (inaP.waccMode === 'dynamic' && inaRes.dynMeta) {
+      inaRows.push(inaPad5(['Dinamik başlangıç WACC %', inaRes.dynMeta.baseWaccPct, '', '', '']));
+      inaRows.push(inaPad5(['Dinamik risk skoru', inaRes.dynMeta.riskScore, '', '', '']));
+      inaRows.push(inaPad5(['Dinamik yıllık düşüş adımı ~%', Number(inaRes.dynMeta.annualImprovementPct).toFixed(2), '', '', '']));
+    }
+    inaRows.push(inaPad5(['İşletme değeri (vekil) TL', inaRes.enterpriseValue, '', '', '']));
+    inaRows.push(inaPad5(['Özsermaye değeri (vekil) TL', inaRes.equityValue, '', '', '']));
+    inaRows.push(inaPad5(['Net borç (son yıl) TL', inaRes.netDebt, '', '', '']));
+    inaRows.push(inaPad5(['Terminal değeri brüt TL', inaRes.tv, '', '', '']));
+    inaRows.push(inaPad5(['Açık dönem PV TL', inaRes.pvExplicit, '', '', '']));
+    inaRows.push(inaPad5(['Terminal PV TL', inaRes.pvTv, '', '', '']));
+    inaRows.push(inaPad5(['', '', '', '', '']));
+    inaRows.push(inaPad5(['Yıl', 'Vekil FCF (TL)', 'WACC %', 'Bileşik çarpan', 'Bugünkü değer (TL)']));
+    for (let i = 0; i < inaRes.tableRows.length; i++) {
+      const rw = inaRes.tableRows[i];
+      inaRows.push(inaPad5([rw.year, rw.fcf, rw.waccPct != null ? rw.waccPct : '', rw.cumulativeFactor || rw.disc, rw.pv]));
+    }
+    inaRows.push(inaPad5(['Açık dönem PV toplamı', '', '', '', inaRes.pvExplicit]));
+    inaRows.push(inaPad5(['Terminal PV', '', '', '', inaRes.pvTv]));
+  }
+  const inaHdrs = ['Kalem / Yıl', 'Değer / FCF', 'WACC %', 'Çarpan', 'PV'];
+  XLSX.utils.book_append_sheet(wb, makeSheet(inaHdrs, inaRows), 'İNA');
+
   // Download
   const fname = 'NakitFlow_' + (firm.name || 'rapor').replace(/[^a-zA-Z0-9ğüşıöçĞÜŞİÖÇ]/g, '_') + '_' + new Date().toISOString().slice(0,10) + '.xlsx';
   XLSX.writeFile(wb, fname);
@@ -4685,11 +4753,123 @@ function pdfBuildCoverPage(doc, firmName, reportTitle) {
   doc.text('Tüm rakamlar Türk Lirası (TRY) cinsindendir, KDV hariçtir.', pageW / 2, pageH * 0.7, { align: 'center' });
 }
 
+function pdfBuildInaPage(doc, proj, firmName, f) {
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const inaP = inaParamsFromSavedFirm(f);
+  const res = computeInaValuation(proj, inaP);
+  const modeLbl = inaP.waccMode === 'constant' ? 'Sabit WACC' : (inaP.waccMode === 'staged' ? 'Aşamalı (5 yıl)' : 'Dinamik WACC');
+
+  doc.addPage();
+  pdfAddHeader(doc, firmName, 'İNA — İndirgenmiş nakit akışı özeti', pageW);
+
+  if (res.error) {
+    doc.setFont('NotoSans', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...PDF_CLR.text);
+    doc.text('İNA hesaplanamadı: ' + res.error, 15, 30, { maxWidth: pageW - 30 });
+    doc.setFontSize(8);
+    doc.setTextColor(...PDF_CLR.sub);
+    doc.text('İNA / Değerleme sayfasında parametreleri kaydedip tekrar deneyin.', 15, 42, { maxWidth: pageW - 30 });
+    pdfAddFooter(doc, doc.internal.getNumberOfPages(), '?', pageW, pageH);
+  } else {
+    const sumLines = [
+      ['WACC modu', modeLbl],
+      ['İlk indirgenen yıl', String(res.firstYear)],
+      ['Son açık yıl', String(res.lastYear)],
+      ['Terminal g %', pdfNum(res.gPct, 2)],
+      ['Son yıl WACC (terminal r) %', pdfNum(res.terminalWaccPct != null ? res.terminalWaccPct : res.waccPct, 2)],
+      ['İşletme değeri (vekil) TL', pdfNum(res.enterpriseValue, 0)],
+      ['Özsermaye değeri (vekil) TL', pdfNum(res.equityValue, 0)],
+      ['Net borç (son yıl) TL', pdfNum(res.netDebt, 0)],
+    ];
+    if (res.dynMeta) {
+      sumLines.splice(5, 0, ['Dinamik risk skoru', String(res.dynMeta.riskScore)]);
+      sumLines.splice(6, 0, ['Dinamik yıllık düşüş ~%', pdfNum(res.dynMeta.annualImprovementPct, 2)]);
+    }
+    const head1 = [['Kalem', 'Değer']];
+    const body1 = sumLines;
+    doc.autoTable({
+      head: head1,
+      body: body1,
+      startY: 22,
+      margin: { left: 12, right: 12 },
+      tableWidth: 120,
+      styles: { fontSize: 8, cellPadding: 1.5, font: 'NotoSans', textColor: PDF_CLR.text },
+      headStyles: { font: 'NotoSans', fillColor: PDF_CLR.navy, textColor: PDF_CLR.white, fontStyle: 'bold' },
+      columnStyles: { 0: { cellWidth: 70, fontStyle: 'bold' }, 1: { halign: 'right' } },
+      willDrawPage: function() {
+        pdfAddHeader(doc, firmName, 'İNA — İndirgenmiş nakit akışı özeti', pageW);
+        doc.setFont('NotoSans', 'normal');
+      },
+      didDrawPage: function() {
+        pdfAddFooter(doc, doc.internal.getCurrentPageInfo().pageNumber, '?', pageW, pageH);
+        doc.setFont('NotoSans', 'normal');
+      },
+    });
+    const afterY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY + 6 : 55;
+    const head2 = [['Yıl', 'Vekil FCF', 'WACC %', 'Çarpan', 'PV']];
+    const body2 = res.tableRows.map(function (rw) {
+      return [
+        String(rw.year),
+        pdfNum(rw.fcf, 0),
+        rw.waccPct != null ? pdfNum(rw.waccPct, 2) : '—',
+        pdfNum(rw.cumulativeFactor || rw.disc, 4),
+        pdfNum(rw.pv, 0),
+      ];
+    });
+    body2.push(['Açık dönem PV', '', '', '', pdfNum(res.pvExplicit, 0)]);
+    body2.push(['Terminal PV (Gordon)', '', '', '', pdfNum(res.pvTv, 0)]);
+    doc.autoTable({
+      head: head2,
+      body: body2,
+      startY: afterY,
+      margin: { left: 12, right: 12 },
+      styles: { fontSize: 7.5, cellPadding: 1.2, font: 'NotoSans', textColor: PDF_CLR.text },
+      headStyles: { font: 'NotoSans', fillColor: PDF_CLR.navy, textColor: PDF_CLR.white, fontStyle: 'bold', halign: 'center' },
+      columnStyles: {
+        0: { cellWidth: 22, halign: 'center' },
+        1: { halign: 'right' },
+        2: { halign: 'right' },
+        3: { halign: 'right' },
+        4: { halign: 'right' },
+      },
+      didParseCell: function(data) {
+        if (data.section !== 'body') return;
+        if (data.row.index >= body2.length - 2) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = PDF_CLR.band;
+          data.cell.styles.textColor = PDF_CLR.bandText;
+        }
+      },
+      willDrawPage: function() {
+        pdfAddHeader(doc, firmName, 'İNA — İndirgenmiş nakit akışı özeti', pageW);
+        doc.setFont('NotoSans', 'normal');
+      },
+      didDrawPage: function() {
+        pdfAddFooter(doc, doc.internal.getCurrentPageInfo().pageNumber, '?', pageW, pageH);
+        doc.setFont('NotoSans', 'normal');
+      },
+    });
+  }
+}
+
 async function exportFullPDF(reportTitle) {
   const f = curFirm(); if (!f) return;
-  if (!lastProjection) { showAlert('Önce Projeksiyon çalıştırın.', 'err'); return; }
   showAlert('PDF hazırlanıyor (Türkçe font yükleniyor)...', 'info');
   try {
+    let proj;
+    try {
+      proj = buildProjection(state.currentFirmId);
+      lastProjection = proj;
+    } catch (e) {
+      showAlert('Projeksiyon oluşturulamadı: ' + (e.message || String(e)), 'err');
+      return;
+    }
+    if (!proj || !proj.rows || !proj.rows.length) {
+      showAlert('Projeksiyon boş.', 'err');
+      return;
+    }
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     await pdfEnsureTrFont(doc);
@@ -4697,9 +4877,10 @@ async function exportFullPDF(reportTitle) {
 
     pdfBuildCoverPage(doc, firmName, reportTitle || 'Nakit Akış Projeksiyonu Raporu');
 
-    pdfBuildCashFlowPages(doc, lastProjection, firmName);
-    pdfBuildIncomePage(doc, lastProjection, firmName);
-    pdfBuildBalancePage(doc, lastProjection, firmName);
+    pdfBuildCashFlowPages(doc, proj, firmName);
+    pdfBuildIncomePage(doc, proj, firmName);
+    pdfBuildBalancePage(doc, proj, firmName);
+    pdfBuildInaPage(doc, proj, firmName, f);
 
     const total = doc.internal.getNumberOfPages();
     const pageW = doc.internal.pageSize.getWidth();
@@ -4843,12 +5024,13 @@ const OWL_TIPS = {
   },
   ina: {
     title: 'İNA / Değerleme',
-    text: `<b>İndirgenmiş nakit akımı</b> için <b>WACC modu</b> (sabit / 5 yıl aşamalı manuel / dinamik risk), terminal büyüme ve <b>ilk nakit yılını</b> burada girin.
+    text: `<b>İndirgenmiş nakit akımı</b> için <b>WACC modu</b> (sabit / 5 yıl aşamalı manuel / dinamik risk), terminal büyüme ve <b>ilk indirgenen nakit yılını</b> (açılır listeden) seçin.
     <ul>
+      <li><b>5 yıllık değerleme:</b> Genelde proje başı takvim yılını seçin; açık dönem o yıldan projeksiyon sonuna kadar gider (5 yıllık projede beş yıl + terminal)</li>
       <li>Operasyonel nakit <b>vekili</b> projeksiyondaki yıllık toplamlardan üretilir (finansman hariç)</li>
       <li><b>Net borç</b> son yılın taksit + spot + BCH eksi kasa ve mevduatıdır</li>
       <li>Aşamalı modda 6+ yıl için 5. yıl WACC’si tekrarlanır; terminalde <b>son açık yıl</b> iskontosu kullanılır</li>
-      <li>Önce diğer sayfaları doldurun; <b>Nakit Akış</b> en az bir kez çalışmış olmalı</li>
+      <li>Rapor <b>Excel/PDF</b> indirildiğinde İNA özeti, <b>Kaydet ve hesapla</b> ile yazdığınız parametrelerle eklenir</li>
     </ul>
     <div class="owl-tip"><b>💡 İpucu:</b> Parametreleri <b>Kaydet ve hesapla</b> ile firmaya yazın; sadece denemek için <b>Sadece hesapla</b> kullanın.</div>`
   },
@@ -4859,7 +5041,7 @@ const OWL_TIPS = {
       <li>İstersen ilgili hücrelere <b>manuel rakam</b> girip <b>Kaydet</b> ile tabloyu kendi senaryona göre güncelleyebilirsin</li>
       <li>Yeşil = nakit girişi, Kırmızı = nakit çıkışı</li>
       <li><b>Kapanış Bakiyesi</b> negatife düşerse BCH devreye girer</li>
-      <li>Excel ve PDF ile dışa aktarabilirsiniz</li>
+      <li>Excel ve PDF ile dışa aktarabilirsiniz; tam pakette <b>İNA</b> özeti de eklenir (kayıtlı İNA parametreleri)</li>
     </ul>
     <div class="owl-tip"><b>💡 İpucu:</b> Tablo başlığına tıklayarak sütunları sabitleyebilirsiniz.</div>`
   },
