@@ -897,20 +897,65 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
         <div class="avatar-bubble">
           <h3>Bugünkü değer (özet)</h3>
           <p>Bu sayfa <strong>FinSkor NakitFlow projeksiyonundaki</strong> yıllık toplamlardan <strong>operasyonel nakit vekili</strong> üretir (tahsilat + mevduat faizi + manuel gelir − tedarikçi − faaliyet gideri − vergi − yatırım; <strong>finansman ve sermaye kalemleri hariç</strong>). İskonto oranı ve terminal büyümeyi siz girersiniz; <strong>net borç</strong> son projeksiyon yılının taksit + spot + BCH bakiyeleri eksi kasa + mevduat olarak alınır.</p>
-          <span class="avatar-tip">Tam UFCE/WACC analizi değil; hızlı senaryo içindir. Önce <strong>Nakit Akış</strong> sayfasının dolu olduğundan emin olun.</span>
+          <span class="avatar-tip">Tam UFCE/WACC analizi değil; hızlı senaryo içindir. İskonto: <strong>sabit</strong>, <strong>5 yıl aşamalı manuel</strong> veya <strong>dinamik (risk skoru)</strong> seçilebilir. Önce <strong>Nakit Akış</strong> sayfasının dolu olduğundan emin olun.</span>
         </div>
       </div>
       <div id="ina-proj-missing" class="alert alert-err" style="display:none"><span>✕</span><span>Projeksiyon oluşturulamadı. Varsayımlar ve gelir verilerini tamamlayıp <b>Nakit Akış</b> sayfasını bir kez açın.</span></div>
       <div id="ina-form-wrap">
         <div class="card glow">
           <div class="card-header"><div class="card-icon">⚙️</div><div class="card-title">Parametreler</div></div>
-          <div class="form-grid cols2">
-            <div class="field"><label>İskonto oranı (yıllık %)</label><input type="number" id="ina-wacc" step="0.1" min="0.1" placeholder="Örn. 15"></div>
+          <div class="notice" style="margin-bottom:14px;font-size:.78rem;line-height:1.55">
+            <b>WACC modu:</b> <strong>Sabit</strong> tek iskonto oranı (klasik). <strong>Aşamalı</strong> açık dönemin 1–5. yılları için ayrı % (6. yıl ve sonrası 5. yıl oranıyla devam). <strong>Dinamik</strong> risk skoruna göre yıllık WACC düşüşü (gösterim / senaryo; tek doğruluk değildir).
+          </div>
+          <div class="form-grid cols2" style="margin-bottom:12px">
+            <div class="field" style="grid-column:span 2">
+              <label>İskonto yöntemi</label>
+              <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:6px">
+                <label class="ina-mode-opt"><input type="radio" name="ina-wacc-mode" value="constant" checked onchange="inaWaccModeChanged()"> Sabit WACC</label>
+                <label class="ina-mode-opt"><input type="radio" name="ina-wacc-mode" value="staged" onchange="inaWaccModeChanged()"> Aşamalı (5 yıl manuel)</label>
+                <label class="ina-mode-opt"><input type="radio" name="ina-wacc-mode" value="dynamic" onchange="inaWaccModeChanged()"> Dinamik WACC</label>
+              </div>
+            </div>
+          </div>
+          <div id="ina-panel-constant" class="ina-wacc-panel">
+            <div class="form-grid cols2">
+              <div class="field"><label>İskonto oranı (yıllık %)</label><input type="number" id="ina-wacc" step="0.1" min="0.1" placeholder="Örn. 15"></div>
+            </div>
+          </div>
+          <div id="ina-panel-staged" class="ina-wacc-panel" style="display:none">
+            <div class="section-sep" style="margin:8px 0 10px">Açık dönem yılına göre iskonto (1. yıl = ilk indirgenen takvim yılı)</div>
+            <div class="form-grid cols2">
+              <div class="field"><label>1. yıl WACC (%)</label><input type="number" id="ina-wacc-y1" step="0.1" min="0.1" placeholder="Örn. 30"></div>
+              <div class="field"><label>2. yıl WACC (%)</label><input type="number" id="ina-wacc-y2" step="0.1" min="0.1" placeholder="Örn. 28"></div>
+              <div class="field"><label>3. yıl WACC (%)</label><input type="number" id="ina-wacc-y3" step="0.1" min="0.1" placeholder="Örn. 26"></div>
+              <div class="field"><label>4. yıl WACC (%)</label><input type="number" id="ina-wacc-y4" step="0.1" min="0.1" placeholder="Örn. 24"></div>
+              <div class="field"><label>5. yıl WACC (%)</label><input type="number" id="ina-wacc-y5" step="0.1" min="0.1" placeholder="Örn. 22"></div>
+            </div>
+            <p class="notice" style="margin-top:10px">6. yıl ve sonrası için 5. yıldaki oran kullanılır. Terminal Gordon’da <b>son açık yılın</b> WACC’si kullanılır.</p>
+          </div>
+          <div id="ina-panel-dynamic" class="ina-wacc-panel" style="display:none">
+            <div class="form-grid cols2">
+              <div class="field"><label>Başlangıç WACC (yıllık %)</label><input type="number" id="ina-dyn-base" step="0.1" min="0.1" placeholder="Örn. 30"></div>
+              <div class="field"><label>Cari oran (boş = yok)</label><input type="number" id="ina-dyn-cr" step="0.01" placeholder="Örn. 1.2"></div>
+              <div class="field"><label>Net borç / EBITDA (boş = yok)</label><input type="number" id="ina-dyn-nde" step="0.01" placeholder="Örn. 2.5"></div>
+              <div class="field"><label>EBITDA marjı % veya ondalık (boş = yok)</label><input type="number" id="ina-dyn-margin" step="0.1" placeholder="12 veya 0.12"></div>
+              <div class="field"><label>Marj eğilimi</label>
+                <select id="ina-dyn-trend">
+                  <option value="">— seçin —</option>
+                  <option value="up">Yükseliyor</option>
+                  <option value="flat">Stabil</option>
+                  <option value="down">Düşüyor</option>
+                </select>
+              </div>
+            </div>
+            <p class="notice" style="margin-top:10px">Risk skoru yıllık WACC düşüş hızını ayarlar; taban %12 veya (g+%3) altına inilmez. Sunum için gösterişli senaryodur; aşamalı manuel genelde daha şeffaftır.</p>
+          </div>
+          <div class="form-grid cols2" style="margin-top:14px">
             <div class="field"><label>Terminal sürekli büyüme (yıllık %)</label><input type="number" id="ina-terminal" step="0.1" min="0" placeholder="Örn. 2"></div>
             <div class="field" style="grid-column:span 2">
               <label>İlk indirgenen nakit yılı (takvim yılı)</label>
               <select id="ina-first-year"></select>
-              <div class="notice" style="margin-top:8px">Bu yıldan itibaren yıllık vekiller toplanır; terminal değer son yıl vekiline bağlanır. İskonto: yıl sonu nakitleri bugüne, üsler 1…N.</div>
+              <div class="notice" style="margin-top:8px">Bu yıldan itibaren yıllık vekiller toplanır; terminal değer son yıl vekiline bağlanır. Sabit modda iskonto (1+r)<sup>t</sup>; aşamalı/dinamikte yıl bazlı bileşik çarpan.</div>
             </div>
           </div>
           <div class="btn-group">
@@ -1115,7 +1160,7 @@ function createFirm(){
     assumptions:{months:120,growth:0,expGrowth:0,bchLimit:0,bchRate:0,
       bch1:0,bch2:0,bch3:0,bch4:0,bch5:0,dep1:0,dep2:0,dep3:0,dep4:0,dep5:0,taxRate:25,taxMonths:'3,6,9,12'},
     expenses:defExp,loans:[],manualCf:[],fxRates,
-    ina:{wacc:15,terminalGrowth:2,firstFcfYear:null}};
+    ina:{wacc:15,terminalGrowth:2,firstFcfYear:null,waccMode:'constant',waccStaged:[15,15,15,15,15],waccDynamicBase:15,dynamicRisk:{currentRatio:null,netDebtEbitda:null,ebitdaMargin:null,marginTrend:null}}};
   saveState();closeModal('new-firm-modal');renderFirmList();
   showAlert('"'+name+'" oluşturuldu. Sol menü açıldı — adım adım ilerleyebilirsin.','ok');
   // Firma oluşturulduktan hemen sonra otomatik seç → sol menü açılır, Açılış'a geçilir
@@ -2603,21 +2648,67 @@ function ensureFirmIna(f) {
   if (!f.ina || typeof f.ina !== 'object') f.ina = {};
   if (f.ina.wacc == null || f.ina.wacc === '') f.ina.wacc = 15;
   if (f.ina.terminalGrowth == null || f.ina.terminalGrowth === '') f.ina.terminalGrowth = 2;
+  if (!f.ina.waccMode || (f.ina.waccMode !== 'constant' && f.ina.waccMode !== 'staged' && f.ina.waccMode !== 'dynamic')) f.ina.waccMode = 'constant';
+  if (!Array.isArray(f.ina.waccStaged) || f.ina.waccStaged.length !== 5) {
+    const w = Number(f.ina.wacc) || 15;
+    f.ina.waccStaged = [w, w, w, w, w];
+  }
+  if (f.ina.waccDynamicBase == null || f.ina.waccDynamicBase === '') f.ina.waccDynamicBase = f.ina.wacc;
+  if (!f.ina.dynamicRisk || typeof f.ina.dynamicRisk !== 'object') f.ina.dynamicRisk = { currentRatio: null, netDebtEbitda: null, ebitdaMargin: null, marginTrend: null };
+}
+
+function _inaParseNullable(el) {
+  if (!el || el.value === '' || el.value == null) return null;
+  const n = Number(String(el.value).replace(',', '.'));
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Dinamik WACC: risk skorundan yıllık iskonto (ondalık), uzunluk n */
+function buildDynamicYearlyWaccs(n, baseWaccPct, terminalGrowthPct, riskInputs) {
+  const baseWacc = Number(baseWaccPct) / 100;
+  const terminalGrowth = Number(terminalGrowthPct) / 100;
+  const ri = riskInputs || {};
+  let riskScore = 0;
+  if (ri.currentRatio !== null && ri.currentRatio !== undefined && ri.currentRatio < 1) riskScore += 2;
+  if (ri.netDebtEbitda !== null && ri.netDebtEbitda !== undefined && ri.netDebtEbitda > 3) riskScore += 3;
+  let em = ri.ebitdaMargin;
+  if (em !== null && em !== undefined && em > 1) em = em / 100;
+  if (em !== null && em !== undefined && em < 0.10) riskScore += 2;
+  if (ri.marginTrend === 'down') riskScore += 1;
+  if (ri.marginTrend === 'up') riskScore -= 1;
+  riskScore = Math.max(0, Math.min(riskScore, 6));
+  let annualImprovement = 0.01 + (riskScore * 0.002);
+  annualImprovement = Math.min(annualImprovement, 0.03);
+  const minWaccFloor = Math.max(terminalGrowth + 0.03, 0.12);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    let w = baseWacc - (annualImprovement * i);
+    w = Math.max(w, minWaccFloor);
+    out.push(w);
+  }
+  return { yearlyWaccs: out, riskScore: riskScore, annualImprovementPct: annualImprovement * 100 };
+}
+
+function inaWaccModeChanged() {
+  const r = document.querySelector('input[name="ina-wacc-mode"]:checked');
+  const mode = r ? r.value : 'constant';
+  const pc = $('ina-panel-constant'), ps = $('ina-panel-staged'), pd = $('ina-panel-dynamic');
+  if (pc) pc.style.display = mode === 'constant' ? '' : 'none';
+  if (ps) ps.style.display = mode === 'staged' ? '' : 'none';
+  if (pd) pd.style.display = mode === 'dynamic' ? '' : 'none';
 }
 
 /**
  * İNA özeti: operasyonel nakit vekili (finansman/sermaye hariç) + Gordon terminali.
- * Net borç = son yıl taksit+spot+BCH − (kasa+mevduat). buildYearlyData için lastProjection geçici atanır.
+ * Sabit / aşamalı (5 yıl manuel) / dinamik WACC. Net borç = son yıl taksit+spot+BCH − (kasa+mevduat).
  */
 function computeInaValuation(proj, ina) {
-  const wacc = Number(ina && ina.wacc);
   const g = Number(ina && ina.terminalGrowth);
   const firstYear = parseInt(ina && ina.firstFcfYear, 10);
+  const mode = (ina && ina.waccMode) || 'constant';
   if (!proj || !proj.rows || !proj.rows.length) return { error: 'Projeksiyon verisi yok.' };
   if (!Number.isFinite(firstYear)) return { error: 'İlk indirgenen nakit yılını seçin.' };
-  if (!Number.isFinite(wacc) || wacc <= 0) return { error: 'İskonto oranı pozitif olmalı.' };
-  if (!Number.isFinite(g) || g < 0 || g >= wacc) return { error: 'Terminal büyüme 0 ile iskonto arasında olmalı (g < iskonto %).' };
-  const r = wacc / 100;
+  if (!Number.isFinite(g) || g < 0) return { error: 'Terminal büyüme geçerli ve ≥ 0 olmalı.' };
   const gDec = g / 100;
   const f = proj.firm;
   const startYear = new Date(f.startDate).getFullYear();
@@ -2642,29 +2733,112 @@ function computeInaValuation(proj, ina) {
   });
   const n = fcfArr.length;
   if (!n) return { error: 'Açık dönem nakit vekili yok.' };
+
+  let yearlyWaccPct = [];
+  let dynMeta = null;
+  if (mode === 'constant') {
+    const wacc = Number(ina.wacc);
+    if (!Number.isFinite(wacc) || wacc <= 0) return { error: 'İskonto oranı pozitif olmalı.' };
+    if (g >= wacc) return { error: 'Terminal büyüme, iskonto oranından küçük olmalı (g < WACC %).' };
+    for (let i = 0; i < n; i++) yearlyWaccPct.push(wacc);
+  } else if (mode === 'staged') {
+    const staged = Array.isArray(ina.waccStaged) ? ina.waccStaged : [15, 15, 15, 15, 15];
+    for (let i = 0; i < n; i++) {
+      const w = Number(staged[Math.min(i, 4)]);
+      if (!Number.isFinite(w) || w <= 0) return { error: 'Aşamalı WACC: her yıl için pozitif % girin (Yıl ' + (Math.min(i, 4) + 1) + ').' };
+      yearlyWaccPct.push(w);
+    }
+    if (g >= yearlyWaccPct[n - 1]) return { error: 'Terminal büyüme, son yıl WACC’inden küçük olmalı (g < son yıl %).' };
+  } else if (mode === 'dynamic') {
+    const base = Number(ina.waccDynamicBase != null ? ina.waccDynamicBase : ina.wacc);
+    if (!Number.isFinite(base) || base <= 0) return { error: 'Dinamik mod: başlangıç WACC pozitif olmalı.' };
+    const dyn = buildDynamicYearlyWaccs(n, base, g, ina.dynamicRisk || {});
+    dynMeta = { riskScore: dyn.riskScore, annualImprovementPct: dyn.annualImprovementPct, baseWaccPct: base };
+    for (let i = 0; i < n; i++) yearlyWaccPct.push(dyn.yearlyWaccs[i] * 100);
+    const terminalWaccDec = dyn.yearlyWaccs[n - 1];
+    if (terminalWaccDec <= gDec) return { error: 'Dinamik WACC: son yıl iskonto, terminal büyümeden büyük olmalı.' };
+  } else {
+    return { error: 'Geçersiz WACC modu.' };
+  }
+
+  let cumulativeDiscountFactor = 1;
   let pvExplicit = 0;
   const tableRows = [];
   for (let i = 0; i < n; i++) {
-    const disc = Math.pow(1 + r, i + 1);
-    const pv = fcfArr[i] / disc;
+    const wDec = yearlyWaccPct[i] / 100;
+    cumulativeDiscountFactor *= (1 + wDec);
+    const pv = fcfArr[i] / cumulativeDiscountFactor;
     pvExplicit += pv;
-    tableRows.push({ year: explicit[i].year, fcf: fcfArr[i], disc: disc, pv: pv });
+    tableRows.push({
+      year: explicit[i].year,
+      fcf: fcfArr[i],
+      waccPct: yearlyWaccPct[i],
+      cumulativeFactor: cumulativeDiscountFactor,
+      disc: cumulativeDiscountFactor,
+      pv: pv
+    });
   }
   const lastFcf = fcfArr[n - 1];
-  const tv = lastFcf * (1 + gDec) / (r - gDec);
-  const pvTv = tv / Math.pow(1 + r, n);
+  const terminalWaccDec = yearlyWaccPct[n - 1] / 100;
+  const tv = lastFcf * (1 + gDec) / (terminalWaccDec - gDec);
+  const pvTv = tv / cumulativeDiscountFactor;
   const enterpriseValue = pvExplicit + pvTv;
   const lastT = explicit[n - 1].totals || {};
   const financialDebt = (lastT.taksitBak || 0) + (lastT.spotBak || 0) + (lastT.bchEnd || 0);
   const cashLike = (lastT.kapanisNakit || 0) + (lastT.mevduat || 0);
   const netDebt = financialDebt - cashLike;
   const equityValue = enterpriseValue - netDebt;
+  const out = {
+    tableRows: tableRows,
+    pvExplicit: pvExplicit,
+    tv: tv,
+    pvTv: pvTv,
+    enterpriseValue: enterpriseValue,
+    financialDebt: financialDebt,
+    cashLike: cashLike,
+    netDebt: netDebt,
+    equityValue: equityValue,
+    n: n,
+    firstYear: explicit[0].year,
+    lastYear: explicit[n - 1].year,
+    lastFcf: lastFcf,
+    waccPct: yearlyWaccPct[n - 1],
+    waccMode: mode,
+    yearlyWaccPct: yearlyWaccPct,
+    terminalWaccPct: yearlyWaccPct[n - 1],
+    gPct: g,
+    dynMeta: dynMeta
+  };
+  return out;
+}
+
+function collectInaFromForm(f) {
+  ensureFirmIna(f);
+  const r = document.querySelector('input[name="ina-wacc-mode"]:checked');
+  const mode = r ? r.value : (f.ina.waccMode || 'constant');
+  const wConst = fnum($('ina-wacc') && $('ina-wacc').value, f.ina.wacc);
+  const staged = [];
+  for (let k = 1; k <= 5; k++) {
+    const el = $('ina-wacc-y' + k);
+    const def = (f.ina.waccStaged && f.ina.waccStaged[k - 1] != null) ? f.ina.waccStaged[k - 1] : wConst;
+    staged.push(fnum(el && el.value, def));
+  }
+  const dynBase = fnum($('ina-dyn-base') && $('ina-dyn-base').value, f.ina.waccDynamicBase != null ? f.ina.waccDynamicBase : f.ina.wacc);
+  const trendVal = ($('ina-dyn-trend') && $('ina-dyn-trend').value) || '';
+  const marginTrend = (trendVal === 'up' || trendVal === 'flat' || trendVal === 'down') ? trendVal : null;
   return {
-    tableRows: tableRows, pvExplicit: pvExplicit, tv: tv, pvTv: pvTv,
-    enterpriseValue: enterpriseValue, financialDebt: financialDebt, cashLike: cashLike,
-    netDebt: netDebt, equityValue: equityValue, n: n,
-    firstYear: explicit[0].year, lastYear: explicit[n - 1].year, lastFcf: lastFcf,
-    waccPct: wacc, gPct: g
+    waccMode: mode,
+    wacc: wConst,
+    waccStaged: staged,
+    waccDynamicBase: dynBase,
+    terminalGrowth: fnum($('ina-terminal') && $('ina-terminal').value, f.ina.terminalGrowth),
+    firstFcfYear: parseInt(($('ina-first-year') && $('ina-first-year').value) || String(f.ina.firstFcfYear || new Date(f.startDate).getFullYear()), 10),
+    dynamicRisk: {
+      currentRatio: _inaParseNullable($('ina-dyn-cr')),
+      netDebtEbitda: _inaParseNullable($('ina-dyn-nde')),
+      ebitdaMargin: _inaParseNullable($('ina-dyn-margin')),
+      marginTrend: marginTrend
+    }
   };
 }
 
@@ -2700,6 +2874,24 @@ function renderIna() {
   const tEl = $('ina-terminal');
   if (wEl) wEl.value = f.ina.wacc;
   if (tEl) tEl.value = f.ina.terminalGrowth;
+  const mode = f.ina.waccMode || 'constant';
+  document.querySelectorAll('input[name="ina-wacc-mode"]').forEach(function (inp) {
+    inp.checked = inp.value === mode;
+  });
+  const ws = f.ina.waccStaged || [15, 15, 15, 15, 15];
+  for (let k = 1; k <= 5; k++) {
+    const el = $('ina-wacc-y' + k);
+    if (el) el.value = ws[k - 1] != null ? ws[k - 1] : f.ina.wacc;
+  }
+  const db = $('ina-dyn-base');
+  if (db) db.value = f.ina.waccDynamicBase != null ? f.ina.waccDynamicBase : f.ina.wacc;
+  const dr = f.ina.dynamicRisk || {};
+  const cr = $('ina-dyn-cr'), nde = $('ina-dyn-nde'), mg = $('ina-dyn-margin'), tr = $('ina-dyn-trend');
+  if (cr) cr.value = dr.currentRatio != null && dr.currentRatio !== '' ? dr.currentRatio : '';
+  if (nde) nde.value = dr.netDebtEbitda != null && dr.netDebtEbitda !== '' ? dr.netDebtEbitda : '';
+  if (mg) mg.value = dr.ebitdaMargin != null && dr.ebitdaMargin !== '' ? dr.ebitdaMargin : '';
+  if (tr) tr.value = dr.marginTrend || '';
+  inaWaccModeChanged();
   refreshInaResults();
 }
 
@@ -2707,10 +2899,17 @@ function saveInaParams() {
   const f = curFirm();
   if (!f) return;
   ensureFirmIna(f);
-  f.ina.wacc = fnum($('ina-wacc') && $('ina-wacc').value, 15);
-  f.ina.terminalGrowth = fnum($('ina-terminal') && $('ina-terminal').value, 2);
-  f.ina.firstFcfYear = parseInt(($('ina-first-year') && $('ina-first-year').value) || '', 10);
+  const live = collectInaFromForm(f);
+  f.ina.waccMode = live.waccMode;
+  if (live.waccMode === 'constant') f.ina.wacc = live.wacc;
+  else if (live.waccMode === 'staged' && live.waccStaged && live.waccStaged.length) f.ina.wacc = live.waccStaged[0];
+  else f.ina.wacc = live.waccDynamicBase;
+  f.ina.waccStaged = live.waccStaged;
+  f.ina.waccDynamicBase = live.waccDynamicBase;
+  f.ina.terminalGrowth = live.terminalGrowth;
+  f.ina.firstFcfYear = live.firstFcfYear;
   if (!Number.isFinite(f.ina.firstFcfYear)) f.ina.firstFcfYear = null;
+  f.ina.dynamicRisk = live.dynamicRisk;
   saveState();
   showAlert('İNA parametreleri kaydedildi.', 'ok');
   refreshInaResults();
@@ -2733,11 +2932,7 @@ function refreshInaResults() {
     return;
   }
   lastProjection = proj;
-  const inaLive = {
-    wacc: fnum($('ina-wacc') && $('ina-wacc').value, f.ina.wacc),
-    terminalGrowth: fnum($('ina-terminal') && $('ina-terminal').value, f.ina.terminalGrowth),
-    firstFcfYear: parseInt(($('ina-first-year') && $('ina-first-year').value) || String(f.ina.firstFcfYear || new Date(f.startDate).getFullYear()), 10)
-  };
+  const inaLive = collectInaFromForm(f);
   const res = computeInaValuation(proj, inaLive);
   if (res.error) {
     box.innerHTML = '<div class="alert alert-err"><span>✕</span><span>' + esc(res.error) + '</span></div>';
@@ -2753,15 +2948,20 @@ function refreshInaResults() {
   tbl += '<div class="kpi"><div class="kpi-label">Terminal değeri (brüt)</div><div class="kpi-val">' + tr(res.tv, 0) + ' TL</div></div>';
   tbl += '</div>';
   tbl += '<div class="section-sep">Yıllık operasyonel nakit vekili ve bugünkü değer</div>';
-  tbl += '<div class="tbl-wrap"><table><thead><tr><th>Yıl</th><th>Vekil FCF (TL)</th><th>İskonto çarpanı 1/(1+r)^t</th><th>Bugünkü değer (TL)</th></tr></thead><tbody>';
+  if (res.dynMeta) {
+    tbl += '<p class="notice" style="margin-bottom:10px">Dinamik WACC: risk skoru <b>' + res.dynMeta.riskScore + '</b>, yıllık düşüş adımı ~%' + tr(res.dynMeta.annualImprovementPct, 2) + ', başlangıç %' + tr(res.dynMeta.baseWaccPct, 1) + '.</p>';
+  }
+  const modeLabel = res.waccMode === 'constant' ? 'Sabit' : (res.waccMode === 'staged' ? 'Aşamalı' : 'Dinamik');
+  tbl += '<div class="tbl-wrap"><table><thead><tr><th>Yıl</th><th>Vekil FCF (TL)</th><th>WACC %</th><th>Bileşik çarpan Π(1+r)</th><th>Bugünkü değer (TL)</th></tr></thead><tbody>';
   for (let i = 0; i < res.tableRows.length; i++) {
     const row = res.tableRows[i];
-    tbl += '<tr><td>' + row.year + '</td><td>' + tr(row.fcf, 0) + '</td><td>' + tr(1 / row.disc, 4) + '</td><td>' + tr(row.pv, 0) + '</td></tr>';
+    const waccCell = row.waccPct != null ? tr(row.waccPct, 2) : '—';
+    tbl += '<tr><td>' + row.year + '</td><td>' + tr(row.fcf, 0) + '</td><td>' + waccCell + '</td><td>' + tr(row.cumulativeFactor || row.disc, 4) + '</td><td>' + tr(row.pv, 0) + '</td></tr>';
   }
-  tbl += '<tr class="muted-row"><td colspan="3">Açık dönem PV toplamı</td><td>' + tr(res.pvExplicit, 0) + '</td></tr>';
-  tbl += '<tr class="muted-row"><td colspan="3">Terminal PV (Gordon, g=%' + tr(res.gPct, 1) + ', r=%' + tr(res.waccPct, 1) + ')</td><td>' + tr(res.pvTv, 0) + '</td></tr>';
+  tbl += '<tr class="muted-row"><td colspan="4">Açık dönem PV toplamı</td><td>' + tr(res.pvExplicit, 0) + '</td></tr>';
+  tbl += '<tr class="muted-row"><td colspan="4">Terminal PV (Gordon, g=%' + tr(res.gPct, 1) + ', son yıl r=%' + tr(res.terminalWaccPct != null ? res.terminalWaccPct : res.waccPct, 1) + ')</td><td>' + tr(res.pvTv, 0) + '</td></tr>';
   tbl += '</tbody></table></div>';
-  tbl += '<p class="notice" style="margin-top:14px">Dönem: ' + res.firstYear + '–' + res.lastYear + ' · Son yıl vekil FCF: ' + tr(res.lastFcf, 0) + ' TL. Bu tablo yatırım tavsiyesi değildir.</p>';
+  tbl += '<p class="notice" style="margin-top:14px">Mod: <b>' + modeLabel + '</b> · Dönem: ' + res.firstYear + '–' + res.lastYear + ' · Son yıl vekil FCF: ' + tr(res.lastFcf, 0) + ' TL. Bu tablo yatırım tavsiyesi değildir.</p>';
   box.innerHTML = tbl;
 }
 
@@ -4643,10 +4843,11 @@ const OWL_TIPS = {
   },
   ina: {
     title: 'İNA / Değerleme',
-    text: `<b>İndirgenmiş nakit akımı</b> için iskonto oranı, terminal büyüme ve <b>ilk nakit yılını</b> burada girin.
+    text: `<b>İndirgenmiş nakit akımı</b> için <b>WACC modu</b> (sabit / 5 yıl aşamalı manuel / dinamik risk), terminal büyüme ve <b>ilk nakit yılını</b> burada girin.
     <ul>
       <li>Operasyonel nakit <b>vekili</b> projeksiyondaki yıllık toplamlardan üretilir (finansman hariç)</li>
       <li><b>Net borç</b> son yılın taksit + spot + BCH eksi kasa ve mevduatıdır</li>
+      <li>Aşamalı modda 6+ yıl için 5. yıl WACC’si tekrarlanır; terminalde <b>son açık yıl</b> iskontosu kullanılır</li>
       <li>Önce diğer sayfaları doldurun; <b>Nakit Akış</b> en az bir kez çalışmış olmalı</li>
     </ul>
     <div class="owl-tip"><b>💡 İpucu:</b> Parametreleri <b>Kaydet ve hesapla</b> ile firmaya yazın; sadece denemek için <b>Sadece hesapla</b> kullanın.</div>`
