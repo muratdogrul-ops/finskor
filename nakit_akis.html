@@ -487,7 +487,7 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
       <li><strong>BCH Faiz Oranları:</strong> Yıl bazında TL/USD/EUR BCH faizleri — TCMB baz alınır, <em>otomatik doldur</em> tuşunu kullan</li>
       <li><strong>Mevduat Faizi:</strong> Nakit rezerv üzerinden kazanılan getiri</li>
       <li><strong>Kurumlar Vergisi:</strong> Oran ve ödeme ayları</li>
-      <li><strong>Döviz Kuru:</strong> ⚡ butonu ile <strong>01.01.2024–31.03.2026</strong> TCMB satış kurlarından türetilen yıllık bileşik ortalamayı <strong>Döviz Kurları</strong> sayfasına yazar</li>
+      <li><strong>Döviz Kuru:</strong> ⚡ butonu ile <strong>01.01.2026–31.03.2026</strong> TCMB satış kurlarından türetilen yıllık bileşik ortalamayı <strong>Döviz Kurları</strong> sayfasına yazar</li>
     </ul>
     <span class="avatar-tip">💡 TCMB Ocak 2026 politika faizi %37 — BCH için otomatik doldur butonunu kullan!</span>
   </div>
@@ -786,19 +786,19 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
       <li><strong>📋 Sadece Açılış:</strong> Tüm ayları sabit açılış kuruyla doldurur</li>
       <li>İstediğin ayı manuel olarak değiştirebilirsin</li>
     </ul>
-    <span class="avatar-tip">💡 Varsayımlar sayfasındaki ⚡ butonu, 2024–2026 dönemi TCMB kurlarından türetilen yıllık bileşik ortalamayı buraya yazar ve tabloyu doldurur.</span>
+    <span class="avatar-tip">💡 Varsayımlar sayfasındaki ⚡ butonu, 01.01.2026–31.03.2026 aralığı TCMB kurlarından türetilen yıllık bileşik ortalamayı buraya yazar ve tabloyu doldurur.</span>
   </div>
 </div>
 
       <div class="card glow">
         <div class="card-header"><div class="card-icon">💱</div><div class="card-title">Otomatik Kur Tahmini</div></div>
         <div class="notice" style="margin-bottom:12px">
-          Varsayılan yıllık artış oranları: <b>01.01.2024 – 31.03.2026</b> arası TCMB gösterge <b>satış</b> kurlarından hesaplanan bileşik yıllık ortalama (otomatik doldur / hesapla ile uygulanır). İsterseniz manuel değiştirirsiniz.
+          Varsayılan yıllık artış oranları: <b>01.01.2026 – 31.03.2026</b> arası TCMB gösterge <b>satış</b> kurlarından hesaplanan bileşik yıllık ortalama (projeksiyon açılışı 31.12.2025 kapanışı ile hizalı; otomatik doldur / hesapla ile uygulanır). İsterseniz manuel değiştirirsiniz.
           <br><b>Referans:</b> USD <span id="fx-ref-usd-range"></span> &nbsp;|&nbsp; EUR <span id="fx-ref-eur-range"></span>
         </div>
         <div class="form-grid">
-          <div class="field"><label>USD Açılış Kuru (1 USD = ? TL)</label><input id="fx-usd-open" type="number" placeholder="44.4761" step="0.01"></div>
-          <div class="field"><label>EUR Açılış Kuru (1 EUR = ? TL)</label><input id="fx-eur-open" type="number" placeholder="51.0212" step="0.01"></div>
+          <div class="field"><label>USD Açılış Kuru (1 USD = ? TL)</label><input id="fx-usd-open" type="number" placeholder="42.9229" step="0.01"></div>
+          <div class="field"><label>EUR Açılış Kuru (1 EUR = ? TL)</label><input id="fx-eur-open" type="number" placeholder="50.3765" step="0.01"></div>
           <div class="field"><label>USD Yıllık Artış Tahmini (%)</label><input id="fx-usd-growth" type="number" value="" step="0.1" placeholder="Otomatik"></div>
           <div class="field"><label>EUR Yıllık Artış Tahmini (%)</label><input id="fx-eur-growth" type="number" value="" step="0.1" placeholder="Otomatik"></div>
           <div class="field"><label>Önceki iş günü USD/TL (kambiyo ref.)</label><input id="fx-usd-prev-gl" type="number" step="0.01" placeholder="TCMB veya elle" title="1. ay kambiyo karşılaştırması. 🌐 TCMB ile otomatik doldurulur; boşsa 1. ay kambiyo 0 kabul edilir."></div>
@@ -1554,18 +1554,18 @@ function deleteLoan(i){
 // ══════════════════════════════════════════════
 // DÖVİZ KURLARI
 // ══════════════════════════════════════════════
-// Varsayılan spot: TCMB gösterge ForexSelling (son XML senkronu veya aşağıdaki sabit)
-const FX_SPOT = { usd: 44.4761, eur: 51.0212 }; // 31.03.2026 TCMB today.xml
+// Varsayılan spot: 01.01.2026 projeksiyon açılışı = 31.12.2025 TCMB gösterge satış (FinSkor yılsonu ile aynı); TCMB senkronu güncel günü yazar
+const FX_SPOT = { usd: 42.9229, eur: 50.3765 };
 const TCMB_TODAY_XML = 'https://www.tcmb.gov.tr/kurlar/today.xml';
-// 01.01.2024 – 31.03.2026 TCMB gösterge satış (USD/EUR); gün sayısı yerel takvim farkı
+// 01.01.2026 – 31.03.2026 TCMB gösterge satış (açılış → Q1 sonu); gün sayısı yerel takvim farkı
 const FX_GROWTH_WINDOW = (function(){
-  const t0 = new Date(2024, 0, 1), t1 = new Date(2026, 2, 31);
+  const t0 = new Date(2026, 0, 1), t1 = new Date(2026, 2, 31);
   const days = Math.max(1, Math.round((t1 - t0) / 864e5));
   return {
     days,
-    usdStart: 29.561,
+    usdStart: 42.9229,
     usdEnd: 44.4761,
-    eurStart: 32.629,
+    eurStart: 50.3765,
     eurEnd: 51.0212
   };
 })();
@@ -1829,7 +1829,7 @@ function autoFillBchDep() {
 }
 
 // Varsayımlar sayfasındaki butondan çağrılır.
-// Döviz Kurları growth alanlarına FX_HIST_GROWTH (2024–2026 TCMB bileşik ortalama) yazar
+// Döviz Kurları growth alanlarına FX_HIST_GROWTH (01.01.2026–31.03.2026 TCMB bileşik ortalama) yazar
 // ve FX_TABLE_MONTHS aylık kur tablosunu hesaplayıp doldurur, ardından kaydeder.
 function autoFillFxGrowth(){
   const uPct = FX_HIST_GROWTH.usd / 100, ePct = FX_HIST_GROWTH.eur / 100;
@@ -1863,7 +1863,7 @@ function autoFillFxGrowth(){
 
   // 4) Kaydet
   saveFx();
-  showAlert('✅ USD ~%'+FX_HIST_GROWTH.usd.toFixed(1)+', EUR ~%'+FX_HIST_GROWTH.eur.toFixed(1)+' (01.01.2024–31.03.2026 TCMB bileşik ortalama) uygulandı ve kaydedildi.','ok');
+  showAlert('✅ USD ~%'+FX_HIST_GROWTH.usd.toFixed(1)+', EUR ~%'+FX_HIST_GROWTH.eur.toFixed(1)+' (01.01.2026–31.03.2026 TCMB bileşik ortalama) uygulandı ve kaydedildi.','ok');
 }
 
 function autoFillFx(){
@@ -4629,7 +4629,7 @@ const OWL_TIPS = {
       <li><b>⚡ Otomatik Hesapla:</b> Yıllık büyüme oranına göre 120 ayı doldurur</li>
       <li><b>📋 Sadece Açılış:</b> Boş aylara açılış kurunu uygular</li>
     </ul>
-    <div class="owl-tip"><b>💡 İpucu:</b> "Varsayımlar" sayfasındaki ⚡ buton, 01.01.2024–31.03.2026 TCMB kurlarından türetilen yıllık bileşik ortalamayı yazar ve 120 aylık tabloyu doldurur.</div>`
+    <div class="owl-tip"><b>💡 İpucu:</b> "Varsayımlar" sayfasındaki ⚡ buton, 01.01.2026–31.03.2026 TCMB kurlarından türetilen yıllık bileşik ortalamayı yazar ve 120 aylık tabloyu doldurur.</div>`
   },
   manual: {
     title: 'Manuel Nakit Satırları',
