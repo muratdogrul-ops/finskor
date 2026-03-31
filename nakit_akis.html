@@ -3285,11 +3285,13 @@ function balUvYukToplam(b, ob) {
   const { uv } = openingLiabKvUv(ob);
   return (x.taksit || 0) + (x.spot || 0) + uv;
 }
-function annual5Y(rows, startYear, mdv0 = 0, balAdj) {
+/** Gelir + bilanço yıllık toplamları (N = yıl sayısı; PDF için 10, ekran için annual5Y → 5). */
+function annualForYears(rows, startYear, yearCount, mdv0 = 0, balAdj) {
   const _ba = openingBalAdjFromOpening(balAdj);
   const oa = _ba.otherAssets;
   const ol = _ba.otherLiab;
-  const years=[startYear,startYear+1,startYear+2,startYear+3,startYear+4];
+  const n = Math.max(1, Math.min(30, Math.floor(Number(yearCount)) || 5));
+  const years = Array.from({ length: n }, function (_, i) { return startYear + i; });
   const inc={};const bal={};
   for(const y of years)inc[y]={
     ciro:0,cogs:0,opex:0,tedarikci:0,toplamGiderNakit:0,tFaiz:0,bchFaizAccr:0,depFaiz:0,tax:0,ebt:0,
@@ -3375,6 +3377,9 @@ function annual5Y(rows, startYear, mdv0 = 0, balAdj) {
     }
   }
   return{years,inc,bal};
+}
+function annual5Y(rows, startYear, mdv0, balAdj) {
+  return annualForYears(rows, startYear, 5, mdv0, balAdj);
 }
 /** FinSkor bilanço anlık görüntüsünden: 57 − 58 + 59 (yıl sonu kapanış → projeksiyon yılı başı devreden). */
 function openingRetainedFromSnapshot(snap) {
@@ -4615,6 +4620,31 @@ function pdfNum(v, fracDigits) {
   return neg ? ('-' + body) : body;
 }
 
+/** Gelir: net satışa; bilanço: aktif toplamına göre pay (PDF). */
+function pdfPctShare(value, base) {
+  const v = Number(value) || 0;
+  const b = Number(base) || 0;
+  if (Math.abs(b) < 1e-9) return '—';
+  return pdfNum((v / b) * 100, 1) + '%';
+}
+
+function pdfIncLine(y, k, inc) {
+  const v = inc[y] ? (inc[y][k] || 0) : 0;
+  const ciro = inc[y] ? (inc[y].ciro || 0) : 0;
+  const first = pdfNum(v, 0);
+  let second;
+  if (k === 'ciro') second = Math.abs(ciro) < 1e-9 ? '—' : '100,0%';
+  else if (Math.abs(ciro) < 1e-9) second = '—';
+  else second = pdfPctShare(v, ciro);
+  return first + '\n' + second;
+}
+
+function pdfBalLine(y, val, bal) {
+  const at = (bal[y] || {}).aktifToplam || 0;
+  const v = Number(val) || 0;
+  return pdfNum(v, 0) + '\n' + pdfPctShare(v, at);
+}
+
 function pdfBuildCashFlowPages(doc, proj, firmName) {
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -4736,15 +4766,18 @@ function pdfBuildCashFlowPages(doc, proj, firmName) {
 }
 
 function pdfBuildIncomePage(doc, proj, firmName) {
+  doc.addPage();
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const sy = new Date(proj.firm.startDate).getFullYear();
-  const { years, inc } = annual5Y(proj.rows, sy, (proj.firm.opening || {}).mdv || 0, openingBalAdjFromOpening(proj.firm.opening));
+  const monthCount = proj.summary && proj.summary.months ? proj.summary.months : 60;
+  const pdfYears = Math.min(10, Math.max(1, Math.ceil(monthCount / 12)));
+  const { years, inc } = annualForYears(proj.rows, sy, pdfYears, (proj.firm.opening || {}).mdv || 0, openingBalAdjFromOpening(proj.firm.opening));
 
-  doc.addPage();
-  pdfAddHeader(doc, firmName, '5 Yıllık Gelir Tablosu', pageW);
+  const incTitle = 'Gelir Tablosu — projeksiyon (' + pdfYears + ' yıl)';
+  pdfAddHeader(doc, firmName, incTitle, pageW);
 
-  const yInts   = years; // annual5Y returns integer year array
+  const yInts = years;
   const yLabels = yInts.map(String);
   const sections = [
     {l:'Satış Gelirleri',                    k:'ciro',        bold:true},
@@ -4766,21 +4799,50 @@ function pdfBuildIncomePage(doc, proj, firmName) {
     {l:'Net Kâr',                            k:'net',         bold:true},
   ];
 
-  const head   = [['', ...yLabels]];
-  const body   = sections.map(row => [
-    row.l,
-    ...yInts.map(y => pdfNum(inc[y]?.[row.k] || 0)),
-  ]);
+  const margin = 8;
+  const labelCol = Math.min(86, pageW * 0.26);
+  const colW = Math.max(14, (pageW - margin * 2 - labelCol) / Math.max(1, yLabels.length));
+  const fs = yLabels.length > 7 ? 5.8 : 6.4;
+  const columnStyles = { 0: { halign: 'left', cellWidth: labelCol, fontStyle: 'bold', fontSize: fs + 0.15 } };
+  for (let i = 0; i < yLabels.length; i++) columnStyles[i + 1] = { halign: 'right', cellWidth: colW, fontSize: fs };
+
+  const head = [
+    ['Kalem', ...yLabels],
+    ['', ...yInts.map(function () { return 'TL / %'; })],
+  ];
+  const body = sections.map(function (row) {
+    return [row.l].concat(yInts.map(function (y) { return pdfIncLine(y, row.k, inc); }));
+  });
 
   doc.autoTable({
-    head, body,
-    startY: 22,
-    margin: { left: 12, right: 12 },
-    styles:      { fontSize: 7.5, cellPadding: 1.4, font: 'NotoSans', textColor: PDF_CLR.text },
-    headStyles:  { font: 'NotoSans', fillColor: PDF_CLR.navy, textColor: PDF_CLR.white, fontStyle: 'bold', halign: 'center' },
-    columnStyles:{ 0: { halign: 'left', cellWidth: 78, fontStyle: 'bold' } },
-    bodyStyles:  { halign: 'right' },
-    didParseCell: function(data) {
+    head: head,
+    body: body,
+    startY: 21,
+    margin: { left: margin, right: margin, bottom: 10 },
+    tableWidth: pageW - margin * 2,
+    styles: {
+      fontSize: fs,
+      cellPadding: { top: 0.85, bottom: 0.85, left: 0.9, right: 0.9 },
+      font: 'NotoSans',
+      textColor: PDF_CLR.text,
+      lineColor: PDF_CLR.mid,
+      lineWidth: 0.12,
+      overflow: 'linebreak',
+      valign: 'middle',
+      minCellHeight: 7.2,
+    },
+    headStyles: {
+      font: 'NotoSans',
+      fillColor: PDF_CLR.navy,
+      textColor: PDF_CLR.white,
+      fontStyle: 'bold',
+      halign: 'center',
+      fontSize: fs + 0.35,
+      cellPadding: { top: 1, bottom: 1, left: 0.8, right: 0.8 },
+    },
+    columnStyles: columnStyles,
+    bodyStyles: { halign: 'right' },
+    didParseCell: function (data) {
       if (data.section !== 'body') return;
       const row = sections[data.row.index];
       const col = data.column.index;
@@ -4793,7 +4855,7 @@ function pdfBuildIncomePage(doc, proj, firmName) {
         return;
       }
       const y = yInts[col - 1];
-      const v = inc[y]?.[row.k] || 0;
+      const v = inc[y] ? (inc[y][row.k] || 0) : 0;
       if (row.bold) {
         data.cell.styles.fontStyle = 'bold';
         data.cell.styles.fillColor = PDF_CLR.band;
@@ -4804,89 +4866,127 @@ function pdfBuildIncomePage(doc, proj, firmName) {
       else if (row.bold) data.cell.styles.textColor = PDF_CLR.bandText;
       else data.cell.styles.textColor = PDF_CLR.text;
     },
-    willDrawPage: function() {
-      pdfAddHeader(doc, firmName, '5 Yıllık Gelir Tablosu', pageW);
+    willDrawPage: function () {
+      pdfAddHeader(doc, firmName, incTitle, pageW);
       doc.setFont('NotoSans', 'normal');
     },
-    didDrawPage:  function() {
+    didDrawPage: function () {
       pdfAddFooter(doc, doc.internal.getCurrentPageInfo().pageNumber, '?', pageW, pageH);
       doc.setFont('NotoSans', 'normal');
     },
   });
+  const fy = doc.lastAutoTable && doc.lastAutoTable.finalY ? doc.lastAutoTable.finalY + 3 : pageH - 14;
+  doc.setFontSize(6);
+  doc.setTextColor(...PDF_CLR.sub);
+  doc.setFont('NotoSans', 'normal');
+  doc.text('Yüzde sütunu: ilgili yıl net satışlara (ciro) göre.', margin, Math.min(fy, pageH - 12));
 }
 
 function pdfBuildBalancePage(doc, proj, firmName) {
+  doc.addPage();
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const sy = new Date(proj.firm.startDate).getFullYear();
+  const monthCount = proj.summary && proj.summary.months ? proj.summary.months : 60;
+  const pdfYears = Math.min(10, Math.max(1, Math.ceil(monthCount / 12)));
   const mdv0 = (proj.firm.opening || {}).mdv || 0;
   const opening = proj.firm.opening || {};
   const capital0 = opening.capital || 0;
-  const { years, inc, bal } = annual5Y(proj.rows, sy, mdv0, openingBalAdjFromOpening(opening));
+  const { years, inc, bal } = annualForYears(proj.rows, sy, pdfYears, mdv0, openingBalAdjFromOpening(opening));
   const ret = computeRetained(years, inc, openingRetainedFromSnapshot(proj.firm.finskorBilancoSnapshot));
   const realPasif = {};
-  for (const y of years) {
+  for (let yi = 0; yi < years.length; yi++) {
+    const y = years[yi];
     const sermEk = (bal[y] || {}).sermayeEk || 0;
     realPasif[y] = ((bal[y] || {}).toplamYuk || 0) + capital0 + sermEk + retainedProjectionOnly(ret, y);
   }
   const yLabels = years.map(String);
   const bodyMeta = [];
-  const pushSep = (t) => { bodyMeta.push({ cells: [t, ...years.map(() => '')], isSep: true }); };
-  const pushBand = (label, vals) => { bodyMeta.push({ cells: [label, ...vals], isBand: true }); };
+  const pushSep = function (t) { bodyMeta.push({ cells: [t].concat(years.map(function () { return ''; })), isSep: true }); };
+  const pushBand = function (label, vals) { bodyMeta.push({ cells: [label].concat(vals), isBand: true }); };
 
-  pushSep('DÖNEN VARLIKLAR');
+  pushSep('I. DÖNEN VARLIKLAR');
   [['Nakit & Banka', 'nakit'], ['Mevduat', 'mevduat'], ['Ticari Alacak (AR)', 'ar'], ['Stok', 'stok'],
-    ['Diğer alacak + diğer dönen (denge)', 'otherAssets']].forEach(([lab, k]) => {
-    bodyMeta.push({ cells: [lab, ...years.map(y => pdfNum((bal[y] || {})[k] || 0))] });
+    ['Diğer alacak + diğer dönen (denge)', 'otherAssets']].forEach(function (pair) {
+    const lab = pair[0];
+    const k = pair[1];
+    bodyMeta.push({ cells: [lab].concat(years.map(function (y) { return pdfBalLine(y, (bal[y] || {})[k] || 0, bal); })) });
   });
-  pushBand('► Dönen Varlıklar Toplamı', years.map(y => pdfNum(balDonenToplam(bal[y]))));
+  pushBand('► Dönen varlıklar toplamı', years.map(function (y) { return pdfBalLine(y, balDonenToplam(bal[y]), bal); }));
 
-  pushSep('DURAN VARLIKLAR');
-  bodyMeta.push({ cells: ['Maddi Duran Varlık (kümülatif yatırım)', ...years.map(y => pdfNum((bal[y] || {}).mdv || 0))] });
-  pushBand('► Duran Varlıklar Toplamı', years.map(y => pdfNum(balDuranToplam(bal[y]))));
-  pushBand('► AKTİF TOPLAM', years.map(y => pdfNum((bal[y] || {}).aktifToplam || 0)));
+  pushSep('II. DURAN VARLIKLAR');
+  bodyMeta.push({
+    cells: ['Maddi duran varlık (MDV, kümülatif yatırım)'].concat(years.map(function (y) { return pdfBalLine(y, (bal[y] || {}).mdv || 0, bal); })),
+  });
+  pushBand('► Duran varlıklar toplamı (= MDV)', years.map(function (y) { return pdfBalLine(y, balDuranToplam(bal[y]), bal); }));
+  pushBand('► AKTİF TOPLAM', years.map(function (y) { return pdfBalLine(y, (bal[y] || {}).aktifToplam || 0, bal); }));
 
-  pushSep('YÜKÜMLÜLÜKLER');
+  pushSep('III. YÜKÜMLÜLÜKLER');
   [['Ticari Borç (AP)', 'ap'], ['BCH', 'bch'], ['Spot Kredi', 'spot'], ['Taksitli Kredi', 'taksit'],
-    ['Diğer borç + alınan avans (denge)', 'otherLiab']].forEach(([lab, k]) => {
-    bodyMeta.push({ cells: [lab, ...years.map(y => pdfNum((bal[y] || {})[k] || 0))] });
+    ['Diğer borç + alınan avans (denge)', 'otherLiab']].forEach(function (pair) {
+    const lab = pair[0];
+    const k = pair[1];
+    bodyMeta.push({ cells: [lab].concat(years.map(function (y) { return pdfBalLine(y, (bal[y] || {})[k] || 0, bal); })) });
   });
-  pushBand('► KV Yükümlülükler Toplamı', years.map(y => pdfNum(balKvYukToplam(bal[y], opening))));
-  pushBand('► UV Yükümlülükler Toplamı', years.map(y => pdfNum(balUvYukToplam(bal[y], opening))));
-  pushBand('► Toplam Yükümlülük', years.map(y => pdfNum((bal[y] || {}).toplamYuk || 0)));
+  pushBand('► KV yükümlülükler toplamı', years.map(function (y) { return pdfBalLine(y, balKvYukToplam(bal[y], opening), bal); }));
+  pushBand('► UV yükümlülükler toplamı', years.map(function (y) { return pdfBalLine(y, balUvYukToplam(bal[y], opening), bal); }));
+  pushBand('► Toplam yükümlülük', years.map(function (y) { return pdfBalLine(y, (bal[y] || {}).toplamYuk || 0, bal); }));
 
-  pushSep('ÖZKAYNAK');
-  bodyMeta.push({ cells: ['Sermaye (Açılış)', ...years.map(() => pdfNum(capital0))] });
-  bodyMeta.push({ cells: ['Sermaye Artışı (kümülatif)', ...years.map(y => pdfNum((bal[y] || {}).sermayeEk || 0))] });
-  bodyMeta.push({ cells: ['Geçmiş yıl k/z (devreden yıl başı)', ...years.map(y => pdfNum(ret.bfw[y] || 0))] });
-  bodyMeta.push({ cells: ['Dönem net kâr/zarar', ...years.map(y => pdfNum(inc[y]?.net || 0))] });
-  pushBand('► PASİF TOPLAM', years.map(y => pdfNum(realPasif[y] || 0)));
-  bodyMeta.push({ cells: ['Denge Farkı (Aktif − Pasif)', ...years.map(y => {
-    const a = (bal[y] || {}).aktifToplam || 0;
-    return pdfNum(a - (realPasif[y] || 0));
-  })] });
+  pushSep('IV. ÖZKAYNAKLAR');
+  bodyMeta.push({
+    cells: ['Sermaye (açılış)'].concat(years.map(function (y) { return pdfBalLine(y, capital0, bal); })),
+  });
+  bodyMeta.push({
+    cells: ['Sermaye artışı (kümülatif)'].concat(years.map(function (y) { return pdfBalLine(y, (bal[y] || {}).sermayeEk || 0, bal); })),
+  });
+  bodyMeta.push({
+    cells: ['Geçmiş yıl k/z (devreden, yıl başı)'].concat(years.map(function (y) { return pdfBalLine(y, ret.bfw[y] || 0, bal); })),
+  });
+  bodyMeta.push({
+    cells: ['Dönem net kâr / zarar'].concat(years.map(function (y) { return pdfBalLine(y, inc[y] ? (inc[y].net || 0) : 0, bal); })),
+  });
+  pushBand('► Özkaynaklar toplamı', years.map(function (y) {
+    const b = bal[y] || {};
+    const oz = (b.aktifToplam || 0) - (b.toplamYuk || 0);
+    return pdfBalLine(y, oz, bal);
+  }));
+  pushBand('► PASİF TOPLAM (= özkaynak + yükümlülük)', years.map(function (y) { return pdfBalLine(y, realPasif[y] || 0, bal); }));
+  bodyMeta.push({
+    cells: ['Denge farkı (aktif − pasif)'].concat(years.map(function (y) {
+      const a = (bal[y] || {}).aktifToplam || 0;
+      const d = a - (realPasif[y] || 0);
+      return pdfBalLine(y, d, bal);
+    })),
+  });
 
-  const margin = 6;
-  const labelCol = 52;
-  const colW = Math.max(24, (pageW - margin * 2 - labelCol) / yLabels.length);
-  const columnStyles = { 0: { halign: 'left', cellWidth: labelCol, fontStyle: 'bold' } };
-  for (let i = 0; i < yLabels.length; i++) columnStyles[i + 1] = { halign: 'right', cellWidth: colW };
+  const balTitle = 'Bilanço — projeksiyon (' + pdfYears + ' yıl)';
+  const margin = 8;
+  const labelCol = Math.min(78, pageW * 0.24);
+  const colW = Math.max(14, (pageW - margin * 2 - labelCol) / Math.max(1, yLabels.length));
+  const fs = yLabels.length > 7 ? 5.8 : 6.3;
+  const columnStyles = { 0: { halign: 'left', cellWidth: labelCol, fontStyle: 'bold', fontSize: fs + 0.1 } };
+  for (let i = 0; i < yLabels.length; i++) columnStyles[i + 1] = { halign: 'right', cellWidth: colW, fontSize: fs };
 
-  doc.addPage();
-  pdfAddHeader(doc, firmName, '5 Yıllık Bilanço', pageW);
+  pdfAddHeader(doc, firmName, balTitle, pageW);
   doc.autoTable({
-    head: [['Kalem', ...yLabels]],
-    body: bodyMeta.map(r => r.cells),
+    head: [
+      ['Kalem', ...yLabels],
+      ['', ...years.map(function () { return 'TL / %'; })],
+    ],
+    body: bodyMeta.map(function (r) { return r.cells; }),
     startY: 19,
-    margin: { left: margin, right: margin, bottom: 8 },
+    margin: { left: margin, right: margin, bottom: 10 },
     tableWidth: pageW - margin * 2,
     styles: {
-      fontSize: 8,
-      cellPadding: { top: 0.9, bottom: 0.9, left: 1, right: 1 },
+      fontSize: fs,
+      cellPadding: { top: 0.8, bottom: 0.8, left: 0.85, right: 0.85 },
       font: 'NotoSans',
       textColor: PDF_CLR.text,
+      lineColor: PDF_CLR.mid,
+      lineWidth: 0.12,
       overflow: 'linebreak',
       valign: 'middle',
+      minCellHeight: 7,
     },
     headStyles: {
       font: 'NotoSans',
@@ -4894,36 +4994,41 @@ function pdfBuildBalancePage(doc, proj, firmName) {
       textColor: PDF_CLR.white,
       fontStyle: 'bold',
       halign: 'center',
-      fontSize: 8.5,
-      cellPadding: { top: 1.1, bottom: 1.1, left: 1, right: 1 },
+      fontSize: fs + 0.35,
+      cellPadding: { top: 1, bottom: 1, left: 0.8, right: 0.8 },
     },
-    columnStyles,
+    columnStyles: columnStyles,
     bodyStyles: { halign: 'right' },
-    didParseCell: function(data) {
+    didParseCell: function (data) {
       if (data.section !== 'body') return;
       const meta = bodyMeta[data.row.index];
       if (meta.isSep) {
         data.cell.styles.fillColor = PDF_CLR.band;
         data.cell.styles.textColor = PDF_CLR.bandText;
         data.cell.styles.fontStyle = 'bold';
-        data.cell.styles.fontSize = 8.2;
+        data.cell.styles.fontSize = fs + 0.25;
         if (data.column.index > 0) data.cell.text = '';
       } else if (meta.isBand) {
         data.cell.styles.fillColor = PDF_CLR.band;
         data.cell.styles.textColor = PDF_CLR.bandText;
         data.cell.styles.fontStyle = 'bold';
-        data.cell.styles.fontSize = 8.1;
+        data.cell.styles.fontSize = fs + 0.2;
       }
     },
-    willDrawPage: function() {
-      pdfAddHeader(doc, firmName, '5 Yıllık Bilanço', pageW);
+    willDrawPage: function () {
+      pdfAddHeader(doc, firmName, balTitle, pageW);
       doc.setFont('NotoSans', 'normal');
     },
-    didDrawPage: function() {
+    didDrawPage: function () {
       pdfAddFooter(doc, doc.internal.getCurrentPageInfo().pageNumber, '?', pageW, pageH);
       doc.setFont('NotoSans', 'normal');
     },
   });
+  const fy = doc.lastAutoTable && doc.lastAutoTable.finalY ? doc.lastAutoTable.finalY + 3 : pageH - 14;
+  doc.setFontSize(6);
+  doc.setTextColor(...PDF_CLR.sub);
+  doc.setFont('NotoSans', 'normal');
+  doc.text('Yüzde sütunu: ilgili yıl aktif toplamına göre. Özkaynaklar toplamı = aktif toplam − toplam yükümlülük.', margin, Math.min(fy, pageH - 12), { maxWidth: pageW - margin * 2 });
 }
 
 function pdfBuildCoverPage(doc, firmName, reportTitle) {
@@ -5152,12 +5257,12 @@ function exportRaporPDF() {
 
 function exportGelirPDF() {
   const f = curFirm(); if (!f) return;
-  exportFullPDF(f.name + ' — 5 Yıllık Gelir Tablosu').catch(e => { showAlert('PDF: ' + e.message, 'err'); });
+  exportFullPDF(f.name + ' — Gelir tablosu (projeksiyon)').catch(e => { showAlert('PDF: ' + e.message, 'err'); });
 }
 
 function exportBilançoPDF() {
   const f = curFirm(); if (!f) return;
-  exportFullPDF(f.name + ' — 5 Yıllık Bilanço').catch(e => { showAlert('PDF: ' + e.message, 'err'); });
+  exportFullPDF(f.name + ' — Bilanço (projeksiyon)').catch(e => { showAlert('PDF: ' + e.message, 'err'); });
 }
 
 // ═══════════════════════════════════════════════════════
