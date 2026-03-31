@@ -797,12 +797,15 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
           <br><b>Referans:</b> USD <span id="fx-ref-usd-range"></span> &nbsp;|&nbsp; EUR <span id="fx-ref-eur-range"></span>
         </div>
         <div class="form-grid">
-          <div class="field"><label>USD Açılış Kuru (1 USD = ? TL)</label><input id="fx-usd-open" type="number" placeholder="43.93" step="0.01"></div>
-          <div class="field"><label>EUR Açılış Kuru (1 EUR = ? TL)</label><input id="fx-eur-open" type="number" placeholder="51.90" step="0.01"></div>
+          <div class="field"><label>USD Açılış Kuru (1 USD = ? TL)</label><input id="fx-usd-open" type="number" placeholder="44.4761" step="0.01"></div>
+          <div class="field"><label>EUR Açılış Kuru (1 EUR = ? TL)</label><input id="fx-eur-open" type="number" placeholder="51.0212" step="0.01"></div>
           <div class="field"><label>USD Yıllık Artış Tahmini (%)</label><input id="fx-usd-growth" type="number" value="" step="0.1" placeholder="Otomatik"></div>
           <div class="field"><label>EUR Yıllık Artış Tahmini (%)</label><input id="fx-eur-growth" type="number" value="" step="0.1" placeholder="Otomatik"></div>
+          <div class="field"><label>Önceki iş günü USD/TL (kambiyo ref.)</label><input id="fx-usd-prev-gl" type="number" step="0.01" placeholder="TCMB veya elle" title="1. ay kambiyo karşılaştırması. 🌐 TCMB ile otomatik doldurulur; boşsa 1. ay kambiyo 0 kabul edilir."></div>
+          <div class="field"><label>Önceki iş günü EUR/TL (kambiyo ref.)</label><input id="fx-eur-prev-gl" type="number" step="0.01" placeholder="TCMB veya elle" title="EUR için önceki iş günü TCMB gösterge satış."></div>
         </div>
         <div class="btn-group">
+          <button type="button" class="btn btn-primary" data-action="tcmb-fx-sync" onclick="syncFxFromTcmb()">🌐 TCMB’den Güncelle (bugün + önceki iş günü)</button>
           <button class="btn btn-primary" onclick="autoFillFx()">⚡ Otomatik Hesapla &amp; Doldur</button>
           <button class="btn btn-secondary" onclick="fillFxFromOpen()">📋 Sadece Açılış Kurunu Uygula</button>
         </div>
@@ -880,6 +883,7 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
           <div>📋 <b>Diğer:</b> Nakit akış tablosuna girer. <b>Gelir tablosuna</b> da yansır (olağan gelir/gider).</div>
           <div>🏭 <b>Yatırım/MDV:</b> <b>Nakit çıktısı</b> olarak nakit akış tablosuna girer. <b>Bilançoda Maddi Duran Varlık</b> olarak izlenir. Gelir tablosuna girmez.</div>
           <div>💼 <b>Sermaye Artışı:</b> <b>Nakit girdisi</b> olarak nakit akış tablosuna girer. <b>Bilançoda Özkaynak/Sermaye</b> olarak izlenir. Gelir tablosuna girmez.</div>
+          <div>💱 <b>Döviz taksit/spot kredisi:</b> Anapara bakiyesi ay sonu kurla TL’ye çevrilir; kur hareketinin önceki aya göre etkisi <b>kambiyo (646/656)</b> olarak VÖK’e ve birikimli net kâra yansır — 5Y bilançoda aktif–pasif hizası korunur. <b>Döviz Kurları</b> sayfasında <b>TCMB’den Güncelle</b> ile bugün + önceki iş günü kurları yazılabilir. Faiz satırı ayrıdır (660/661 mantığı).</div>
         </div>
       </div>
     </div>
@@ -963,7 +967,7 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
   <div class="avatar-face">🗂️</div>
   <div class="avatar-bubble">
     <h3>5 yıllık bilanço</h3>
-    <p>Dönen varlıklar: nakit, mevduat, ticari alacak ve stok. Duran tarafta kümülatif yatırım (MDV). Pasifte ticari borç, BCH, spot ve taksitli kredi bakiyeleri, özkaynakta açılış sermayesi, sermaye artışı ve birikimli net kâr/zarar yer alır. Aktif ile pasif toplamı pratikte dengeli olmalıdır.</p>
+    <p>Dönen varlıklar: nakit, mevduat, ticari alacak ve stok. Duran tarafta kümülatif yatırım (MDV). Pasifte ticari borç, BCH, spot ve taksitli kredi bakiyeleri, özkaynakta açılış sermayesi, sermaye artışı ve birikimli net kâr/zarar yer alır. Dövizli kredi anaparası ay sonu kurla TL’ye çevrildiğinde, kur hareketi gelir tablosunda kambiyo (646/656) olarak yansır; <b>Döviz Kurları</b>’nda <b>TCMB’den Güncelle</b> ile 1. ay kambiyo referansı da doldurulabilir.</p>
   </div>
 </div>
       <div class="tbl-wrap"><table><thead><tr id="bal5-headers"></tr></thead><tbody id="bal5-body"></tbody></table></div>
@@ -1102,7 +1106,7 @@ function createFirm(){
   const id=genId();
   const defExp={};let i=0;
   for(const{group,items}of EXPENSE_GROUPS)for(const item of items)defExp[i++]={group,name:item,amount:0};
-  const fxRates={usdOpen:0,eurOpen:0,monthly:Array.from({length:FX_TABLE_MONTHS},()=>({usd:0,eur:0}))};
+  const fxRates={usdOpen:0,eurOpen:0,usdPrevBeforeProj:0,eurPrevBeforeProj:0,monthly:Array.from({length:FX_TABLE_MONTHS},()=>({usd:0,eur:0}))};
   state.firms[id]={id,name,startDate:dt.toISOString(),createdAt:new Date().toISOString(),
     opening:{cash:0,bank:0,ar:0,ap:0,inventory:0,capital:0,otherAssets:0,otherLiab:0},
     incomeStmt:{revenue:0,cogs:0},
@@ -1549,8 +1553,9 @@ function deleteLoan(i){
 // ══════════════════════════════════════════════
 // DÖVİZ KURLARI
 // ══════════════════════════════════════════════
-// Spot kurlar (1 Mart 2026 itibarıyla)
-const FX_SPOT = {usd: 43.93, eur: 51.90};
+// Varsayılan spot: TCMB gösterge ForexSelling (son XML senkronu veya aşağıdaki sabit)
+const FX_SPOT = { usd: 44.4761, eur: 51.0212 }; // 31.03.2026 TCMB today.xml
+const TCMB_TODAY_XML = 'https://www.tcmb.gov.tr/kurlar/today.xml';
 // 01.01.2024 – 31.03.2026 TCMB gösterge satış (USD/EUR); gün sayısı yerel takvim farkı
 const FX_GROWTH_WINDOW = (function(){
   const t0 = new Date(2024, 0, 1), t1 = new Date(2026, 2, 31);
@@ -1574,6 +1579,87 @@ const FX_HIST_GROWTH = {
 };
 const FX_TABLE_MONTHS = 120; // Aylık kur tablosu ve projeksiyon ile uyumlu (max 120 ay)
 
+function _tcmbArchiveUrl(d) {
+  const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return 'https://www.tcmb.gov.tr/kurlar/' + y + m + '/' + day + m + y + '.xml';
+}
+function _addCalendarDays(d, delta) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + delta);
+}
+async function fetchTcmbXmlText(url) {
+  try {
+    const r = await fetch(url, { mode: 'cors', cache: 'no-store' });
+    if (r.ok) return await r.text();
+  } catch (e) { /* CORS veya ağ */ }
+  const prox = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+  const r2 = await fetch(prox, { cache: 'no-store' });
+  if (!r2.ok) throw new Error('TCMB adresine erişilemedi (ağ / CORS).');
+  return await r2.text();
+}
+function parseTcmbForexSelling(xmlStr) {
+  const doc = new DOMParser().parseFromString(xmlStr, 'text/xml');
+  if (doc.querySelector('parsererror')) throw new Error('TCMB yanıtı geçerli XML değil.');
+  const root = doc.querySelector('Tarih_Date');
+  const tarih = root ? (root.getAttribute('Tarih') || '') : '';
+  let usd = 0, eur = 0;
+  doc.querySelectorAll('Currency').forEach(function (c) {
+    const kod = c.getAttribute('Kod');
+    const node = c.querySelector('ForexSelling');
+    const raw = node && node.textContent ? node.textContent.replace(',', '.').trim() : '';
+    const v = parseFloat(raw);
+    if (kod === 'USD' && v > 0) usd = v;
+    if (kod === 'EUR' && v > 0) eur = v;
+  });
+  if (!(usd > 0 && eur > 0)) throw new Error('USD/EUR ForexSelling bulunamadı.');
+  return { usd: usd, eur: eur, tarih: tarih };
+}
+async function fetchTcmbPreviousDayRates(maxBack) {
+  const n = maxBack != null ? maxBack : 14;
+  const base = new Date();
+  for (let i = 1; i <= n; i++) {
+    const d = _addCalendarDays(base, -i);
+    const url = _tcmbArchiveUrl(d);
+    try {
+      const txt = await fetchTcmbXmlText(url);
+      return parseTcmbForexSelling(txt);
+    } catch (e) { /* hafta sonu / tatil */ }
+  }
+  return null;
+}
+/** Açılış USD/EUR + (varsa) bir önceki iş günü kurları — kambiyo ref. alanlarını da doldurur; sonra saveFx. */
+async function syncFxFromTcmb() {
+  const f = curFirm();
+  if (!f) return;
+  const btn = document.querySelector('[data-action="tcmb-fx-sync"]');
+  if (btn) { btn.disabled = true; }
+  try {
+    const xml = await fetchTcmbXmlText(TCMB_TODAY_XML);
+    const t = parseTcmbForexSelling(xml);
+    FX_SPOT.usd = t.usd;
+    FX_SPOT.eur = t.eur;
+    const usdEl = $('fx-usd-open'), eurEl = $('fx-eur-open');
+    if (usdEl) usdEl.value = t.usd.toFixed(4);
+    if (eurEl) eurEl.value = t.eur.toFixed(4);
+    const prev = await fetchTcmbPreviousDayRates(14);
+    const pu = $('fx-usd-prev-gl'), pe = $('fx-eur-prev-gl');
+    if (prev && pu && pe) {
+      pu.value = prev.usd.toFixed(4);
+      pe.value = prev.eur.toFixed(4);
+    } else {
+      if (pu) pu.value = '';
+      if (pe) pe.value = '';
+    }
+    saveFx();
+    const extra = prev ? ' Önceki iş günü (' + (prev.tarih || '—') + ') kambiyo ref. olarak yazıldı.' : ' Önceki gün kuru çekilemedi; ref. alanları boş bırakıldı.';
+    showAlert('TCMB gösterge satış: USD ' + t.usd + ' · EUR ' + t.eur + ' (tarih: ' + (t.tarih || '—') + ').' + extra, 'ok');
+  } catch (e) {
+    showAlert('TCMB: ' + (e && e.message ? e.message : String(e)), 'err');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 function updateFxGrowthRefLabels(){
   const us = document.getElementById('fx-ref-usd-range'), eu = document.getElementById('fx-ref-eur-range');
   if (!us || !eu) return;
@@ -1584,7 +1670,7 @@ function updateFxGrowthRefLabels(){
 
 function populateFx(){
   const f=curFirm();if(!f)return;
-  if(!f.fxRates)f.fxRates={usdOpen:0,eurOpen:0,usdGrowth:FX_HIST_GROWTH.usd,eurGrowth:FX_HIST_GROWTH.eur,monthly:[]};
+  if(!f.fxRates)f.fxRates={usdOpen:0,eurOpen:0,usdPrevBeforeProj:0,eurPrevBeforeProj:0,usdGrowth:FX_HIST_GROWTH.usd,eurGrowth:FX_HIST_GROWTH.eur,monthly:[]};
   const fx=f.fxRates;
   if(!fx.monthly||fx.monthly.length<FX_TABLE_MONTHS){
     const src=fx.monthly||[];const L=src.length;
@@ -1603,6 +1689,10 @@ function populateFx(){
   $('fx-eur-growth').value = (eG !== undefined && eG !== null && eG !== '')
     ? (typeof eG === 'number' ? eG.toFixed(2) : eG)
     : FX_HIST_GROWTH.eur.toFixed(2);
+  const prevUsd = Number(fx.usdPrevBeforeProj), prevEur = Number(fx.eurPrevBeforeProj);
+  const elUsdPrev = $('fx-usd-prev-gl'), elEurPrev = $('fx-eur-prev-gl');
+  if (elUsdPrev) elUsdPrev.value = prevUsd > 0 ? String(prevUsd) : '';
+  if (elEurPrev) elEurPrev.value = prevEur > 0 ? String(prevEur) : '';
   updateFxGrowthRefLabels();
   const startDt=new Date(f.startDate);
   $('fx-tbody').innerHTML=Array.from({length:FX_TABLE_MONTHS},(_,t)=>{
@@ -1740,6 +1830,8 @@ function saveFx(){
     eurOpen:fnum($('fx-eur-open').value,0),
     usdGrowth:fnum($('fx-usd-growth').value,FX_HIST_GROWTH.usd),
     eurGrowth:fnum($('fx-eur-growth').value,FX_HIST_GROWTH.eur),
+    usdPrevBeforeProj:fnum($('fx-usd-prev-gl')?.value,0),
+    eurPrevBeforeProj:fnum($('fx-eur-prev-gl')?.value,0),
     monthly:Array.from({length:FX_TABLE_MONTHS},(_,t)=>({usd:fnum($('fx-usd-'+t)?.value,0),eur:fnum($('fx-eur-'+t)?.value,0)}))
   };
   saveState();showAlert('Döviz kurları kaydedildi.','ok');
@@ -1880,6 +1972,16 @@ function getFxRate(fx,ccy,t){
   let rate=ccy==='USD'?(fx?.usdOpen||1):(fx?.eurOpen||1);if(rate<=0)rate=1;
   for(let i=0;i<=maxT;i++){const v=(monthly[i]?.[ccy==='USD'?'usd':'eur'])||0;if(v>0)rate=v;}
   return rate||1;
+}
+/** Kambiyo için karşılaştırma kuru: t>0 → bir önceki ay; t=0 → (varsa) TCMB önceki iş günü / kullanıcı ref., yoksa mevcut ay (fark 0). */
+function getFxPrevForGl(fx,ccy,t){
+  if(!ccy||ccy==='TL')return 1;
+  if(t>0)return getFxRate(fx,ccy,t-1);
+  const cur=getFxRate(fx,ccy,0);
+  const pu=Number(fx?.usdPrevBeforeProj), pe=Number(fx?.eurPrevBeforeProj);
+  if(ccy==='USD'&&pu>0)return pu;
+  if(ccy==='EUR'&&pe>0)return pe;
+  return cur;
 }
 function pickRateByYear(t,rates,fallback){
   let yi=Math.floor(t/12)+1;if(yi>5)yi=5;
@@ -2050,12 +2152,15 @@ function buildProjection(firmId){
   const installPrinc  = new Array(months).fill(0); // anapara → bilanço (gelir tablosuna GİRMEZ)
   const installBal    = new Array(months).fill(0); // kalan anapara bakiyesi
   const installDisb   = new Array(months).fill(0); // kredi kullanımı nakit girişi
+  /** Döviz taksit: önceki aydan bu aya kur değişiminin anapara (FC) üzerindeki TL etkisi; >0 = 656 zarar, <0 = 646 karı */
+  const installFxGl   = new Array(months).fill(0);
 
   // SPOT KREDİ arrays (taksitliden ayrı!)
   const spotAnaparaPay = new Array(months).fill(0); // vade sonu anapara geri ödeme
   const spotFaizPay    = new Array(months).fill(0); // faiz ödemesi → gelir tablosu
   const spotDisb       = new Array(months).fill(0); // kullanım ayı nakit girişi
   const spotBal        = new Array(months).fill(0); // kalan anapara bakiyesi
+  const spotFxGl       = new Array(months).fill(0);
 
   // TAKSİTLİ KREDİLER
   for(const L of f.loans||[]){
@@ -2088,6 +2193,11 @@ function buildProjection(firmId){
       const mi=firstPayMi+k;
       if(mi>=1&&mi<=months){
         const t=mi-1;const fxRate=getFxRate(fx,ccy,t);
+        if(ccy&&ccy!=='TL'){
+          const openingFc=k===0?principal:sched[k-1].bal;
+          const fxPrev=getFxPrevForGl(fx,ccy,t);
+          installFxGl[t]+=openingFc*(fxRate-fxPrev);
+        }
         installPay[t]   += row.payment      * fxRate;  // toplam taksit
         installInt[t]   += row.intPlusBsmv  * fxRate;  // faiz + BSMV → gelir tablosu
         installPrinc[t] += row.principal    * fxRate;  // anapara → bilanço
@@ -2145,9 +2255,14 @@ function buildProjection(firmId){
       }
     }
 
-    // Bakiye: kullanım anından vade sonuna kadar anapara riski
+    // Bakiye: kullanım anından vade sonuna kadar anapara riski (+ döviz kur farkı gelir tablosu)
     for(let tt=Math.max(0,disburseMi-1);tt<Math.min(months,payMi);tt++){
-      spotBal[tt] += principal*getFxRate(fx,ccy,tt);
+      const fxCurr=getFxRate(fx,ccy,tt);
+      spotBal[tt]+=principal*fxCurr;
+      if(ccy&&ccy!=='TL'){
+        const fxPrev=getFxPrevForGl(fx,ccy,tt);
+        spotFxGl[tt]+=principal*(fxCurr-fxPrev);
+      }
     }
   }
 
@@ -2240,7 +2355,8 @@ function buildProjection(firmId){
   let ebtMonthly = [];
   for (let iter = 0; iter < 5; iter++) {
     ebtMonthly = Array.from({length: months}, (_, t) =>
-      (sales[t] - cogsArr[t]) - opex[t] - installInt[t] - spotFaizPay[t] - p2.bchIntAccr[t] + p2.depInt[t] + manualTotal[t]);
+      (sales[t] - cogsArr[t]) - opex[t] - installInt[t] - spotFaizPay[t] - p2.bchIntAccr[t] + p2.depInt[t] + manualTotal[t]
+      - installFxGl[t] - spotFxGl[t]);
     const nextTax = computeTaxSchedule(months, ebtMonthly, taxRate, payMonths);
     let diff = 0;
     for (let t = 0; t < months; t++) diff += Math.abs((nextTax[t] || 0) - (taxPay[t] || 0));
@@ -2249,7 +2365,8 @@ function buildProjection(firmId){
     if (diff < 1e-3) break;
   }
   ebtMonthly = Array.from({length: months}, (_, t) =>
-    (sales[t] - cogsArr[t]) - opex[t] - installInt[t] - spotFaizPay[t] - p2.bchIntAccr[t] + p2.depInt[t] + manualTotal[t]);
+    (sales[t] - cogsArr[t]) - opex[t] - installInt[t] - spotFaizPay[t] - p2.bchIntAccr[t] + p2.depInt[t] + manualTotal[t]
+    - installFxGl[t] - spotFxGl[t]);
 
   const rows=[];
   for(let t=0;t<months;t++){
@@ -2261,6 +2378,8 @@ function buildProjection(firmId){
       'Taksit Kullanım':installDisb[t],            // Kredi kullanım ayı nakit girişi
       'Taksit Anapara':installPrinc[t],             // Anapara ödemesi (gelir tablosuna girmez)
       'Taksit Faiz+BSMV':installInt[t],            // Faiz+BSMV (gelir tablosuna girer)
+      'Kur Farkı Taksit':installFxGl[t],           // 646/656 — bilanço MTM ile özkaynak köprüsü
+      'Kur Farkı Spot':spotFxGl[t],
       'Taksit Öd.':installPay[t],                  // Toplam taksit = anapara + faiz+BSMV
       'Spot Kullanım':spotDisb[t],'Spot Anapara Öd.':spotAnaparaPay[t],'Spot Faiz Öd.':spotFaizPay[t],'Spot Bakiye':spotBal[t],
       'K.Vergisi':taxPay[t],'Manuel':manualTotal[t],'Yatırım':manualInvest[t],'Sermaye Artışı':manualCapital[t],
@@ -2301,6 +2420,8 @@ const PROJ_ROWS=[
   {key:'toplam_gider', label:'Aylık Toplam Gider (KDV Hariç)', type:'total', field:'toplamGider'},
   {key:'taksit_anapara', label:'Taksitli Ticari Kredi Anapara Ödemesi', type:'sub', field:'taksitAnapara'},
   {key:'taksit_faiz',   label:'Taksitli Ticari Kredi Faiz + BSMV (%5)', type:'sub', field:'taksitFaizBsmv'},
+  {key:'taksit_kur',    label:'Kur Farkı (Döviz Taksit — 646/656)', type:'sub', field:'taksitKurFark'},
+  {key:'spot_kur',      label:'Kur Farkı (Döviz Spot — 646/656)', type:'sub', field:'spotKurFark'},
   {key:'bchfaiz',   label:'BCH Faiz Ödemesi',  type:'sub', field:'bchFaizOd'},
   {key:'vergi',         label:'Kurumlar Vergisi',            type:'sub', field:'vergi'},
   {key:'spot_anapara',  label:'Spot Kredi Anapara Geri Öd.',  type:'sub', field:'spotAnaparaPay'},
@@ -2350,6 +2471,8 @@ function buildYearlyData(rows, startYear, numYears){
       // Taksitli kredi
       const taksitAnapara  = r['Taksit Anapara']||0;
       const taksitFaizBsmv = r['Taksit Faiz+BSMV']||0;
+      const taksitKurFark  = r['Kur Farkı Taksit']||0;
+      const spotKurFark    = r['Kur Farkı Spot']||0;
       const krediKullan    = r['Taksit Kullanım']||0;
       // Spot kredi
       const spotKullan     = r['Spot Kullanım']||0;        // nakit girişi
@@ -2370,7 +2493,7 @@ function buildYearlyData(rows, startYear, numYears){
         tarih:r['Tarih'], ay:r['Ay'],
         acilis:0, // filled below
         tahsilat,depFaiz,manuelGelir,sermayeGirdi,krediKullan,spotKullan,toplamGirdi,
-        tedarikci,opex,toplamGider,taksitAnapara,taksitFaizBsmv,spotAnaparaPay,spotFaizOd,bchFaizOd,vergi,manuelGider,yatirimCikti,toplamCikti,
+        tedarikci,opex,toplamGider,        taksitAnapara,taksitFaizBsmv,taksitKurFark,spotKurFark,spotAnaparaPay,spotFaizOd,bchFaizOd,vergi,manuelGider,yatirimCikti,toplamCikti,
         spotBak, taksitBak,
         bchKullan,bchRepay,
         kapanisNakit:r['Son.Nakit']||0,
@@ -2392,7 +2515,7 @@ function buildYearlyData(rows, startYear, numYears){
         : months[i-1].kapanisNakit;
     }
     // Yıllık toplamlar
-    const fields=['tahsilat','depFaiz','manuelGelir','sermayeGirdi','krediKullan','spotKullan','toplamGirdi','tedarikci','opex','toplamGider','taksitAnapara','taksitFaizBsmv','spotAnaparaPay','spotFaizOd','bchFaizOd','vergi','manuelGider','yatirimCikti','toplamCikti','bchKullan','bchRepay','spotBak','taksitBak','ebt','yatirimRaw','sermayeRaw'];
+    const fields=['tahsilat','depFaiz','manuelGelir','sermayeGirdi','krediKullan','spotKullan','toplamGirdi','tedarikci','opex','toplamGider','taksitAnapara','taksitFaizBsmv','taksitKurFark','spotKurFark','spotAnaparaPay','spotFaizOd','bchFaizOd','vergi','manuelGider','yatirimCikti','toplamCikti','bchKullan','bchRepay','spotBak','taksitBak','ebt','yatirimRaw','sermayeRaw'];
     const totals={acilis:months[0]?.acilis||0, kapanisNakit:months[months.length-1]?.kapanisNakit||0,
       mevduat:months[months.length-1]?.mevduat||0, bchEnd:months[months.length-1]?.bchEnd||0,
       taksitBak:months[months.length-1]?.taksitBak||0,
@@ -2628,7 +2751,7 @@ function renderProjTable(yearData, firmName){
 
 function colorClass(v, rd){
   if(v===0)return '';
-  const isOutflow=['tedarikci','opex','toplamGider','taksitAnapara','taksitFaizBsmv','spotAnaparaPay','spotFaizOd','bchFaizOd','vergi','manuelGider','yatirimCikti','toplamCikti','bchRepay','bchEnd','taksitBak','spotBak','apBak'].includes(rd.field);
+  const isOutflow=['tedarikci','opex','toplamGider','taksitAnapara','taksitFaizBsmv','taksitKurFark','spotKurFark','spotAnaparaPay','spotFaizOd','bchFaizOd','vergi','manuelGider','yatirimCikti','toplamCikti','bchRepay','bchEnd','taksitBak','spotBak','apBak'].includes(rd.field);
   const isInflow=['tahsilat','depFaiz','krediKullan','spotKullan','manuelGelir','sermayeGirdi','toplamGirdi','bchKullan'].includes(rd.field);
   const isBal=['kapanisNakit','mevduat'].includes(rd.field);
   if(isBal)return v>0?'pos':'neg';
@@ -2708,7 +2831,7 @@ function annual5Y(rows, startYear, mdv0 = 0, balAdj) {
   const inc={};const bal={};
   for(const y of years)inc[y]={
     ciro:0,cogs:0,opex:0,tedarikci:0,toplamGiderNakit:0,tFaiz:0,bchFaizAccr:0,depFaiz:0,tax:0,ebt:0,
-    bchRepay:0,taksitAnapara:0,manuelGelir:0,manuelGider:0,
+    bchRepay:0,taksitAnapara:0,kambiyoKredi:0,manuelGelir:0,manuelGider:0,
     // Yatırım ve sermaye artışı gelir tablosuna GİRMEZ
     yatirimKumul:0,   // kümülatif yatırım → bilanço MDV
     sermayeKumul:0,   // kümülatif sermaye artışı → bilanço özkaynak
@@ -2723,6 +2846,7 @@ function annual5Y(rows, startYear, mdv0 = 0, balAdj) {
     inc[y].tedarikci += r['Tedarikçi Öd.']||0;
     inc[y].tFaiz   += r['Taksit Faiz+BSMV'] ||0;  // Taksit faiz+BSMV → gelir tablosu
     inc[y].tFaiz   += r['Spot Faiz Öd.']      ||0;  // Spot faiz → gelir tablosu (anapara GİRMEZ)
+    inc[y].kambiyoKredi += (r['Kur Farkı Taksit']||0)+(r['Kur Farkı Spot']||0); // 646/656 net
     inc[y].bchFaizAccr += r['BCH Faiz T.']||0;
     inc[y].depFaiz += r['Mevduat Faiz']||0;
     inc[y].tax     += r['K.Vergisi']   ||0;
@@ -2743,10 +2867,11 @@ function annual5Y(rows, startYear, mdv0 = 0, balAdj) {
     const faalGid = opex;
     const faalKar = gp - faalGid;
     const finGid  = tFaiz + bchFaizAccr;
+    const kambiyoLoss = inc[y].kambiyoKredi || 0; // >0 zarar (656), <0 kar (646)
     // Diğer gelir/gider: YALNIZCA 'other' tipi manuel + mevduat faizi
     const dgerGelir = depFaiz + manuelGelir;
     const dgerGider = manuelGider;
-    const ebtBridged = faalKar + dgerGelir - dgerGider - finGid;
+    const ebtBridged = faalKar + dgerGelir - dgerGider - finGid - kambiyoLoss;
     inc[y].ebt = ebtBridged;
     const net = ebtBridged - tax;
     inc[y].gp=gp; inc[y].faalGid=faalGid; inc[y].faalKar=faalKar;
@@ -2851,6 +2976,8 @@ function renderIncome5Y(){
     {l:'Taksit Kredi Faizi',   k:'tFaiz',   cost:true},
     {l:'BCH Faiz Gideri',      k:'bchFaizAccr', cost:true},
     {l:'Toplam Finansman Gideri', k:'finGid', cost:true, bold:true},
+    {sep:'KUR FARKI (DÖVİZ KREDİ)'},
+    {l:'Kambiyo net (646/656)', k:'kambiyoKredi', kambi:true},
     {sep:'VERGİ ÖNCESİ KÂR (VÖK / EBT)'},
     {l:'VÖK / EBT',            k:'ebt',     bold:true},
     {sep:'VERGİ'},
@@ -2869,7 +2996,8 @@ function renderIncome5Y(){
     const cells=years.map(y=>{
       const v=cellVal(y,row.k);
       let cls='';
-      if(row.cost) cls=v>0?'neg':'';
+      if(row.kambi) cls=v>0?'neg':(v<0?'pos':'');
+      else if(row.cost) cls=v>0?'neg':'';
       else cls=v>0?'pos':v<0?'neg':'';
       let extra='';
       if(row.margin){const m=inc[y]?.[row.margin]||0;extra='<br><span style="font-size:.65rem;color:var(--tx3)">'+tr(m,1)+'%</span>';}
@@ -3030,6 +3158,10 @@ function exportCSV5Y(type){
   const sy=new Date(f.startDate).getFullYear();
   const{years,inc,bal}=annual5Y(proj.rows,sy,(f.opening||{}).mdv||0,openingBalAdjFromOpening(f.opening));
   const ret=computeRetained(years,inc,openingRetainedFromSnapshot(f.finskorBilancoSnapshot));const c0=(f.opening||{}).capital||0;
+  const realPasifCsv={};
+  for(const y of years){
+    realPasifCsv[y]=((bal[y]||{}).toplamYuk||0)+c0+((bal[y]||{}).sermayeEk||0)+retainedProjectionOnly(ret,y);
+  }
   const rows_=type==='income'
     ?[['Kalem',...years],['Ciro',...years.map(y=>inc[y]?.ciro||0)],['COGS',...years.map(y=>inc[y]?.cogs||0)],
       ['Brüt Kâr',...years.map(y=>inc[y]?.gp||0)],['Faaliyet Kârı',...years.map(y=>inc[y]?.faaliyetKar||0)],
@@ -3048,7 +3180,7 @@ function exportCSV5Y(type){
       ['Sermaye',...years.map(()=>c0)],
       ['Geçmiş yıl k/z (devreden yıl başı)',...years.map(y=>ret.bfw[y]||0)],
       ['Dönem net kâr/zarar',...years.map(y=>inc[y]?.net||0)],
-      ['Pasif Toplam',...years.map(y=>(bal[y]||{}).pasifToplam||0)]];
+      ['Pasif Toplam',...years.map(y=>realPasifCsv[y]||0)]];
   download(rows_.map(r=>r.join(';')).join('\n'),(type==='income'?'Gelir':'Bilanco')+'_5Y_'+f.name+'.csv');
 }
 function download(text,filename){
@@ -3549,6 +3681,8 @@ async function importFromFinSkor(){
     fxRates:{
       usdOpen: usd0,
       eurOpen: eur0,
+      usdPrevBeforeProj: 0,
+      eurPrevBeforeProj: 0,
       usdGrowth: FX_HIST_GROWTH.usd,
       eurGrowth: FX_HIST_GROWTH.eur,
       monthly: fxMonthly
@@ -3715,7 +3849,7 @@ function exportRaporExcel() {
 
   // === SHEET 2: GELİR TABLOSU ===
   const sy = new Date(f.startDate).getFullYear();
-  const { years, inc } = annual5Y(rows, sy, (f.opening || {}).mdv || 0, openingBalAdjFromOpening(f.opening));
+  const { years, inc, bal } = annual5Y(rows, sy, (f.opening || {}).mdv || 0, openingBalAdjFromOpening(f.opening));
   const gelirHdrs = ['Kalem', ...years.map(String)];
   const gelirRows = [
     ['Net Satışlar',                ...years.map(y => inc[y]?.ciro || 0)],
@@ -3733,6 +3867,7 @@ function exportRaporExcel() {
     ['Taksit Faizi',                ...years.map(y => inc[y]?.tFaiz || 0)],
     ['BCH Faiz Gideri',             ...years.map(y => inc[y]?.bchFaizAccr || 0)],
     ['Toplam Finansman Gideri',     ...years.map(y => inc[y]?.finGid || 0)],
+    ['Kambiyo net (646/656)',       ...years.map(y => inc[y]?.kambiyoKredi || 0)],
     ['────────────────',            ...years.map(() => '')],
     ['VÖK / EBT',                  ...years.map(y => inc[y]?.ebt || 0)],
     ['Kurumlar Vergisi',            ...years.map(y => inc[y]?.tax || 0)],
@@ -3743,9 +3878,12 @@ function exportRaporExcel() {
   XLSX.utils.book_append_sheet(wb, makeSheet(gelirHdrs, gelirRows), 'Gelir Tablosu');
 
   // === SHEET 3: BİLANÇO ===
-  const { bal } = annual5Y(rows, sy, (f.opening || {}).mdv || 0, openingBalAdjFromOpening(f.opening));
   const ret = computeRetained(years, inc, openingRetainedFromSnapshot(f.finskorBilancoSnapshot));
   const c0 = (f.opening || {}).capital || 0;
+  const realPasifRapor = {};
+  for (const y of years) {
+    realPasifRapor[y] = ((bal[y] || {}).toplamYuk || 0) + c0 + ((bal[y] || {}).sermayeEk || 0) + retainedProjectionOnly(ret, y);
+  }
   const bilHdrs = ['Kalem', ...years.map(String)];
   const ob = f.opening || {};
   const bilRows = [
@@ -3772,7 +3910,7 @@ function exportRaporExcel() {
     ['Sermaye',               ...years.map(() => c0)],
     ['Geçmiş yıl k/z (devreden yıl başı)', ...years.map(y => ret.bfw[y] || 0)],
     ['Dönem net kâr/zarar',   ...years.map(y => inc[y]?.net || 0)],
-    ['PASİF TOPLAM',          ...years.map(y => (bal[y] || {}).pasifToplam || 0)],
+    ['PASİF TOPLAM',          ...years.map(y => realPasifRapor[y] || 0)],
   ];
   XLSX.utils.book_append_sheet(wb, makeSheet(bilHdrs, bilRows), 'Bilanço');
 
@@ -3814,6 +3952,10 @@ function exportBilançoExcel() {
   const { years, inc, bal } = annual5Y(proj.rows, sy, (f.opening || {}).mdv || 0, openingBalAdjFromOpening(f.opening));
   const ret = computeRetained(years, inc, openingRetainedFromSnapshot(f.finskorBilancoSnapshot));
   const c0 = (f.opening||{}).capital||0;
+  const realPasifBl = {};
+  for (const y of years) {
+    realPasifBl[y] = ((bal[y] || {}).toplamYuk || 0) + c0 + ((bal[y] || {}).sermayeEk || 0) + retainedProjectionOnly(ret, y);
+  }
   const wb = XLSX.utils.book_new();
   const hdrs = ['Kalem', ...years.map(String)];
   const ob = f.opening || {};
@@ -3838,7 +3980,7 @@ function exportBilançoExcel() {
     ['Sermaye', ...years.map(()=>c0)],
     ['Geçmiş yıl k/z (devreden yıl başı)', ...years.map(y=>ret.bfw[y]||0)],
     ['Dönem net kâr/zarar', ...years.map(y=>inc[y]?.net||0)],
-    ['PASİF TOPLAM', ...years.map(y=>(bal[y]||{}).pasifToplam||0)],
+    ['PASİF TOPLAM', ...years.map(y=>realPasifBl[y]||0)],
   ];
   XLSX.utils.book_append_sheet(wb, makeSheet(hdrs, rows2), 'Bilanço');
   XLSX.writeFile(wb, 'Bilanco_' + (f.name||'').replace(/[^a-z0-9]/gi,'_') + '.xlsx');
