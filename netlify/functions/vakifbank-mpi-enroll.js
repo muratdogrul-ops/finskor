@@ -1,0 +1,288 @@
+/**
+ * Vakıfbank MPI Enrollment (işyeri sayfasında kart) → ACS’e yönlendirme
+ * Env: VAKIF_INIT, VAKIF_HOST_MERCHANT_ID, VAKIF_MERCHANT_PASSWORD, VAKIF_HOST_TERMINAL_ID, SITE_URL
+ * İsteğe bağlı: VAKIF_MPI_SESSION_SECRET (yoksa şifre türevi), QUOTAGUARDSTATIC_URL
+ */
+const {
+  PAKET,
+  MPI_ENROLL_URL,
+  siteBase,
+  xmlTag,
+  detectBrand,
+  encryptMpiSession,
+  sbRequest,
+  buildEnrollmentXml,
+  postXml,
+} = require('./vakif-mpi-shared');
+
+function corsHeaders(origin) {
+  return {
+    'Access-Control-Allow-Origin': origin || '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Credentials': 'true',
+  };
+}
+
+exports.handler = async (event) => {
+  const origin = event.headers.origin || event.headers.Origin || '';
+
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers: corsHeaders(origin), body: '' };
+  }
+
+  if (event.httpMethod !== 'POST') {
+    return { statusCode: 405, headers: corsHeaders(origin), body: 'Method Not Allowed' };
+  }
+
+  const mid = process.env.VAKIF_HOST_MERCHANT_ID;
+  const pwd = process.env.VAKIF_MERCHANT_PASSWORD;
+  const term = process.env.VAKIF_HOST_TERMINAL_ID;
+  const mode = (process.env.VAKIF_INIT || 'test').toLowerCase() === 'prod' ? 'prod' : 'test';
+
+  if (!mid || !pwd || !term) {
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      body: JSON.stringify({
+        ok: false,
+        code: 'NOT_CONFIGURED',
+        message: 'Vakıfbank MPI: VAKIF_HOST_MERCHANT_ID, VAKIF_MERCHANT_PASSWORD, VAKIF_HOST_TERMINAL_ID gerekli.',
+      }),
+    };
+  }
+
+  let body;
+  try {
+    body = JSON.parse(event.body || '{}');
+  } catch {
+    return { statusCode: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) }, body: JSON.stringify({ ok: false, message: 'Geçersiz JSON' }) };
+  }
+
+  const {
+    adSoyad,
+    email,
+    telefon,
+    firmaAdi,
+    vkn,
+    vd,
+    faturaTipi,
+    paketKey,
+    kartUzerindeIsim,
+    pan,
+    expiryYYMM,
+    cvv,
+  } = body;
+
+  if (!adSoyad || !email || !telefon) {
+    return {
+      statusCode: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      body: JSON.stringify({ ok: false, message: 'Ad, e-posta ve telefon zorunludur.' }),
+    };
+  }
+
+  const panDigits = String(pan || '').replace(/\D/g, '');
+  const exp = String(expiryYYMM || '').replace(/\D/g, '');
+  const cvvDigits = String(cvv || '').replace(/\D/g, '');
+  const kIsim = String(kartUzerindeIsim || '').trim();
+
+  if (!kIsim || kIsim.length < 2) {
+    return {
+      statusCode: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      body: JSON.stringify({ ok: false, message: 'Kart üzerindeki isim zorunludur.' }),
+    };
+  }
+  if (panDigits.length < 13 || panDigits.length > 19 || exp.length !== 4 || (cvvDigits.length !== 3 && cvvDigits.length !== 4)) {
+    return {
+      statusCode: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      body: JSON.stringify({ ok: false, message: 'Kart numarası, son kullanma (YYMM) veya CVV hatalı.' }),
+    };
+  }
+
+  const pk = PAKET[paketKey] ? paketKey : 'profesyonel';
+  const pkg = PAKET[pk];
+  const amount = pkg.fiyat;
+  const verifyId = 'FS' + Date.now() + Math.random().toString(36).slice(2, 8).toUpperCase();
+  const base = siteBase();
+  const termUrl = `${base}/.netlify/functions/vakifbank-mpi-term`;
+  const failUrl = `${base}/odeme.html?mpi=hata`;
+
+  const notlar = [
+    `Paket:${pkg.ad}`,
+    `Tutar:${pkg.fiyatLabel}`,
+    `Kontör:${pkg.credits}`,
+    `Firma:${firmaAdi || ''}`,
+    `Ad:${adSoyad}`,
+    `Mail:${email}`,
+    telefon ? `Tel:${telefon}` : '',
+    vkn ? `VKN:${vkn}` : '',
+    faturaTipi ? `Fatura:${faturaTipi}` : '',
+    vd ? `VD:${vd}` : '',
+    `KartSahibi:${kIsim.slice(0, 80)}`,
+    `MPI_REF:${verifyId}`,
+    'ODEME:mpi_bekliyor',
+  ]
+    .filter(Boolean)
+    .join('|');
+
+  const tutarSayi = parseFloat(amount);
+  let customerId = null;
+  let paymentId = null;
+
+  try {
+    const check = await sbRequest('GET', `customers?email=eq.${encodeURIComponent(email)}&select=id`, null);
+    if (check.status === 200 && Array.isArray(check.data) && check.data.length > 0) {
+      customerId = check.data[0].id;
+    } else {
+      const custRes = await sbRequest('POST', 'customers', {
+        firma_adi: firmaAdi || adSoyad,
+        yetkili_kisi: adSoyad,
+        telefon: telefon || null,
+        email: email || null,
+        vergi_no: vkn || null,
+        notlar: vd ? `Vergi Dairesi: ${vd} | Fatura: ${faturaTipi || 'kurumsal'}` : null,
+      });
+      if (custRes.status === 201 && Array.isArray(custRes.data) && custRes.data.length > 0) {
+        customerId = custRes.data[0].id;
+      }
+    }
+
+    const payRes = await sbRequest('POST', 'payments', {
+      customer_id: customerId || null,
+      tutar: tutarSayi,
+      odeme_tarihi: new Date().toISOString().split('T')[0],
+      odeme_yontemi: 'Kredi Kartı (Vakıfbank MPI)',
+      notlar,
+    });
+    if (payRes.status === 201 && Array.isArray(payRes.data) && payRes.data.length > 0) {
+      paymentId = payRes.data[0].id;
+    }
+  } catch (e) {
+    console.warn('Supabase mpi enroll:', e.message);
+  }
+
+  if (!paymentId) {
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      body: JSON.stringify({
+        ok: false,
+        message: 'Ödeme kaydı oluşturulamadı (Supabase). SUPABASE_SERVICE_KEY ve payments tablosunu kontrol edin.',
+      }),
+    };
+  }
+
+  const enrollXml = buildEnrollmentXml({
+    merchantId: mid,
+    merchantPassword: pwd,
+    verifyId,
+    pan: panDigits,
+    expiryYYMM: exp,
+    amount,
+    brandName: detectBrand(panDigits),
+    successUrl: termUrl,
+    failureUrl: failUrl,
+  });
+
+  let xmlRes;
+  try {
+    xmlRes = await postXml(MPI_ENROLL_URL[mode], enrollXml);
+  } catch (e) {
+    console.error('MPI Enrollment:', e);
+    return {
+      statusCode: 502,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      body: JSON.stringify({ ok: false, message: 'MPI bağlantısı kurulamadı.' }),
+    };
+  }
+
+  const xr = xmlRes.text;
+  const status = xmlTag(xr, 'Status').toUpperCase();
+  const errMsg = xmlTag(xr, 'Message') || xmlTag(xr, 'ErrorMessage') || xmlTag(xr, 'VerifyEnrollmentRequestResult');
+
+  if (status !== 'Y') {
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      body: JSON.stringify({
+        ok: false,
+        message: errMsg || `3D doğrulama başlatılamadı (Status: ${status || '—'}).`,
+        mpiStatus: status,
+      }),
+    };
+  }
+
+  const acsUrl = xmlTag(xr, 'ACSUrl') || xmlTag(xr, 'AcsUrl') || xmlTag(xr, 'ACSURL');
+  const paReq = xmlTag(xr, 'PaReq') || xmlTag(xr, 'Pareq');
+  const md = xmlTag(xr, 'MD') || xmlTag(xr, 'Md') || verifyId;
+
+  if (!acsUrl || !paReq) {
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      body: JSON.stringify({
+        ok: false,
+        message: 'MPI yanıtı eksik (ACSUrl / PaReq). Banka dokümanıyla uyum kontrol edin.',
+        debug: xr.slice(0, 400),
+      }),
+    };
+  }
+
+  const sessionPayload = {
+    paymentId,
+    customerId,
+    email,
+    firma: firmaAdi || adSoyad,
+    telefon,
+    credits: pkg.credits,
+    pan: panDigits,
+    cvv: cvvDigits,
+    expiry: exp,
+    transactionId: verifyId,
+    verifyEnrollmentRequestId: verifyId,
+    amount,
+  };
+
+  let encCtx;
+  try {
+    encCtx = encryptMpiSession(sessionPayload);
+  } catch (e) {
+    console.error('encrypt session', e);
+    return {
+      statusCode: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      body: JSON.stringify({ ok: false, message: 'Oturum şifrelenemedi. VAKIF_MPI_SESSION_SECRET tanımlayın.' }),
+    };
+  }
+
+  if (paymentId) {
+    try {
+      const extra = `|MPIMD:${md}|MPICTX:${encCtx}`;
+      await sbRequest('PATCH', `payments?id=eq.${paymentId}`, { notlar: notlar + extra });
+    } catch (e) {
+      console.warn('MPI payment patch:', e.message);
+    }
+  }
+
+  const cookieVal = encCtx;
+  const cookie = `finskor_mpi=${cookieVal}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=900`;
+
+  return {
+    statusCode: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      ...corsHeaders(origin),
+      'Set-Cookie': cookie,
+    },
+    body: JSON.stringify({
+      ok: true,
+      acsUrl,
+      paReq,
+      md,
+      termUrl,
+    }),
+  };
+};

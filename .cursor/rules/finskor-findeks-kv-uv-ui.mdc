@@ -1,0 +1,36 @@
+---
+description: Findeks yükleme → analiz KV/UV tenzili; gayrinakdi hariç; UI yerleşimi önerisi
+alwaysApply: true
+---
+
+# Findeks raporu, KV/UV tenzili ve ekran yerleşimi
+
+## Önemli (kod ile ayrım)
+
+Bu kural **yalnızca ürün/tasarım rehberidir**. `.cursor/rules` veya `AGENTS.md` eklemek **uygulama kodunu otomatik değiştirmez**. Aşağıdaki davranışlar **`app.html` / hesaplama (recalc) ve Findeks parse** yazıldığında devreye girer.
+
+## Findeks yüklüyken analiz sayfası — KV / UV
+
+- **Findeks dosyası yüklüyse** analiz sayfasında gösterilen / hesaplanan **KV ve UV mali borç**, Findeks’ten türetilen **tenzil ve dağıtım kurallarına** göre düzeltilmiş olmalı (yükleme yoksa mevcut manuel veya varsayılan akış).
+- **Gayrinakdi:** Rapor ve analizde **asla** tutar gösterilmez; gayrinakdi risk bilanço dışı izlenir, analize dahil edilmez. Findeks import’ta yalnızca **nakdi** kalemler kullanılır.
+- **Kredi kartı / business card riski:** **Mali borç** sayılır; analizde dikkate alınır (tipik sınıflandırma: **KV**).
+- **Metodoloji özeti (referans):**
+  - Toplam nakdi tutar için Findeks **vade bazlı** tabloda referans dönem satırı (ör. **12/2025** = 31.12.2025 analizi ile hizalı) kullanılır.
+  - Kredi **türü** kırılımı PDF’te o tarihe etiketli olmayabilir; rapor tarihli “Kredi Türü Bazında” özetinden **oransal** dağıtım uygulanabilir — kullanıcıya kısa **uyumluluk notu** gösterilmeli.
+  - **KV mali borç** ürün haritası (politika): KMH, spot, BCH, iskonto/iştira (+ kart). **Taksitli** için UV / kısmi KV politikası kodda sabitlenmeli.
+
+## Analiz / ana ekran — Findeks ve ÜFE nerede olsun (öneri)
+
+1. **Üstte tam genişlik:** **Findeks risk raporu** şeridi — rapor tarihi, referans kodu, özet (ör. 12/2025 nakdi, limit doluluk), PDF görüntüle / yükle.
+2. **Hemen altında:** **ÜFE / enflasyon** tablosu (makro varsayım; tüm yılları etkiler).
+3. **En altta:** **Yıl kartları** (ör. 2023–2026 bilanço/gelir). Findeks’i **yalnızca 2026 kartının yanına** koymak mali yıl ile karıştırır; zorunluysa kart **“güncel / Findeks”** diye açık etiketlenmeli ve dipnot: nakdi toplamın hangi ay satırına eşlendiği.
+
+## İlgili (hatırlatma — ayrı uygulama)
+
+- **131 Ortaklardan alacaklar:** Analizde bakiye sıfırlanır; aynı tutar **özkaynak toplamından** düşülür. Bu da kodda `recalc` / HESAPLAR eşlemesi ile yapılır.
+
+## Lisans — Nakit akış butonu (plan; şimdilik kod yok)
+
+- **Nakit akış modülü** satın alındıysa → **Nakit akış** butonu **aktif**.
+- **Sadece analiz** lisansı varsa → **Nakit akış** butonu **aktif değil**.
+- Uygulama **ileride** entitlement / ödeme ile bağlanacak; şu an için yalnızca ürün kuralı notu.

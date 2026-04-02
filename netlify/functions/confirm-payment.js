@@ -1,23 +1,23 @@
 // FinSkor Ödeme Onayı — Erişim kodu üret + müşteriye mail gönder
 const nodemailer = require('nodemailer');
 const https = require('https');
+const { sbHost, sbKey } = require('./sb-config');
 
 const ADMIN_MAIL = 'info@finskor.tr';
-const SB_HOST    = 'clmqfckposcaqjmbrmuq.supabase.co';
-const SB_KEY     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsbXFmY2twb3NjYXFqbWJybXVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NjE3MDcsImV4cCI6MjA4ODUzNzcwN30.hbCPb5IMcnNcwUXyDkcUrzFKXPUgJrG1XmLXl_aI8T8';
 
 function sbRequest(method, path, data) {
   return new Promise((resolve, reject) => {
     const body = data ? JSON.stringify(data) : null;
+    const key = sbKey();
     const options = {
-      hostname: SB_HOST,
+      hostname: sbHost(),
       path: '/rest/v1/' + path,
       method,
       headers: {
-        'apikey': SB_KEY,
-        'Authorization': 'Bearer ' + SB_KEY,
+        apikey: key,
+        Authorization: 'Bearer ' + key,
         'Content-Type': 'application/json',
-        'Prefer': 'return=representation'
+        Prefer: 'return=representation'
       }
     };
     if (body) options.headers['Content-Length'] = Buffer.byteLength(body);

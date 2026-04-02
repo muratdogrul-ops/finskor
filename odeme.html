@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-store, max-age=0, must-revalidate">
 <title>Ödeme — FinSkor Kredi Analiz Platformu</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -110,6 +111,14 @@ nav {
   background: linear-gradient(135deg, rgba(201,168,76,0.07), transparent);
   font-family: var(--serif); font-size: 16px; font-weight: 600; color: var(--gold);
   letter-spacing: 0.5px;
+}
+.card-head.card-head-split {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+}
+.odeme-page-ver {
+  font-family: var(--sans); font-size: 10px; font-weight: 600; letter-spacing: 0.12em;
+  text-transform: uppercase; color: rgba(201,168,76,0.9); border: 1px solid rgba(201,168,76,0.35);
+  padding: 4px 8px; border-radius: 6px; white-space: nowrap;
 }
 .card-body { padding: 24px; }
 
@@ -371,7 +380,7 @@ nav {
 
       <!-- ÖDEME YÖNTEMİ -->
       <div class="pay-card" style="margin-bottom:20px">
-        <div class="card-head">💳 Ödeme Yöntemi</div>
+        <div class="card-head card-head-split">💳 Ödeme Yöntemi <span class="odeme-page-ver" id="odemePageVer">MPI+VPOS · doğrudan kart</span></div>
         <div class="card-body">
 
           <div class="method-tabs">
@@ -398,25 +407,40 @@ nav {
             </div>
           </div>
 
-          <!-- KREDİ KARTI PANELİ — Vakıfbank ortak ödeme; Netlify env: VAKIF_* -->
+          <!-- KREDİ KARTI PANELİ — Vakıfbank MPI + VPOS; alanlar üstte (kaydırma / eski dist ile karışıklık önlenir) -->
           <div class="card-panel" id="panel-card">
-            <div class="card-coming" style="border-style:solid;margin-bottom:16px">
-              <div class="coming-icon">🔐</div>
-              <h3>Vakıfbank güvenli ödeme</h3>
-              <p style="max-width:28em;margin-left:auto;margin-right:auto;font-size:12px">Bilgileriniz <strong>şifreli bağlantı</strong> ile iletilir. Sonrasında <strong>3D Secure</strong> doğrulaması için banka ekranına geçilir.</p>
-              <div class="badge-3d">Ortak ödeme · Sanal POS</div>
-            </div>
             <div class="card-fields" id="cardFieldsBlock">
-              <div class="card-fields-title">Kart ile ödeme</div>
+              <div class="card-fields-title">Kart bilgileri</div>
+              <p class="card-fields-lead" style="font-size:12px;color:var(--white-muted);margin:-6px 0 14px;line-height:1.5">Kart numarası, son kullanma ve CVV bu sayfada girilir; ardından 3D Secure için bankanızın ekranına yönlendirilirsiniz.</p>
               <div class="field">
                 <label class="field-label" for="kartUzerindeIsim">Kart üzerindeki isim <span class="req">*</span></label>
                 <input class="field-input" type="text" id="kartUzerindeIsim" name="kartUzerindeIsim" placeholder="Kartta yazdığı gibi" autocomplete="cc-name" maxlength="64">
                 <div class="field-hint">Sipariş kaydı için; karttaki ad soyad ile aynı olmalıdır.</div>
               </div>
-              <ul class="card-fields-note" style="margin:0;padding-left:1.15em;list-style:disc">
-                <li><strong>Kart numarası, son kullanma tarihi ve CVV</strong> bu ekranda <strong>istenmez</strong> (PCI güvenliği).</li>
-                <li>Ödemeye devam ettiğinizde açılan <strong>Vakıfbank</strong> sayfasında bu bilgileri girersiniz; ardından <strong>3D Secure</strong> tamamlanır.</li>
+              <div class="field">
+                <label class="field-label" for="kartPan">Kart numarası <span class="req">*</span></label>
+                <input class="field-input" type="text" id="kartPan" name="kartPan" inputmode="numeric" autocomplete="cc-number" maxlength="23" placeholder="0000 0000 0000 0000">
+              </div>
+              <div class="field-row">
+                <div class="field" style="flex:1;min-width:0">
+                  <label class="field-label" for="kartSkt">Son kullanma (AA/YY) <span class="req">*</span></label>
+                  <input class="field-input" type="text" id="kartSkt" name="kartSkt" inputmode="numeric" autocomplete="cc-exp" maxlength="5" placeholder="AA/YY">
+                </div>
+                <div class="field" style="max-width:120px;flex-shrink:0">
+                  <label class="field-label" for="kartCvv">CVV <span class="req">*</span></label>
+                  <input class="field-input" type="password" id="kartCvv" name="kartCvv" inputmode="numeric" autocomplete="cc-csc" maxlength="4" placeholder="•••">
+                </div>
+              </div>
+              <ul class="card-fields-note" style="margin:0;padding-left:1.15em;list-style:disc;font-size:12px;color:rgba(244,246,249,0.65)">
+                <li>Vakıfbank <strong>MPI + VPOS</strong> (doğrudan sanal POS).</li>
+                <li>Veriler HTTPS ile iletilir; 3D doğrulama kart bankanızda yapılır.</li>
               </ul>
+            </div>
+            <div class="card-coming" style="border-style:solid;margin-top:8px;margin-bottom:0">
+              <div class="coming-icon">🔐</div>
+              <h3>Vakıfbank 3D Sanal POS</h3>
+              <p style="max-width:28em;margin-left:auto;margin-right:auto;font-size:12px">Ödeme talebi gönderildiğinde bilgileriniz şifreli kanaldan işlenir.</p>
+              <div class="badge-3d">MPI + VPOS · 3D Secure</div>
             </div>
           </div>
 
@@ -484,7 +508,7 @@ nav {
             <button class="btn-pay" id="payBtn" onclick="submitPayment()">
               ✓ Ödeme Talebini Gönder
             </button>
-            <p id="payBtnHint" style="font-size:11px;color:var(--white-muted);margin-top:10px;text-align:center;display:none">Kart seçiliyken tıklamak sizi banka sayfasına götürür.</p>
+            <p id="payBtnHint" style="font-size:11px;color:var(--white-muted);margin-top:10px;text-align:center;display:none">Kart seçiliyken önce bilgileriniz gönderilir, ardından 3D Secure için bankanızın sayfasına yönlendirilirsiniz.</p>
             <div class="pay-security">
               🔒 Bilgileriniz şifrelenmiş olarak iletilmektedir
             </div>
@@ -659,7 +683,30 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('totalVal').textContent  = '₺ ' + CONFIG.toplamFiyat;
   document.getElementById('productName').textContent = SECILI_PAKET.ad;
   document.getElementById('productDesc').textContent = SECILI_PAKET.desc;
+  const panEl = document.getElementById('kartPan');
+  if (panEl) {
+    panEl.addEventListener('input', () => {
+      const d = panEl.value.replace(/\D/g, '').slice(0, 19);
+      panEl.value = d.replace(/(.{4})/g, '$1 ').trim();
+    });
+  }
+  const sktEl = document.getElementById('kartSkt');
+  if (sktEl) {
+    sktEl.addEventListener('input', () => {
+      let d = sktEl.value.replace(/\D/g, '').slice(0, 4);
+      if (d.length >= 2) d = d.slice(0, 2) + '/' + d.slice(2);
+      sktEl.value = d;
+    });
+  }
   syncPayButtonLabel();
+
+  // Kart sekmesini doğrudan göstermek: odeme.html?card=1 veya #kart (alanlar varsayılan EFT altında gizli)
+  try {
+    const sp = new URLSearchParams(window.location.search);
+    const wantCard = sp.get('card') === '1' || sp.get('pay') === 'card' || window.location.hash === '#kart';
+    const tabCard = document.getElementById('tabCard');
+    if (wantCard && tabCard) switchMethod('card', tabCard);
+  } catch (_) {}
 });
 
 // ═══════════════════════════════════════
@@ -685,6 +732,20 @@ function syncPayButtonLabel() {
     pay.textContent = '✓ Ödeme Talebini Gönder';
     if (hint) { hint.style.display = 'none'; }
   }
+}
+
+/** Luhn ile kart numarası doğrulama */
+function _luhnOk(pan) {
+  let s = 0;
+  let alt = false;
+  for (let i = pan.length - 1; i >= 0; i--) {
+    let n = parseInt(pan[i], 10);
+    if (Number.isNaN(n)) return false;
+    if (alt) { n *= 2; if (n > 9) n -= 9; }
+    s += n;
+    alt = !alt;
+  }
+  return pan.length >= 13 && s % 10 === 0;
 }
 
 // ═══════════════════════════════════════
@@ -729,41 +790,77 @@ async function submitPayment() {
 
   if (cardActive) {
     const kIsim = (document.getElementById('kartUzerindeIsim') && document.getElementById('kartUzerindeIsim').value.trim()) || '';
+    const panRaw = (document.getElementById('kartPan') && document.getElementById('kartPan').value.replace(/\s/g, '')) || '';
+    const sktDigits = (document.getElementById('kartSkt') && document.getElementById('kartSkt').value.replace(/\D/g, '')) || '';
+    const cvv = (document.getElementById('kartCvv') && document.getElementById('kartCvv').value.replace(/\D/g, '')) || '';
     if (!kIsim || kIsim.length < 2) { showToast('Kart üzerindeki ismi giriniz.', true); return; }
+    if (!/^\d{13,19}$/.test(panRaw) || !_luhnOk(panRaw)) { showToast('Geçerli bir kart numarası giriniz.', true); return; }
+    if (!/^\d{4}$/.test(sktDigits)) { showToast('Son kullanma tarihini AA/YY olarak giriniz.', true); return; }
+    if (!/^\d{3,4}$/.test(cvv)) { showToast('CVV 3 veya 4 haneli olmalıdır.', true); return; }
   }
 
   btn.disabled = true;
-  btn.textContent = cardActive ? '⏳ Bankaya bağlanılıyor...' : '⏳ Kaydediliyor...';
+  btn.textContent = cardActive ? '⏳ 3D doğrulama hazırlanıyor...' : '⏳ Kaydediliyor...';
 
-  const odemeYontemi = cardActive ? 'Kredi Kartı (Vakıfbank)' : 'EFT / Havale';
+  const odemeYontemi = cardActive ? 'Kredi Kartı (Vakıfbank MPI)' : 'EFT / Havale';
 
   try {
     if (cardActive) {
       const kIsim = document.getElementById('kartUzerindeIsim').value.trim();
-      const ir = await fetch('/.netlify/functions/vakifbank-init', {
+      const panRaw = document.getElementById('kartPan').value.replace(/\s/g, '');
+      const sktDigits = document.getElementById('kartSkt').value.replace(/\D/g, '');
+      const cvv = document.getElementById('kartCvv').value.replace(/\D/g, '');
+      const expiryYYMM = sktDigits.slice(2) + sktDigits.slice(0, 2);
+
+      const ir = await fetch('/.netlify/functions/vakifbank-mpi-enroll', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           adSoyad, email, telefon, firmaAdi, vkn, vd,
           faturaTipi: bireysel ? 'bireysel' : 'kurumsal',
           paketKey: _paketKey,
-          kartUzerindeIsim: kIsim
+          kartUzerindeIsim: kIsim,
+          pan: panRaw,
+          expiryYYMM,
+          cvv
         })
       });
       const j = await ir.json().catch(() => ({}));
       if (j.code === 'NOT_CONFIGURED') {
-        showToast('Kart ödemesi için Netlify ortamında Vakıfbank POS bilgileri tanımlanmalıdır. Şimdilik EFT/Havale kullanın.', true);
+        showToast('Kart ödemesi için Netlify ortamında Vakıfbank MPI/VPOS bilgileri tanımlanmalıdır. Şimdilik EFT/Havale kullanın.', true);
         btn.disabled = false;
         syncPayButtonLabel();
         return;
       }
-      if (!j.ok || !j.redirectUrl) {
-        showToast(j.message || 'Kart ödemesi başlatılamadı.', true);
+      if (!j.ok) {
+        showToast(j.message || '3D kayıt başlatılamadı.', true);
         btn.disabled = false;
         syncPayButtonLabel();
         return;
       }
-      window.location.href = j.redirectUrl;
+      if (!j.acsUrl || !j.paReq || j.md == null || j.md === '') {
+        showToast('Banka 3D yanıtı eksik. Yönetici ile iletişime geçin.', true);
+        btn.disabled = false;
+        syncPayButtonLabel();
+        return;
+      }
+      const f = document.createElement('form');
+      f.method = 'POST';
+      f.action = j.acsUrl;
+      f.style.display = 'none';
+      function addHidden(name, val) {
+        const i = document.createElement('input');
+        i.type = 'hidden';
+        i.name = name;
+        i.value = val;
+        f.appendChild(i);
+      }
+      addHidden('PaReq', j.paReq);
+      addHidden('TermUrl', j.termUrl);
+      addHidden('MD', String(j.md));
+      document.body.appendChild(f);
+      f.submit();
       return;
     }
 
