@@ -480,7 +480,9 @@ function parseMpiEnrollmentResponse(rawText, httpStatus, contentType) {
       status ? `3D durumu: ${status}` : null,
       !hasAcs
         ? looksHtml
-          ? 'Banka MPI/XML yerine bir HTML sayfası döndü (yanlış URL, test–canlı uyumsuzluğu, IP kısıtı veya sunucu hata sayfası olabilir). Endpoint ve üye işyeri ayarlarını Vakıfbank ile doğrulayın; aşağıdaki etiket listesini desteğe iletin.'
+          ? /request\s*rejected/i.test(pageTitle)
+            ? 'Güvenlik duvarı isteği reddetti (genelde “Request Rejected”). Çıkış IP’niz bankada tanımlı değilse oluşur: Netlify IP’si sabit değildir. Vakıfbank’tan whitelist için sabit çıkış IP isteyin; Netlify’da QUOTAGUARDSTATIC_URL veya VAKIF_HTTPS_PROXY ile o IP’den gidin. Endpoint test/canlı uyumunu da doğrulayın.'
+            : 'Banka MPI/XML yerine bir HTML sayfası döndü (yanlış URL, test–canlı uyumsuzluğu, IP kısıtı veya sunucu hata sayfası olabilir). Endpoint ve üye işyeri ayarlarını Vakıfbank ile doğrulayın; aşağıdaki etiket listesini desteğe iletin.'
           : 'ACS adresi veya PaReq okunamadı. Yanıttaki etiket isimleri farklı olabilir — aşağıdaki listeyi bankaya iletin.'
         : null,
     ].filter(Boolean);
