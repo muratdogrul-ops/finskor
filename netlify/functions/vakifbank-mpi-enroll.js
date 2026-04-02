@@ -3,6 +3,7 @@
  * Env: VAKIF_INIT, VAKIF_HOST_MERCHANT_ID, VAKIF_MERCHANT_PASSWORD, VAKIF_HOST_TERMINAL_ID, SITE_URL
  * İsteğe bağlı: VAKIF_MPI_SESSION_SECRET (yoksa şifre türevi), QUOTAGUARDSTATIC_URL
  * Test: odeme.html?mpi_test=1 + istekte mpiTest:true — yalnızca VAKIF_MPI_TEST_MODE=1 iken geçerli (canlıda kapatın).
+ * Hata ayıklama: VAKIF_MPI_CLIENT_DEBUG=1 → JSON yanıtta bankPreview (PAN/PaReq maskeli); Netlify log’da MPI_FAIL_JSON satırı.
  */
 const {
   PAKET,
@@ -23,6 +24,14 @@ function corsHeaders(origin) {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Credentials': 'true',
   };
+}
+
+/** Banka yanıtını destek e-postasına yapıştırmak için: PAN ve uzun base64 maskelenir */
+function sanitizeBankBodyForCopy(text) {
+  let s = String(text || '').slice(0, 6000);
+  s = s.replace(/\b\d{13,19}\b/g, 'PAN_REDACTED');
+  s = s.replace(/[A-Za-z0-9+/]{48,}={0,2}/g, (m) => `B64[len=${m.length}]`);
+  return s;
 }
 
 exports.handler = async (event) => {
@@ -231,6 +240,14 @@ exports.handler = async (event) => {
   const parsed = parseMpiEnrollmentResponse(xr, xmlRes.status);
 
   if (!parsed.ok) {
+    const safePreview = sanitizeBankBodyForCopy(xr);
+    const supportLine = {
+      http: xmlRes.status,
+      mpiStatus: parsed.status || null,
+      message: (parsed.message || '').slice(0, 600),
+      tags: (parsed.foundTags || '').slice(0, 400),
+      bankBodyPreview: safePreview,
+    };
     console.error('MPI enrollment failed', {
       httpStatus: xmlRes.status,
       mpiStatus: parsed.status,
@@ -238,14 +255,29 @@ exports.handler = async (event) => {
       logHint: parsed.logHint,
       rawHead: xr.slice(0, 2800),
     });
+    console.error('MPI_FAIL_JSON ' + JSON.stringify(supportLine));
+
+    const clientDebug = (process.env.VAKIF_MPI_CLIENT_DEBUG || '').trim() === '1';
+    const bodyOut = {
+      ok: false,
+      message: parsed.message,
+      mpiStatus: parsed.status || null,
+    };
+    if (clientDebug) {
+      bodyOut.supportCopy = {
+        talimat:
+          'Bu bloğu kopyalayıp Vakıfbank desteğe gönderin (PAN/PaReq maskeli). Sonra VAKIF_MPI_CLIENT_DEBUG kaldırın.',
+        httpStatus: xmlRes.status,
+        mpiStatus: parsed.status || null,
+        foundTags: parsed.foundTags || null,
+        bankBodyPreview: safePreview,
+      };
+    }
+
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
-      body: JSON.stringify({
-        ok: false,
-        message: parsed.message,
-        mpiStatus: parsed.status || null,
-      }),
+      body: JSON.stringify(bodyOut),
     };
   }
 
