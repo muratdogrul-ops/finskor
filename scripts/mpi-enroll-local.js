@@ -23,7 +23,7 @@ try {
 }
 
 const {
-  MPI_ENROLL_URL,
+  resolveMpiEnrollUrl,
   buildEnrollmentXml,
   postXml,
   parseMpiEnrollmentResponse,
@@ -68,6 +68,7 @@ async function main() {
   const xml = buildEnrollmentXml({
     merchantId: mid,
     merchantPassword: pwd,
+    terminalNo: term,
     verifyId,
     pan: panDigits,
     expiryYYMM: exp,
@@ -77,7 +78,7 @@ async function main() {
     failureUrl: failUrl,
   });
 
-  const url = MPI_ENROLL_URL[mode];
+  const url = resolveMpiEnrollUrl(mode);
   console.log('Ortam:', mode);
   console.log('Endpoint:', url);
   console.log('Kart (maskeli):', maskPan(panDigits), 'SKT(YYMM):', exp, 'Tutar:', amount);
@@ -92,9 +93,11 @@ async function main() {
     process.exit(1);
   }
 
-  const parsed = parseMpiEnrollmentResponse(res.text, res.status);
+  const parsed = parseMpiEnrollmentResponse(res.text, res.status, res.contentType);
 
   console.log('HTTP:', res.status);
+  if (res.contentType) console.log('Content-Type:', res.contentType.split(';')[0].trim());
+  if (parsed.htmlPageTitle) console.log('HTML title:', parsed.htmlPageTitle);
   console.log('Parse ok:', parsed.ok);
   console.log('Status:', parsed.status || '(boş)');
   if (parsed.message) console.log('Mesaj:', parsed.message);

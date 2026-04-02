@@ -7,7 +7,7 @@
  */
 const {
   PAKET,
-  MPI_ENROLL_URL,
+  resolveMpiEnrollUrl,
   siteBase,
   detectBrand,
   encryptMpiSession,
@@ -215,6 +215,7 @@ exports.handler = async (event) => {
   const enrollXml = buildEnrollmentXml({
     merchantId: mid,
     merchantPassword: pwd,
+    terminalNo: term,
     verifyId,
     pan: panDigits,
     expiryYYMM: exp,
@@ -224,9 +225,10 @@ exports.handler = async (event) => {
     failureUrl: failUrl,
   });
 
+  const enrollUrl = resolveMpiEnrollUrl(mode);
   let xmlRes;
   try {
-    xmlRes = await postXml(MPI_ENROLL_URL[mode], enrollXml);
+    xmlRes = await postXml(enrollUrl, enrollXml);
   } catch (e) {
     console.error('MPI Enrollment:', e);
     return {
@@ -237,19 +239,24 @@ exports.handler = async (event) => {
   }
 
   const xr = xmlRes.text;
-  const parsed = parseMpiEnrollmentResponse(xr, xmlRes.status);
+  const parsed = parseMpiEnrollmentResponse(xr, xmlRes.status, xmlRes.contentType);
 
   if (!parsed.ok) {
     const safePreview = sanitizeBankBodyForCopy(xr);
     const supportLine = {
+      enrollUrl,
       http: xmlRes.status,
+      contentType: (xmlRes.contentType && String(xmlRes.contentType).split(';')[0].trim()) || null,
+      htmlTitle: parsed.htmlPageTitle || null,
       mpiStatus: parsed.status || null,
       message: (parsed.message || '').slice(0, 600),
       tags: (parsed.foundTags || '').slice(0, 400),
       bankBodyPreview: safePreview,
     };
     console.error('MPI enrollment failed', {
+      enrollUrl,
       httpStatus: xmlRes.status,
+      contentType: xmlRes.contentType || null,
       mpiStatus: parsed.status,
       message: parsed.message,
       logHint: parsed.logHint,
@@ -267,7 +274,10 @@ exports.handler = async (event) => {
       bodyOut.supportCopy = {
         talimat:
           'Bu bloğu kopyalayıp Vakıfbank desteğe gönderin (PAN/PaReq maskeli). Sonra VAKIF_MPI_CLIENT_DEBUG kaldırın.',
+        enrollUrl,
         httpStatus: xmlRes.status,
+        contentType: (xmlRes.contentType && String(xmlRes.contentType).split(';')[0].trim()) || null,
+        htmlTitle: parsed.htmlPageTitle || null,
         mpiStatus: parsed.status || null,
         foundTags: parsed.foundTags || null,
         bankBodyPreview: safePreview,

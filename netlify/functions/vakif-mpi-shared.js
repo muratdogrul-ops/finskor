@@ -16,6 +16,14 @@ const MPI_ENROLL_URL = {
   prod: 'https://inbound.apigateway.vakifbank.com.tr:8443/threeDGateway/Enrollment',
 };
 
+/** Bankanın verdiği tam URL farklıysa kod değiştirmeden override (test / canlı ayrı). */
+function resolveMpiEnrollUrl(mode) {
+  const key = mode === 'prod' ? 'VAKIF_MPI_ENROLL_URL_PROD' : 'VAKIF_MPI_ENROLL_URL_TEST';
+  const o = process.env[key];
+  if (o && String(o).trim()) return String(o).trim();
+  return MPI_ENROLL_URL[mode];
+}
+
 const VPOS_URL = {
   test: 'https://apiportalprep.vakifbank.com.tr:8443/virtualPos/Vposreq',
   prod: 'https://apigw.vakifbank.com.tr:8443/virtualPos/Vposreq',
@@ -197,6 +205,12 @@ function isLikelyHtmlInsteadOfMpiXml(foundTags, raw) {
   return tags.includes('html') && (tags.includes('head') || tags.includes('body'));
 }
 
+function extractRoughHtmlTitle(html) {
+  const m = String(html).match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (!m) return '';
+  return m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140);
+}
+
 function tryParseMpiJson(raw) {
   const t = raw.trim();
   if (!t.startsWith('{') && !t.startsWith('[')) return null;
@@ -270,7 +284,7 @@ function jsonFindMpiFields(obj) {
 /**
  * MPI Enrollment yanıtını ayrıştırır (Vakıfbank / namespace / JSON / attribute varyantları).
  */
-function parseMpiEnrollmentResponse(rawText, httpStatus) {
+function parseMpiEnrollmentResponse(rawText, httpStatus, contentType) {
   let raw = String(rawText || '')
     .replace(/^\ufeff/, '')
     .trim();
@@ -282,15 +296,19 @@ function parseMpiEnrollmentResponse(rawText, httpStatus) {
   const xmlSearch = expandRawWithInnerXml(raw);
 
   if (httpStatus != null && (httpStatus < 200 || httpStatus >= 300)) {
+    const ct = String(contentType || '').split(';')[0].trim();
     return {
       ok: false,
       status: '',
-      message: `Banka iletişim hatası (HTTP ${httpStatus}).`,
+      message:
+        `Banka iletişim hatası (HTTP ${httpStatus}).` +
+        (ct ? ` Yanıt içeriği: ${ct}.` : ''),
       acsUrl: '',
       paReq: '',
       md: '',
       logHint: snippet,
       foundTags,
+      responseContentType: ct || null,
     };
   }
 
@@ -453,6 +471,8 @@ function parseMpiEnrollmentResponse(rawText, httpStatus) {
 
   if (!ok) {
     const looksHtml = !hasAcs && isLikelyHtmlInsteadOfMpiXml(foundTags, raw);
+    const pageTitle = looksHtml ? extractRoughHtmlTitle(raw) : '';
+    const ctShort = String(contentType || '').split(';')[0].trim();
     const parts = [
       message,
       errCode && `Kod: ${errCode}`,
@@ -464,7 +484,11 @@ function parseMpiEnrollmentResponse(rawText, httpStatus) {
           : 'ACS adresi veya PaReq okunamadı. Yanıttaki etiket isimleri farklı olabilir — aşağıdaki listeyi bankaya iletin.'
         : null,
     ].filter(Boolean);
-    const tagLine = foundTags ? ` Yanıtta görülen etiketler: ${foundTags.slice(0, 350)}` : '';
+    const tagBits = [];
+    if (foundTags) tagBits.push(`Yanıtta görülen etiketler: ${foundTags.slice(0, 350)}`);
+    if (looksHtml && pageTitle) tagBits.push(`Sayfa başlığı: ${pageTitle}`);
+    if (looksHtml && ctShort && /\btext\/html\b/i.test(ctShort)) tagBits.push(`Content-Type: ${ctShort}`);
+    const tagLine = tagBits.length ? ` ${tagBits.join(' · ')}` : '';
     return {
       ok: false,
       status,
@@ -474,6 +498,8 @@ function parseMpiEnrollmentResponse(rawText, httpStatus) {
       md,
       logHint: snippet,
       foundTags,
+      responseContentType: ctShort || null,
+      htmlPageTitle: pageTitle || null,
     };
   }
 
@@ -560,6 +586,7 @@ function buildEnrollmentXml(opts) {
   const {
     merchantId,
     merchantPassword,
+    terminalNo,
     verifyId,
     pan,
     expiryYYMM,
@@ -568,11 +595,16 @@ function buildEnrollmentXml(opts) {
     successUrl,
     failureUrl,
   } = opts;
+  const termXml =
+    terminalNo != null && String(terminalNo).trim()
+      ? `<TerminalNo>${escXml(String(terminalNo).trim())}</TerminalNo>`
+      : '';
   return (
     '<?xml version="1.0" encoding="UTF-8"?>' +
     '<VerifyEnrollmentRequest>' +
     `<MerchantId>${escXml(merchantId)}</MerchantId>` +
     `<MerchantPassword>${escXml(merchantPassword)}</MerchantPassword>` +
+    termXml +
     `<VerifyEnrollmentRequestId>${escXml(verifyId)}</VerifyEnrollmentRequestId>` +
     `<Pan>${escXml(pan)}</Pan>` +
     `<ExpiryDate>${escXml(expiryYYMM)}</ExpiryDate>` +
@@ -666,16 +698,22 @@ async function postXml(url, xmlBody) {
     headers: {
       'Content-Type': 'application/xml; charset=utf-8',
       Accept: 'application/xml, text/xml, */*',
+      'User-Agent': 'FinSkor-MPI/1.0',
     },
     body: xmlBody,
   });
   const text = await res.text();
-  return { status: res.status, text };
+  const contentType =
+    (typeof res.headers?.get === 'function' && res.headers.get('content-type')) ||
+    res.headers?.['content-type'] ||
+    '';
+  return { status: res.status, text, contentType: String(contentType || '') };
 }
 
 module.exports = {
   PAKET,
   MPI_ENROLL_URL,
+  resolveMpiEnrollUrl,
   VPOS_URL,
   siteBase,
   xmlTag,
