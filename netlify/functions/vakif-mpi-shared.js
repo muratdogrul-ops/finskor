@@ -48,8 +48,9 @@ function xmlFirstOf(xml, names, attrNames = []) {
     if (body) return body;
     const esc = String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     for (const attr of attrNames.length ? attrNames : ['value', 'Value', 'ValueText']) {
+      const attrEsc = String(attr).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const re = new RegExp(
-        `<(?:[a-zA-Z0-9_]+:)?${esc}[^>]*\\s${attr}\\s*=\\s*["']([^"']*)["']`,
+        `<(?:[a-zA-Z0-9_]+:)?${esc}[^>]*\\b${attrEsc}\\s*=\\s*["']([^"']*)["']`,
         'i'
       );
       const m = String(xml).match(re);
@@ -63,6 +64,101 @@ function stripCdata(s) {
   return String(s || '')
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1')
     .trim();
+}
+
+function decodeHtmlEntities(s) {
+  return String(s || '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)));
+}
+
+/** CDATA içinde gömülü ikinci XML katmanı */
+function expandRawWithInnerXml(raw) {
+  const extra = [];
+  const re = /<!\[CDATA\[([\s\S]*?)\]\]>/gi;
+  let m;
+  while ((m = re.exec(raw))) {
+    const inner = m[1];
+    if (inner.includes('<') && /<[a-zA-Z_][\w:.-]*/.test(inner)) extra.push(inner);
+  }
+  if (!extra.length) return raw;
+  return `${raw}\n${extra.join('\n')}`;
+}
+
+function merchantHostHints() {
+  const hints = ['netlify.app', 'finskor'];
+  const u = (process.env.SITE_URL || process.env.URL || '').trim();
+  try {
+    if (u) hints.push(new URL(u.startsWith('http') ? u : `https://${u}`).hostname);
+  } catch (_) {
+    /* ignore */
+  }
+  return hints.filter(Boolean);
+}
+
+/** Metindeki tüm URL’lerden ACS adayı seç (işyeri callback URL’lerini ele) */
+function pickAcsUrlFromRaw(raw) {
+  const hints = merchantHostHints().map((h) => h.toLowerCase());
+  const all = String(raw).match(/https?:\/\/[^\s<"'<>]{10,2500}/gi) || [];
+  const uniq = [...new Set(all.map((u) => u.replace(/&amp;/g, '&')))];
+  const scored = uniq
+    .filter((u) => {
+      const l = u.toLowerCase();
+      if (hints.some((h) => h && l.includes(h))) return false;
+      return true;
+    })
+    .map((u) => {
+      let score = 0;
+      const kw = /acs|3d|secure|threeds|mpi|authentication|gateway|issuer|directory|emv|cardinal|arcot/i.test(
+        u
+      );
+      if (kw) score += 22;
+      if (/\.(js|css|png|jpe?g|woff2?)(\?|$)/i.test(u)) score -= 50;
+      if (kw && /api\.|apigateway|vakifbank/i.test(u)) score += 4;
+      return { u, score };
+    })
+    .filter((x) => x.score >= 18)
+    .sort((a, b) => b.score - a.score);
+  return scored[0]?.u || '';
+}
+
+/** Etiket listesinde pareq / auth ile eşleşen yerel adlardan içerik çek */
+function fuzzyExtractPaReq(xml) {
+  const names = listXmlLocalTagNames(xml).split(/,\s*/);
+  for (const name of names) {
+    const n = name.trim();
+    if (!n) continue;
+    const nl = n.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (
+      !nl.includes('pareq') &&
+      !nl.includes('parequest') &&
+      !nl.includes('authenticationrequest') &&
+      !nl.includes('threedsecure') &&
+      nl !== 'encodeddata'
+    )
+      continue;
+    const v = xmlTagFlexible(xml, n);
+    const t = stripCdata(v).replace(/\s+/g, '').trim();
+    if (t.length >= 4) return t;
+  }
+  return '';
+}
+
+/** Ham metinde PaReq benzeri uzun base64 blok (etiketsiz yanıtlar) */
+function extractPaReqLooseFromText(text) {
+  const s = String(text);
+  const m = s.match(/>([A-Za-z0-9+/=\s]{32,})</);
+  if (m) {
+    const c = m[1].replace(/\s+/g, '').trim();
+    if (c.length >= 32 && /^[A-Za-z0-9+/]+=*$/.test(c)) return c;
+  }
+  const m2 = s.match(/"PaReq"\s*:\s*"([^"]+)"/i);
+  if (m2 && m2[1].length >= 4) return m2[1].replace(/\s+/g, '');
+  return '';
 }
 
 function isLikelyHttpUrl(s) {
@@ -101,7 +197,16 @@ function jsonFindMpiFields(obj) {
     procReturn: ['procreturcode', 'procretur', 'processreturncode'],
     message: ['message', 'errormessage', 'errmsg', 'responsemessage', 'resultmessage'],
     acsUrl: ['acsurl', 'acsurl2', 'acs', 'redirecturl', 'gatewayurl', 'authenticationurl', 'acsaddress'],
-    paReq: ['pareq', 'pareqmsg', 'authenticationrequest', 'parequest', 'pareqmessage'],
+    paReq: [
+      'pareq',
+      'pareqmsg',
+      'authenticationrequest',
+      'parequest',
+      'pareqmessage',
+      'encodedpareq',
+      'pareqdata',
+      'encodeddata',
+    ],
     md: ['md', 'merchantdata'],
     errCode: ['errorcode', 'resultcode', 'responsecode'],
   };
@@ -148,11 +253,15 @@ function jsonFindMpiFields(obj) {
  * MPI Enrollment yanıtını ayrıştırır (Vakıfbank / namespace / JSON / attribute varyantları).
  */
 function parseMpiEnrollmentResponse(rawText, httpStatus) {
-  const raw = String(rawText || '')
+  let raw = String(rawText || '')
     .replace(/^\ufeff/, '')
     .trim();
+  if (/&lt;[a-zA-Z_]/.test(raw) && !/<[a-zA-Z_]/.test(raw)) {
+    raw = decodeHtmlEntities(raw);
+  }
   const snippet = raw.slice(0, 400).replace(/\s+/g, ' ');
   const foundTags = raw.includes('<') ? listXmlLocalTagNames(raw) : '';
+  const xmlSearch = expandRawWithInnerXml(raw);
 
   if (httpStatus != null && (httpStatus < 200 || httpStatus >= 300)) {
     return {
@@ -197,14 +306,21 @@ function parseMpiEnrollmentResponse(rawText, httpStatus) {
       foundTags: '',
     };
   } else {
+    const x1 = raw;
+    const x2 = xmlSearch;
     status = (
-      xmlFirstOf(raw, ['Status', 'ThreeDSecureStatus', 'EnrollmentStatus', 'MdStatus']) || ''
+      xmlFirstOf(x2, ['Status', 'ThreeDSecureStatus', 'EnrollmentStatus', 'MdStatus']) ||
+      xmlFirstOf(x1, ['Status', 'ThreeDSecureStatus', 'EnrollmentStatus', 'MdStatus']) ||
+      ''
     )
       .trim()
       .toUpperCase();
-    procReturn = xmlFirstOf(raw, ['ProcReturnCode', 'ProcReturn', 'ProcessReturnCode']) || '';
+    procReturn =
+      xmlFirstOf(x2, ['ProcReturnCode', 'ProcReturn', 'ProcessReturnCode']) ||
+      xmlFirstOf(x1, ['ProcReturnCode', 'ProcReturn', 'ProcessReturnCode']) ||
+      '';
     message =
-      xmlFirstOf(raw, [
+      xmlFirstOf(x2, [
         'Message',
         'ErrorMessage',
         'ErrorMsg',
@@ -216,39 +332,77 @@ function parseMpiEnrollmentResponse(rawText, httpStatus) {
         'faultstring',
         'Reason',
         'Detail',
-      ]) || '';
-    acsUrl = xmlFirstOf(raw, [
+      ]) ||
+      xmlFirstOf(x1, [
+        'Message',
+        'ErrorMessage',
+        'ErrorMsg',
+        'ResponseMessage',
+        'ErrMsg',
+        'ResultMessage',
+        'VerifyEnrollmentRequestResult',
+        'FaultString',
+        'faultstring',
+        'Reason',
+        'Detail',
+      ]) ||
+      '';
+    const acsNames = [
       'ACSUrl',
       'AcsUrl',
       'ACSURL',
       'AcsURL',
-      'Url',
       'ACS2Url',
       'GatewayUrl',
       'RedirectUrl',
       'AuthenticationUrl',
       'ThreeDSecureUrl',
-    ]);
-    paReq = xmlFirstOf(raw, ['PaReq', 'PAREQ', 'Pareq', 'PAReq', 'AuthenticationRequest'], [
-      'value',
-      'Value',
-      'ValueText',
-    ]);
-    md = xmlFirstOf(raw, ['MD', 'Md', 'MerchantData']);
-    errCode = xmlFirstOf(raw, ['ErrorCode', 'ResultCode', 'ResponseCode']) || '';
-  }
-
-  // URL gövdede farklı etiketle geldiyse: ilk https ile başlayan uzun metin
-  if (!isLikelyHttpUrl(acsUrl) && raw.includes('http')) {
-    const um = raw.match(/https:\/\/[^\s<"'<>]{12,2048}/i);
-    if (um && /acs|secure|3d|mpi|gateway|bank|isyeri|authentication/i.test(um[0])) {
-      acsUrl = um[0].replace(/&amp;/g, '&');
-    }
+      'IssuerUrl',
+      'DirectoryServerUrl',
+      'ACSAddress',
+      'Url',
+    ];
+    acsUrl = xmlFirstOf(x2, acsNames) || xmlFirstOf(x1, acsNames);
+    const paNames = [
+      'PaReq',
+      'PAREQ',
+      'Pareq',
+      'PAReq',
+      'AuthenticationRequest',
+      'EncodedPaReq',
+      'RequestMessage',
+      'AuthenticationData',
+    ];
+    paReq =
+      xmlFirstOf(x2, paNames, ['value', 'Value', 'ValueText', 'text']) ||
+      xmlFirstOf(x1, paNames, ['value', 'Value', 'ValueText', 'text']);
+    md = xmlFirstOf(x2, ['MD', 'Md', 'MerchantData']) || xmlFirstOf(x1, ['MD', 'Md', 'MerchantData']);
+    errCode =
+      xmlFirstOf(x2, ['ErrorCode', 'ResultCode', 'ResponseCode']) ||
+      xmlFirstOf(x1, ['ErrorCode', 'ResultCode', 'ResponseCode']) ||
+      '';
   }
 
   acsUrl = stripCdata(acsUrl).replace(/&amp;/g, '&').trim();
   paReq = stripCdata(paReq).replace(/\s+/g, '').trim();
   md = stripCdata(md).trim();
+
+  if (!isLikelyHttpUrl(acsUrl)) {
+    const picked = pickAcsUrlFromRaw(xmlSearch) || pickAcsUrlFromRaw(raw);
+    if (picked) acsUrl = picked;
+  }
+
+  if (!paReq || paReq.length < 4) {
+    paReq =
+      fuzzyExtractPaReq(xmlSearch) ||
+      fuzzyExtractPaReq(raw) ||
+      extractPaReqLooseFromText(xmlSearch) ||
+      extractPaReqLooseFromText(raw) ||
+      paReq;
+    paReq = String(paReq || '')
+      .replace(/\s+/g, '')
+      .trim();
+  }
 
   const hasAcs = isLikelyHttpUrl(acsUrl) && paReq.length >= 4;
   const procOk = procReturn === '00' || procReturn === '0000' || procReturn === '0' || procReturn === '000';
