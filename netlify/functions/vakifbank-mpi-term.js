@@ -12,6 +12,7 @@ const {
   postXml,
   xmlTag,
 } = require('./vakif-mpi-shared');
+const { vakifFetchErrorResponse } = require('./vakif-fetch');
 
 function escapeHtml(s) {
   return String(s || '')
@@ -168,6 +169,18 @@ exports.handler = async (event) => {
     vtxt = vr.text;
   } catch (e) {
     console.error('VPOS', e);
+    const pe = vakifFetchErrorResponse(e);
+    if (pe) {
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        body: htmlPage(
+          'Proxy ayarı',
+          `<h1 class="err">Çıkış proxy hatası</h1><p>${escapeHtml(pe.message)}</p><p style="font-size:0.9rem;opacity:.85">Netlify’da QUOTAGUARDSTATIC_URL değerini kontrol edin.</p><a class="btn" href="/odeme.html">Ödeme sayfası</a>`,
+          false
+        ),
+      };
+    }
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'text/html; charset=utf-8' },

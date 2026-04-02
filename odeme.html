@@ -909,7 +909,13 @@ async function submitPayment() {
         return;
       }
       if (!j.ok) {
-        showToast(j.message || '3D kayıt başlatılamadı.', true);
+        let errMsg = j.message || '3D kayıt başlatılamadı.';
+        if (j.code === 'PROXY_MISCONFIGURED' || j.code === 'EGRESS_PROXY_REQUIRED') {
+          errMsg = (j.message || '') + (j.mpiHint ? ' ' + j.mpiHint : '');
+        } else if (j.mpiHint) {
+          errMsg = errMsg + ' — ' + j.mpiHint;
+        }
+        showToast(errMsg.trim() || '3D kayıt başlatılamadı.', true);
         btn.disabled = false;
         syncPayButtonLabel();
         return;

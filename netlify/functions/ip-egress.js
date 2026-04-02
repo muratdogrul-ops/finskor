@@ -11,7 +11,7 @@
  * Vakıfbank IP kaydı bittikten sonra bu dosyayı silebilirsiniz.
  */
 
-const { vakifFetch } = require('./vakif-fetch');
+const { vakifFetch, getVakifEgressStatus } = require('./vakif-fetch');
 
 exports.handler = async (event) => {
   const headers = {
@@ -35,10 +35,25 @@ exports.handler = async (event) => {
     }
   }
 
-  const proxyOn = !!(process.env.QUOTAGUARDSTATIC_URL || process.env.VAKIF_HTTPS_PROXY || '').trim();
+  const egress = getVakifEgressStatus();
+  if (egress.proxyUrlConfigured && !egress.proxyAgentActive) {
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        ok: false,
+        proxyMisconfigured: true,
+        proxyAgentError: egress.proxyAgentError,
+        proxyHost: egress.proxyHost,
+        note:
+          'QUOTAGUARDSTATIC_URL / VAKIF_HTTPS_PROXY geçersiz veya ProxyAgent oluşturulamıyor. ' +
+          'Düzeltilmeden MPI/VPOS istekleri de başarısız olur (sessiz doğrudan çıkış artık yok).',
+      }),
+    };
+  }
 
   try {
-    const res = proxyOn
+    const res = egress.proxyAgentActive
       ? await vakifFetch('https://api.ipify.org?format=json', {
           headers: { Accept: 'application/json' },
         })
@@ -54,8 +69,8 @@ exports.handler = async (event) => {
         ip,
         ipv4: ip && ip.includes(':') ? null : ip,
         at: new Date().toISOString(),
-        viaQuotaGuardOrVakifProxy: proxyOn,
-        note: proxyOn
+        viaQuotaGuardOrVakifProxy: egress.proxyAgentActive,
+        note: egress.proxyAgentActive
           ? 'Bu istek QuotaGuard/VAKIF proxy üzerinden; IP Vakıfbank whitelist ile eşleşmeli (52.29… çifti).'
           : 'Proxy kapalı — bu Netlify ham çıkışıdır. Banka için QUOTAGUARDSTATIC_URL ekleyip deploy edin.',
         hint: secret ? null : 'İsterseniz IP_EGRESS_CHECK_SECRET env + ?k=... ile kapatın; iş bitince bu functionı silin.',

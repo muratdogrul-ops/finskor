@@ -7,7 +7,7 @@
  */
 const https = require('https');
 const { sbHost, sbKey } = require('./sb-config');
-const { vakifFetch } = require('./vakif-fetch');
+const { vakifFetch, vakifFetchErrorResponse } = require('./vakif-fetch');
 
 const PAKET = {
   profesyonel: { fiyat: '2490.00', fiyatLabel: '2.490', credits: 4, ad: 'FinSkor Profesyonel Paket' },
@@ -223,6 +223,14 @@ exports.handler = async (event) => {
     xml = await res.text();
   } catch (e) {
     console.error('Vakıfbank RegisterTransaction:', e);
+    const pe = vakifFetchErrorResponse(e);
+    if (pe) {
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+        body: JSON.stringify({ ok: false, code: pe.code, message: pe.message }),
+      };
+    }
     return {
       statusCode: 502,
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },

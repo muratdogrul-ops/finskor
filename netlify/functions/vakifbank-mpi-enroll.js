@@ -4,7 +4,10 @@
  * İsteğe bağlı: VAKIF_MPI_SESSION_SECRET (yoksa şifre türevi), QUOTAGUARDSTATIC_URL
  * Test: odeme.html?mpi_test=1 + istekte mpiTest:true — yalnızca VAKIF_MPI_TEST_MODE=1 iken geçerli (canlıda kapatın).
  * Hata ayıklama: VAKIF_MPI_CLIENT_DEBUG=1 → JSON yanıtta bankPreview (PAN/PaReq maskeli); Netlify log’da MPI_FAIL_JSON satırı.
+ * İsteğe bağlı: VAKIF_MPI_ENROLL_INCLUDE_TERMINAL=1 → enrollment XML’e TerminalNo ekler (banka PDF’i gerektiriyorsa).
+ * İsteğe bağlı: VAKIF_REQUIRE_EGRESS_PROXY=1 → canlıda çalışan QuotaGuard/proxy zorunlu (yoksa istek reddedilir).
  */
+const { getVakifEgressStatus, vakifFetchErrorResponse } = require('./vakif-fetch');
 const {
   PAKET,
   resolveMpiEnrollUrl,
@@ -66,6 +69,8 @@ exports.handler = async (event) => {
       }),
     };
   }
+
+  const egressStatus = getVakifEgressStatus();
 
   let body;
   try {
@@ -139,6 +144,22 @@ exports.handler = async (event) => {
       statusCode: 400,
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
       body: JSON.stringify({ ok: false, message: 'Kart numarası, son kullanma (YYMM) veya CVV hatalı.' }),
+    };
+  }
+
+  const requireEgress = (process.env.VAKIF_REQUIRE_EGRESS_PROXY || '').trim() === '1';
+  if (requireEgress && mode === 'prod' && !egressStatus.proxyAgentActive) {
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      body: JSON.stringify({
+        ok: false,
+        code: 'EGRESS_PROXY_REQUIRED',
+        message:
+          'Canlı ortamda sabit çıkış proxy zorunlu (VAKIF_REQUIRE_EGRESS_PROXY=1). QUOTAGUARDSTATIC_URL tanımlayın veya bu env’i kaldırın.',
+        mpiHint:
+          'Netlify → Site settings → Environment variables → QUOTAGUARDSTATIC_URL. Ardından ip-egress ile IP’yi doğrulayıp Vakıfbank’a iletin.',
+      }),
     };
   }
 
@@ -217,6 +238,7 @@ exports.handler = async (event) => {
     };
   }
 
+  const includeTerminalNo = (process.env.VAKIF_MPI_ENROLL_INCLUDE_TERMINAL || '').trim() === '1';
   const enrollXml = buildEnrollmentXml({
     merchantId: mid,
     merchantPassword: pwd,
@@ -227,6 +249,8 @@ exports.handler = async (event) => {
     brandName: detectBrand(panDigits),
     successUrl: merchantReturnUrl,
     failureUrl: failUrl,
+    terminalNo: term,
+    includeTerminalNo,
   });
 
   const enrollUrl = resolveMpiEnrollUrl(mode);
@@ -235,6 +259,20 @@ exports.handler = async (event) => {
     xmlRes = await postXml(enrollUrl, enrollXml);
   } catch (e) {
     console.error('MPI Enrollment:', e);
+    const pe = vakifFetchErrorResponse(e);
+    if (pe) {
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+        body: JSON.stringify({
+          ok: false,
+          code: pe.code,
+          message: pe.message,
+          mpiHint:
+            'QuotaGuard panelindeki proxy URL’sini birebir kopyalayın; şifrede özel karakter varsa URL-encode edin. Düzeltince yeniden deploy edin.',
+        }),
+      };
+    }
     return {
       statusCode: 502,
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
@@ -269,11 +307,21 @@ exports.handler = async (event) => {
     console.error('MPI_FAIL_JSON ' + JSON.stringify(supportLine));
 
     const clientDebug = (process.env.VAKIF_MPI_CLIENT_DEBUG || '').trim() === '1';
+    const ctShort = (xmlRes.contentType && String(xmlRes.contentType).split(';')[0].trim()) || '';
+    let mpiHint = null;
+    if (mode === 'prod' && !egressStatus.proxyAgentActive) {
+      mpiHint =
+        'Canlıda QUOTAGUARDSTATIC_URL ile sabit çıkış IP kullanın. `/.netlify/functions/ip-egress` çıktısındaki IPv4’ü Vakıfbank’a özellikle MPI enrollment host’u (inbound.apigateway…) için tanımlatın.';
+    } else if (mode === 'prod' && egressStatus.proxyAgentActive && /\btext\/html\b/i.test(ctShort)) {
+      mpiHint =
+        'Sabit IP kullanılıyor; yanıt hâlâ HTML ise bankadan bu enrollment URL’si ve üye işyeri (test/canlı) eşleşmesini doğrulatın; gerekirse MPI için ikinci whitelist kaydı isteyin.';
+    }
     const bodyOut = {
       ok: false,
       message: parsed.message,
       mpiStatus: parsed.status || null,
     };
+    if (mpiHint) bodyOut.mpiHint = mpiHint;
     if (clientDebug) {
       bodyOut.supportCopy = {
         talimat:

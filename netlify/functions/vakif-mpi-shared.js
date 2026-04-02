@@ -616,12 +616,19 @@ function buildEnrollmentXml(opts) {
     brandName,
     successUrl,
     failureUrl,
+    terminalNo,
+    includeTerminalNo,
   } = opts;
+  const termXml =
+    includeTerminalNo && terminalNo != null && String(terminalNo).trim()
+      ? `<TerminalNo>${escXml(String(terminalNo).trim())}</TerminalNo>`
+      : '';
   return (
     '<?xml version="1.0" encoding="UTF-8"?>' +
     '<VerifyEnrollmentRequest>' +
     `<MerchantId>${escXml(merchantId)}</MerchantId>` +
     `<MerchantPassword>${escXml(merchantPassword)}</MerchantPassword>` +
+    termXml +
     `<VerifyEnrollmentRequestId>${escXml(verifyId)}</VerifyEnrollmentRequestId>` +
     `<Pan>${escXml(pan)}</Pan>` +
     `<ExpiryDate>${escXml(expiryYYMM)}</ExpiryDate>` +

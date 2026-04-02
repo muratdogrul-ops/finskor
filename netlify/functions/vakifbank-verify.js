@@ -3,7 +3,7 @@
  */
 const https = require('https');
 const { sbHost, sbKey } = require('./sb-config');
-const { vakifFetch } = require('./vakif-fetch');
+const { vakifFetch, vakifFetchErrorResponse } = require('./vakif-fetch');
 
 const TX_URL = {
   test: 'https://cptest.vakifbank.com.tr/CommonPayment/api/VposTransaction',
@@ -140,6 +140,14 @@ exports.handler = async (event) => {
     xml = await res.text();
   } catch (e) {
     console.error('VposTransaction', e);
+    const pe = vakifFetchErrorResponse(e);
+    if (pe) {
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+        body: JSON.stringify({ ok: false, code: pe.code, message: pe.message }),
+      };
+    }
     return {
       statusCode: 502,
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },

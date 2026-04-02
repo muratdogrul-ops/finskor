@@ -70,6 +70,7 @@ async function main() {
   const merchantReturnUrl = `${base}/.netlify/functions/vakifbank-mpi-term`;
   const failUrl = `${base}/odeme.html?mpi=hata`;
 
+  const includeTerminalNo = (process.env.VAKIF_MPI_ENROLL_INCLUDE_TERMINAL || '').trim() === '1';
   const xml = buildEnrollmentXml({
     merchantId: mid,
     merchantPassword: pwd,
@@ -80,6 +81,8 @@ async function main() {
     brandName: detectBrand(panDigits),
     successUrl: merchantReturnUrl,
     failureUrl: failUrl,
+    terminalNo: term,
+    includeTerminalNo,
   });
 
   const url = resolveMpiEnrollUrl(mode);
