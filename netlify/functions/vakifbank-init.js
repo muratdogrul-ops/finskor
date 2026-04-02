@@ -2,12 +2,12 @@
  * Vakıfbank Ortak Ödeme — RegisterTransaction
  * Ortam: VAKIF_INIT=test|prod, VAKIF_HOST_MERCHANT_ID, VAKIF_MERCHANT_PASSWORD, VAKIF_HOST_TERMINAL_ID
  * İsteğe bağlı: SITE_URL (callback tabanı, örn. https://finskor.tr)
+ * Sabit çıkış IP (QuotaGuard): QUOTAGUARDSTATIC_URL veya VAKIF_HTTPS_PROXY
+ * Kart alanları: Pan / ExpiryDate (YYMM) / Cvv2 / CardHolderName — bankanın Ortak Ödeme dokümanıyla uyum kontrol edin; farklı parametre adları gerekebilir.
  */
 const https = require('https');
-
-const SB_HOST = 'clmqfckposcaqjmbrmuq.supabase.co';
-const SB_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsbXFmY2twb3NjYXFqbWJybXVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NjE3MDcsImV4cCI6MjA4ODUzNzcwN30.hbCPb5IMcnNcwUXyDkcUrzFKXPUgJrG1XmLXl_aI8T8';
+const { sbHost, sbKey } = require('./sb-config');
+const { vakifFetch } = require('./vakif-fetch');
 
 const PAKET = {
   profesyonel: { fiyat: '2490.00', fiyatLabel: '2.490', credits: 4, ad: 'FinSkor Profesyonel Paket' },
@@ -28,13 +28,14 @@ const UI_URL = {
 function sbRequest(method, path, data) {
   return new Promise((resolve, reject) => {
     const body = data ? JSON.stringify(data) : null;
+    const key = sbKey();
     const options = {
-      hostname: SB_HOST,
+      hostname: sbHost(),
       path: '/rest/v1/' + path,
       method,
       headers: {
-        apikey: SB_KEY,
-        Authorization: 'Bearer ' + SB_KEY,
+        apikey: key,
+        Authorization: 'Bearer ' + key,
         'Content-Type': 'application/json',
         Prefer: 'return=representation',
       },
@@ -120,6 +121,10 @@ exports.handler = async (event) => {
     vd,
     faturaTipi,
     paketKey,
+    kartUzerindeIsim,
+    pan,
+    expiryYYMM,
+    cvv,
   } = body;
 
   if (!adSoyad || !email || !telefon) {
@@ -128,6 +133,29 @@ exports.handler = async (event) => {
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
       body: JSON.stringify({ ok: false, message: 'Ad, e-posta ve telefon zorunludur.' }),
     };
+  }
+
+  const kIsim = typeof kartUzerindeIsim === 'string' ? kartUzerindeIsim.trim() : '';
+  const panDigits = String(pan || '').replace(/\D/g, '');
+  const exp = String(expiryYYMM || '').replace(/\D/g, '');
+  const cvvDigits = String(cvv || '').replace(/\D/g, '');
+  const withCardPayload = panDigits.length >= 13;
+
+  if (withCardPayload) {
+    if (!kIsim || kIsim.length < 2) {
+      return {
+        statusCode: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+        body: JSON.stringify({ ok: false, message: 'Kart üzerindeki isim zorunludur.' }),
+      };
+    }
+    if (panDigits.length > 19 || exp.length !== 4 || (cvvDigits.length !== 3 && cvvDigits.length !== 4)) {
+      return {
+        statusCode: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+        body: JSON.stringify({ ok: false, message: 'Kart numarası, son kullanma veya CVV eksik/hatalı.' }),
+      };
+    }
   }
 
   const pk = PAKET[paketKey] ? paketKey : 'profesyonel';
@@ -150,6 +178,7 @@ exports.handler = async (event) => {
     vkn ? `VKN:${vkn}` : '',
     faturaTipi ? `Fatura:${faturaTipi}` : '',
     vd ? `VD:${vd}` : '',
+    withCardPayload ? `KartSahibi:${kIsim.slice(0, 80)}` : '',
     `KART_REF:${transactionId}`,
     'ODEME:kart_bekliyor',
   ]
@@ -204,10 +233,16 @@ exports.handler = async (event) => {
     SuccessURL: `${base}/kart-odeme-sonuc.html`,
     FailURL: `${base}/kart-odeme-sonuc.html`,
   });
+  if (withCardPayload) {
+    form.set('CardHolderName', kIsim.slice(0, 100));
+    form.set('Pan', panDigits);
+    form.set('ExpiryDate', exp);
+    form.set('Cvv2', cvvDigits);
+  }
 
   let xml;
   try {
-    const res = await fetch(POST_URL[init], {
+    const res = await vakifFetch(POST_URL[init], {
       method: 'POST',
       headers: {
         Accept: 'application/xml',

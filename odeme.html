@@ -182,6 +182,31 @@ nav {
   font-size: 11px; color: var(--gold); background: rgba(201,168,76,0.1);
 }
 
+.card-fields {
+  background: var(--navy3);
+  border: 1px solid rgba(201,168,76,0.2);
+  border-radius: 8px;
+  padding: 16px 18px 18px;
+  margin-bottom: 16px;
+}
+.card-fields-title {
+  font-size: 11px; font-weight: 600; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--gold); margin-bottom: 14px;
+}
+.card-fields .field-row-skt {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 480px) {
+  .card-fields .field-row-skt { grid-template-columns: 1fr 1fr 1fr; }
+}
+.card-fields-note {
+  font-size: 11px; color: var(--white-muted); line-height: 1.55;
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
 /* FORM */
 .field { margin-bottom: 16px; }
 .field-label {
@@ -375,11 +400,38 @@ nav {
 
           <!-- KREDİ KARTI PANELİ — Vakıfbank ortak ödeme; Netlify env: VAKIF_* -->
           <div class="card-panel" id="panel-card">
-            <div class="card-coming" style="border-style:solid">
+            <div class="card-coming" style="border-style:solid;margin-bottom:16px">
               <div class="coming-icon">🔐</div>
               <h3>Vakıfbank güvenli ödeme</h3>
-              <p style="max-width:28em;margin-left:auto;margin-right:auto">Aşağıdaki butona bastığınızda <strong>3D Secure</strong> ile Vakıfbank ödeme sayfasına yönlendirilirsiniz. Kart bilgileri yalnızca bankada girilir.</p>
+              <p style="max-width:28em;margin-left:auto;margin-right:auto;font-size:12px">Bilgileriniz <strong>şifreli bağlantı</strong> ile iletilir. Sonrasında <strong>3D Secure</strong> doğrulaması için banka ekranına geçilir.</p>
               <div class="badge-3d">Ortak ödeme · Sanal POS</div>
+            </div>
+            <div class="card-fields" id="cardFieldsBlock">
+              <div class="card-fields-title">Kart bilgileri</div>
+              <div class="field">
+                <label class="field-label" for="kartUzerindeIsim">Kart üzerindeki isim <span class="req">*</span></label>
+                <input class="field-input" type="text" id="kartUzerindeIsim" name="kartUzerindeIsim" placeholder="Kartta yazdığı gibi" autocomplete="cc-name" maxlength="64">
+                <div class="field-hint">Kartın ön yüzündeki ad soyad.</div>
+              </div>
+              <div class="field">
+                <label class="field-label" for="kartNo">Kart numarası <span class="req">*</span></label>
+                <input class="field-input" type="text" id="kartNo" name="kartNo" placeholder="0000 0000 0000 0000" inputmode="numeric" autocomplete="cc-number" maxlength="23">
+              </div>
+              <div class="field-row-skt">
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="sktAy">Ay <span class="req">*</span></label>
+                  <input class="field-input" type="text" id="sktAy" inputmode="numeric" placeholder="AA" maxlength="2" autocomplete="cc-exp-month">
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="sktYil">Yıl <span class="req">*</span></label>
+                  <input class="field-input" type="text" id="sktYil" inputmode="numeric" placeholder="YY" maxlength="2" autocomplete="cc-exp-year">
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="kartCvv">CVV <span class="req">*</span></label>
+                  <input class="field-input" type="password" id="kartCvv" inputmode="numeric" placeholder="•••" maxlength="4" autocomplete="cc-csc">
+                </div>
+              </div>
+              <p class="card-fields-note">Kart numarası ve CVV <strong>veritabanımıza kaydedilmez</strong>; şifreli bağlantı üzerinden yalnızca ödeme oturumu için bankaya iletilir.</p>
             </div>
           </div>
 
@@ -623,7 +675,29 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('productName').textContent = SECILI_PAKET.ad;
   document.getElementById('productDesc').textContent = SECILI_PAKET.desc;
   syncPayButtonLabel();
+  const kn = document.getElementById('kartNo');
+  if (kn) kn.addEventListener('input', _fmtKartNo);
 });
+
+function _fmtKartNo() {
+  const el = document.getElementById('kartNo');
+  if (!el) return;
+  let v = el.value.replace(/\D/g, '').slice(0, 19);
+  el.value = v.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+}
+
+function _luhnOk(num) {
+  const d = String(num).replace(/\D/g, '');
+  if (d.length < 13 || d.length > 19) return false;
+  let s = 0, alt = false;
+  for (let i = d.length - 1; i >= 0; i--) {
+    let n = parseInt(d[i], 10);
+    if (alt) { n *= 2; if (n > 9) n -= 9; }
+    s += n;
+    alt = !alt;
+  }
+  return s % 10 === 0;
+}
 
 // ═══════════════════════════════════════
 // ÖDEME YÖNTEMİ SEÇİMİ
@@ -690,6 +764,20 @@ async function submitPayment() {
   const btn = document.getElementById('payBtn');
   const cardActive = document.getElementById('tabCard') && document.getElementById('tabCard').classList.contains('active');
 
+  if (cardActive) {
+    const kIsim = (document.getElementById('kartUzerindeIsim') && document.getElementById('kartUzerindeIsim').value.trim()) || '';
+    const kRaw = (document.getElementById('kartNo') && document.getElementById('kartNo').value.replace(/\s/g, '')) || '';
+    const ay = (document.getElementById('sktAy') && document.getElementById('sktAy').value.trim()) || '';
+    const yil = (document.getElementById('sktYil') && document.getElementById('sktYil').value.trim()) || '';
+    const cvv = (document.getElementById('kartCvv') && document.getElementById('kartCvv').value.trim()) || '';
+    if (!kIsim || kIsim.length < 2) { showToast('Kart üzerindeki ismi giriniz.', true); return; }
+    if (!kRaw || kRaw.length < 13) { showToast('Geçerli bir kart numarası giriniz.', true); return; }
+    if (!_luhnOk(kRaw)) { showToast('Kart numarası geçersiz görünüyor (Luhn).', true); return; }
+    if (!/^\d{2}$/.test(ay) || parseInt(ay, 10) < 1 || parseInt(ay, 10) > 12) { showToast('Son kullanma ayını 01–12 arası iki hane giriniz.', true); return; }
+    if (!/^\d{2}$/.test(yil)) { showToast('Son kullanma yılını iki hane (YY) giriniz.', true); return; }
+    if (!/^\d{3,4}$/.test(cvv)) { showToast('CVV 3 veya 4 haneli olmalıdır.', true); return; }
+  }
+
   btn.disabled = true;
   btn.textContent = cardActive ? '⏳ Bankaya bağlanılıyor...' : '⏳ Kaydediliyor...';
 
@@ -697,13 +785,23 @@ async function submitPayment() {
 
   try {
     if (cardActive) {
+      const kIsim = document.getElementById('kartUzerindeIsim').value.trim();
+      const kRaw = document.getElementById('kartNo').value.replace(/\s/g, '');
+      const ay = document.getElementById('sktAy').value.trim();
+      const yil = document.getElementById('sktYil').value.trim();
+      const cvv = document.getElementById('kartCvv').value.trim();
+      const expiryYYMM = yil + ay;
       const ir = await fetch('/.netlify/functions/vakifbank-init', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           adSoyad, email, telefon, firmaAdi, vkn, vd,
           faturaTipi: bireysel ? 'bireysel' : 'kurumsal',
-          paketKey: _paketKey
+          paketKey: _paketKey,
+          kartUzerindeIsim: kIsim,
+          pan: kRaw,
+          expiryYYMM,
+          cvv
         })
       });
       const j = await ir.json().catch(() => ({}));
