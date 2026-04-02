@@ -41,12 +41,118 @@ function xmlTagFlexible(xml, tag) {
   return m ? m[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1').trim() : '';
 }
 
+/** Etiket içeriği veya attribute (Vakıfbank varyantları) */
+function xmlFirstOf(xml, names, attrNames = []) {
+  for (const name of names) {
+    const body = xmlTagFlexible(xml, name);
+    if (body) return body;
+    const esc = String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    for (const attr of attrNames.length ? attrNames : ['value', 'Value', 'ValueText']) {
+      const re = new RegExp(
+        `<(?:[a-zA-Z0-9_]+:)?${esc}[^>]*\\s${attr}\\s*=\\s*["']([^"']*)["']`,
+        'i'
+      );
+      const m = String(xml).match(re);
+      if (m && m[1].trim()) return m[1].trim();
+    }
+  }
+  return '';
+}
+
+function stripCdata(s) {
+  return String(s || '')
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1')
+    .trim();
+}
+
+function isLikelyHttpUrl(s) {
+  return /^https?:\/\/.+/i.test(String(s || '').trim());
+}
+
+/** Yanıttaki yerel etiket adları (bankaya sorarken kullanılır) */
+function listXmlLocalTagNames(xml) {
+  const seen = new Set();
+  const re = /<([a-zA-Z][a-zA-Z0-9_.:]*)\b/g;
+  let m;
+  const max = 45;
+  while ((m = re.exec(xml)) && seen.size < max) {
+    const full = m[1];
+    const local = full.includes(':') ? full.split(':').pop() : full;
+    if (local && !local.startsWith('?')) seen.add(local);
+  }
+  return [...seen].join(', ');
+}
+
+function tryParseMpiJson(raw) {
+  const t = raw.trim();
+  if (!t.startsWith('{') && !t.startsWith('[')) return null;
+  try {
+    return JSON.parse(t);
+  } catch {
+    return null;
+  }
+}
+
+/** JSON içinde (iç içe) bilinen alan adlarını ara */
+function jsonFindMpiFields(obj) {
+  const pick = {};
+  const names = {
+    status: ['status', 'threedssecurestatus', 'enrollmentstatus', 'mdstatus'],
+    procReturn: ['procreturcode', 'procretur', 'processreturncode'],
+    message: ['message', 'errormessage', 'errmsg', 'responsemessage', 'resultmessage'],
+    acsUrl: ['acsurl', 'acsurl2', 'acs', 'redirecturl', 'gatewayurl', 'authenticationurl', 'acsaddress'],
+    paReq: ['pareq', 'pareqmsg', 'authenticationrequest', 'parequest', 'pareqmessage'],
+    md: ['md', 'merchantdata'],
+    errCode: ['errorcode', 'resultcode', 'responsecode'],
+  };
+  function walk(o) {
+    if (o == null) return;
+    if (Array.isArray(o)) {
+      o.forEach(walk);
+      return;
+    }
+    if (typeof o !== 'object') return;
+    for (const [k, v] of Object.entries(o)) {
+      const kl = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (v != null && typeof v !== 'object' && typeof v !== 'undefined') {
+        const s = String(v).trim();
+        if (!s) {
+          /* skip */
+        } else {
+          for (const [bucket, keys] of Object.entries(names)) {
+            if (pick[bucket]) continue;
+            for (const cand of keys) {
+              if (kl === cand.replace(/[^a-z0-9]/g, '')) {
+                pick[bucket] = s;
+                break;
+              }
+            }
+          }
+        }
+      } else if (v && typeof v === 'object') walk(v);
+    }
+  }
+  walk(obj);
+  return {
+    status: (pick.status || '').toUpperCase(),
+    procReturn: pick.procReturn || '',
+    message: pick.message || '',
+    acsUrl: pick.acsUrl || '',
+    paReq: pick.paReq || '',
+    md: pick.md || '',
+    errCode: pick.errCode || '',
+  };
+}
+
 /**
- * MPI Enrollment yanıtını ayrıştırır (Vakıfbank / namespace / ProcReturnCode farkları).
+ * MPI Enrollment yanıtını ayrıştırır (Vakıfbank / namespace / JSON / attribute varyantları).
  */
 function parseMpiEnrollmentResponse(rawText, httpStatus) {
-  const raw = String(rawText || '').trim();
+  const raw = String(rawText || '')
+    .replace(/^\ufeff/, '')
+    .trim();
   const snippet = raw.slice(0, 400).replace(/\s+/g, ' ');
+  const foundTags = raw.includes('<') ? listXmlLocalTagNames(raw) : '';
 
   if (httpStatus != null && (httpStatus < 200 || httpStatus >= 300)) {
     return {
@@ -57,40 +163,95 @@ function parseMpiEnrollmentResponse(rawText, httpStatus) {
       paReq: '',
       md: '',
       logHint: snippet,
+      foundTags,
     };
   }
 
-  if (!raw.includes('<')) {
+  const jsonObj = tryParseMpiJson(raw);
+  let status = '';
+  let procReturn = '';
+  let message = '';
+  let acsUrl = '';
+  let paReq = '';
+  let md = '';
+  let errCode = '';
+
+  if (jsonObj) {
+    const j = jsonFindMpiFields(jsonObj);
+    status = j.status;
+    procReturn = j.procReturn;
+    message = j.message;
+    acsUrl = j.acsUrl;
+    paReq = j.paReq;
+    md = j.md;
+    errCode = j.errCode;
+  } else if (!raw.includes('<')) {
     return {
       ok: false,
       status: '',
-      message: 'Banka XML yerine düz metin veya boş yanıt döndü. Endpoint ve ortam (test/prod) kontrol edin.',
+      message: 'Banka XML/JSON yerine düz metin veya boş yanıt döndü. Endpoint ve ortam (test/prod) kontrol edin.',
       acsUrl: '',
       paReq: '',
       md: '',
       logHint: snippet,
+      foundTags: '',
     };
+  } else {
+    status = (
+      xmlFirstOf(raw, ['Status', 'ThreeDSecureStatus', 'EnrollmentStatus', 'MdStatus']) || ''
+    )
+      .trim()
+      .toUpperCase();
+    procReturn = xmlFirstOf(raw, ['ProcReturnCode', 'ProcReturn', 'ProcessReturnCode']) || '';
+    message =
+      xmlFirstOf(raw, [
+        'Message',
+        'ErrorMessage',
+        'ErrorMsg',
+        'ResponseMessage',
+        'ErrMsg',
+        'ResultMessage',
+        'VerifyEnrollmentRequestResult',
+        'FaultString',
+        'faultstring',
+        'Reason',
+        'Detail',
+      ]) || '';
+    acsUrl = xmlFirstOf(raw, [
+      'ACSUrl',
+      'AcsUrl',
+      'ACSURL',
+      'AcsURL',
+      'Url',
+      'ACS2Url',
+      'GatewayUrl',
+      'RedirectUrl',
+      'AuthenticationUrl',
+      'ThreeDSecureUrl',
+    ]);
+    paReq = xmlFirstOf(raw, ['PaReq', 'PAREQ', 'Pareq', 'PAReq', 'AuthenticationRequest'], [
+      'value',
+      'Value',
+      'ValueText',
+    ]);
+    md = xmlFirstOf(raw, ['MD', 'Md', 'MerchantData']);
+    errCode = xmlFirstOf(raw, ['ErrorCode', 'ResultCode', 'ResponseCode']) || '';
   }
 
-  const t = (name) => xmlTagFlexible(raw, name);
+  // URL gövdede farklı etiketle geldiyse: ilk https ile başlayan uzun metin
+  if (!isLikelyHttpUrl(acsUrl) && raw.includes('http')) {
+    const um = raw.match(/https:\/\/[^\s<"'<>]{12,2048}/i);
+    if (um && /acs|secure|3d|mpi|gateway|bank|isyeri|authentication/i.test(um[0])) {
+      acsUrl = um[0].replace(/&amp;/g, '&');
+    }
+  }
 
-  const status = (t('Status') || t('ThreeDSecureStatus') || '').trim().toUpperCase();
-  const procReturn = (t('ProcReturnCode') || t('ProcReturn') || '').trim();
-  const message =
-    t('Message') ||
-    t('ErrorMessage') ||
-    t('ErrorMsg') ||
-    t('ResponseMessage') ||
-    t('ErrMsg') ||
-    t('VerifyEnrollmentRequestResult') ||
-    '';
-  const acsUrl = t('ACSUrl') || t('AcsUrl') || t('ACSURL') || t('AcsURL');
-  const paReq = t('PaReq') || t('PAREQ') || t('Pareq');
-  const md = t('MD') || t('Md');
-  const errCode = t('ErrorCode') || t('ResultCode') || '';
+  acsUrl = stripCdata(acsUrl).replace(/&amp;/g, '&').trim();
+  paReq = stripCdata(paReq).replace(/\s+/g, '').trim();
+  md = stripCdata(md).trim();
 
-  const hasAcs = !!(acsUrl && paReq);
-  const procOk = procReturn === '00' || procReturn === '0000' || procReturn === '0';
+  const hasAcs = isLikelyHttpUrl(acsUrl) && paReq.length >= 4;
+  const procOk = procReturn === '00' || procReturn === '0000' || procReturn === '0' || procReturn === '000';
 
   if (status === 'N' || status === 'U') {
     return {
@@ -101,37 +262,47 @@ function parseMpiEnrollmentResponse(rawText, httpStatus) {
       paReq,
       md,
       logHint: snippet,
+      foundTags,
     };
   }
 
-  // Y: klasik başarı; A: attempt; bazı kurulumlarda Status boş ama ProcReturnCode 00 + PaReq gelir
+  const explicitFail = status === 'N' || status === 'U';
+  const procBlocks =
+    procReturn !== '' && procReturn != null && !procOk;
+
   const ok =
     hasAcs &&
+    !explicitFail &&
+    !procBlocks &&
     (status === 'Y' ||
       status === 'A' ||
-      ((status === '' || !status) && procOk));
+      status === '' ||
+      !status);
 
   if (!ok) {
     const parts = [
       message,
       errCode && `Kod: ${errCode}`,
       procReturn && `İşlem kodu: ${procReturn}`,
-      status ? `3D durumu: ${status}` : '3D durumu okunamadı (boş); banka yanıt etiketleri dokümandan farklı olabilir.',
+      status ? `3D durumu: ${status}` : null,
+      !hasAcs
+        ? 'ACS adresi veya PaReq okunamadı. Yanıttaki etiket isimleri farklı olabilir — aşağıdaki listeyi bankaya iletin.'
+        : null,
     ].filter(Boolean);
+    const tagLine = foundTags ? ` Yanıtta görülen etiketler: ${foundTags.slice(0, 350)}` : '';
     return {
       ok: false,
       status,
-      message:
-        parts.join(' — ') ||
-        '3D kayıt başarısız. Banka entegrasyon dokümanındaki yanıt etiketleri ile uyum kontrol edilmeli.',
+      message: (parts.join(' — ') || '3D kayıt başarısız.') + tagLine,
       acsUrl,
       paReq,
       md,
       logHint: snippet,
+      foundTags,
     };
   }
 
-  return { ok: true, status, message, acsUrl, paReq, md, logHint: '' };
+  return { ok: true, status, message, acsUrl, paReq, md, logHint: '', foundTags };
 }
 
 function xmlTagLoose(xml, tag) {
