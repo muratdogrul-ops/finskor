@@ -150,6 +150,7 @@ exports.handler = async (event) => {
     `KartSahibi:${kIsim.slice(0, 80)}`,
     `MPI_REF:${verifyId}`,
     mpiTest && mpiTestAllowed ? 'MPI_TEST:minimal' : '',
+    'Talep:KREDI_KARTI',
     'ODEME:mpi_bekliyor',
   ]
     .filter(Boolean)

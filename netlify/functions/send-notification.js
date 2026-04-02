@@ -78,7 +78,9 @@ async function saveToSupabase(adSoyad, email, telefon, firmaAdi, vkn, vd, fatura
       `Mail:${email}`,
       telefon ? `Tel:${telefon}` : '',
       vkn ? `VKN:${vkn}` : '',
-      faturaTipi ? `Fatura:${faturaTipi}` : ''
+      faturaTipi ? `Fatura:${faturaTipi}` : '',
+      'Talep:EFT_HAVALE',
+      'ODEME:talep_bekliyor',
     ].filter(Boolean).join('|');
 
     await sbRequest('POST', 'payments', {

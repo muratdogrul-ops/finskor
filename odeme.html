@@ -378,85 +378,17 @@ nav {
     <!-- SOL: FORM -->
     <div>
 
-      <!-- ÖDEME YÖNTEMİ -->
+      <!-- MÜŞTERİ + TALEP (önce) -->
       <div class="pay-card" style="margin-bottom:20px">
-        <div class="card-head card-head-split">💳 Ödeme Yöntemi <span class="odeme-page-ver" id="odemePageVer">MPI+VPOS · doğrudan kart</span></div>
+        <div class="card-head">👤 Müşteri bilgileri ve talep</div>
         <div class="card-body">
-
-          <div class="method-tabs">
-            <button type="button" class="method-tab active" id="tabEft" onclick="switchMethod('eft',this)">
-              <span class="tab-icon">🏦</span>
-              EFT / Havale
-            </button>
-            <button type="button" class="method-tab" id="tabCard" onclick="switchMethod('card',this)">
-              <span class="tab-icon">💳</span>
-              Kredi Kartı
-            </button>
-          </div>
-
-          <!-- EFT PANELİ -->
-          <div class="eft-panel" id="panel-eft">
-            <div class="iban-box">
-              <div class="iban-label">IBAN</div>
-              <div class="iban-value" id="ibanVal">TR00 0000 0000 0000 0000 0000 00</div>
-              <div class="iban-bank" id="bankVal">Banka Adı</div>
-              <div class="iban-name">Muratcan DOĞRUL</div>
-            </div>
-            <div class="eft-note">
-              <strong>Açıklama zorunludur:</strong> Havale / EFT yaparken açıklama kısmına <strong>e-posta adresinizi</strong> yazınız. Ödeme teyit edildikten dakikalar içinde erişim kodunuz e-posta ve WhatsApp'ınıza iletilecektir.
-            </div>
-          </div>
-
-          <!-- KREDİ KARTI PANELİ — Vakıfbank MPI + VPOS; alanlar üstte (kaydırma / eski dist ile karışıklık önlenir) -->
-          <div class="card-panel" id="panel-card">
-            <div class="card-fields" id="cardFieldsBlock">
-              <div class="card-fields-title">Kart bilgileri</div>
-              <p class="card-fields-lead" style="font-size:12px;color:var(--white-muted);margin:-6px 0 14px;line-height:1.5">Kart numarası, son kullanma ve CVV bu sayfada girilir; ardından 3D Secure için bankanızın ekranına yönlendirilirsiniz.</p>
-              <div class="field">
-                <label class="field-label" for="kartUzerindeIsim">Kart üzerindeki isim <span class="req">*</span></label>
-                <input class="field-input" type="text" id="kartUzerindeIsim" name="kartUzerindeIsim" placeholder="Kartta yazdığı gibi" autocomplete="cc-name" maxlength="64">
-                <div class="field-hint">Sipariş kaydı için; karttaki ad soyad ile aynı olmalıdır.</div>
-              </div>
-              <div class="field">
-                <label class="field-label" for="kartPan">Kart numarası <span class="req">*</span></label>
-                <input class="field-input" type="text" id="kartPan" name="kartPan" inputmode="numeric" autocomplete="cc-number" maxlength="23" placeholder="0000 0000 0000 0000">
-              </div>
-              <div class="field-row">
-                <div class="field" style="flex:1;min-width:0">
-                  <label class="field-label" for="kartSkt">Son kullanma (AA/YY) <span class="req">*</span></label>
-                  <input class="field-input" type="text" id="kartSkt" name="kartSkt" inputmode="numeric" autocomplete="cc-exp" maxlength="5" placeholder="AA/YY">
-                </div>
-                <div class="field" style="max-width:120px;flex-shrink:0">
-                  <label class="field-label" for="kartCvv">CVV <span class="req">*</span></label>
-                  <input class="field-input" type="password" id="kartCvv" name="kartCvv" inputmode="numeric" autocomplete="cc-csc" maxlength="4" placeholder="•••">
-                </div>
-              </div>
-              <ul class="card-fields-note" style="margin:0;padding-left:1.15em;list-style:disc;font-size:12px;color:rgba(244,246,249,0.65)">
-                <li>Vakıfbank <strong>MPI + VPOS</strong> (doğrudan sanal POS).</li>
-                <li>Veriler HTTPS ile iletilir; 3D doğrulama kart bankanızda yapılır.</li>
-              </ul>
-            </div>
-            <div class="card-coming" style="border-style:solid;margin-top:8px;margin-bottom:0">
-              <div class="coming-icon">🔐</div>
-              <h3>Vakıfbank 3D Sanal POS</h3>
-              <p style="max-width:28em;margin-left:auto;margin-right:auto;font-size:12px">Ödeme talebi gönderildiğinde bilgileriniz şifreli kanaldan işlenir.</p>
-              <div class="badge-3d">MPI + VPOS · 3D Secure</div>
-            </div>
-          </div>
-
-        </div>
-      </div>
-
-      <!-- MÜŞTERİ BİLGİLERİ -->
-      <div class="pay-card">
-        <div class="card-head">👤 Müşteri Bilgileri</div>
-        <div class="card-body">
+          <p style="font-size:12px;color:var(--white-muted);margin:-4px 0 18px;line-height:1.55">Önce iletişim ve fatura bilgilerinizi doldurun; ardından aşağıda ödeme yönteminizi seçip talebinizi gönderin.</p>
 
           <div class="field-row">
             <div class="field">
               <label class="field-label" for="adSoyad">Ad Soyad <span class="req">*</span></label>
               <input class="field-input" type="text" id="adSoyad" placeholder="Adınız Soyadınız" required>
-              <div class="field-hint">Kredi kartı ile ödeme seçiliyken boş bırakırsanız, sipariş kaydında ad olarak <strong>kart üzerindeki isim</strong> kullanılır. E-posta ve telefon her zaman zorunludur.</div>
+              <div class="field-hint">Kredi kartı seçtiğinizde ad alanı boşsa, sipariş kaydında <strong>kart üzerindeki isim</strong> kullanılabilir. E-posta ve telefon her zaman zorunludur.</div>
             </div>
             <div class="field">
               <label class="field-label" for="firmaAdi">Firma Adı</label>
@@ -477,7 +409,7 @@ nav {
             </div>
           </div>
 
-          <div class="section-divider">Fatura Bilgisi</div>
+          <div class="section-divider">Fatura bilgisi</div>
 
           <label class="vkn-toggle">
             <input type="checkbox" id="bireyselFatura" onchange="toggleVkn(this)">
@@ -505,16 +437,83 @@ nav {
             </label>
           </div>
 
-          <div style="margin-top:14px">
-            <button class="btn-pay" id="payBtn" onclick="submitPayment()">
-              ✓ Ödeme Talebini Gönder
+        </div>
+      </div>
+
+      <!-- ÖDEME YÖNTEMİ (sonra) -->
+      <div class="pay-card" style="margin-bottom:20px">
+        <div class="card-head card-head-split">💳 Ödeme yöntemi <span class="odeme-page-ver" id="odemePageVer">MPI+VPOS · doğrudan kart</span></div>
+        <div class="card-body">
+
+          <div class="method-tabs">
+            <button type="button" class="method-tab active" id="tabEft" onclick="switchMethod('eft',this)">
+              <span class="tab-icon">🏦</span>
+              EFT / Havale
             </button>
-            <p id="payBtnHint" style="font-size:11px;color:var(--white-muted);margin-top:10px;text-align:center;display:none">Kart seçiliyken önce bilgileriniz gönderilir, ardından 3D Secure için bankanızın sayfasına yönlendirilirsiniz.</p>
-            <div class="pay-security">
-              🔒 Bilgileriniz şifrelenmiş olarak iletilmektedir
+            <button type="button" class="method-tab" id="tabCard" onclick="switchMethod('card',this)">
+              <span class="tab-icon">💳</span>
+              Kredi Kartı
+            </button>
+          </div>
+
+          <div class="eft-panel" id="panel-eft">
+            <div class="iban-box">
+              <div class="iban-label">IBAN</div>
+              <div class="iban-value" id="ibanVal">TR00 0000 0000 0000 0000 0000 00</div>
+              <div class="iban-bank" id="bankVal">Banka Adı</div>
+              <div class="iban-name">Muratcan DOĞRUL</div>
+            </div>
+            <div class="eft-note">
+              <strong>Açıklama zorunludur:</strong> Havale / EFT yaparken açıklama kısmına <strong>e-posta adresinizi</strong> yazınız. Ödeme teyit edildikten sonra erişim kodunuz iletilir. Talebiniz <strong>EFT / Havale</strong> kanalıyla kaydedilir.
             </div>
           </div>
 
+          <div class="card-panel" id="panel-card">
+            <div class="card-fields" id="cardFieldsBlock">
+              <div class="card-fields-title">Kart bilgileri</div>
+              <p class="card-fields-lead" style="font-size:12px;color:var(--white-muted);margin:-6px 0 14px;line-height:1.5">Kart numarası, son kullanma ve CVV; ardından bankanızın <strong>3D Secure</strong> ekranı. İşlem tamamlanınca ödeme talebiniz onaylanır ve erişim kodunuz gönderilir.</p>
+              <div class="field">
+                <label class="field-label" for="kartUzerindeIsim">Kart üzerindeki isim <span class="req">*</span></label>
+                <input class="field-input" type="text" id="kartUzerindeIsim" name="kartUzerindeIsim" placeholder="Kartta yazdığı gibi" autocomplete="cc-name" maxlength="64">
+                <div class="field-hint">Sipariş kaydı için; karttaki ad soyad ile aynı olmalıdır.</div>
+              </div>
+              <div class="field">
+                <label class="field-label" for="kartPan">Kart numarası <span class="req">*</span></label>
+                <input class="field-input" type="text" id="kartPan" name="kartPan" inputmode="numeric" autocomplete="cc-number" maxlength="23" placeholder="0000 0000 0000 0000">
+              </div>
+              <div class="field-row">
+                <div class="field" style="flex:1;min-width:0">
+                  <label class="field-label" for="kartSkt">Son kullanma (AA/YY) <span class="req">*</span></label>
+                  <input class="field-input" type="text" id="kartSkt" name="kartSkt" inputmode="numeric" autocomplete="cc-exp" maxlength="5" placeholder="AA/YY">
+                </div>
+                <div class="field" style="max-width:120px;flex-shrink:0">
+                  <label class="field-label" for="kartCvv">CVV <span class="req">*</span></label>
+                  <input class="field-input" type="password" id="kartCvv" name="kartCvv" inputmode="numeric" autocomplete="cc-csc" maxlength="4" placeholder="•••">
+                </div>
+              </div>
+              <ul class="card-fields-note" style="margin:0;padding-left:1.15em;list-style:disc;font-size:12px;color:rgba(244,246,249,0.65)">
+                <li>Vakıfbank <strong>MPI + VPOS</strong> ile güvenli ödeme.</li>
+                <li>Talebiniz <strong>kredi kartı</strong> kanalıyla kayıt altına alınır; başarılı işlemde kod e-postanıza gider.</li>
+              </ul>
+            </div>
+            <div class="card-coming" style="border-style:solid;margin-top:8px;margin-bottom:0">
+              <div class="coming-icon">🔐</div>
+              <h3>Vakıfbank 3D Sanal POS</h3>
+              <p style="max-width:28em;margin-left:auto;margin-right:auto;font-size:12px">Gönder’den sonra bankanızın doğrulama sayfasına geçilir.</p>
+              <div class="badge-3d">MPI + VPOS · 3D Secure</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div style="margin-top:4px;margin-bottom:8px">
+        <button class="btn-pay" id="payBtn" onclick="submitPayment()">
+          ✓ Ödeme talebini gönder
+        </button>
+        <p id="payBtnHint" style="font-size:11px;color:var(--white-muted);margin-top:10px;text-align:center;display:none">Kart seçiliyse gönderimden sonra 3D Secure için bankanızın sayfasına yönlendirilirsiniz.</p>
+        <div class="pay-security" style="text-align:center;margin-top:10px;font-size:12px;color:var(--white-muted)">
+          🔒 Bilgileriniz şifrelenmiş olarak iletilmektedir
         </div>
       </div>
     </div>
@@ -611,8 +610,8 @@ nav {
 <!-- BAŞARI EKRANI -->
 <div class="page-wrap success-state" id="successState">
   <div class="success-icon">✅</div>
-  <h2>Ödeme Talebiniz Alındı</h2>
-  <p>Bilgileriniz kaydedildi. Ödemeniz teyit edildikten sonra erişim kodunuz aşağıdaki kanallardan iletilecektir.</p>
+  <h2>Ödeme talebiniz alındı</h2>
+  <p>Talebiniz <strong>EFT / Havale</strong> olarak kaydedildi. Havaleyi yaptıktan sonra ödeme teyit edilince erişim kodunuz aşağıdaki kanallardan iletilecektir.</p>
   <div class="success-info">
     <span>📧 E-posta: <strong id="successEmail">—</strong></span>
     <span>📱 WhatsApp: <strong id="successPhone">—</strong></span>
@@ -745,10 +744,10 @@ function syncPayButtonLabel() {
   const hint = document.getElementById('payBtnHint');
   if (!pay || !card) return;
   if (card.classList.contains('active')) {
-    pay.textContent = '💳 Kredi kartı ile öde (3D Secure)';
+    pay.textContent = '💳 Kart ile talebi gönder (3D Secure)';
     if (hint) { hint.style.display = 'block'; }
   } else {
-    pay.textContent = '✓ Ödeme Talebini Gönder';
+    pay.textContent = '✓ Ödeme talebini gönder';
     if (hint) { hint.style.display = 'none'; }
   }
 }

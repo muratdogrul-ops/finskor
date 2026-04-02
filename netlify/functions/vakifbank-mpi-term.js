@@ -231,7 +231,7 @@ exports.handler = async (event) => {
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
     body: htmlPage(
       'Başarılı',
-      `<h1>Ödeme başarılı</h1><p>Erişim kodunuz e-postanıza da gönderildi.</p><div class="code">${escapeHtml(code)}</div><a class="btn" href="https://finskor.tr/app.html">Platforma giriş</a><p style="margin-top:16px"><a href="/" style="color:#C9A84C">Ana sayfa</a></p>`,
+      `<h1>Ödeme talebiniz alındı</h1><p>Kart işleminiz tamamlandı. Erişim kodunuz aşağıdadır ve e-postanıza da gönderildi.</p><div class="code">${escapeHtml(code)}</div><a class="btn" href="https://finskor.tr/app.html">Platforma giriş</a><p style="margin-top:16px"><a href="/" style="color:#C9A84C">Ana sayfa</a></p>`,
       true
     ),
   };
