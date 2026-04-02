@@ -531,6 +531,12 @@ nav {
             </div>
             <div class="product-price" id="priceVal">₺ —</div>
           </div>
+          <div class="product-row" style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
+            <div>
+              <div class="product-name" style="font-size:12px;color:var(--white-muted);letter-spacing:0.04em;text-transform:uppercase">Seçilen ödeme</div>
+            </div>
+            <div class="product-price" id="summaryOdemeYontemi" style="font-size:13px;font-weight:600;color:var(--gold);white-space:nowrap">EFT / Havale</div>
+          </div>
           <div class="product-row">
             <div>
               <div class="product-name">Tüm finansal oranlar</div>
@@ -701,6 +707,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   syncPayButtonLabel();
+  syncSummaryOdeme();
 
   // Kart sekmesini doğrudan göstermek: odeme.html?card=1 veya #kart (alanlar varsayılan EFT altında gizli)
   try {
@@ -736,6 +743,14 @@ function switchMethod(method, btn) {
   document.getElementById('panel-eft').style.display  = method === 'eft'  ? 'block' : 'none';
   document.getElementById('panel-card').style.display = method === 'card' ? 'block' : 'none';
   syncPayButtonLabel();
+  syncSummaryOdeme();
+}
+
+function syncSummaryOdeme() {
+  const el = document.getElementById('summaryOdemeYontemi');
+  const card = document.getElementById('tabCard');
+  if (!el || !card) return;
+  el.textContent = card.classList.contains('active') ? 'Kredi kartı' : 'EFT / Havale';
 }
 
 function syncPayButtonLabel() {
