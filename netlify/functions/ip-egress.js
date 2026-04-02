@@ -36,21 +36,7 @@ exports.handler = async (event) => {
   }
 
   const egress = getVakifEgressStatus();
-  if (egress.proxyUrlConfigured && !egress.proxyAgentActive) {
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({
-        ok: false,
-        proxyMisconfigured: true,
-        proxyAgentError: egress.proxyAgentError,
-        proxyHost: egress.proxyHost,
-        note:
-          'QUOTAGUARDSTATIC_URL / VAKIF_HTTPS_PROXY geçersiz veya ProxyAgent oluşturulamıyor. ' +
-          'Düzeltilmeden MPI/VPOS istekleri de başarısız olur (sessiz doğrudan çıkış artık yok).',
-      }),
-    };
-  }
+  const proxyBroken = egress.proxyUrlConfigured && !egress.proxyAgentActive;
 
   try {
     const res = egress.proxyAgentActive
@@ -70,9 +56,13 @@ exports.handler = async (event) => {
         ipv4: ip && ip.includes(':') ? null : ip,
         at: new Date().toISOString(),
         viaQuotaGuardOrVakifProxy: egress.proxyAgentActive,
-        note: egress.proxyAgentActive
-          ? 'Bu istek QuotaGuard/VAKIF proxy üzerinden; IP Vakıfbank whitelist ile eşleşmeli (52.29… çifti).'
-          : 'Proxy kapalı — bu Netlify ham çıkışıdır. Banka için QUOTAGUARDSTATIC_URL ekleyip deploy edin.',
+        proxyMisconfigured: proxyBroken || undefined,
+        proxyAgentError: proxyBroken ? egress.proxyAgentError : undefined,
+        note: proxyBroken
+          ? 'Proxy URL tanımlı ama başlatılamadı — aşağıdaki IP doğrudan Netlify çıkışıdır (QuotaGuard düzeltilene kadar). VAKIF_PROXY_FAIL_CLOSED=1 ile MPI sıkı mod.'
+          : egress.proxyAgentActive
+            ? 'Bu istek QuotaGuard/VAKIF proxy üzerinden; IP Vakıfbank whitelist ile eşleşmeli (52.29… çifti).'
+            : 'Proxy kapalı — bu Netlify ham çıkışıdır. Banka için QUOTAGUARDSTATIC_URL ekleyip deploy edin.',
         hint: secret ? null : 'İsterseniz IP_EGRESS_CHECK_SECRET env + ?k=... ile kapatın; iş bitince bu functionı silin.',
       }),
     };

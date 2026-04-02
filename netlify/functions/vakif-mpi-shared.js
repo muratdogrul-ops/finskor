@@ -133,17 +133,22 @@ function pickAcsUrlFromRaw(raw) {
       return true;
     })
     .map((u) => {
+      const l = u.toLowerCase();
       let score = 0;
       if (/startThreeDFlow|ProcessEnrollment|\/threeDGateway\/Enrollment/i.test(u)) return { u, score: -100 };
-      const kw = /acs|3d|secure|threeds|mpi|authentication|gateway|issuer|directory|emv|cardinal|arcot/i.test(
-        u
-      );
-      if (kw) score += 22;
-      if (/\.(js|css|png|jpe?g|woff2?)(\?|$)/i.test(u)) score -= 50;
-      if (kw && /api\.|apigateway|vakifbank/i.test(u)) score += 4;
+      // "secure" / "gateway" tek başına WAF/HTML içinde çok yanlış pozitif üretiyordu — sıkı ACS sinyali şart
+      const strongAcs =
+        /threeds|3ds|3-d-secure|secureacs|\/acs|\.acs\.|modirum|cardinal|directory\.|emv3ds|rsa3ds|3dss|mpi\//i.test(
+          l
+        );
+      const medium = /authentication|issuerurl|pareq|emvco/i.test(l) && /pay|card|bank|3d|acs/i.test(l);
+      if (strongAcs) score += 32;
+      else if (medium) score += 22;
+      if (/\.(js|css|png|jpe?g|woff2?|svg)(\?|$)/i.test(u)) score -= 50;
+      if (strongAcs && /api\.|\.com|\.net/i.test(u)) score += 2;
       return { u, score };
     })
-    .filter((x) => x.score >= 18)
+    .filter((x) => x.score >= 22)
     .sort((a, b) => b.score - a.score);
   return scored[0]?.u || '';
 }
@@ -308,7 +313,8 @@ function parseMpiEnrollmentResponse(rawText, httpStatus, contentType) {
     raw = decodeHtmlEntities(raw);
   }
   const snippet = raw.slice(0, 400).replace(/\s+/g, ' ');
-  const foundTags = raw.includes('<') ? listXmlLocalTagNames(raw) : '';
+  const foundTagsEarly = raw.includes('<') ? listXmlLocalTagNames(raw) : '';
+  const foundTags = foundTagsEarly;
   const xmlSearch = expandRawWithInnerXml(raw);
 
   if (httpStatus != null && (httpStatus < 200 || httpStatus >= 300)) {
@@ -329,6 +335,8 @@ function parseMpiEnrollmentResponse(rawText, httpStatus, contentType) {
   }
 
   const jsonObj = tryParseMpiJson(raw);
+  const looksLikeHtmlResponse = isLikelyHtmlInsteadOfMpiXml(foundTagsEarly, raw) && !jsonObj;
+
   let status = '';
   let procReturn = '';
   let message = '';
@@ -444,18 +452,20 @@ function parseMpiEnrollmentResponse(rawText, httpStatus, contentType) {
   md = stripCdata(md).trim();
   bankTermUrl = stripCdata(bankTermUrl).replace(/&amp;/g, '&').trim();
 
-  if (!isLikelyHttpUrl(acsUrl)) {
+  if (!isLikelyHttpUrl(acsUrl) && !looksLikeHtmlResponse) {
     const picked = pickAcsUrlFromRaw(xmlSearch) || pickAcsUrlFromRaw(raw);
     if (picked) acsUrl = picked;
   }
 
   if (!paReq || paReq.length < 4) {
-    paReq =
-      fuzzyExtractPaReq(xmlSearch) ||
-      fuzzyExtractPaReq(raw) ||
-      extractPaReqLooseFromText(xmlSearch) ||
-      extractPaReqLooseFromText(raw) ||
-      paReq;
+    if (!looksLikeHtmlResponse) {
+      paReq =
+        fuzzyExtractPaReq(xmlSearch) ||
+        fuzzyExtractPaReq(raw) ||
+        extractPaReqLooseFromText(xmlSearch) ||
+        extractPaReqLooseFromText(raw) ||
+        paReq;
+    }
     paReq = String(paReq || '')
       .replace(/\s+/g, '')
       .trim();
@@ -481,14 +491,17 @@ function parseMpiEnrollmentResponse(rawText, httpStatus, contentType) {
   const procBlocks =
     procReturn !== '' && procReturn != null && !procOk;
 
+  // Boş Status’ü tek başına başarı saymak HTML/WAF gövdelerinde yanlış pozitif üretiyordu (gevşek URL/PaReq ile).
+  const statusNeutral = status === '' || !status;
+  const statusAllowsEnroll =
+    status === 'Y' || status === 'A' || (statusNeutral && procOk);
+
   const ok =
     hasAcs &&
     !explicitFail &&
     !procBlocks &&
-    (status === 'Y' ||
-      status === 'A' ||
-      status === '' ||
-      !status);
+    statusAllowsEnroll &&
+    !looksLikeHtmlResponse;
 
   if (!ok) {
     const looksHtml = !hasAcs && isLikelyHtmlInsteadOfMpiXml(foundTags, raw);

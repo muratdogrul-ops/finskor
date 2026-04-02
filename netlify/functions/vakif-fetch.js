@@ -7,8 +7,8 @@
  *
  * Boş bırakılırsa doğrudan fetch (Netlify'ın değişken çıkış IP'si).
  *
- * Önemli: QUOTAGUARDSTATIC_URL tanımlıysa ProxyAgent oluşturulamazsa artık sessizce
- * doğrudan fetch yapılmaz — banka whitelist'i yanlışlıkla bypass edilmesin diye hata fırlatılır.
+ * ProxyAgent oluşturulamazsa: varsayılan doğrudan fetch + net log (eski davranış).
+ * Sıkı mod: VAKIF_PROXY_FAIL_CLOSED=1 → proxy URL tanımlı ama agent yoksa hata (whitelist bypass riski).
  */
 const { fetch: undiciFetch, ProxyAgent } = require('undici');
 
@@ -68,12 +68,20 @@ function getVakifEgressStatus() {
 async function vakifFetch(url, options = {}) {
   resolveDispatcher();
   const rawConfigured = !!proxyUrlRaw();
+  const failClosed = (process.env.VAKIF_PROXY_FAIL_CLOSED || '').trim() === '1';
 
-  if (rawConfigured && !_dispatcher) {
+  if (rawConfigured && !_dispatcher && failClosed) {
     throw new Error(
       'VAKIF_EGRESS_PROXY_REQUIRED: QuotaGuard/proxy URL tanımlı ama kullanılamıyor. ' +
         (_proxyError ? `Sebep: ${_proxyError}. ` : '') +
         'Netlify’da QUOTAGUARDSTATIC_URL değerini kontrol edin (örn. http://kullanici:sifre@host:port).'
+    );
+  }
+
+  if (rawConfigured && !_dispatcher && !failClosed) {
+    console.error(
+      '[vakif-fetch] UYARI: Proxy URL tanımlı ama ProxyAgent yok — doğrudan çıkış kullanılıyor (whitelist riski).',
+      _proxyError || ''
     );
   }
 
