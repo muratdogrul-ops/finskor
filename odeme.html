@@ -661,6 +661,8 @@ const PAKETLER = {
 
 const _paketKey = new URLSearchParams(window.location.search).get('paket') || 'profesyonel';
 const SECILI_PAKET = PAKETLER[_paketKey] || PAKETLER.profesyonel;
+/** Sadece kart alanlarıyla MPI denemesi: odeme.html?mpi_test=1 — sunucuda VAKIF_MPI_TEST_MODE=1 gerekir */
+const _mpiTestMin = new URLSearchParams(window.location.search).get('mpi_test') === '1';
 
 const CONFIG = {
   iban:        'TR41 0001 5001 5800 7308 0678 62',
@@ -704,10 +706,26 @@ document.addEventListener('DOMContentLoaded', () => {
   // Kart sekmesini doğrudan göstermek: odeme.html?card=1 veya #kart (alanlar varsayılan EFT altında gizli)
   try {
     const sp = new URLSearchParams(window.location.search);
-    const wantCard = sp.get('card') === '1' || sp.get('pay') === 'card' || window.location.hash === '#kart';
+    const wantCard =
+      sp.get('card') === '1' ||
+      sp.get('pay') === 'card' ||
+      sp.get('mpi_test') === '1' ||
+      window.location.hash === '#kart';
     const tabCard = document.getElementById('tabCard');
     if (wantCard && tabCard) switchMethod('card', tabCard);
   } catch (_) {}
+
+  if (_mpiTestMin) {
+    const bar = document.createElement('div');
+    bar.id = 'mpiTestBar';
+    bar.style.cssText =
+      'max-width:900px;margin:0 auto 16px;padding:12px 16px;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.45);border-radius:10px;font-size:12px;line-height:1.55;color:var(--white-dim)';
+    bar.innerHTML =
+      '<strong style="color:var(--gold)">MPI minimal test</strong> — Müşteri bilgileri zorunlu değil; yalnızca kart alanları yeterli. ' +
+      'Netlify’da <code style="color:var(--gold)">VAKIF_MPI_TEST_MODE=1</code> olmalı. Canlıda bu modu kapatın.';
+    const wrap = document.querySelector('.page-wrap');
+    if (wrap) wrap.insertBefore(bar, wrap.firstChild);
+  }
 });
 
 // ═══════════════════════════════════════
@@ -781,6 +799,7 @@ async function submitPayment() {
   const vd       = document.getElementById('vd').value.trim();
   const bireysel = document.getElementById('bireyselFatura').checked;
   const kIsim = (document.getElementById('kartUzerindeIsim') && document.getElementById('kartUzerindeIsim').value.trim()) || '';
+  const mpiTestMin = !!(_mpiTestMin && cardActive);
 
   // Kart ödemesi: önce PAN/SKT/CVV (bankaya giden alanlar), sonra müşteri kaydı (e-posta/telefon zorunlu)
   if (cardActive) {
@@ -794,22 +813,40 @@ async function submitPayment() {
   }
 
   // Ad soyad: kart ödemesinde müşteri alanı boşsa kart üzerindeki isim kullanılır (Vakıfbank PAN/CVV ayrı gönderilir)
-  const adSoyad = (cardActive && !adSoyadInput && kIsim) ? kIsim : adSoyadInput;
-  if (!adSoyad || adSoyad.length < 2) {
-    showToast(cardActive ? 'Ad soyad girin veya kart üzerindeki ismi doldurun (sipariş kaydı için).' : 'Ad Soyad zorunludur.', true);
-    return;
+  let adSoyad = (cardActive && !adSoyadInput && kIsim) ? kIsim : adSoyadInput;
+  let emailEff = email;
+  let telefonEff = telefon;
+  let bireyselEff = bireysel;
+  let vknEff = vkn;
+  let vdEff = vd;
+  let firmaEff = firmaAdi;
+
+  if (mpiTestMin) {
+    adSoyad = adSoyadInput || kIsim || 'MPI Minimal Test';
+    emailEff = email && email.includes('@') ? email : 'mpi-minimal-test@invalid.finskor.tr';
+    const telDigits = telefon.replace(/\D/g, '');
+    telefonEff = telDigits.length >= 10 ? telefon : '05000000000';
+    firmaEff = firmaAdi || '';
+    vknEff = '';
+    vdEff = '';
+    bireyselEff = true;
+  } else {
+    if (!adSoyad || adSoyad.length < 2) {
+      showToast(cardActive ? 'Ad soyad girin veya kart üzerindeki ismi doldurun (sipariş kaydı için).' : 'Ad Soyad zorunludur.', true);
+      return;
+    }
+    if (!email || !email.includes('@')) {
+      showToast('E-posta zorunludur (erişim kodu bu adrese gönderilir).', true);
+      return;
+    }
+    if (!telefon || telefon.length < 10) {
+      showToast('Cep telefonu zorunludur (teyit ve iletişim için).', true);
+      return;
+    }
+    if (!bireysel && !vkn) { showToast('VKN giriniz veya "Bireysel fatura" seçeneğini işaretleyiniz.', true); return; }
+    if (vkn && (vkn.length < 10 || isNaN(vkn))) { showToast('VKN 10 haneli sayıdan oluşmalıdır.', true); return; }
+    if (!document.getElementById('sozlesmeOnay').checked) { showToast('Lütfen Mesafeli Satış Sözleşmesi\'ni kabul ediniz.', true); return; }
   }
-  if (!email || !email.includes('@')) {
-    showToast('E-posta zorunludur (erişim kodu bu adrese gönderilir).', true);
-    return;
-  }
-  if (!telefon || telefon.length < 10) {
-    showToast('Cep telefonu zorunludur (teyit ve iletişim için).', true);
-    return;
-  }
-  if (!bireysel && !vkn) { showToast('VKN giriniz veya "Bireysel fatura" seçeneğini işaretleyiniz.', true); return; }
-  if (vkn && (vkn.length < 10 || isNaN(vkn))) { showToast('VKN 10 haneli sayıdan oluşmalıdır.', true); return; }
-  if (!document.getElementById('sozlesmeOnay').checked) { showToast('Lütfen Mesafeli Satış Sözleşmesi\'ni kabul ediniz.', true); return; }
 
   btn.disabled = true;
   btn.textContent = cardActive ? '⏳ 3D doğrulama hazırlanıyor...' : '⏳ Kaydediliyor...';
@@ -829,18 +866,30 @@ async function submitPayment() {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          adSoyad, email, telefon, firmaAdi, vkn, vd,
-          faturaTipi: bireysel ? 'bireysel' : 'kurumsal',
+          adSoyad,
+          email: emailEff,
+          telefon: telefonEff,
+          firmaAdi: firmaEff,
+          vkn: vknEff,
+          vd: vdEff,
+          faturaTipi: bireyselEff ? 'bireysel' : 'kurumsal',
           paketKey: _paketKey,
           kartUzerindeIsim: kIsimCard,
           pan: panRaw,
           expiryYYMM,
-          cvv
+          cvv,
+          mpiTest: mpiTestMin,
         })
       });
       const j = await ir.json().catch(() => ({}));
       if (j.code === 'NOT_CONFIGURED') {
         showToast('Kart ödemesi için Netlify ortamında Vakıfbank MPI/VPOS bilgileri tanımlanmalıdır. Şimdilik EFT/Havale kullanın.', true);
+        btn.disabled = false;
+        syncPayButtonLabel();
+        return;
+      }
+      if (j.code === 'MPI_TEST_DISABLED') {
+        showToast(j.message || 'Minimal test kapalı: VAKIF_MPI_TEST_MODE=1 ekleyin.', true);
         btn.disabled = false;
         syncPayButtonLabel();
         return;

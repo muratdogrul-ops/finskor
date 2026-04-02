@@ -2,6 +2,7 @@
  * Vakıfbank MPI Enrollment (işyeri sayfasında kart) → ACS’e yönlendirme
  * Env: VAKIF_INIT, VAKIF_HOST_MERCHANT_ID, VAKIF_MERCHANT_PASSWORD, VAKIF_HOST_TERMINAL_ID, SITE_URL
  * İsteğe bağlı: VAKIF_MPI_SESSION_SECRET (yoksa şifre türevi), QUOTAGUARDSTATIC_URL
+ * Test: odeme.html?mpi_test=1 + istekte mpiTest:true — yalnızca VAKIF_MPI_TEST_MODE=1 iken geçerli (canlıda kapatın).
  */
 const {
   PAKET,
@@ -59,7 +60,7 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) }, body: JSON.stringify({ ok: false, message: 'Geçersiz JSON' }) };
   }
 
-  const {
+  let {
     adSoyad,
     email,
     telefon,
@@ -74,7 +75,32 @@ exports.handler = async (event) => {
     cvv,
   } = body;
 
-  if (!adSoyad || !email || !telefon) {
+  const mpiTest = body.mpiTest === true;
+  const mpiTestAllowed = (process.env.VAKIF_MPI_TEST_MODE || '').trim() === '1';
+
+  if (mpiTest && !mpiTestAllowed) {
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      body: JSON.stringify({
+        ok: false,
+        code: 'MPI_TEST_DISABLED',
+        message:
+          'Minimal MPI test isteği reddedildi. Netlify ortamında VAKIF_MPI_TEST_MODE=1 tanımlayın; iş bitince kaldırın.',
+      }),
+    };
+  }
+
+  if (mpiTest && mpiTestAllowed) {
+    adSoyad = String(adSoyad || '').trim() || 'MPI Minimal Test';
+    email = String(email || '').trim() || 'mpi-minimal-test@invalid.finskor.tr';
+    telefon = String(telefon || '').replace(/\D/g, '');
+    if (telefon.length < 10) telefon = '05000000000';
+    firmaAdi = String(firmaAdi || '').trim();
+    vkn = '';
+    vd = '';
+    faturaTipi = 'bireysel';
+  } else if (!adSoyad || !email || !telefon) {
     return {
       statusCode: 400,
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
@@ -123,6 +149,7 @@ exports.handler = async (event) => {
     vd ? `VD:${vd}` : '',
     `KartSahibi:${kIsim.slice(0, 80)}`,
     `MPI_REF:${verifyId}`,
+    mpiTest && mpiTestAllowed ? 'MPI_TEST:minimal' : '',
     'ODEME:mpi_bekliyor',
   ]
     .filter(Boolean)
