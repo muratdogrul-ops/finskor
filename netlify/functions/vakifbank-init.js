@@ -3,7 +3,7 @@
  * Ortam: VAKIF_INIT=test|prod, VAKIF_HOST_MERCHANT_ID, VAKIF_MERCHANT_PASSWORD, VAKIF_HOST_TERMINAL_ID
  * İsteğe bağlı: SITE_URL (callback tabanı, örn. https://finskor.tr)
  * Sabit çıkış IP (QuotaGuard): QUOTAGUARDSTATIC_URL veya VAKIF_HTTPS_PROXY
- * Kart alanları: Pan / ExpiryDate (YYMM) / Cvv2 / CardHolderName — bankanın Ortak Ödeme dokümanıyla uyum kontrol edin; farklı parametre adları gerekebilir.
+ * Ortak ödeme: RegisterTransaction kart numarası/CVV kabul etmez; kart bankanın SecurePayment sayfasında girilir.
  */
 const https = require('https');
 const { sbHost, sbKey } = require('./sb-config');
@@ -122,9 +122,6 @@ exports.handler = async (event) => {
     faturaTipi,
     paketKey,
     kartUzerindeIsim,
-    pan,
-    expiryYYMM,
-    cvv,
   } = body;
 
   if (!adSoyad || !email || !telefon) {
@@ -136,27 +133,6 @@ exports.handler = async (event) => {
   }
 
   const kIsim = typeof kartUzerindeIsim === 'string' ? kartUzerindeIsim.trim() : '';
-  const panDigits = String(pan || '').replace(/\D/g, '');
-  const exp = String(expiryYYMM || '').replace(/\D/g, '');
-  const cvvDigits = String(cvv || '').replace(/\D/g, '');
-  const withCardPayload = panDigits.length >= 13;
-
-  if (withCardPayload) {
-    if (!kIsim || kIsim.length < 2) {
-      return {
-        statusCode: 400,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
-        body: JSON.stringify({ ok: false, message: 'Kart üzerindeki isim zorunludur.' }),
-      };
-    }
-    if (panDigits.length > 19 || exp.length !== 4 || (cvvDigits.length !== 3 && cvvDigits.length !== 4)) {
-      return {
-        statusCode: 400,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
-        body: JSON.stringify({ ok: false, message: 'Kart numarası, son kullanma veya CVV eksik/hatalı.' }),
-      };
-    }
-  }
 
   const pk = PAKET[paketKey] ? paketKey : 'profesyonel';
   const pkg = PAKET[pk];
@@ -178,7 +154,7 @@ exports.handler = async (event) => {
     vkn ? `VKN:${vkn}` : '',
     faturaTipi ? `Fatura:${faturaTipi}` : '',
     vd ? `VD:${vd}` : '',
-    withCardPayload ? `KartSahibi:${kIsim.slice(0, 80)}` : '',
+    kIsim ? `KartSahibi:${kIsim.slice(0, 80)}` : '',
     `KART_REF:${transactionId}`,
     'ODEME:kart_bekliyor',
   ]
@@ -233,12 +209,6 @@ exports.handler = async (event) => {
     SuccessURL: `${base}/kart-odeme-sonuc.html`,
     FailURL: `${base}/kart-odeme-sonuc.html`,
   });
-  if (withCardPayload) {
-    form.set('CardHolderName', kIsim.slice(0, 100));
-    form.set('Pan', panDigits);
-    form.set('ExpiryDate', exp);
-    form.set('Cvv2', cvvDigits);
-  }
 
   let xml;
   try {
