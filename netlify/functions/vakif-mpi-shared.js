@@ -179,6 +179,24 @@ function listXmlLocalTagNames(xml) {
   return [...seen].join(', ');
 }
 
+/** Ham gövde veya etiket listesi MPI XML'i değil, tipik HTML sayfasına benziyorsa true */
+function isLikelyHtmlInsteadOfMpiXml(foundTags, raw) {
+  const r = String(raw || '').trim();
+  if (/^<\s*!DOCTYPE\s+html/i.test(r) || /^<\s*html[\s>]/i.test(r)) return true;
+  if (!foundTags) return false;
+  const tags = String(foundTags)
+    .split(',')
+    .map((t) => {
+      const s = t.trim();
+      return s.includes(':') ? s.split(':').pop().toLowerCase() : s.toLowerCase();
+    })
+    .filter(Boolean);
+  if (!tags.length) return false;
+  const mpiHint = /enroll|pareq|acsurl|parequest|mdstatus|verifyenrol|procretur|procstatus|resultcode|responsecode|merchantid|terminalno|gateway/i;
+  if (tags.some((t) => mpiHint.test(t))) return false;
+  return tags.includes('html') && (tags.includes('head') || tags.includes('body'));
+}
+
 function tryParseMpiJson(raw) {
   const t = raw.trim();
   if (!t.startsWith('{') && !t.startsWith('[')) return null;
@@ -434,13 +452,16 @@ function parseMpiEnrollmentResponse(rawText, httpStatus) {
       !status);
 
   if (!ok) {
+    const looksHtml = !hasAcs && isLikelyHtmlInsteadOfMpiXml(foundTags, raw);
     const parts = [
       message,
       errCode && `Kod: ${errCode}`,
       procReturn && `İşlem kodu: ${procReturn}`,
       status ? `3D durumu: ${status}` : null,
       !hasAcs
-        ? 'ACS adresi veya PaReq okunamadı. Yanıttaki etiket isimleri farklı olabilir — aşağıdaki listeyi bankaya iletin.'
+        ? looksHtml
+          ? 'Banka MPI/XML yerine bir HTML sayfası döndü (yanlış URL, test–canlı uyumsuzluğu, IP kısıtı veya sunucu hata sayfası olabilir). Endpoint ve üye işyeri ayarlarını Vakıfbank ile doğrulayın; aşağıdaki etiket listesini desteğe iletin.'
+          : 'ACS adresi veya PaReq okunamadı. Yanıttaki etiket isimleri farklı olabilir — aşağıdaki listeyi bankaya iletin.'
         : null,
     ].filter(Boolean);
     const tagLine = foundTags ? ` Yanıtta görülen etiketler: ${foundTags.slice(0, 350)}` : '';
