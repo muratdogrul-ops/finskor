@@ -29,6 +29,19 @@ const VPOS_URL = {
   prod: 'https://apigw.vakifbank.com.tr:8443/virtualPos/Vposreq',
 };
 
+/** ACS, PARes sonucunu buraya POST eder; MPI sonucu ÜİY SuccessUrl’e iletir (kılavuz 5.2.1 / 5.2.2). */
+const MPI_START_THREED_FLOW_URL = {
+  test: 'https://inbound.apigatewaytest.vakifbank.com.tr:8443/threeDGateway/startThreeDFlow',
+  prod: 'https://inbound.apigateway.vakifbank.com.tr:8443/threeDGateway/startThreeDFlow',
+};
+
+function resolveMpiStartThreeDFlowUrl(mode) {
+  const key = mode === 'prod' ? 'VAKIF_MPI_START_THREED_FLOW_PROD' : 'VAKIF_MPI_START_THREED_FLOW_TEST';
+  const o = process.env[key];
+  if (o && String(o).trim()) return String(o).trim();
+  return MPI_START_THREED_FLOW_URL[mode];
+}
+
 function siteBase() {
   return (process.env.SITE_URL || process.env.URL || 'https://finskor.tr').replace(/\/$/, '');
 }
@@ -121,6 +134,7 @@ function pickAcsUrlFromRaw(raw) {
     })
     .map((u) => {
       let score = 0;
+      if (/startThreeDFlow|ProcessEnrollment|\/threeDGateway\/Enrollment/i.test(u)) return { u, score: -100 };
       const kw = /acs|3d|secure|threeds|mpi|authentication|gateway|issuer|directory|emv|cardinal|arcot/i.test(
         u
       );
@@ -241,6 +255,7 @@ function jsonFindMpiFields(obj) {
     ],
     md: ['md', 'merchantdata'],
     errCode: ['errorcode', 'resultcode', 'responsecode'],
+    termUrl: ['termurl', 'term_url', 'mpitermurl'],
   };
   function walk(o) {
     if (o == null) return;
@@ -278,6 +293,7 @@ function jsonFindMpiFields(obj) {
     paReq: pick.paReq || '',
     md: pick.md || '',
     errCode: pick.errCode || '',
+    termUrl: pick.termUrl || '',
   };
 }
 
@@ -320,6 +336,7 @@ function parseMpiEnrollmentResponse(rawText, httpStatus, contentType) {
   let paReq = '';
   let md = '';
   let errCode = '';
+  let bankTermUrl = '';
 
   if (jsonObj) {
     const j = jsonFindMpiFields(jsonObj);
@@ -330,6 +347,7 @@ function parseMpiEnrollmentResponse(rawText, httpStatus, contentType) {
     paReq = j.paReq;
     md = j.md;
     errCode = j.errCode;
+    bankTermUrl = j.termUrl || '';
   } else if (!raw.includes('<')) {
     return {
       ok: false,
@@ -413,6 +431,8 @@ function parseMpiEnrollmentResponse(rawText, httpStatus, contentType) {
       xmlFirstOf(x2, paNames, ['value', 'Value', 'ValueText', 'text']) ||
       xmlFirstOf(x1, paNames, ['value', 'Value', 'ValueText', 'text']);
     md = xmlFirstOf(x2, ['MD', 'Md', 'MerchantData']) || xmlFirstOf(x1, ['MD', 'Md', 'MerchantData']);
+    bankTermUrl =
+      xmlFirstOf(x2, ['TermUrl', 'TermURL']) || xmlFirstOf(x1, ['TermUrl', 'TermURL']) || '';
     errCode =
       xmlFirstOf(x2, ['ErrorCode', 'ResultCode', 'ResponseCode']) ||
       xmlFirstOf(x1, ['ErrorCode', 'ResultCode', 'ResponseCode']) ||
@@ -422,6 +442,7 @@ function parseMpiEnrollmentResponse(rawText, httpStatus, contentType) {
   acsUrl = stripCdata(acsUrl).replace(/&amp;/g, '&').trim();
   paReq = stripCdata(paReq).replace(/\s+/g, '').trim();
   md = stripCdata(md).trim();
+  bankTermUrl = stripCdata(bankTermUrl).replace(/&amp;/g, '&').trim();
 
   if (!isLikelyHttpUrl(acsUrl)) {
     const picked = pickAcsUrlFromRaw(xmlSearch) || pickAcsUrlFromRaw(raw);
@@ -505,7 +526,7 @@ function parseMpiEnrollmentResponse(rawText, httpStatus, contentType) {
     };
   }
 
-  return { ok: true, status, message, acsUrl, paReq, md, logHint: '', foundTags };
+  return { ok: true, status, message, acsUrl, paReq, md, termUrl: bankTermUrl, logHint: '', foundTags };
 }
 
 function xmlTagLoose(xml, tag) {
@@ -588,7 +609,6 @@ function buildEnrollmentXml(opts) {
   const {
     merchantId,
     merchantPassword,
-    terminalNo,
     verifyId,
     pan,
     expiryYYMM,
@@ -597,16 +617,11 @@ function buildEnrollmentXml(opts) {
     successUrl,
     failureUrl,
   } = opts;
-  const termXml =
-    terminalNo != null && String(terminalNo).trim()
-      ? `<TerminalNo>${escXml(String(terminalNo).trim())}</TerminalNo>`
-      : '';
   return (
     '<?xml version="1.0" encoding="UTF-8"?>' +
     '<VerifyEnrollmentRequest>' +
     `<MerchantId>${escXml(merchantId)}</MerchantId>` +
     `<MerchantPassword>${escXml(merchantPassword)}</MerchantPassword>` +
-    termXml +
     `<VerifyEnrollmentRequestId>${escXml(verifyId)}</VerifyEnrollmentRequestId>` +
     `<Pan>${escXml(pan)}</Pan>` +
     `<ExpiryDate>${escXml(expiryYYMM)}</ExpiryDate>` +
@@ -716,6 +731,8 @@ module.exports = {
   PAKET,
   MPI_ENROLL_URL,
   resolveMpiEnrollUrl,
+  MPI_START_THREED_FLOW_URL,
+  resolveMpiStartThreeDFlowUrl,
   VPOS_URL,
   siteBase,
   xmlTag,

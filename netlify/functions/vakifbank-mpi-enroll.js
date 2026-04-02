@@ -8,6 +8,7 @@
 const {
   PAKET,
   resolveMpiEnrollUrl,
+  resolveMpiStartThreeDFlowUrl,
   siteBase,
   detectBrand,
   encryptMpiSession,
@@ -16,6 +17,10 @@ const {
   postXml,
   parseMpiEnrollmentResponse,
 } = require('./vakif-mpi-shared');
+
+function isHttpUrl(s) {
+  return /^https?:\/\/.+/i.test(String(s || '').trim());
+}
 
 function corsHeaders(origin) {
   return {
@@ -142,7 +147,7 @@ exports.handler = async (event) => {
   const amount = pkg.fiyat;
   const verifyId = 'FS' + Date.now() + Math.random().toString(36).slice(2, 8).toUpperCase();
   const base = siteBase();
-  const termUrl = `${base}/.netlify/functions/vakifbank-mpi-term`;
+  const merchantReturnUrl = `${base}/.netlify/functions/vakifbank-mpi-term`;
   const failUrl = `${base}/odeme.html?mpi=hata`;
 
   const notlar = [
@@ -215,13 +220,12 @@ exports.handler = async (event) => {
   const enrollXml = buildEnrollmentXml({
     merchantId: mid,
     merchantPassword: pwd,
-    terminalNo: term,
     verifyId,
     pan: panDigits,
     expiryYYMM: exp,
     amount,
     brandName: detectBrand(panDigits),
-    successUrl: termUrl,
+    successUrl: merchantReturnUrl,
     failureUrl: failUrl,
   });
 
@@ -294,6 +298,7 @@ exports.handler = async (event) => {
   const acsUrl = parsed.acsUrl;
   const paReq = parsed.paReq;
   const md = parsed.md || verifyId;
+  const acsFormTermUrl = isHttpUrl(parsed.termUrl) ? parsed.termUrl.trim() : resolveMpiStartThreeDFlowUrl(mode);
 
   const sessionPayload = {
     paymentId,
@@ -346,7 +351,7 @@ exports.handler = async (event) => {
       acsUrl,
       paReq,
       md,
-      termUrl,
+      termUrl: acsFormTermUrl,
     }),
   };
 };

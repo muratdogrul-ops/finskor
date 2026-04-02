@@ -24,12 +24,17 @@ try {
 
 const {
   resolveMpiEnrollUrl,
+  resolveMpiStartThreeDFlowUrl,
   buildEnrollmentXml,
   postXml,
   parseMpiEnrollmentResponse,
   detectBrand,
   siteBase,
 } = require('../netlify/functions/vakif-mpi-shared');
+
+function isHttpUrl(s) {
+  return /^https?:\/\/.+/i.test(String(s || '').trim());
+}
 
 function maskPan(p) {
   const d = String(p).replace(/\D/g, '');
@@ -62,19 +67,18 @@ async function main() {
   const amount = process.env.TEST_AMOUNT || '2490.00';
   const verifyId = 'LOCAL' + Date.now();
   const base = siteBase();
-  const termUrl = `${base}/.netlify/functions/vakifbank-mpi-term`;
+  const merchantReturnUrl = `${base}/.netlify/functions/vakifbank-mpi-term`;
   const failUrl = `${base}/odeme.html?mpi=hata`;
 
   const xml = buildEnrollmentXml({
     merchantId: mid,
     merchantPassword: pwd,
-    terminalNo: term,
     verifyId,
     pan: panDigits,
     expiryYYMM: exp,
     amount,
     brandName: detectBrand(panDigits),
-    successUrl: termUrl,
+    successUrl: merchantReturnUrl,
     failureUrl: failUrl,
   });
 
@@ -82,7 +86,7 @@ async function main() {
   console.log('Ortam:', mode);
   console.log('Endpoint:', url);
   console.log('Kart (maskeli):', maskPan(panDigits), 'SKT(YYMM):', exp, 'Tutar:', amount);
-  console.log('TermUrl (SuccessUrl):', termUrl);
+  console.log('SuccessUrl (ÜİY sonuç):', merchantReturnUrl);
   console.log('--- İstek gönderiliyor ---\n');
 
   let res;
@@ -105,8 +109,10 @@ async function main() {
 
   if (parsed.ok) {
     const u = parsed.acsUrl || '';
+    const acsTerm = isHttpUrl(parsed.termUrl) ? parsed.termUrl.trim() : resolveMpiStartThreeDFlowUrl(mode);
     console.log('\n✓ Enrollment başarılı (3D yönlendirme verisi geldi).');
     console.log('ACS URL:', u.length > 100 ? u.slice(0, 100) + '…' : u);
+    console.log('ACS form TermUrl (MPI startThreeDFlow):', acsTerm.length > 100 ? acsTerm.slice(0, 100) + '…' : acsTerm);
     console.log('PaReq uzunluk:', (parsed.paReq || '').length, '(tamamını loglamıyoruz)');
     console.log('\n→ SMS/şifreyi ACS ekranında girmezseniz satış oluşmaz; bu beklenen güvenli davranış.');
   } else {

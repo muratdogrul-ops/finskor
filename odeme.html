@@ -914,8 +914,8 @@ async function submitPayment() {
         syncPayButtonLabel();
         return;
       }
-      if (!j.acsUrl || !j.paReq || j.md == null || j.md === '') {
-        showToast('Banka 3D yanıtı eksik. Yönetici ile iletişime geçin.', true);
+      if (!j.acsUrl || !j.paReq || j.md == null || j.md === '' || !j.termUrl || !/^https?:\/\//i.test(String(j.termUrl))) {
+        showToast('Banka 3D yanıtı eksik (ACS veya MPI TermUrl). Yönetici ile iletişime geçin.', true);
         btn.disabled = false;
         syncPayButtonLabel();
         return;
