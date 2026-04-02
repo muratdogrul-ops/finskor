@@ -456,6 +456,7 @@ nav {
             <div class="field">
               <label class="field-label" for="adSoyad">Ad Soyad <span class="req">*</span></label>
               <input class="field-input" type="text" id="adSoyad" placeholder="Adınız Soyadınız" required>
+              <div class="field-hint">Kredi kartı ile ödeme seçiliyken boş bırakırsanız, sipariş kaydında ad olarak <strong>kart üzerindeki isim</strong> kullanılır. E-posta ve telefon her zaman zorunludur.</div>
             </div>
             <div class="field">
               <label class="field-label" for="firmaAdi">Firma Adı</label>
@@ -769,27 +770,20 @@ function toggleVkn(cb) {
 // FORM GÖNDER
 // ═══════════════════════════════════════
 async function submitPayment() {
-  const adSoyad  = document.getElementById('adSoyad').value.trim();
+  const btn = document.getElementById('payBtn');
+  const cardActive = document.getElementById('tabCard') && document.getElementById('tabCard').classList.contains('active');
+
+  const adSoyadInput = document.getElementById('adSoyad').value.trim();
   const email    = document.getElementById('email').value.trim();
   const telefon  = document.getElementById('telefon').value.trim();
   const firmaAdi = document.getElementById('firmaAdi').value.trim();
   const vkn      = document.getElementById('vkn').value.trim();
   const vd       = document.getElementById('vd').value.trim();
   const bireysel = document.getElementById('bireyselFatura').checked;
+  const kIsim = (document.getElementById('kartUzerindeIsim') && document.getElementById('kartUzerindeIsim').value.trim()) || '';
 
-  // Zorunlu alan kontrolü
-  if (!adSoyad)  { showToast('Ad Soyad zorunludur.', true); return; }
-  if (!email || !email.includes('@')) { showToast('Geçerli bir e-posta giriniz.', true); return; }
-  if (!telefon || telefon.length < 10) { showToast('Geçerli bir telefon numarası giriniz.', true); return; }
-  if (!bireysel && !vkn) { showToast('VKN giriniz veya "Bireysel fatura" seçeneğini işaretleyiniz.', true); return; }
-  if (vkn && (vkn.length < 10 || isNaN(vkn))) { showToast('VKN 10 haneli sayıdan oluşmalıdır.', true); return; }
-  if (!document.getElementById('sozlesmeOnay').checked) { showToast('Lütfen Mesafeli Satış Sözleşmesi\'ni kabul ediniz.', true); return; }
-
-  const btn = document.getElementById('payBtn');
-  const cardActive = document.getElementById('tabCard') && document.getElementById('tabCard').classList.contains('active');
-
+  // Kart ödemesi: önce PAN/SKT/CVV (bankaya giden alanlar), sonra müşteri kaydı (e-posta/telefon zorunlu)
   if (cardActive) {
-    const kIsim = (document.getElementById('kartUzerindeIsim') && document.getElementById('kartUzerindeIsim').value.trim()) || '';
     const panRaw = (document.getElementById('kartPan') && document.getElementById('kartPan').value.replace(/\s/g, '')) || '';
     const sktDigits = (document.getElementById('kartSkt') && document.getElementById('kartSkt').value.replace(/\D/g, '')) || '';
     const cvv = (document.getElementById('kartCvv') && document.getElementById('kartCvv').value.replace(/\D/g, '')) || '';
@@ -799,6 +793,24 @@ async function submitPayment() {
     if (!/^\d{3,4}$/.test(cvv)) { showToast('CVV 3 veya 4 haneli olmalıdır.', true); return; }
   }
 
+  // Ad soyad: kart ödemesinde müşteri alanı boşsa kart üzerindeki isim kullanılır (Vakıfbank PAN/CVV ayrı gönderilir)
+  const adSoyad = (cardActive && !adSoyadInput && kIsim) ? kIsim : adSoyadInput;
+  if (!adSoyad || adSoyad.length < 2) {
+    showToast(cardActive ? 'Ad soyad girin veya kart üzerindeki ismi doldurun (sipariş kaydı için).' : 'Ad Soyad zorunludur.', true);
+    return;
+  }
+  if (!email || !email.includes('@')) {
+    showToast('E-posta zorunludur (erişim kodu bu adrese gönderilir).', true);
+    return;
+  }
+  if (!telefon || telefon.length < 10) {
+    showToast('Cep telefonu zorunludur (teyit ve iletişim için).', true);
+    return;
+  }
+  if (!bireysel && !vkn) { showToast('VKN giriniz veya "Bireysel fatura" seçeneğini işaretleyiniz.', true); return; }
+  if (vkn && (vkn.length < 10 || isNaN(vkn))) { showToast('VKN 10 haneli sayıdan oluşmalıdır.', true); return; }
+  if (!document.getElementById('sozlesmeOnay').checked) { showToast('Lütfen Mesafeli Satış Sözleşmesi\'ni kabul ediniz.', true); return; }
+
   btn.disabled = true;
   btn.textContent = cardActive ? '⏳ 3D doğrulama hazırlanıyor...' : '⏳ Kaydediliyor...';
 
@@ -806,7 +818,7 @@ async function submitPayment() {
 
   try {
     if (cardActive) {
-      const kIsim = document.getElementById('kartUzerindeIsim').value.trim();
+      const kIsimCard = document.getElementById('kartUzerindeIsim').value.trim();
       const panRaw = document.getElementById('kartPan').value.replace(/\s/g, '');
       const sktDigits = document.getElementById('kartSkt').value.replace(/\D/g, '');
       const cvv = document.getElementById('kartCvv').value.replace(/\D/g, '');
@@ -820,7 +832,7 @@ async function submitPayment() {
           adSoyad, email, telefon, firmaAdi, vkn, vd,
           faturaTipi: bireysel ? 'bireysel' : 'kurumsal',
           paketKey: _paketKey,
-          kartUzerindeIsim: kIsim,
+          kartUzerindeIsim: kIsimCard,
           pan: panRaw,
           expiryYYMM,
           cvv

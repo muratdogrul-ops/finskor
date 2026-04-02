@@ -30,6 +30,110 @@ function xmlTag(xml, tag) {
   return m ? m[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1').trim() : '';
 }
 
+/** İsim alanı önekli etiketler: soap:Status, ns1:Status */
+function xmlTagFlexible(xml, tag) {
+  const plain = xmlTag(xml, tag);
+  if (plain) return plain;
+  const esc = String(tag).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const m = String(xml).match(
+    new RegExp(`<[a-zA-Z0-9_]+:${esc}[^>]*>([\\s\\S]*?)</[a-zA-Z0-9_]+:${esc}>`, 'i')
+  );
+  return m ? m[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1').trim() : '';
+}
+
+/**
+ * MPI Enrollment yanıtını ayrıştırır (Vakıfbank / namespace / ProcReturnCode farkları).
+ */
+function parseMpiEnrollmentResponse(rawText, httpStatus) {
+  const raw = String(rawText || '').trim();
+  const snippet = raw.slice(0, 400).replace(/\s+/g, ' ');
+
+  if (httpStatus != null && (httpStatus < 200 || httpStatus >= 300)) {
+    return {
+      ok: false,
+      status: '',
+      message: `Banka iletişim hatası (HTTP ${httpStatus}).`,
+      acsUrl: '',
+      paReq: '',
+      md: '',
+      logHint: snippet,
+    };
+  }
+
+  if (!raw.includes('<')) {
+    return {
+      ok: false,
+      status: '',
+      message: 'Banka XML yerine düz metin veya boş yanıt döndü. Endpoint ve ortam (test/prod) kontrol edin.',
+      acsUrl: '',
+      paReq: '',
+      md: '',
+      logHint: snippet,
+    };
+  }
+
+  const t = (name) => xmlTagFlexible(raw, name);
+
+  const status = (t('Status') || t('ThreeDSecureStatus') || '').trim().toUpperCase();
+  const procReturn = (t('ProcReturnCode') || t('ProcReturn') || '').trim();
+  const message =
+    t('Message') ||
+    t('ErrorMessage') ||
+    t('ErrorMsg') ||
+    t('ResponseMessage') ||
+    t('ErrMsg') ||
+    t('VerifyEnrollmentRequestResult') ||
+    '';
+  const acsUrl = t('ACSUrl') || t('AcsUrl') || t('ACSURL') || t('AcsURL');
+  const paReq = t('PaReq') || t('PAREQ') || t('Pareq');
+  const md = t('MD') || t('Md');
+  const errCode = t('ErrorCode') || t('ResultCode') || '';
+
+  const hasAcs = !!(acsUrl && paReq);
+  const procOk = procReturn === '00' || procReturn === '0000' || procReturn === '0';
+
+  if (status === 'N' || status === 'U') {
+    return {
+      ok: false,
+      status,
+      message: message || 'Bu kart için 3D Secure kullanılamıyor veya kart doğrulanamadı (Status ' + status + ').',
+      acsUrl,
+      paReq,
+      md,
+      logHint: snippet,
+    };
+  }
+
+  // Y: klasik başarı; A: attempt; bazı kurulumlarda Status boş ama ProcReturnCode 00 + PaReq gelir
+  const ok =
+    hasAcs &&
+    (status === 'Y' ||
+      status === 'A' ||
+      ((status === '' || !status) && procOk));
+
+  if (!ok) {
+    const parts = [
+      message,
+      errCode && `Kod: ${errCode}`,
+      procReturn && `İşlem kodu: ${procReturn}`,
+      status ? `3D durumu: ${status}` : '3D durumu okunamadı (boş); banka yanıt etiketleri dokümandan farklı olabilir.',
+    ].filter(Boolean);
+    return {
+      ok: false,
+      status,
+      message:
+        parts.join(' — ') ||
+        '3D kayıt başarısız. Banka entegrasyon dokümanındaki yanıt etiketleri ile uyum kontrol edilmeli.',
+      acsUrl,
+      paReq,
+      md,
+      logHint: snippet,
+    };
+  }
+
+  return { ok: true, status, message, acsUrl, paReq, md, logHint: '' };
+}
+
 function xmlTagLoose(xml, tag) {
   let v = xmlTag(xml, tag);
   if (v) return v;
@@ -229,6 +333,8 @@ module.exports = {
   VPOS_URL,
   siteBase,
   xmlTag,
+  xmlTagFlexible,
+  parseMpiEnrollmentResponse,
   xmlTagLoose,
   detectBrand,
   encryptMpiSession,

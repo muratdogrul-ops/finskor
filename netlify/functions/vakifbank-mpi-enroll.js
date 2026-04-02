@@ -7,12 +7,12 @@ const {
   PAKET,
   MPI_ENROLL_URL,
   siteBase,
-  xmlTag,
   detectBrand,
   encryptMpiSession,
   sbRequest,
   buildEnrollmentXml,
   postXml,
+  parseMpiEnrollmentResponse,
 } = require('./vakif-mpi-shared');
 
 function corsHeaders(origin) {
@@ -200,36 +200,30 @@ exports.handler = async (event) => {
   }
 
   const xr = xmlRes.text;
-  const status = xmlTag(xr, 'Status').toUpperCase();
-  const errMsg = xmlTag(xr, 'Message') || xmlTag(xr, 'ErrorMessage') || xmlTag(xr, 'VerifyEnrollmentRequestResult');
+  const parsed = parseMpiEnrollmentResponse(xr, xmlRes.status);
 
-  if (status !== 'Y') {
+  if (!parsed.ok) {
+    console.error('MPI enrollment failed', {
+      httpStatus: xmlRes.status,
+      mpiStatus: parsed.status,
+      message: parsed.message,
+      logHint: parsed.logHint,
+      rawHead: xr.slice(0, 2800),
+    });
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
       body: JSON.stringify({
         ok: false,
-        message: errMsg || `3D doğrulama başlatılamadı (Status: ${status || '—'}).`,
-        mpiStatus: status,
+        message: parsed.message,
+        mpiStatus: parsed.status || null,
       }),
     };
   }
 
-  const acsUrl = xmlTag(xr, 'ACSUrl') || xmlTag(xr, 'AcsUrl') || xmlTag(xr, 'ACSURL');
-  const paReq = xmlTag(xr, 'PaReq') || xmlTag(xr, 'Pareq');
-  const md = xmlTag(xr, 'MD') || xmlTag(xr, 'Md') || verifyId;
-
-  if (!acsUrl || !paReq) {
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
-      body: JSON.stringify({
-        ok: false,
-        message: 'MPI yanıtı eksik (ACSUrl / PaReq). Banka dokümanıyla uyum kontrol edin.',
-        debug: xr.slice(0, 400),
-      }),
-    };
-  }
+  const acsUrl = parsed.acsUrl;
+  const paReq = parsed.paReq;
+  const md = parsed.md || verifyId;
 
   const sessionPayload = {
     paymentId,
