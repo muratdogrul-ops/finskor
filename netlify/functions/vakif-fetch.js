@@ -1,114 +1,235 @@
 /**
- * Vakıfbank'a giden HTTPS istekleri — isteğe bağlı sabit çıkış proxy (QuotaGuard Static vb.)
+ * Vakıfbank'a giden HTTPS istekleri — QuotaGuard Static / HTTP CONNECT proxy
  *
- * Netlify Environment variables (birini kullanın):
- *   QUOTAGUARDSTATIC_URL — QuotaGuard panelinde verilen tam URL
- *   VAKIF_HTTPS_PROXY    — aynı format: http://kullanici:sifre@host:port
+ * Netlify ortam değişkeni (birini kullanın):
+ *   QUOTAGUARDSTATIC_URL — QuotaGuard panelindeki tam URL
+ *   VAKIF_HTTPS_PROXY    — http://kullanici:sifre@host:port
  *
- * Boş bırakılırsa doğrudan fetch (Netlify'ın değişken çıkış IP'si).
+ * Önceki undici ProxyAgent, Lambda’da CONNECT + bazı proxy’lerle güvenilir değildi;
+ * çıkış https-proxy-agent + Node https.request ile yapılır.
  *
- * ProxyAgent oluşturulamazsa: varsayılan doğrudan fetch + net log (eski davranış).
- * Sıkı mod: VAKIF_PROXY_FAIL_CLOSED=1 → proxy URL tanımlı ama agent yoksa hata (whitelist bypass riski).
+ * Proxy URL geçersizse: varsayılan doğrudan fetch + log. Sıkı mod: VAKIF_PROXY_FAIL_CLOSED=1
  */
-const { fetch: undiciFetch, ProxyAgent } = require('undici');
+'use strict';
+
+const https = require('https');
+const hpMod = require('https-proxy-agent');
+const HttpsProxyAgent = typeof hpMod === 'function' ? hpMod : hpMod.HttpsProxyAgent || hpMod.default;
+
+const REQUEST_MS = Math.min(
+  Math.max(parseInt(process.env.VAKIF_HTTPS_TIMEOUT_MS || '55000', 10) || 55000, 5000),
+  120000
+);
 
 let _resolved = false;
-let _dispatcher = null;
+let _proxyUrlForAgent = null;
+let _proxyHost = null;
 let _proxyError = null;
+let _cachedAgent = null;
 let _loggedReady = false;
 
 function proxyUrlRaw() {
   return (process.env.QUOTAGUARDSTATIC_URL || process.env.VAKIF_HTTPS_PROXY || '').trim();
 }
 
-function resolveDispatcher() {
-  if (_resolved) return;
-  _resolved = true;
-  const raw = proxyUrlRaw();
-  if (!raw) {
-    _dispatcher = null;
-    _proxyError = null;
-    return;
-  }
+function normalizeProxyUrl(raw) {
   try {
-    _dispatcher = new ProxyAgent(raw);
-    _proxyError = null;
+    const withProto = /^https?:\/\//i.test(raw) ? raw : `http://${raw}`;
+    const u = new URL(withProto);
+    if (!u.hostname) return { error: 'Proxy URL’de hostname yok.' };
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') {
+      return { error: 'Proxy http:// veya https:// ile başlamalı (QuotaGuard genelde http://).' };
+    }
+    return { href: u.href };
   } catch (e) {
-    _dispatcher = null;
-    _proxyError = e.message || String(e);
-    console.error('[vakif-fetch] ProxyAgent oluşturulamadı:', _proxyError);
+    return { error: e.message || String(e) };
   }
 }
 
-/**
- * Sabit çıkış proxy durumu (ip-egress / MPI hata mesajları için).
- */
-function getVakifEgressStatus() {
-  resolveDispatcher();
+function resolveProxyConfig() {
+  if (_resolved) return;
+  _resolved = true;
+  _proxyUrlForAgent = null;
+  _proxyHost = null;
+  _proxyError = null;
+  _cachedAgent = null;
+
   const raw = proxyUrlRaw();
-  let proxyHost = null;
-  if (raw) {
-    try {
-      proxyHost = new URL(/^https?:\/\//i.test(raw) ? raw : `http://${raw}`).hostname;
-    } catch (_) {
-      proxyHost = null;
+  if (!raw) return;
+
+  const n = normalizeProxyUrl(raw);
+  if (n.error) {
+    _proxyError = n.error;
+    console.error('[vakif-fetch] Proxy URL geçersiz:', _proxyError);
+    return;
+  }
+
+  try {
+    _cachedAgent = new HttpsProxyAgent(n.href);
+    _proxyUrlForAgent = n.href;
+    _proxyHost = new URL(n.href).hostname;
+  } catch (e) {
+    _proxyError = e.message || String(e);
+    _cachedAgent = null;
+    console.error('[vakif-fetch] HttpsProxyAgent oluşturulamadı:', _proxyError);
+  }
+}
+
+function getOrCreateAgent() {
+  if (_cachedAgent) return _cachedAgent;
+  if (!_proxyUrlForAgent) return null;
+  _cachedAgent = new HttpsProxyAgent(_proxyUrlForAgent);
+  return _cachedAgent;
+}
+
+function wrapNodeResponse(statusCode, headersObj, bodyText) {
+  const lower = {};
+  for (const k of Object.keys(headersObj)) {
+    lower[String(k).toLowerCase()] = headersObj[k];
+  }
+  return {
+    ok: statusCode >= 200 && statusCode < 300,
+    status: statusCode,
+    headers: {
+      get(name) {
+        return lower[String(name).toLowerCase()] ?? null;
+      },
+    },
+    text: async () => bodyText,
+    json: async () => JSON.parse(bodyText),
+  };
+}
+
+function flattenHeaders(h) {
+  if (!h || typeof h !== 'object') return {};
+  const out = {};
+  for (const [k, v] of Object.entries(h)) {
+    if (v != null && v !== '') out[k] = String(v);
+  }
+  return out;
+}
+
+/**
+ * HTTPS hedefe, HTTP CONNECT proxy üzerinden istek (Vakıfbank MPI/VPOS).
+ */
+function requestViaHttpsProxy(targetUrl, options = {}) {
+  const agent = getOrCreateAgent();
+  if (!agent) {
+    return Promise.reject(new Error('Proxy agent yok'));
+  }
+
+  let u;
+  try {
+    u = new URL(targetUrl);
+  } catch (e) {
+    return Promise.reject(e);
+  }
+
+  const method = String(options.method || 'GET').toUpperCase();
+  const headers = flattenHeaders(options.headers);
+  const body = options.body;
+
+  if (body != null && headers['content-length'] == null && headers['Content-Length'] == null) {
+    const buf = typeof body === 'string' ? Buffer.from(body, 'utf8') : Buffer.from(body);
+    headers['Content-Length'] = String(buf.length);
+  }
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      {
+        hostname: u.hostname,
+        port: u.port || 443,
+        path: u.pathname + u.search,
+        method,
+        headers,
+        agent,
+        servername: u.hostname,
+      },
+      (res) => {
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => {
+          const text = Buffer.concat(chunks).toString('utf8');
+          resolve(wrapNodeResponse(res.statusCode || 0, res.headers, text));
+        });
+      }
+    );
+
+    req.on('error', reject);
+    req.setTimeout(REQUEST_MS, () => {
+      req.destroy(new Error(`HTTPS istek zaman aşımı (${REQUEST_MS} ms)`));
+    });
+
+    if (body != null) {
+      req.write(typeof body === 'string' ? body : Buffer.from(body));
+    }
+    req.end();
+  });
+}
+
+function getVakifEgressStatus() {
+  resolveProxyConfig();
+  const raw = proxyUrlRaw();
+  let proxyHost = _proxyHost;
+  if (!proxyHost && raw) {
+    const n = normalizeProxyUrl(raw);
+    if (!n.error) {
+      try {
+        proxyHost = new URL(n.href).hostname;
+      } catch (_) {
+        /* ignore */
+      }
     }
   }
   return {
     proxyUrlConfigured: !!raw,
     proxyHost,
-    proxyAgentActive: !!_dispatcher,
+    proxyAgentActive: !!_proxyUrlForAgent,
     proxyAgentError: _proxyError,
   };
 }
 
-/**
- * Sadece Vakıfbank Ortak Ödeme / MPI / VPOS çağrıları için kullanın.
- */
 async function vakifFetch(url, options = {}) {
-  resolveDispatcher();
+  resolveProxyConfig();
   const rawConfigured = !!proxyUrlRaw();
   const failClosed = (process.env.VAKIF_PROXY_FAIL_CLOSED || '').trim() === '1';
 
-  if (rawConfigured && !_dispatcher && failClosed) {
+  if (rawConfigured && !_proxyUrlForAgent && failClosed) {
     throw new Error(
-      'VAKIF_EGRESS_PROXY_REQUIRED: QuotaGuard/proxy URL tanımlı ama kullanılamıyor. ' +
-        (_proxyError ? `Sebep: ${_proxyError}. ` : '') +
-        'Netlify’da QUOTAGUARDSTATIC_URL değerini kontrol edin (örn. http://kullanici:sifre@host:port).'
+      'VAKIF_EGRESS_PROXY_REQUIRED: QuotaGuard/proxy tanımlı ama kullanılamıyor. ' +
+        (_proxyError ? `Sebep: ${_proxyError} ` : '') +
+        'QUOTAGUARDSTATIC_URL biçimini kontrol edin (http://kullanici:sifre@host:port).'
     );
   }
 
-  if (rawConfigured && !_dispatcher && !failClosed) {
+  if (rawConfigured && !_proxyUrlForAgent && !failClosed) {
     console.error(
-      '[vakif-fetch] UYARI: Proxy URL tanımlı ama ProxyAgent yok — doğrudan çıkış kullanılıyor (whitelist riski).',
+      '[vakif-fetch] UYARI: Proxy URL tanımlı ama geçersiz — doğrudan çıkış (WAF / Request Rejected riski).',
       _proxyError || ''
     );
   }
 
-  if (_dispatcher) {
+  if (_proxyUrlForAgent) {
     if (!_loggedReady) {
       _loggedReady = true;
-      const st = getVakifEgressStatus();
       console.log(
-        '[vakif-fetch] Sabit çıkış proxy aktif → host:',
-        st.proxyHost || '(bilinmiyor)',
-        '— Vakıfbank istekleri bu üzerinden gider.'
+        '[vakif-fetch] Sabit çıkış: https-proxy-agent →',
+        _proxyHost || '(host)',
+        '— MPI/VPOS bu üzerinden.'
       );
     }
-    return undiciFetch(url, { ...options, dispatcher: _dispatcher });
+    return requestViaHttpsProxy(url, options);
   }
 
   if (!_loggedReady) {
     _loggedReady = true;
     console.warn(
-      '[vakif-fetch] Proxy tanımlı değil — doğrudan çıkış (Netlify IP’si sabit değil). ' +
-        'Canlıda Vakıfbank HTML/WAF (“Request Rejected”) alıyorsanız QUOTAGUARDSTATIC_URL ekleyin.'
+      '[vakif-fetch] Proxy yok — doğrudan Netlify çıkışı. Vakıfbank HTML/WAF için QUOTAGUARDSTATIC_URL ekleyin.'
     );
   }
   return fetch(url, options);
 }
 
-/** Diğer function’larda catch: proxy yapılandırma hatası JSON/HTML yanıtına dönsün */
 function vakifFetchErrorResponse(err) {
   const em = String(err && err.message ? err.message : err);
   if (!em.includes('VAKIF_EGRESS_PROXY_REQUIRED')) return null;
