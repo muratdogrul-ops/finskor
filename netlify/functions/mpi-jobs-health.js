@@ -34,9 +34,15 @@ exports.handler = async (event) => {
 
   if (store === 'blobs') {
     out.mpi_blobs_read_write = await healthCheckBlobStore(event);
+    out.mpi_blobs_pat_configured = Boolean(
+      String(process.env.NETLIFY_AUTH_TOKEN || process.env.NETLIFY_BLOBS_TOKEN || '').trim()
+    );
     if (out.mpi_blobs_read_write !== 'ok') {
       out.hint =
         'Blobs başarısızsa Netlify’da Blobs özelliği / deploy bağlamı kontrol edin. Geçici çözüm: ortamda MPI_ENROLL_JOB_STORE=supabase (Supabase mpi_enroll_jobs tablosu gerekir).';
+    } else if (!out.mpi_blobs_pat_configured) {
+      out.background_hint =
+        'mpi-jobs-health sync çalıştı; vakifbank-mpi-enroll-worker-background ayrı çağrıda event.blobs olmayabilir. Kart akışı boşsa Netlify’da NETLIFY_AUTH_TOKEN (PAT) tanımlayın veya MPI_ENROLL_JOB_STORE=supabase.';
     }
   } else {
     const sel = await sbRequest('GET', 'mpi_enroll_jobs?select=id&limit=1');

@@ -6,7 +6,8 @@
  * Geri alma (kod revert gerekmez): Netlify ortamında MPI_ENROLL_JOB_STORE=supabase
  * İsteğe bağlı: MPI_ENROLL_BLOBS_STORE — Blob store adı (varsayılan mpi-enroll-jobs)
  *
- * Blobs için Lambda uyumluluk: connectLambda(event) — tüm çağrılarda event iletin.
+ * Blobs: Normal function’da event.blobs vardır (connectLambda). Background function’da
+ * genelde yok — o zaman getStore ortamdan veya SITE_ID + NETLIFY_AUTH_TOKEN ile API erişimi.
  */
 const { sbRequest } = require('./vakif-mpi-shared');
 
@@ -21,12 +22,30 @@ function blobKey(jobId) {
 
 function getBlobStore(event) {
   const { connectLambda, getStore } = require('@netlify/blobs');
-  if (!event || typeof event !== 'object') {
-    throw new Error('MPI Blobs: Lambda event gerekli');
-  }
-  connectLambda(event);
   const name = (process.env.MPI_ENROLL_BLOBS_STORE || 'mpi-enroll-jobs').trim() || 'mpi-enroll-jobs';
-  return getStore(name);
+
+  /* Sync function: event.blobs (base64) + başlıklar — connectLambda ortamı kurar */
+  if (event && typeof event === 'object' && event.blobs) {
+    try {
+      connectLambda(event);
+    } catch (e) {
+      console.error('MPI Blobs connectLambda', e && e.message ? e.message : e);
+    }
+  }
+
+  try {
+    return getStore(name);
+  } catch (firstErr) {
+    const siteID = String(process.env.SITE_ID || process.env.NETLIFY_SITE_ID || '').trim();
+    const token = String(process.env.NETLIFY_AUTH_TOKEN || process.env.NETLIFY_BLOBS_TOKEN || '').trim();
+    if (siteID && token) {
+      return getStore({ name, siteID, token });
+    }
+    const msg = firstErr && firstErr.message ? firstErr.message : String(firstErr);
+    throw new Error(
+      `${msg} — Background MPI için Netlify ortamına NETLIFY_AUTH_TOKEN (Personal Access Token, Blobs) ekleyin veya MPI_ENROLL_JOB_STORE=supabase.`
+    );
+  }
 }
 
 /* ---------- Supabase ---------- */
