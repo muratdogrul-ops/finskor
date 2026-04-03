@@ -11,9 +11,10 @@ const PAKET = {
   nakitflow: { fiyat: '4990.00', fiyatLabel: '4.990', credits: 1, ad: 'NakitFlow 60 Aylık Projeksiyon Paketi' },
 };
 
+/** Vakıfbank: erişim 443 / 4443; :8443 kullanılmıyor. Varsayılan HTTPS 443. :4443 gerekirse env ile tam URL verin. */
 const MPI_ENROLL_URL = {
-  test: 'https://inbound.apigatewaytest.vakifbank.com.tr:8443/threeDGateway/Enrollment',
-  prod: 'https://inbound.apigateway.vakifbank.com.tr:8443/threeDGateway/Enrollment',
+  test: 'https://inbound.apigatewaytest.vakifbank.com.tr/threeDGateway/Enrollment',
+  prod: 'https://inbound.apigateway.vakifbank.com.tr/threeDGateway/Enrollment',
 };
 
 /** Bankanın verdiği tam URL farklıysa kod değiştirmeden override (test / canlı ayrı). */
@@ -25,14 +26,14 @@ function resolveMpiEnrollUrl(mode) {
 }
 
 const VPOS_URL = {
-  test: 'https://apiportalprep.vakifbank.com.tr:8443/virtualPos/Vposreq',
-  prod: 'https://apigw.vakifbank.com.tr:8443/virtualPos/Vposreq',
+  test: 'https://apiportalprep.vakifbank.com.tr/virtualPos/Vposreq',
+  prod: 'https://apigw.vakifbank.com.tr/virtualPos/Vposreq',
 };
 
 /** ACS, PARes sonucunu buraya POST eder; MPI sonucu ÜİY SuccessUrl’e iletir (kılavuz 5.2.1 / 5.2.2). */
 const MPI_START_THREED_FLOW_URL = {
-  test: 'https://inbound.apigatewaytest.vakifbank.com.tr:8443/threeDGateway/startThreeDFlow',
-  prod: 'https://inbound.apigateway.vakifbank.com.tr:8443/threeDGateway/startThreeDFlow',
+  test: 'https://inbound.apigatewaytest.vakifbank.com.tr/threeDGateway/startThreeDFlow',
+  prod: 'https://inbound.apigateway.vakifbank.com.tr/threeDGateway/startThreeDFlow',
 };
 
 function resolveMpiStartThreeDFlowUrl(mode) {
