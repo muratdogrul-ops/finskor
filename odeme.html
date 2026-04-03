@@ -932,7 +932,8 @@ async function submitPayment() {
       btn.textContent = '⏳ Banka yanıtı bekleniyor (birkaç on saniye sürebilir)...';
 
       const pollMs = 800;
-      const maxWaitMs = 60000;
+      /* Banka ~55s + Supabase PATCH üst sınırı (~25s) + pay — 60s yetmezdi */
+      const maxWaitMs = 95000;
       const deadline = Date.now() + maxWaitMs;
       let j = null;
 

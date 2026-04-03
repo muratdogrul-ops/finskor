@@ -586,6 +586,12 @@ function decryptMpiSession(b64) {
   return JSON.parse(dec.toString('utf8'));
 }
 
+/** Supabase REST — süre sınırı yoksa PATCH takılınca mpi_enroll_jobs satırı running’de kalıyordu */
+const SB_HTTPS_MS = Math.min(
+  Math.max(parseInt(process.env.SB_HTTPS_TIMEOUT_MS || '25000', 10) || 25000, 5000),
+  120000
+);
+
 function sbRequest(method, path, data) {
   return new Promise((resolve, reject) => {
     const body = data ? JSON.stringify(data) : null;
@@ -614,6 +620,9 @@ function sbRequest(method, path, data) {
       });
     });
     req.on('error', reject);
+    req.setTimeout(SB_HTTPS_MS, () => {
+      req.destroy(new Error(`Supabase REST zaman aşımı (${SB_HTTPS_MS} ms)`));
+    });
     if (body) req.write(body);
     req.end();
   });

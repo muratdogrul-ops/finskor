@@ -10,6 +10,31 @@ const { insertRunningJob, finishJobOk, finishJobErr } = require('./mpi-enroll-jo
 
 const UUID_RE = /^[\da-f]{8}-[\da-f]{4}-[1-5][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i;
 
+async function persistJobOk(jobId, payload) {
+  try {
+    await finishJobOk(jobId, payload);
+  } catch (e) {
+    console.error('finishJobOk başarısız', e);
+    try {
+      await finishJobErr(jobId, {
+        ok: false,
+        code: 'JOB_PERSIST_FAILED',
+        message: 'MPI tamamlandı ama sonuç kaydedilemedi: ' + String(e.message || e),
+      });
+    } catch (e2) {
+      console.error('finishJobErr (yedek) başarısız', e2);
+    }
+  }
+}
+
+async function persistJobErr(jobId, payload) {
+  try {
+    await finishJobErr(jobId, payload);
+  } catch (e) {
+    console.error('finishJobErr başarısız', e);
+  }
+}
+
 function encFromLambdaHeaders(headers) {
   if (!headers) return null;
   const sc = headers['Set-Cookie'] || headers['set-cookie'];
@@ -35,9 +60,7 @@ exports.handler = async (event) => {
   } catch {
     const m = String(event.body || '').match(/"jobId"\s*:\s*"([^"]+)"/);
     const jid = m && UUID_RE.test(m[1]) ? m[1] : null;
-    if (jid) {
-      await finishJobErr(jid, { ok: false, message: 'Geçersiz JSON gövdesi' }).catch(() => {});
-    }
+    if (jid) await persistJobErr(jid, { ok: false, message: 'Geçersiz JSON gövdesi' });
     return { statusCode: 202, headers: corsHeaders(origin), body: '{}' };
   }
 
@@ -61,27 +84,27 @@ exports.handler = async (event) => {
     try {
       j = JSON.parse(txt);
     } catch {
-      await finishJobErr(jobId, {
+      await persistJobErr(jobId, {
         ok: false,
         message: 'Sunucu yanıtı JSON değil',
         rawHead: String(txt).slice(0, 400),
-      }).catch(() => {});
+      });
       return { statusCode: 202, headers: corsHeaders(origin), body: JSON.stringify({ jobId }) };
     }
 
     if (res.statusCode === 200 && j.ok) {
       const encCtx = encFromLambdaHeaders(res.headers || {});
       if (!encCtx) {
-        await finishJobErr(jobId, { ok: false, message: 'MPI oturum çerezi oluşturulamadı.' }).catch(() => {});
+        await persistJobErr(jobId, { ok: false, message: 'MPI oturum çerezi oluşturulamadı.' });
       } else {
-        await finishJobOk(jobId, {
+        await persistJobOk(jobId, {
           ok: true,
           acsUrl: j.acsUrl,
           paReq: j.paReq,
           md: j.md,
           termUrl: j.termUrl,
           encCtx,
-        }).catch((e) => console.error('finishJobOk', e));
+        });
       }
     } else {
       const errPayload =
@@ -89,11 +112,11 @@ exports.handler = async (event) => {
           ? { ...j }
           : { ok: false, message: 'Bilinmeyen hata' };
       if (res.statusCode && res.statusCode !== 200) errPayload.httpStatus = res.statusCode;
-      await finishJobErr(jobId, errPayload).catch((e) => console.error('finishJobErr', e));
+      await persistJobErr(jobId, errPayload);
     }
   } catch (e) {
     console.error('mpi worker', e);
-    await finishJobErr(jobId, { ok: false, message: String(e.message || e) }).catch(() => {});
+    await persistJobErr(jobId, { ok: false, message: String(e.message || e) });
   }
 
   return { statusCode: 202, headers: corsHeaders(origin), body: JSON.stringify({ accepted: true, jobId }) };

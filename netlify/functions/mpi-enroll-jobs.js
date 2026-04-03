@@ -29,7 +29,8 @@ async function finishJobOk(jobId, payload) {
     updated_at: new Date().toISOString(),
   });
   if (res.status !== 200 && res.status !== 204) {
-    console.warn('mpi_enroll_jobs finishJobOk', res.status, res.data);
+    const detail = typeof res.data === 'object' ? JSON.stringify(res.data) : String(res.data || '');
+    throw new Error(`mpi_enroll_jobs finishJobOk HTTP ${res.status}: ${detail.slice(0, 500)}`);
   }
 }
 
@@ -40,15 +41,22 @@ async function finishJobErr(jobId, errPayload) {
     updated_at: new Date().toISOString(),
   });
   if (res.status !== 200 && res.status !== 204) {
-    console.warn('mpi_enroll_jobs finishJobErr', res.status, res.data);
+    const detail = typeof res.data === 'object' ? JSON.stringify(res.data) : String(res.data || '');
+    throw new Error(`mpi_enroll_jobs finishJobErr HTTP ${res.status}: ${detail.slice(0, 500)}`);
   }
 }
 
 async function fetchMpiEnrollJob(jobId) {
-  const res = await sbRequest(
-    'GET',
-    `mpi_enroll_jobs?id=eq.${encodeURIComponent(jobId)}&select=status,result_json,error_json,updated_at`
-  );
+  let res;
+  try {
+    res = await sbRequest(
+      'GET',
+      `mpi_enroll_jobs?id=eq.${encodeURIComponent(jobId)}&select=status,result_json,error_json,updated_at`
+    );
+  } catch (e) {
+    console.error('mpi_enroll_jobs GET ağ hatası', e);
+    return null;
+  }
   if (res.status === 401 || res.status === 403) {
     console.error(
       'mpi_enroll_jobs GET yetkisiz',
