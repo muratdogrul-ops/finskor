@@ -1,5 +1,6 @@
 /**
  * Vakıfbank MPI Enrollment (işyeri sayfasında kart) → ACS’e yönlendirme
+ * Supabase burada çağrılmaz (Netlify 504 / ~10 sn limit); kayıt vakifbank-mpi-term’de VPOS sonrası.
  * Env: VAKIF_INIT, VAKIF_HOST_MERCHANT_ID, VAKIF_MERCHANT_PASSWORD, VAKIF_HOST_TERMINAL_ID, SITE_URL
  * İsteğe bağlı: VAKIF_MPI_SESSION_SECRET (yoksa şifre türevi), QUOTAGUARDSTATIC_URL
  * Test: odeme.html?mpi_test=1 + istekte mpiTest:true — yalnızca VAKIF_MPI_TEST_MODE=1 iken geçerli (canlıda kapatın).
@@ -15,7 +16,6 @@ const {
   siteBase,
   detectBrand,
   encryptMpiSession,
-  sbRequest,
   buildEnrollmentXml,
   postXml,
   parseMpiEnrollmentResponse,
@@ -209,74 +209,12 @@ exports.handler = async (event) => {
   });
   const enrollUrl = resolveMpiEnrollUrl(mode);
 
-  async function createSupabasePayment() {
-    let cid = null;
-    let pid = null;
-    try {
-      const check = await sbRequest('GET', `customers?email=eq.${encodeURIComponent(email)}&select=id`, null);
-      if (check.status === 200 && Array.isArray(check.data) && check.data.length > 0) {
-        cid = check.data[0].id;
-      } else {
-        const custRes = await sbRequest('POST', 'customers', {
-          firma_adi: firmaAdi || adSoyad,
-          yetkili_kisi: adSoyad,
-          telefon: telefon || null,
-          email: email || null,
-          vergi_no: vkn || null,
-          notlar: vd ? `Vergi Dairesi: ${vd} | Fatura: ${faturaTipi || 'kurumsal'}` : null,
-        });
-        if (custRes.status === 201 && Array.isArray(custRes.data) && custRes.data.length > 0) {
-          cid = custRes.data[0].id;
-        }
-      }
-
-      const payRes = await sbRequest('POST', 'payments', {
-        customer_id: cid || null,
-        tutar: tutarSayi,
-        odeme_tarihi: new Date().toISOString().split('T')[0],
-        odeme_yontemi: 'Kredi Kartı (Vakıfbank MPI)',
-        notlar,
-      });
-      if (payRes.status === 201 && Array.isArray(payRes.data) && payRes.data.length > 0) {
-        pid = payRes.data[0].id;
-      }
-    } catch (e) {
-      console.warn('Supabase mpi enroll:', e.message);
-    }
-    return { customerId: cid, paymentId: pid };
-  }
-
-  const [sbSettled, xmlSettled] = await Promise.allSettled([createSupabasePayment(), postXml(enrollUrl, enrollXml)]);
-
-  const sbResult =
-    sbSettled.status === 'fulfilled' ? sbSettled.value : { customerId: null, paymentId: null };
-  if (sbSettled.status === 'rejected') {
-    console.warn('Supabase mpi enroll:', sbSettled.reason);
-  }
-
-  if (!sbResult.paymentId) {
-    if (xmlSettled.status === 'fulfilled') {
-      console.error(
-        'MPI_CRITICAL: Banka enrollment yanıtı geldi ancak Supabase ödeme kaydı oluşmadı. verifyId:',
-        verifyId
-      );
-    }
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
-      body: JSON.stringify({
-        ok: false,
-        message: 'Ödeme kaydı oluşturulamadı (Supabase). SUPABASE_SERVICE_KEY ve payments tablosunu kontrol edin.',
-      }),
-    };
-  }
-
-  const customerId = sbResult.customerId;
-  const paymentId = sbResult.paymentId;
-
+  /* Supabase bu function’da yok — Netlify ~10 sn limit + banka MPI toplamı 504 veriyordu.
+   * Ödeme satırı vakifbank-mpi-term içinde VPOS başarısından sonra oluşturulur (billing oturumda). */
   let xmlRes;
-  if (xmlSettled.status === 'rejected') {
-    const e = xmlSettled.reason;
+  try {
+    xmlRes = await postXml(enrollUrl, enrollXml);
+  } catch (e) {
     console.error('MPI Enrollment:', e);
     const pe = vakifFetchErrorResponse(e);
     if (pe) {
@@ -298,8 +236,6 @@ exports.handler = async (event) => {
       body: JSON.stringify({ ok: false, message: 'MPI bağlantısı kurulamadı.' }),
     };
   }
-
-  xmlRes = xmlSettled.value;
 
   const xr = xmlRes.text;
   const parsed = parseMpiEnrollmentResponse(xr, xmlRes.status, xmlRes.contentType);
@@ -370,8 +306,8 @@ exports.handler = async (event) => {
   const acsFormTermUrl = isHttpUrl(parsed.termUrl) ? parsed.termUrl.trim() : resolveMpiStartThreeDFlowUrl(mode);
 
   const sessionPayload = {
-    paymentId,
-    customerId,
+    paymentId: null,
+    customerId: null,
     email,
     firma: firmaAdi || adSoyad,
     telefon,
@@ -382,6 +318,19 @@ exports.handler = async (event) => {
     transactionId: verifyId,
     verifyEnrollmentRequestId: verifyId,
     amount,
+    billing: {
+      adSoyad,
+      firmaAdi: firmaAdi || '',
+      vkn: vkn || '',
+      vd: vd || '',
+      faturaTipi: faturaTipi || 'kurumsal',
+      email,
+      telefon,
+      tutarSayi,
+      credits: pkg.credits,
+      paketAd: pkg.ad,
+      notlar,
+    },
   };
 
   let encCtx;
@@ -394,15 +343,6 @@ exports.handler = async (event) => {
       headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
       body: JSON.stringify({ ok: false, message: 'Oturum şifrelenemedi. VAKIF_MPI_SESSION_SECRET tanımlayın.' }),
     };
-  }
-
-  if (paymentId) {
-    try {
-      const extra = `|MPIMD:${md}|MPICTX:${encCtx}`;
-      await sbRequest('PATCH', `payments?id=eq.${paymentId}`, { notlar: notlar + extra });
-    } catch (e) {
-      console.warn('MPI payment patch:', e.message);
-    }
   }
 
   const cookieVal = encCtx;

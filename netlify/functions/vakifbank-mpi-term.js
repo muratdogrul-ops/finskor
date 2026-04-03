@@ -1,5 +1,6 @@
 /**
- * MPI TermUrl — ACS POST → VPOS Sale → confirm-payment → HTML sonuç
+ * MPI TermUrl — ACS POST → VPOS Sale → (gerekirse Supabase ödeme kaydı) → confirm-payment → HTML
+ * Ödeme satırı enroll’da değil; VPOS başarısından sonra oluşturulur (Netlify süre limiti).
  */
 const {
   VPOS_URL,
@@ -63,6 +64,51 @@ async function callConfirmPayment(payload) {
   } catch {
     return { ok: cr.ok, json: {}, raw };
   }
+}
+
+/** Eski oturum: paymentId zaten var. Yeni: billing ile müşteri+ödeme oluşturur */
+async function ensureMpiPaymentFromSession(sess) {
+  if (sess.paymentId) {
+    return { customerId: sess.customerId || null, paymentId: sess.paymentId };
+  }
+  const b = sess.billing;
+  if (!b || !b.email) {
+    console.error('MPI term: oturumda billing yok (deploy öncesi çerez veya bozuk oturum)');
+    return null;
+  }
+  let customerId = null;
+  try {
+    const check = await sbRequest('GET', `customers?email=eq.${encodeURIComponent(b.email)}&select=id`, null);
+    if (check.status === 200 && Array.isArray(check.data) && check.data.length > 0) {
+      customerId = check.data[0].id;
+    } else {
+      const custRes = await sbRequest('POST', 'customers', {
+        firma_adi: b.firmaAdi || b.adSoyad,
+        yetkili_kisi: b.adSoyad,
+        telefon: b.telefon || null,
+        email: b.email || null,
+        vergi_no: b.vkn || null,
+        notlar: b.vd ? `Vergi Dairesi: ${b.vd} | Fatura: ${b.faturaTipi || 'kurumsal'}` : null,
+      });
+      if (custRes.status === 201 && Array.isArray(custRes.data) && custRes.data.length > 0) {
+        customerId = custRes.data[0].id;
+      }
+    }
+    const payNotlar = String(b.notlar || '').slice(0, 7800) + '|ODEME:vpos_onaylandi';
+    const payRes = await sbRequest('POST', 'payments', {
+      customer_id: customerId || null,
+      tutar: b.tutarSayi,
+      odeme_tarihi: new Date().toISOString().split('T')[0],
+      odeme_yontemi: 'Kredi Kartı (Vakıfbank MPI)',
+      notlar: payNotlar,
+    });
+    if (payRes.status === 201 && Array.isArray(payRes.data) && payRes.data.length > 0) {
+      return { customerId, paymentId: payRes.data[0].id };
+    }
+  } catch (e) {
+    console.error('ensureMpiPaymentFromSession', e);
+  }
+  return null;
 }
 
 async function loadSessionFromMd(md) {
@@ -205,21 +251,28 @@ exports.handler = async (event) => {
     };
   }
 
-  if (!sess.paymentId) {
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
-      body: htmlPage(
-        'Kayıt',
-        '<h1 class="err">Ödeme kaydı bulunamadı</h1><p>Destek: info@finskor.tr</p>',
-        false
-      ),
-    };
+  let paymentId = sess.paymentId;
+  let customerId = sess.customerId || null;
+  if (!paymentId) {
+    const ensured = await ensureMpiPaymentFromSession(sess);
+    if (!ensured || !ensured.paymentId) {
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        body: htmlPage(
+          'Kayıt',
+          '<h1 class="err">Ödeme kaydı oluşturulamadı</h1><p>Oturum güncel değil veya Supabase hatası. Ödeme sayfasından tekrar deneyin.</p><p>Destek: info@finskor.tr</p>',
+          false
+        ),
+      };
+    }
+    paymentId = ensured.paymentId;
+    customerId = ensured.customerId ?? customerId;
   }
 
   const cp = await callConfirmPayment({
-    paymentId: sess.paymentId,
-    customerId: sess.customerId || null,
+    paymentId,
+    customerId,
     email: sess.email,
     firma: sess.firma,
     telefon: sess.telefon,
