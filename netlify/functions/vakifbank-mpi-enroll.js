@@ -19,6 +19,7 @@ const {
   buildEnrollmentXml,
   postXml,
   parseMpiEnrollmentResponse,
+  buildMpiSessionCookie,
 } = require('./vakif-mpi-shared');
 
 function isHttpUrl(s) {
@@ -346,7 +347,7 @@ async function runMpiEnroll(event) {
   }
 
   const cookieVal = encCtx;
-  const cookie = `finskor_mpi=${cookieVal}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=900`;
+  const cookie = buildMpiSessionCookie(cookieVal);
 
   return {
     statusCode: 200,

@@ -4,6 +4,7 @@
 'use strict';
 
 const { fetchMpiEnrollJob } = require('./mpi-enroll-jobs');
+const { buildMpiSessionCookie } = require('./vakif-mpi-shared');
 
 const UUID_RE = /^[\da-f]{8}-[\da-f]{4}-[1-5][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i;
 
@@ -79,7 +80,7 @@ exports.handler = async (event) => {
 
   if (row.status === 'done' && row.result_json && row.result_json.ok && row.result_json.encCtx) {
     const r = row.result_json;
-    const cookie = `finskor_mpi=${r.encCtx}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=900`;
+    const cookie = buildMpiSessionCookie(r.encCtx);
     return {
       statusCode: 200,
       headers: {

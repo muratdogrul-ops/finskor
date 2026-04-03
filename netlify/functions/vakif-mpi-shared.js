@@ -71,6 +71,50 @@ function siteBase() {
   return (process.env.SITE_URL || process.env.URL || 'https://finskor.tr').replace(/\/$/, '');
 }
 
+/**
+ * MPI oturum çerezi. Host-only çerez www ile apex arasında taşınmaz; ACS dönüşünde oturum kaybolur.
+ * Özel alan: MPI_SESSION_COOKIE_DOMAIN=finskor.tr (isteğe bağlı; boşsa SITE_URL hostundan türetilir).
+ * *.netlify.app önizlemelerde Domain eklenmez (çapraz site sızıntısı olmasın diye).
+ */
+function buildMpiSessionCookie(encCtx) {
+  let domainAttr = '';
+  const explicit = (process.env.MPI_SESSION_COOKIE_DOMAIN || '').trim();
+  if (explicit) {
+    domainAttr = `; Domain=${explicit.replace(/^\./, '')}`;
+  } else {
+    try {
+      const h = new URL(siteBase()).hostname;
+      const disallowed = h === 'localhost' || h.endsWith('.netlify.app') || /^(\d{1,3}\.){3}\d{1,3}$/.test(h);
+      if (h && !disallowed) {
+        const apex = h.startsWith('www.') ? h.slice(4) : h;
+        domainAttr = `; Domain=${apex}`;
+      }
+    } catch (_) {}
+  }
+  return `finskor_mpi=${String(encCtx || '').trim()}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=900${domainAttr}`;
+}
+
+/**
+ * ACS → TermUrl POST gövdesinden alan. URLSearchParams kullanma: PaRes base64 içindeki '+'
+ * application/x-www-form-urlencoded kurallarıyla boşluğa dönüşür ve imza/base64 bozulur.
+ */
+function decodeUrlEncodedFormField(rawBody, names) {
+  const body = String(rawBody || '');
+  for (const name of names) {
+    const esc = String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`(?:^|&)${esc}=([^&]*)`);
+    const m = body.match(re);
+    if (!m) continue;
+    try {
+      const decoded = decodeURIComponent(m[1]);
+      if (decoded !== '') return decoded;
+    } catch {
+      if (m[1] !== '') return m[1];
+    }
+  }
+  return '';
+}
+
 function xmlTag(xml, tag) {
   const m = String(xml).match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, 'i'));
   return m ? m[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1').trim() : '';
@@ -840,7 +884,8 @@ function buildVposSaleXml(opts) {
 
 function parsePares(paresB64) {
   try {
-    const xml = Buffer.from(String(paresB64 || '').replace(/\s/g, ''), 'base64').toString('utf8');
+    const b64 = String(paresB64 || '').replace(/\s/g, '').replace(/-/g, '+').replace(/_/g, '/');
+    const xml = Buffer.from(b64, 'base64').toString('utf8');
     const eci = paresXmlText(xml, ['eci', 'ECI', 'Eci']);
     let cavv = paresXmlText(xml, [
       'authenticationvalue',
@@ -851,13 +896,12 @@ function parsePares(paresB64) {
       'authenticationValue',
     ]);
     const xid = paresXmlText(xml, ['xid', 'Xid', 'XID']);
-    const status = paresXmlText(xml, ['Status', 'status']);
-    const transStatus = paresXmlText(xml, [
-      'TransStatus',
-      'transStatus',
-      'TransactionStatus',
-      'transactionStatus',
-    ]);
+    const status =
+      paresXmlText(xml, ['Status', 'status']) || xmlTagFlexible(xml, 'Status') || '';
+    const transStatus =
+      paresXmlText(xml, ['TransStatus', 'transStatus', 'TransactionStatus', 'transactionStatus']) ||
+      xmlTagFlexible(xml, 'TransStatus') ||
+      '';
     const signature = paresXmlText(xml, ['Signature', 'signature', 'SignatureValue']);
     return { eci, cavv, xid, status, transStatus, signature: signature || '', xml };
   } catch {
@@ -911,6 +955,8 @@ module.exports = {
   normalizeVposExpiry,
   resolveVposEci,
   parseThreeDSResultFromPares,
+  buildMpiSessionCookie,
+  decodeUrlEncodedFormField,
   isVposOk,
   postXml,
 };

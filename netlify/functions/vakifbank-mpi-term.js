@@ -13,6 +13,7 @@ const {
   resolveVposEci,
   parseThreeDSResultFromPares,
   detectBrand,
+  decodeUrlEncodedFormField,
   isVposOk,
   postXml,
   xmlTag,
@@ -156,8 +157,11 @@ exports.handler = async (event) => {
   const mode = (process.env.VAKIF_INIT || 'test').toLowerCase() === 'prod' ? 'prod' : 'test';
 
   const form = parseFormBody(event.body);
-  const paRes = getField(form, 'PaRes', 'PARes', 'pares');
-  const md = getField(form, 'MD', 'Md');
+  /* PaRes/MD: ham gövdeden decode — URLSearchParams '+' → boşluk hatası (oturum/VPOS bozulur) */
+  const paRes =
+    decodeUrlEncodedFormField(event.body, ['PaRes', 'PARes', 'pares']) ||
+    getField(form, 'PaRes', 'PARes', 'pares');
+  const md = decodeUrlEncodedFormField(event.body, ['MD', 'Md']) || getField(form, 'MD', 'Md');
 
   const cookieHeader = event.headers.cookie || event.headers.Cookie || '';
   let sess = null;
@@ -174,6 +178,9 @@ exports.handler = async (event) => {
   }
 
   if (!sess || !sess.pan) {
+    const host = event.headers.host || event.headers.Host || '';
+    const hasCookie = /finskor_mpi=/.test(String(cookieHeader || ''));
+    console.error('MPI term: oturum yok', { host, hasCookie, hasMd: !!md, hasPaRes: !!paRes });
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
