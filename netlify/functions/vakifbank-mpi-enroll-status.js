@@ -51,6 +51,17 @@ exports.handler = async (event) => {
     };
   }
 
+  const phase = !row
+    ? 'unknown'
+    : row.status === 'running' || row.status === 'pending'
+      ? 'running'
+      : row.status === 'error'
+        ? 'error'
+        : row.status === 'done' && row.result_json && row.result_json.ok && row.result_json.encCtx
+          ? 'done_ok'
+          : 'done_incomplete';
+  console.log('[mpi-enroll-status]', String(jobId).slice(0, 8), phase);
+
   if (!row) {
     return {
       statusCode: 200,

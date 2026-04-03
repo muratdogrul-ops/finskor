@@ -73,6 +73,8 @@ exports.handler = async (event) => {
     return { statusCode: 202, headers: corsHeaders(origin), body: '{}' };
   }
 
+  console.log('[mpi-worker]', String(jobId).slice(0, 8), 'start', jobStoreKind());
+
   const dbOk = await insertRunningJob(jobId, event);
   if (!dbOk) {
     const hint =
