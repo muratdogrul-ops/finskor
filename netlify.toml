@@ -14,7 +14,11 @@
 [functions]
   node_bundler = "esbuild"
 
-# MPI: enroll senkron uç varsayılan kapalı; asıl akış vakifbank-mpi-enroll-worker-background (15 dk) + vakifbank-mpi-enroll-status.
+# MPI: enroll senkron uç varsayılan kapalı; asıl akış vakifbank-mpi-enroll-worker-background + vakifbank-mpi-enroll-status.
+# Arka plan işi banka ~55s + soğuk başlangıç — açık süre; aksi hâlde iş yarım kalıp poll 95s dolunca boşa düşer.
+[functions."vakifbank-mpi-enroll-worker-background"]
+  timeout = 900
+
 [functions."vakifbank-mpi-enroll"]
   timeout = 26
 

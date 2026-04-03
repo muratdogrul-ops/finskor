@@ -1062,6 +1062,7 @@ async function submitPayment() {
       const maxWaitMs = 95000;
       const deadline = Date.now() + maxWaitMs;
       let j = null;
+      var mpiLastKnown = null;
 
       while (Date.now() < deadline) {
         const sr = await fetch(
@@ -1094,6 +1095,10 @@ async function submitPayment() {
           continue;
         }
         setMpiDiagPhase(mpiStatusLabel(j));
+        if (j.pending && j.unknown) mpiLastKnown = 'unknown';
+        else if (j.pending) mpiLastKnown = 'running';
+        else if (j.ok === true) mpiLastKnown = 'ready';
+        else if (j.ok === false) mpiLastKnown = 'error';
         if (j.pending) {
           await new Promise(function (r) {
             setTimeout(r, pollMs);
@@ -1104,11 +1109,22 @@ async function submitPayment() {
       }
 
       if (j == null || j.pending) {
+        var statusUrl =
+          window.location.origin + '/.netlify/functions/vakifbank-mpi-enroll-status?jobid=' + encodeURIComponent(jobId);
+        var hint =
+          mpiLastKnown === 'unknown'
+            ? ' Bu sürede sunucu iş kaydını göstermedi (unknown). mpi-jobs-health ve NETLIFY_AUTH_TOKEN / Blobs kontrol edin.'
+            : mpiLastKnown === 'running'
+              ? ' Kayıt vardı ama sonuç 95 sn içinde gelmedi — işlem arka planda sürmüş olabilir.'
+              : '';
         setMpiDiagPhase(
-          'Süre doldu (~95 sn) veya hâlâ bekliyor. İşlem numarasını destek ile paylaşın. Netlify: vakifbank-mpi-enroll-worker-background logları; /.netlify/functions/mpi-jobs-health'
+          'Süre doldu (~95 sn).' +
+            hint +
+            ' 2–3 dk sonra şu adresi tekrar açın (sonucu gösterir): ' +
+            statusUrl
         );
         showToast(
-          '3D kayıt yanıtı gecikti veya sunucu işini tamamlayamadı. Aşağıdaki işlem numarasını kopyalayıp iletebilirsiniz. Netlify’da vakifbank-mpi-enroll-worker-background logları; teşhis: /.netlify/functions/mpi-jobs-health (job_store).',
+          '3D yanıt 95 sn içinde tamamlanmadı. Aşağıdaki işlem numarası ile birkaç dakika sonra durum linkini tekrar deneyin; sonuç genelde arka planda yazılır. mpi-jobs-health: job_store.',
           true
         );
         btn.disabled = false;
