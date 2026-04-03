@@ -12,18 +12,18 @@ const PAKET = {
 };
 
 /**
- * Varsayılan MPI/VPOS URL’leri port içermez (443). Banka :4443 veya :8443 verdiyse
- * Netlify’da VAKIF_HTTP_API_PORT=4443 (veya 8443) veya tam URL için VAKIF_MPI_*_URL / VAKIF_VPOS_URL_*.
+ * Varsayılan MPI/VPOS URL’leri banka dokümanına göre :4443 (prod) / :8443 (test) içerir.
+ * Farklı port veya hosts için VAKIF_HTTP_API_PORT veya tam URL env: VAKIF_MPI_*_URL / VAKIF_VPOS_URL_*.
  */
 const MPI_ENROLL_URL = {
-  test: 'https://inbound.apigatewaytest.vakifbank.com.tr/threeDGateway/Enrollment',
-  prod: 'https://inbound.apigateway.vakifbank.com.tr/threeDGateway/Enrollment',
+  test: 'https://inbound.apigatewaytest.vakifbank.com.tr:8443/threeDGateway/Enrollment',
+  prod: 'https://inbound.apigateway.vakifbank.com.tr:4443/threeDGateway/Enrollment',
 };
 
-/** PDF :8443 / yetkili :4443 — boş veya 443 = port yok. Tam URL env her zaman baskın. */
+/** Sabit port URL’lere gömülü. Env override hâlâ çalışır. Tam URL env her zaman baskın. */
 function withGatewayPort(url) {
   const port = (process.env.VAKIF_HTTP_API_PORT || '').trim();
-  if (!port || port === '443') return url;
+  if (!port) return url;
   try {
     const u = new URL(url);
     if (u.port) return url;
@@ -43,8 +43,8 @@ function resolveMpiEnrollUrl(mode) {
 }
 
 const VPOS_URL = {
-  test: 'https://apiportalprep.vakifbank.com.tr/virtualPos/Vposreq',
-  prod: 'https://apigw.vakifbank.com.tr/virtualPos/Vposreq',
+  test: 'https://apiportalprep.vakifbank.com.tr:8443/virtualPos/Vposreq',
+  prod: 'https://apigw.vakifbank.com.tr:4443/virtualPos/Vposreq',
 };
 
 function resolveVposUrl(mode) {
@@ -56,8 +56,8 @@ function resolveVposUrl(mode) {
 
 /** ACS, PARes sonucunu buraya POST eder; MPI sonucu ÜİY SuccessUrl’e iletir (kılavuz 5.2.1 / 5.2.2). */
 const MPI_START_THREED_FLOW_URL = {
-  test: 'https://inbound.apigatewaytest.vakifbank.com.tr/threeDGateway/startThreeDFlow',
-  prod: 'https://inbound.apigateway.vakifbank.com.tr/threeDGateway/startThreeDFlow',
+  test: 'https://inbound.apigatewaytest.vakifbank.com.tr:8443/threeDGateway/startThreeDFlow',
+  prod: 'https://inbound.apigateway.vakifbank.com.tr:4443/threeDGateway/startThreeDFlow',
 };
 
 function resolveMpiStartThreeDFlowUrl(mode) {
