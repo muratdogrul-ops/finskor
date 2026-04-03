@@ -349,6 +349,52 @@ nav {
 }
 .toast.show { opacity: 1; }
 .toast.err { border-color: rgba(224,82,82,0.5); color: #f87171; }
+
+/* MPI teşhis — kart akışında jobId / durum (Ağ sekmesi gerektirmez) */
+.mpi-diag {
+  display: none;
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: var(--navy3);
+  border: 1px solid rgba(201,168,76,0.28);
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--white-dim);
+  line-height: 1.55;
+}
+.mpi-diag.show { display: block; }
+.mpi-diag-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 10px;
+}
+.mpi-diag-row { margin-bottom: 8px; word-break: break-all; }
+.mpi-diag-row code {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--gold2);
+  background: rgba(0,0,0,0.25);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.mpi-diag-copy {
+  margin-left: 8px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid var(--gold-line);
+  background: var(--gold-dim);
+  color: var(--gold);
+  cursor: pointer;
+  font-family: var(--sans);
+  vertical-align: middle;
+}
+.mpi-diag-copy:hover { background: rgba(201,168,76,0.22); }
+.mpi-diag-hint { font-size: 11px; color: var(--white-muted); margin-top: 10px; }
 </style>
 </head>
 <body>
@@ -514,6 +560,17 @@ nav {
         <p id="payBtnHint" style="font-size:11px;color:var(--white-muted);margin-top:10px;text-align:center;display:none">Kart seçiliyse gönderimden sonra 3D Secure için bankanızın sayfasına yönlendirilirsiniz.</p>
         <div class="pay-security" style="text-align:center;margin-top:10px;font-size:12px;color:var(--white-muted)">
           🔒 Bilgileriniz şifrelenmiş olarak iletilmektedir
+        </div>
+        <div id="mpiDiag" class="mpi-diag" aria-live="polite">
+          <div class="mpi-diag-title">İşlem takibi (destek)</div>
+          <div class="mpi-diag-row">
+            İşlem no: <code id="mpiDiagJobId">—</code>
+            <button type="button" class="mpi-diag-copy" id="mpiDiagCopyBtn" onclick="copyMpiJobId()">Kopyala</button>
+          </div>
+          <div class="mpi-diag-row"><span id="mpiDiagPhase">—</span></div>
+          <div class="mpi-diag-hint">
+            Kart numarası burada görünmez. Sorun olursa bu metni veya işlem numarasını info@finskor.tr ile paylaşabilirsiniz.
+          </div>
         </div>
       </div>
     </div>
@@ -742,8 +799,73 @@ function switchMethod(method, btn) {
   btn.classList.add('active');
   document.getElementById('panel-eft').style.display  = method === 'eft'  ? 'block' : 'none';
   document.getElementById('panel-card').style.display = method === 'card' ? 'block' : 'none';
+  if (method === 'eft' && typeof hideMpiDiag === 'function') hideMpiDiag();
   syncPayButtonLabel();
   syncSummaryOdeme();
+}
+
+/** Kart MPI akışı: jobId ve durum ekranda (Ağ sekmesi gerekmez). */
+function showMpiDiag(jobId) {
+  const box = document.getElementById('mpiDiag');
+  const jid = document.getElementById('mpiDiagJobId');
+  if (box && jid) {
+    jid.textContent = jobId;
+    box.classList.add('show');
+  }
+}
+function setMpiDiagPhase(text) {
+  const p = document.getElementById('mpiDiagPhase');
+  if (p) p.textContent = text;
+}
+function hideMpiDiag() {
+  const box = document.getElementById('mpiDiag');
+  if (box) {
+    box.classList.remove('show');
+    setMpiDiagPhase('—');
+    const jid = document.getElementById('mpiDiagJobId');
+    if (jid) jid.textContent = '—';
+  }
+}
+function mpiStatusLabel(j) {
+  if (j == null) return 'Sunucu yanıtı okunamadı veya JSON değil.';
+  if (j.pending && j.unknown) return 'Kayıt henüz yok (unknown) — sunucu kuyruğu / Netlify Blobs kontrolü gerekir.';
+  if (j.pending) return 'İşlem sürüyor veya sonuç bekleniyor…';
+  if (j.ok === true) return '3D için hazır — banka sayfasına yönlendiriliyor…';
+  var c = j.code ? String(j.code) : '';
+  var m = j.message ? String(j.message) : '';
+  if (c || m) return 'Hata' + (c ? ': ' + c : '') + (m ? ' — ' + m : '');
+  return 'Beklenmeyen yanıt (destek ile paylaşın).';
+}
+function copyMpiJobId() {
+  var el = document.getElementById('mpiDiagJobId');
+  var id = (el && el.textContent || '').trim();
+  if (!id || id === '—') {
+    showToast('Önce kart ile gönderime başlayın.', true);
+    return;
+  }
+  function ok() {
+    showToast('İşlem numarası panoya kopyalandı.');
+  }
+  function fail() {
+    showToast('Kopyalanamadı — işlem numarasını elle seçip kopyalayın.', true);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(id).then(ok).catch(fail);
+  } else {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = id;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      var did = document.execCommand('copy');
+      document.body.removeChild(ta);
+      did ? ok() : fail();
+    } catch (e) {
+      fail();
+    }
+  }
 }
 
 function syncSummaryOdeme() {
@@ -923,12 +1045,16 @@ async function submitPayment() {
           j0 = null;
         }
         const detail = j0 && (j0.message || j0.error) ? ' ' + String(j0.message || j0.error) : '';
+        showMpiDiag(jobId);
+        setMpiDiagPhase('Sunucu isteği reddedildi (HTTP ' + st + ').' + (detail ? detail : ''));
         showToast('Sunucu yanıtı alınamadı (HTTP ' + st + ').' + tail + detail, true);
         btn.disabled = false;
         syncPayButtonLabel();
         return;
       }
 
+      showMpiDiag(jobId);
+      setMpiDiagPhase('Sunucuya iletildi; banka yanıtı sorgulanıyor…');
       btn.textContent = '⏳ Banka yanıtı bekleniyor (birkaç on saniye sürebilir)...';
 
       const pollMs = 800;
@@ -961,11 +1087,13 @@ async function submitPayment() {
           continue;
         }
         if (j == null) {
+          setMpiDiagPhase(mpiStatusLabel(null));
           await new Promise(function (r) {
             setTimeout(r, pollMs);
           });
           continue;
         }
+        setMpiDiagPhase(mpiStatusLabel(j));
         if (j.pending) {
           await new Promise(function (r) {
             setTimeout(r, pollMs);
@@ -976,8 +1104,11 @@ async function submitPayment() {
       }
 
       if (j == null || j.pending) {
+        setMpiDiagPhase(
+          'Süre doldu (~95 sn) veya hâlâ bekliyor. İşlem numarasını destek ile paylaşın. Netlify: vakifbank-mpi-enroll-worker-background logları; /.netlify/functions/mpi-jobs-health'
+        );
         showToast(
-          '3D kayıt yanıtı gecikti veya sunucu işini tamamlayamadı. Netlify’da vakifbank-mpi-enroll-worker-background loglarına bakın; teşhis için /.netlify/functions/mpi-jobs-health (job_store). Kuyruk sorununda kod değiştirmeden geri alma: Netlify ortamında MPI_ENROLL_JOB_STORE=supabase.',
+          '3D kayıt yanıtı gecikti veya sunucu işini tamamlayamadı. Aşağıdaki işlem numarasını kopyalayıp iletebilirsiniz. Netlify’da vakifbank-mpi-enroll-worker-background logları; teşhis: /.netlify/functions/mpi-jobs-health (job_store).',
           true
         );
         btn.disabled = false;
@@ -985,18 +1116,21 @@ async function submitPayment() {
         return;
       }
       if (j.code === 'NOT_CONFIGURED') {
+        setMpiDiagPhase('MPI/VPOS ortam değişkenleri eksik (NOT_CONFIGURED).');
         showToast('Kart ödemesi için Netlify ortamında Vakıfbank MPI/VPOS bilgileri tanımlanmalıdır. Şimdilik EFT/Havale kullanın.', true);
         btn.disabled = false;
         syncPayButtonLabel();
         return;
       }
       if (j.code === 'MPI_TEST_DISABLED') {
+        setMpiDiagPhase('Minimal test kapalı (MPI_TEST_DISABLED).');
         showToast(j.message || 'Minimal test kapalı: VAKIF_MPI_TEST_MODE=1 ekleyin.', true);
         btn.disabled = false;
         syncPayButtonLabel();
         return;
       }
       if (!j.ok) {
+        setMpiDiagPhase(mpiStatusLabel(j));
         let errMsg = j.message || '3D kayıt başlatılamadı.';
         if (j.code === 'PROXY_MISCONFIGURED' || j.code === 'EGRESS_PROXY_REQUIRED') {
           errMsg = (j.message || '') + (j.mpiHint ? ' ' + j.mpiHint : '');
@@ -1009,6 +1143,7 @@ async function submitPayment() {
         return;
       }
       if (!j.acsUrl || !j.paReq || j.md == null || j.md === '' || !j.termUrl || !/^https?:\/\//i.test(String(j.termUrl))) {
+        setMpiDiagPhase('Banka yanıtı eksik (ACS / TermUrl). İşlem no yukarıda.');
         showToast('Banka 3D yanıtı eksik (ACS veya MPI TermUrl). Yönetici ile iletişime geçin.', true);
         btn.disabled = false;
         syncPayButtonLabel();
