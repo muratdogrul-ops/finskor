@@ -31,3 +31,5 @@ Kartla 3D başlatma **Netlify Background Function** + `mpi_enroll_jobs` tablosu 
 1. SQL Editor’da `migrations/20260403120000_mpi_enroll_jobs.sql` dosyasını çalıştırın (`public.mpi_enroll_jobs`).
 2. Netlify ortamında **`SUPABASE_SERVICE_KEY`** zorunlu (anon ile INSERT reddedilir, ödeme sayfası poll’da takılır).
 3. Deploy sonrası ödeme: `odeme.html` → `/.netlify/functions/vakifbank-mpi-enroll-worker-background` + `vakifbank-mpi-enroll-status`.
+
+**Teşhis:** Production sitede `/.netlify/functions/mpi-jobs-health` adresine GET atın. `mpi_enroll_jobs_select` ve `mpi_enroll_jobs_insert_delete` ikisi de `ok` olmalı; değilse `hint` ve `supabase_api_host` alanlarına bakın.
