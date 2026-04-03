@@ -28,9 +28,12 @@
 [functions."vakifbank-mpi-enroll-status"]
   timeout = 10
 
-# Çoklu probe + soğuk başlangıç; 26s sınırda 502 görülebiliyor
+# Tam tarama (?full=1) uzun sürebilir; varsayılan prob kısa
 [functions."vakif-connectivity-probe"]
   timeout = 60
+
+[functions."vakif-ping"]
+  timeout = 10
 
 [[headers]]
   for = "/*"
