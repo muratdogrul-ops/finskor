@@ -11,7 +11,10 @@ const PAKET = {
   nakitflow: { fiyat: '4990.00', fiyatLabel: '4.990', credits: 1, ad: 'NakitFlow 60 Aylık Projeksiyon Paketi' },
 };
 
-/** Vakıfbank: erişim 443 / 4443; :8443 kullanılmıyor. Varsayılan HTTPS 443. :4443 gerekirse env ile tam URL verin. */
+/**
+ * Vakıfbank API portu: banka :8443 istemez; standart HTTPS 443 (URL’de port yazılmaz).
+ * Bazı kurulumlarda banka tam adresi :4443 ile verir — o zaman VAKIF_MPI_*_URL env ile birebir URL kullanın.
+ */
 const MPI_ENROLL_URL = {
   test: 'https://inbound.apigatewaytest.vakifbank.com.tr/threeDGateway/Enrollment',
   prod: 'https://inbound.apigateway.vakifbank.com.tr/threeDGateway/Enrollment',
@@ -29,6 +32,13 @@ const VPOS_URL = {
   test: 'https://apiportalprep.vakifbank.com.tr/virtualPos/Vposreq',
   prod: 'https://apigw.vakifbank.com.tr/virtualPos/Vposreq',
 };
+
+function resolveVposUrl(mode) {
+  const key = mode === 'prod' ? 'VAKIF_VPOS_URL_PROD' : 'VAKIF_VPOS_URL_TEST';
+  const o = process.env[key];
+  if (o && String(o).trim()) return String(o).trim();
+  return VPOS_URL[mode];
+}
 
 /** ACS, PARes sonucunu buraya POST eder; MPI sonucu ÜİY SuccessUrl’e iletir (kılavuz 5.2.1 / 5.2.2). */
 const MPI_START_THREED_FLOW_URL = {
@@ -764,6 +774,7 @@ module.exports = {
   MPI_START_THREED_FLOW_URL,
   resolveMpiStartThreeDFlowUrl,
   VPOS_URL,
+  resolveVposUrl,
   siteBase,
   xmlTag,
   xmlTagFlexible,

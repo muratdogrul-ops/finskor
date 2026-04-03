@@ -3,7 +3,7 @@
  * Ödeme satırı enroll’da değil; VPOS başarısından sonra oluşturulur (Netlify süre limiti).
  */
 const {
-  VPOS_URL,
+  resolveVposUrl,
   siteBase,
   decryptMpiSession,
   sbRequest,
@@ -211,7 +211,7 @@ exports.handler = async (event) => {
 
   let vtxt;
   try {
-    const vr = await postXml(VPOS_URL[mode], vposXml);
+    const vr = await postXml(resolveVposUrl(mode), vposXml);
     vtxt = vr.text;
   } catch (e) {
     console.error('VPOS', e);
