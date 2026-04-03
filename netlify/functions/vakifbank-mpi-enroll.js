@@ -192,51 +192,6 @@ exports.handler = async (event) => {
     .join('|');
 
   const tutarSayi = parseFloat(amount);
-  let customerId = null;
-  let paymentId = null;
-
-  try {
-    const check = await sbRequest('GET', `customers?email=eq.${encodeURIComponent(email)}&select=id`, null);
-    if (check.status === 200 && Array.isArray(check.data) && check.data.length > 0) {
-      customerId = check.data[0].id;
-    } else {
-      const custRes = await sbRequest('POST', 'customers', {
-        firma_adi: firmaAdi || adSoyad,
-        yetkili_kisi: adSoyad,
-        telefon: telefon || null,
-        email: email || null,
-        vergi_no: vkn || null,
-        notlar: vd ? `Vergi Dairesi: ${vd} | Fatura: ${faturaTipi || 'kurumsal'}` : null,
-      });
-      if (custRes.status === 201 && Array.isArray(custRes.data) && custRes.data.length > 0) {
-        customerId = custRes.data[0].id;
-      }
-    }
-
-    const payRes = await sbRequest('POST', 'payments', {
-      customer_id: customerId || null,
-      tutar: tutarSayi,
-      odeme_tarihi: new Date().toISOString().split('T')[0],
-      odeme_yontemi: 'Kredi Kartı (Vakıfbank MPI)',
-      notlar,
-    });
-    if (payRes.status === 201 && Array.isArray(payRes.data) && payRes.data.length > 0) {
-      paymentId = payRes.data[0].id;
-    }
-  } catch (e) {
-    console.warn('Supabase mpi enroll:', e.message);
-  }
-
-  if (!paymentId) {
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
-      body: JSON.stringify({
-        ok: false,
-        message: 'Ödeme kaydı oluşturulamadı (Supabase). SUPABASE_SERVICE_KEY ve payments tablosunu kontrol edin.',
-      }),
-    };
-  }
 
   const includeTerminalNo = (process.env.VAKIF_MPI_ENROLL_INCLUDE_TERMINAL || '').trim() === '1';
   const enrollXml = buildEnrollmentXml({
@@ -252,12 +207,76 @@ exports.handler = async (event) => {
     terminalNo: term,
     includeTerminalNo,
   });
-
   const enrollUrl = resolveMpiEnrollUrl(mode);
+
+  async function createSupabasePayment() {
+    let cid = null;
+    let pid = null;
+    try {
+      const check = await sbRequest('GET', `customers?email=eq.${encodeURIComponent(email)}&select=id`, null);
+      if (check.status === 200 && Array.isArray(check.data) && check.data.length > 0) {
+        cid = check.data[0].id;
+      } else {
+        const custRes = await sbRequest('POST', 'customers', {
+          firma_adi: firmaAdi || adSoyad,
+          yetkili_kisi: adSoyad,
+          telefon: telefon || null,
+          email: email || null,
+          vergi_no: vkn || null,
+          notlar: vd ? `Vergi Dairesi: ${vd} | Fatura: ${faturaTipi || 'kurumsal'}` : null,
+        });
+        if (custRes.status === 201 && Array.isArray(custRes.data) && custRes.data.length > 0) {
+          cid = custRes.data[0].id;
+        }
+      }
+
+      const payRes = await sbRequest('POST', 'payments', {
+        customer_id: cid || null,
+        tutar: tutarSayi,
+        odeme_tarihi: new Date().toISOString().split('T')[0],
+        odeme_yontemi: 'Kredi Kartı (Vakıfbank MPI)',
+        notlar,
+      });
+      if (payRes.status === 201 && Array.isArray(payRes.data) && payRes.data.length > 0) {
+        pid = payRes.data[0].id;
+      }
+    } catch (e) {
+      console.warn('Supabase mpi enroll:', e.message);
+    }
+    return { customerId: cid, paymentId: pid };
+  }
+
+  const [sbSettled, xmlSettled] = await Promise.allSettled([createSupabasePayment(), postXml(enrollUrl, enrollXml)]);
+
+  const sbResult =
+    sbSettled.status === 'fulfilled' ? sbSettled.value : { customerId: null, paymentId: null };
+  if (sbSettled.status === 'rejected') {
+    console.warn('Supabase mpi enroll:', sbSettled.reason);
+  }
+
+  if (!sbResult.paymentId) {
+    if (xmlSettled.status === 'fulfilled') {
+      console.error(
+        'MPI_CRITICAL: Banka enrollment yanıtı geldi ancak Supabase ödeme kaydı oluşmadı. verifyId:',
+        verifyId
+      );
+    }
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      body: JSON.stringify({
+        ok: false,
+        message: 'Ödeme kaydı oluşturulamadı (Supabase). SUPABASE_SERVICE_KEY ve payments tablosunu kontrol edin.',
+      }),
+    };
+  }
+
+  const customerId = sbResult.customerId;
+  const paymentId = sbResult.paymentId;
+
   let xmlRes;
-  try {
-    xmlRes = await postXml(enrollUrl, enrollXml);
-  } catch (e) {
+  if (xmlSettled.status === 'rejected') {
+    const e = xmlSettled.reason;
     console.error('MPI Enrollment:', e);
     const pe = vakifFetchErrorResponse(e);
     if (pe) {
@@ -279,6 +298,8 @@ exports.handler = async (event) => {
       body: JSON.stringify({ ok: false, message: 'MPI bağlantısı kurulamadı.' }),
     };
   }
+
+  xmlRes = xmlSettled.value;
 
   const xr = xmlRes.text;
   const parsed = parseMpiEnrollmentResponse(xr, xmlRes.status, xmlRes.contentType);
@@ -318,7 +339,7 @@ exports.handler = async (event) => {
     }
     const bodyOut = {
       ok: false,
-      message: parsed.message,
+      message: parsed.message || 'Banka 3D kayıt yanıtı reddedildi veya okunamadı.',
       mpiStatus: parsed.status || null,
     };
     if (mpiHint) bodyOut.mpiHint = mpiHint;

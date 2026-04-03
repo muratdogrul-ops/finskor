@@ -12,8 +12,18 @@
  */
 'use strict';
 
+const dns = require('dns');
 const https = require('https');
 const hpMod = require('https-proxy-agent');
+
+/** Lambda’da IPv6 önce denenince bankaya CONNECT ~20+ sn gecikme sık görülür */
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
+function lookupIpv4(hostname, _opts, cb) {
+  dns.lookup(hostname, { family: 4 }, cb);
+}
 const HttpsProxyAgent = typeof hpMod === 'function' ? hpMod : hpMod.HttpsProxyAgent || hpMod.default;
 
 const REQUEST_MS = Math.min(
@@ -144,6 +154,7 @@ function requestViaHttpsProxy(targetUrl, options = {}) {
         headers,
         agent,
         servername: u.hostname,
+        lookup: lookupIpv4,
       },
       (res) => {
         const chunks = [];
