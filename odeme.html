@@ -895,7 +895,34 @@ async function submitPayment() {
           mpiTest: mpiTestMin,
         })
       });
-      const j = await ir.json().catch(() => ({}));
+      const rawEnroll = await ir.text();
+      let j = null;
+      try {
+        if (rawEnroll && rawEnroll.trim().startsWith('{')) j = JSON.parse(rawEnroll);
+      } catch (_) {
+        j = null;
+      }
+      if (!ir.ok) {
+        const st = ir.status;
+        const tail =
+          st === 502 || st === 504 || st === 503
+            ? ' Genelde Netlify function süre limiti (ücretsiz planda ~10 sn) veya banka gecikmesi. Pro planda function süresi 26 sn yapılabilir (netlify.toml).'
+            : '';
+        const detail = j && (j.message || j.error) ? ' ' + String(j.message || j.error) : '';
+        showToast('Sunucu yanıtı alınamadı (HTTP ' + st + ').' + tail + detail, true);
+        btn.disabled = false;
+        syncPayButtonLabel();
+        return;
+      }
+      if (j == null) {
+        showToast(
+          'Ödeme sunucusu geçersiz yanıt döndü (JSON değil). Zaman aşımı veya ağ hatası olabilir; Netlify function loglarına bakın.',
+          true
+        );
+        btn.disabled = false;
+        syncPayButtonLabel();
+        return;
+      }
       if (j.code === 'NOT_CONFIGURED') {
         showToast('Kart ödemesi için Netlify ortamında Vakıfbank MPI/VPOS bilgileri tanımlanmalıdır. Şimdilik EFT/Havale kullanın.', true);
         btn.disabled = false;

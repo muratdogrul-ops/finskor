@@ -14,6 +14,13 @@
 [functions]
   node_bundler = "esbuild"
 
+# MPI: Supabase + QuotaGuard + banka — varsayılan ~10 sn yetmez. Pro’da max 26 sn; ücretsiz planda üst sınır 10 sn kalır.
+[functions."vakifbank-mpi-enroll"]
+  timeout = 26
+
+[functions."vakifbank-mpi-term"]
+  timeout = 26
+
 [[headers]]
   for = "/*"
   [headers.values]
