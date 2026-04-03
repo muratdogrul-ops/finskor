@@ -9,6 +9,10 @@ const {
   sbRequest,
   buildVposSaleXml,
   parsePares,
+  normalizeVposExpiry,
+  resolveVposEci,
+  parseThreeDSResultFromPares,
+  detectBrand,
   isVposOk,
   postXml,
   xmlTag,
@@ -194,6 +198,22 @@ exports.handler = async (event) => {
   }
 
   const parsed = parsePares(paRes);
+  const threeD = parseThreeDSResultFromPares(parsed);
+  if (threeD === 'N' || threeD === 'R') {
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      body: htmlPage(
+        '3D Secure',
+        '<h1 class="err">Kart doğrulaması tamamlanamadı</h1><p>3D Secure sonucu banka tarafından onaylanmadı. Farklı bir kart veya yöntem deneyin.</p><a class="btn" href="/odeme.html">Ödeme sayfası</a>',
+        false
+      ),
+    };
+  }
+  const brand = detectBrand(sess.pan);
+  const eci = resolveVposEci(parsed, brand);
+  const expiryYYYYMM = (process.env.VAKIF_VPOS_EXPIRY_YYYYMM || '').trim() === '1';
+  const expiry = normalizeVposExpiry(sess.expiry, expiryYYYYMM);
   const vposXml = buildVposSaleXml({
     merchantId: mid,
     password: pwd,
@@ -201,9 +221,9 @@ exports.handler = async (event) => {
     transactionId: sess.transactionId,
     amount: sess.amount,
     pan: sess.pan,
-    expiry: sess.expiry,
+    expiry,
     cvv: sess.cvv,
-    eci: parsed.eci,
+    eci,
     cavv: parsed.cavv,
     verifyEnrollmentRequestId: sess.verifyEnrollmentRequestId,
     xid3ds: parsed.xid,

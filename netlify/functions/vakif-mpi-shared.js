@@ -12,20 +12,34 @@ const PAKET = {
 };
 
 /**
- * Vakıfbank API portu: banka :8443 istemez; standart HTTPS 443 (URL’de port yazılmaz).
- * Bazı kurulumlarda banka tam adresi :4443 ile verir — o zaman VAKIF_MPI_*_URL env ile birebir URL kullanın.
+ * Varsayılan MPI/VPOS URL’leri port içermez (443). Banka :4443 veya :8443 verdiyse
+ * Netlify’da VAKIF_HTTP_API_PORT=4443 (veya 8443) veya tam URL için VAKIF_MPI_*_URL / VAKIF_VPOS_URL_*.
  */
 const MPI_ENROLL_URL = {
   test: 'https://inbound.apigatewaytest.vakifbank.com.tr/threeDGateway/Enrollment',
   prod: 'https://inbound.apigateway.vakifbank.com.tr/threeDGateway/Enrollment',
 };
 
+/** PDF :8443 / yetkili :4443 — boş veya 443 = port yok. Tam URL env her zaman baskın. */
+function withGatewayPort(url) {
+  const port = (process.env.VAKIF_HTTP_API_PORT || '').trim();
+  if (!port || port === '443') return url;
+  try {
+    const u = new URL(url);
+    if (u.port) return url;
+    u.port = port;
+    return u.href;
+  } catch (_) {
+    return url;
+  }
+}
+
 /** Bankanın verdiği tam URL farklıysa kod değiştirmeden override (test / canlı ayrı). */
 function resolveMpiEnrollUrl(mode) {
   const key = mode === 'prod' ? 'VAKIF_MPI_ENROLL_URL_PROD' : 'VAKIF_MPI_ENROLL_URL_TEST';
   const o = process.env[key];
   if (o && String(o).trim()) return String(o).trim();
-  return MPI_ENROLL_URL[mode];
+  return withGatewayPort(MPI_ENROLL_URL[mode]);
 }
 
 const VPOS_URL = {
@@ -37,7 +51,7 @@ function resolveVposUrl(mode) {
   const key = mode === 'prod' ? 'VAKIF_VPOS_URL_PROD' : 'VAKIF_VPOS_URL_TEST';
   const o = process.env[key];
   if (o && String(o).trim()) return String(o).trim();
-  return VPOS_URL[mode];
+  return withGatewayPort(VPOS_URL[mode]);
 }
 
 /** ACS, PARes sonucunu buraya POST eder; MPI sonucu ÜİY SuccessUrl’e iletir (kılavuz 5.2.1 / 5.2.2). */
@@ -50,7 +64,7 @@ function resolveMpiStartThreeDFlowUrl(mode) {
   const key = mode === 'prod' ? 'VAKIF_MPI_START_THREED_FLOW_PROD' : 'VAKIF_MPI_START_THREED_FLOW_TEST';
   const o = process.env[key];
   if (o && String(o).trim()) return String(o).trim();
-  return MPI_START_THREED_FLOW_URL[mode];
+  return withGatewayPort(MPI_START_THREED_FLOW_URL[mode]);
 }
 
 function siteBase() {
@@ -682,6 +696,85 @@ function escXml(s) {
     .replace(/"/g, '&quot;');
 }
 
+/** PARes içinden ilk eşleşen etiket (büyük/küçük harf duyarsız). */
+function paresXmlText(xml, tagNames) {
+  const s = String(xml || '');
+  for (const t of tagNames) {
+    const re = new RegExp(`<${t}[^>]*>\\s*([^<]+?)\\s*</${t}>`, 'i');
+    const m = s.match(re);
+    if (m && String(m[1]).trim()) return String(m[1]).trim();
+  }
+  return '';
+}
+
+/**
+ * Oturumdaki son kullanma: genelde YYMM. Banka VPOS’ta YYYYMM istiyorsa VAKIF_VPOS_EXPIRY_YYYYMM=1.
+ */
+function normalizeVposExpiry(expiryDigits, useYYYYMM) {
+  const d = String(expiryDigits || '').replace(/\D/g, '');
+  if (!d) return '';
+  if (useYYYYMM) {
+    if (d.length === 6) return d;
+    if (d.length === 4) {
+      const yy = parseInt(d.slice(0, 2), 10);
+      const yyyy = Number.isFinite(yy) ? (yy >= 70 ? 1900 + yy : 2000 + yy) : 2000;
+      return String(yyyy) + d.slice(2);
+    }
+    return d;
+  }
+  if (d.length === 4) return d;
+  if (d.length === 6) return d.slice(2);
+  return d;
+}
+
+/**
+ * ECI: PARes’te ham değer yoksa / güvenilmiyorsa Status (Y/A) + marka (100 Visa, 200 MC, 300 Amex) ile eşleme.
+ * VAKIF_VPOS_ECI_STRATEGY: auto | pares_only | map_only
+ */
+function resolveVposEci(parsed, brandCode) {
+  const strat = (process.env.VAKIF_VPOS_ECI_STRATEGY || 'auto').toLowerCase();
+  const raw = String(parsed?.eci || '').trim();
+  const st = String(parsed?.transStatus || parsed?.status || '')
+    .trim()
+    .toUpperCase();
+  const b = String(brandCode || '100');
+
+  function mapFromStatus() {
+    if (st === 'Y') {
+      if (b === '200') return '02';
+      return '05';
+    }
+    if (st === 'A') {
+      if (b === '200') return '01';
+      return '06';
+    }
+    return '';
+  }
+
+  if (strat === 'pares_only') return raw;
+
+  if (strat === 'map_only') {
+    const m = mapFromStatus();
+    return m || raw;
+  }
+
+  /* auto */
+  if (/^\d{1,3}$/.test(raw)) {
+    if (raw.length === 1) return '0' + raw;
+    return raw;
+  }
+  if (raw) return raw;
+  return mapFromStatus() || raw;
+}
+
+/** 3DS sonucu: PARes’te genelde Status veya TransStatus (3DS2). */
+function parseThreeDSResultFromPares(parsed) {
+  const st = String(parsed?.transStatus || parsed?.status || '')
+    .trim()
+    .toUpperCase();
+  return st;
+}
+
 function buildVposSaleXml(opts) {
   const {
     merchantId,
@@ -720,6 +813,17 @@ function buildVposSaleXml(opts) {
     const tds = (process.env.VAKIF_VPOS_TRANSACTION_DEVICE_SOURCE || '0').trim();
     if (tds) extra += `<TransactionDeviceSource>${escXml(tds)}</TransactionDeviceSource>`;
   }
+  /* 1127: 3D tamamlandıysa bazı kurulumlarda Pan/tutar gönderilmez; yalnızca ECI+CAVV varken ve env açıkken. */
+  const omit1127 = (process.env.VAKIF_VPOS_3DS_OMIT_CARD_FIELDS || '').trim() === '1';
+  const has3ds = String(eci || '').trim() && String(cavv || '').trim();
+  const omitCardAmount = omit1127 && has3ds;
+  const amountBlock = omitCardAmount
+    ? ''
+    : `<CurrencyAmount>${escXml(amount)}</CurrencyAmount>` +
+      `<CurrencyCode>949</CurrencyCode>` +
+      `<Pan>${escXml(pan)}</Pan>` +
+      `<Expiry>${escXml(expiry)}</Expiry>` +
+      `<Cvv>${escXml(cvv)}</Cvv>`;
   return (
     '<?xml version="1.0" encoding="UTF-8"?>' +
     '<VposRequest>' +
@@ -728,11 +832,7 @@ function buildVposSaleXml(opts) {
     `<TerminalNo>${escXml(terminalNo)}</TerminalNo>` +
     `<TransactionType>Sale</TransactionType>` +
     `<TransactionId>${escXml(transactionId)}</TransactionId>` +
-    `<CurrencyAmount>${escXml(amount)}</CurrencyAmount>` +
-    `<CurrencyCode>949</CurrencyCode>` +
-    `<Pan>${escXml(pan)}</Pan>` +
-    `<Expiry>${escXml(expiry)}</Expiry>` +
-    `<Cvv>${escXml(cvv)}</Cvv>` +
+    amountBlock +
     extra +
     '</VposRequest>'
   );
@@ -741,23 +841,27 @@ function buildVposSaleXml(opts) {
 function parsePares(paresB64) {
   try {
     const xml = Buffer.from(String(paresB64 || '').replace(/\s/g, ''), 'base64').toString('utf8');
-    const eci =
-      xml.match(/<eci[^>]*>([^<]+)</i)?.[1]?.trim() ||
-      xml.match(/<Eci[^>]*>([^<]+)</i)?.[1]?.trim() ||
-      '';
-    let cavv =
-      xml.match(/<authenticationvalue[^>]*>([^<]+)</i)?.[1]?.trim() ||
-      xml.match(/<AuthenticationValue[^>]*>([^<]+)</i)?.[1]?.trim() ||
-      xml.match(/<cavv[^>]*>([^<]+)</i)?.[1]?.trim() ||
-      xml.match(/<Cavv[^>]*>([^<]+)</i)?.[1]?.trim() ||
-      '';
-    const xid =
-      xml.match(/<xid[^>]*>([^<]+)</i)?.[1]?.trim() ||
-      xml.match(/<Xid[^>]*>([^<]+)</i)?.[1]?.trim() ||
-      '';
-    return { eci, cavv, xid, xml };
+    const eci = paresXmlText(xml, ['eci', 'ECI', 'Eci']);
+    let cavv = paresXmlText(xml, [
+      'authenticationvalue',
+      'AuthenticationValue',
+      'cavv',
+      'CAVV',
+      'Cavv',
+      'authenticationValue',
+    ]);
+    const xid = paresXmlText(xml, ['xid', 'Xid', 'XID']);
+    const status = paresXmlText(xml, ['Status', 'status']);
+    const transStatus = paresXmlText(xml, [
+      'TransStatus',
+      'transStatus',
+      'TransactionStatus',
+      'transactionStatus',
+    ]);
+    const signature = paresXmlText(xml, ['Signature', 'signature', 'SignatureValue']);
+    return { eci, cavv, xid, status, transStatus, signature: signature || '', xml };
   } catch {
-    return { eci: '', cavv: '', xid: '', xml: '' };
+    return { eci: '', cavv: '', xid: '', status: '', transStatus: '', signature: '', xml: '' };
   }
 }
 
@@ -804,6 +908,9 @@ module.exports = {
   buildEnrollmentXml,
   buildVposSaleXml,
   parsePares,
+  normalizeVposExpiry,
+  resolveVposEci,
+  parseThreeDSResultFromPares,
   isVposOk,
   postXml,
 };
