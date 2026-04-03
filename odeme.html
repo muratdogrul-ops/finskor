@@ -964,7 +964,7 @@ async function submitPayment() {
 
       if (j == null || j.pending) {
         showToast(
-          '3D kayıt zaman aşımına uğradı (2 dk). Banka gecikmesi veya kurulum hatası olabilir; Netlify log ve Supabase mpi_enroll_jobs tablosunu kontrol edin.',
+          '3D kayıt zaman aşımına uğradı (2 dk). Kontrol: Supabase’de mpi_enroll_jobs satırı oluşuyor mu; Netlify’da SUPABASE_SERVICE_KEY doğru projeye mi; (isteğe bağlı) SUPABASE_URL=https://PROJE_REF.supabase.co. Ardından function logları.',
           true
         );
         btn.disabled = false;

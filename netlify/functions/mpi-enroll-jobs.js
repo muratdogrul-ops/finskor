@@ -49,7 +49,20 @@ async function fetchMpiEnrollJob(jobId) {
     'GET',
     `mpi_enroll_jobs?id=eq.${encodeURIComponent(jobId)}&select=status,result_json,error_json,updated_at`
   );
-  if (res.status !== 200 || !Array.isArray(res.data)) return null;
+  if (res.status === 401 || res.status === 403) {
+    console.error(
+      'mpi_enroll_jobs GET yetkisiz',
+      res.status,
+      '— SUPABASE_URL ile proje kökü veya SUPABASE_SERVICE_KEY eşleşmesini kontrol edin.'
+    );
+    return null;
+  }
+  if (res.status !== 200 || !Array.isArray(res.data)) {
+    if (res.status !== 200) {
+      console.error('mpi_enroll_jobs GET beklenmeyen HTTP', res.status, res.data);
+    }
+    return null;
+  }
   return res.data[0] || null;
 }
 
