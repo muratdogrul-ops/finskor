@@ -977,7 +977,7 @@ async function submitPayment() {
 
       if (j == null || j.pending) {
         showToast(
-          '3D kayıt yanıtı gecikti veya sunucu işini tamamlayamadı. Netlify’da vakifbank-mpi-enroll-worker-background loglarına ve Supabase mpi_enroll_jobs satırına bakın.',
+          '3D kayıt yanıtı gecikti veya sunucu işini tamamlayamadı. Netlify’da vakifbank-mpi-enroll-worker-background loglarına bakın; teşhis için /.netlify/functions/mpi-jobs-health (job_store). Kuyruk sorununda kod değiştirmeden geri alma: Netlify ortamında MPI_ENROLL_JOB_STORE=supabase.',
           true
         );
         btn.disabled = false;

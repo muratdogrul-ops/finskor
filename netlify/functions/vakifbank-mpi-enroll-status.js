@@ -41,7 +41,7 @@ exports.handler = async (event) => {
 
   let row;
   try {
-    row = await fetchMpiEnrollJob(jobId);
+    row = await fetchMpiEnrollJob(jobId, event);
   } catch (e) {
     console.error('mpi status fetch', e);
     return {
