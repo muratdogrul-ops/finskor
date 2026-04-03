@@ -3,7 +3,7 @@
  * GET /.netlify/functions/vakif-connectivity-probe
  *
  * İsteğe bağlı: VAKIF_CONNECTIVITY_PROBE_SECRET — varsa ?k=... zorunlu
- * Süre: VAKIF_CONNECTIVITY_PROBE_MS (varsayılan 18000)
+ * Süre: VAKIF_CONNECTIVITY_PROBE_MS (varsayılan 6000 — Netlify sync ~26s limit; seri 6×18s = 502)
  */
 'use strict';
 
@@ -16,8 +16,8 @@ const {
 const { vakifFetch, getVakifEgressStatus } = require('./vakif-fetch');
 
 function probeMs() {
-  const n = parseInt(process.env.VAKIF_CONNECTIVITY_PROBE_MS || '18000', 10);
-  return Math.min(Math.max(Number.isFinite(n) ? n : 18000, 3000), 55000);
+  const n = parseInt(process.env.VAKIF_CONNECTIVITY_PROBE_MS || '6000', 10);
+  return Math.min(Math.max(Number.isFinite(n) ? n : 6000, 2500), 20000);
 }
 
 /** Banka 443 / 4443 ayrımı için her iki portu da dene */
@@ -53,6 +53,7 @@ async function probeUrl(url, method) {
     try {
       const res = await vakifFetch(url, {
         method,
+        timeoutMs: msLimit,
         headers: {
           Accept: '*/*',
           'User-Agent': 'FinSkor-Connectivity-Probe/1.0',
@@ -125,15 +126,23 @@ exports.handler = async (event) => {
     { name: 'mpi_start_three_d_flow', url: resolveMpiStartThreeDFlowUrl(mode) },
   ];
 
-  const probes = [];
+  const jobs = [];
   for (const row of base) {
     const u443 = forceHttpsPort(row.url, 443);
     const u4443 = forceHttpsPort(row.url, 4443);
-    probes.push({ target: `${row.name}_tcp_443`, ...(await probeSmart(u443)) });
+    jobs.push({ target: `${row.name}_tcp_443`, url: u443 });
     if (u4443 !== u443) {
-      probes.push({ target: `${row.name}_tcp_4443`, ...(await probeSmart(u4443)) });
+      jobs.push({ target: `${row.name}_tcp_4443`, url: u4443 });
     }
   }
+
+  /* Paralel — toplam süre ≈ en yavaş probelar (HEAD+GET), seri değil */
+  const probes = await Promise.all(
+    jobs.map(async ({ target, url }) => ({
+      target,
+      ...(await probeSmart(url)),
+    }))
+  );
 
   const hostnames = new Set();
   for (const p of probes) {
@@ -144,10 +153,7 @@ exports.handler = async (event) => {
     }
   }
 
-  const dnsResults = [];
-  for (const h of hostnames) {
-    dnsResults.push(await resolveHostA(h));
-  }
+  const dnsResults = await Promise.all([...hostnames].map((h) => resolveHostA(h)));
 
   const egress = getVakifEgressStatus();
 

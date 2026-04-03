@@ -138,6 +138,9 @@ function requestViaHttpsProxy(targetUrl, options = {}) {
   const method = String(options.method || 'GET').toUpperCase();
   const headers = flattenHeaders(options.headers);
   const body = options.body;
+  const reqMs = Number.isFinite(options.timeoutMs)
+    ? Math.min(REQUEST_MS, Math.max(1000, options.timeoutMs))
+    : REQUEST_MS;
 
   if (body != null && headers['content-length'] == null && headers['Content-Length'] == null) {
     const buf = typeof body === 'string' ? Buffer.from(body, 'utf8') : Buffer.from(body);
@@ -167,8 +170,8 @@ function requestViaHttpsProxy(targetUrl, options = {}) {
     );
 
     req.on('error', reject);
-    req.setTimeout(REQUEST_MS, () => {
-      req.destroy(new Error(`HTTPS istek zaman aşımı (${REQUEST_MS} ms)`));
+    req.setTimeout(reqMs, () => {
+      req.destroy(new Error(`HTTPS istek zaman aşımı (${reqMs} ms)`));
     });
 
     if (body != null) {

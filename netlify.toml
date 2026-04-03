@@ -24,6 +24,10 @@
 [functions."vakifbank-mpi-enroll-status"]
   timeout = 10
 
+# Çoklu HTTPS probelar — Netlify varsayılan ~10s’de 502 oluyordu
+[functions."vakif-connectivity-probe"]
+  timeout = 26
+
 [[headers]]
   for = "/*"
   [headers.values]
