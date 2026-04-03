@@ -3,7 +3,7 @@
  *
  * GET /.netlify/functions/vakif-connectivity-probe
  *   ?ping=1     — anında 200 (ağır modül yüklenmez; 502 teşhisi için)
- *   (parametre yok) — varsayılan: yalnızca MPI enrollment 443, kısa süre (Starter ~10s limit)
+ *   (parametre yok) — varsayılan: MPI enrollment 443 tek GET (proxy+banka ~12–35s sürebilir)
  *   ?full=1     — 6 probelar paralel (Pro + timeout 60s önerilir)
  *
  * İsteğe bağlı: VAKIF_CONNECTIVITY_PROBE_SECRET — varsa ?k=... zorunlu
@@ -13,8 +13,8 @@
 const dns = require('dns').promises;
 
 function probeMs() {
-  const n = parseInt(process.env.VAKIF_CONNECTIVITY_PROBE_MS || '4500', 10);
-  return Math.min(Math.max(Number.isFinite(n) ? n : 4500, 1500), 12000);
+  const n = parseInt(process.env.VAKIF_CONNECTIVITY_PROBE_MS || '12000', 10);
+  return Math.min(Math.max(Number.isFinite(n) ? n : 12000, 4000), 55000);
 }
 
 function forceHttpsPort(url, port) {
@@ -89,9 +89,11 @@ async function probeUrl(vakifFetch, url, method) {
 }
 
 function raceMs(full) {
-  const def = full ? 55000 : 8500;
+  /* Varsayılan mod: QuotaGuard CONNECT + banka TLS sık 8.5s’i aşar; eski 12s üst sınır PROBE_FAILED üretiyordu */
+  const def = full ? 55000 : 38000;
+  const maxCap = full ? 120000 : 58000;
   const n = parseInt(process.env.VAKIF_CONNECTIVITY_RACE_MS || String(def), 10);
-  return Math.min(Math.max(Number.isFinite(n) ? n : def, 3000), full ? 120000 : 12000);
+  return Math.min(Math.max(Number.isFinite(n) ? n : def, 5000), maxCap);
 }
 
 exports.handler = async (event) => {
@@ -285,7 +287,7 @@ exports.handler = async (event) => {
           at: new Date().toISOString(),
           vakif_init_mode: mode,
           hint:
-            'Önce ?ping=1 açın. Sonra parametresiz (tek prob). Netlify Starter 10s limitinde ?full=1 kullanmayın. VAKIF_CONNECTIVITY_PROBE_MS düşürün.',
+            'Önce ?ping=1. Hâlâ süre aşımı: Netlify’da VAKIF_CONNECTIVITY_RACE_MS=55000 veya VAKIF_CONNECTIVITY_PROBE_MS=20000 deneyin. ?full=1 yalnız uzun function süresi olan planda.',
         },
         null,
         2
