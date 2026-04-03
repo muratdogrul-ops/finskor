@@ -1,0 +1,14 @@
+{
+  "aciklama": "Netlify ucretsiz planda function toplam suresi ~10 sn (soguk baslangic dahil). Banka probu uzun surerse Chrome HTTP 502 gosterir.",
+  "adimlar": [
+    "1) Her zaman acilir: /.netlify/functions/vakif-connectivity-probe?ping=1",
+    "2) Cikis IP (madde 1): /.netlify/functions/ip-egress",
+    "3) Kisa banka probu (varsayilan, ~9 sn icinde JSON): /.netlify/functions/vakif-connectivity-probe",
+    "4) Uzun / tam prob: Netlify env VAKIF_CONNECTIVITY_LONG=1 + (tercihen) ucretli plan function timeout 26-60s; sonra ayni URL veya ?full=1"
+  ],
+  "env_uzun_mod": {
+    "VAKIF_CONNECTIVITY_LONG": "1",
+    "VAKIF_CONNECTIVITY_PROBE_MS": "12000",
+    "VAKIF_CONNECTIVITY_RACE_MS": "55000"
+  }
+}

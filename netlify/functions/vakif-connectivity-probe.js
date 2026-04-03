@@ -2,9 +2,12 @@
  * Vakıfbank MPI/VPOS uçlarına Netlify + vakif-fetch (QuotaGuard) ile erişim testi.
  *
  * GET /.netlify/functions/vakif-connectivity-probe
- *   ?ping=1     — anında 200 (ağır modül yüklenmez; 502 teşhisi için)
- *   (parametre yok) — varsayılan: MPI enrollment 443 tek GET (proxy+banka ~12–35s sürebilir)
- *   ?full=1     — 6 probelar paralel (Pro + timeout 60s önerilir)
+ *   ?ping=1     — anında 200 (modül yok)
+ *   (parametre yok) — varsayılan KISA: ~9 sn içinde biter (Netlify ücretsiz ~10s limiti → 502 önlemi)
+ *   ?full=1     — yalnız VAKIF_CONNECTIVITY_LONG=1 iken (6 probelar; uzun süre + ücretli plan önerilir)
+ *
+ * Uzun banka probu: Netlify env VAKIF_CONNECTIVITY_LONG=1 (+ isteğe PROBE_MS / RACE_MS)
+ * Statik yardım: /finskor-connectivity-yardim.json
  *
  * İsteğe bağlı: VAKIF_CONNECTIVITY_PROBE_SECRET — varsa ?k=... zorunlu
  */
@@ -12,9 +15,16 @@
 
 const dns = require('dns').promises;
 
+function useLongConnectivity() {
+  return (process.env.VAKIF_CONNECTIVITY_LONG || '').trim() === '1';
+}
+
 function probeMs() {
-  const n = parseInt(process.env.VAKIF_CONNECTIVITY_PROBE_MS || '12000', 10);
-  return Math.min(Math.max(Number.isFinite(n) ? n : 12000, 4000), 55000);
+  const long = useLongConnectivity();
+  const def = long ? 12000 : 5500;
+  const cap = long ? 55000 : 7000;
+  const n = parseInt(process.env.VAKIF_CONNECTIVITY_PROBE_MS || String(def), 10);
+  return Math.min(Math.max(Number.isFinite(n) ? n : def, long ? 4000 : 2500), cap);
 }
 
 function forceHttpsPort(url, port) {
@@ -89,11 +99,18 @@ async function probeUrl(vakifFetch, url, method) {
 }
 
 function raceMs(full) {
-  /* Varsayılan mod: QuotaGuard CONNECT + banka TLS sık 8.5s’i aşar; eski 12s üst sınır PROBE_FAILED üretiyordu */
-  const def = full ? 55000 : 38000;
-  const maxCap = full ? 120000 : 58000;
+  const long = useLongConnectivity();
+  if (full) {
+    if (!long) return 0;
+    const def = 55000;
+    const n = parseInt(process.env.VAKIF_CONNECTIVITY_RACE_MS || String(def), 10);
+    return Math.min(Math.max(Number.isFinite(n) ? n : def, 15000), 120000);
+  }
+  /* Tek prob: ücretsiz planda soğuk başlangıç + iş ≤ ~10 sn olmalı */
+  const def = long ? 38000 : 8800;
+  const maxCap = long ? 58000 : 9200;
   const n = parseInt(process.env.VAKIF_CONNECTIVITY_RACE_MS || String(def), 10);
-  return Math.min(Math.max(Number.isFinite(n) ? n : def, 5000), maxCap);
+  return Math.min(Math.max(Number.isFinite(n) ? n : def, 4000), maxCap);
 }
 
 exports.handler = async (event) => {
@@ -121,7 +138,7 @@ exports.handler = async (event) => {
           ok: true,
           ping: true,
           at: new Date().toISOString(),
-          hint: 'Bu yanıt geliyorsa fonksiyon çalışıyor. Banka probu için parametresiz veya ?full=1 deneyin.',
+          hint: 'Fonksiyon ayakta. Banka: parametresiz (kısa, 502 riski düşük) veya uzun mod için env VAKIF_CONNECTIVITY_LONG=1 + ?full=1. Statik: /finskor-connectivity-yardim.json',
         },
         null,
         2
@@ -168,6 +185,25 @@ exports.handler = async (event) => {
   const full = qp.full === '1';
   const hardMs = raceMs(full);
 
+  if (full && hardMs === 0) {
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify(
+        {
+          error: 'FULL_REQUIRES_LONG',
+          message:
+            '?full=1 altı paralel prob uzundur; Netlify ücretsiz ~10s’de HTTP 502 üretir.',
+          fix: 'Netlify env: VAKIF_CONNECTIVITY_LONG=1 + ücretli planda function timeout ≥26s. Tek prob: parametresiz URL (kısa).',
+          yardim: '/finskor-connectivity-yardim.json',
+          at: new Date().toISOString(),
+        },
+        null,
+        2
+      ),
+    };
+  }
+
   try {
     const runBody = async () => {
       const egress = getVakifEgressStatus();
@@ -201,8 +237,10 @@ exports.handler = async (event) => {
               !probe.reachable &&
               /ECONN|TLS|socket|timeout|Zaman|getaddrinfo|ENOTFOUND|certificate/i.test(String(probe.error)),
           },
-          note:
-            'Varsayılan: tek MPI enrollment 443 GET. Tam 6 probelar için ?full=1 (uzun sürebilir). Anında test: ?ping=1',
+          note: useLongConnectivity()
+            ? 'Uzun mod: tek MPI GET daha uzun süre bekler. Kısa mod (varsayılan): Netlify 10s limiti için süre sınırlı; yavaş banka reachable:false dönebilir — env VAKIF_CONNECTIVITY_LONG=1 veya gerçek MPI deneyin.'
+            : 'Kısa mod (~9s tavan): 502 yerine JSON dönmek için. Yavaş QuotaGuard/banka için Netlify’da VAKIF_CONNECTIVITY_LONG=1 + Pro. ?ping=1 | yardım: /finskor-connectivity-yardim.json',
+          connectivity_mode: useLongConnectivity() ? 'long' : 'short',
         };
       }
 
@@ -287,7 +325,7 @@ exports.handler = async (event) => {
           at: new Date().toISOString(),
           vakif_init_mode: mode,
           hint:
-            'Önce ?ping=1. Hâlâ süre aşımı: Netlify’da VAKIF_CONNECTIVITY_RACE_MS=55000 veya VAKIF_CONNECTIVITY_PROBE_MS=20000 deneyin. ?full=1 yalnız uzun function süresi olan planda.',
+            'Kısa modda süre dolduysa: Netlify env VAKIF_CONNECTIVITY_LONG=1 ve RACE_MS/PROBE_MS (yardım: /finskor-connectivity-yardim.json). ?full=1 için LONG=1 şart.',
         },
         null,
         2
