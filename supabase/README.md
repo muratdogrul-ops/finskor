@@ -23,3 +23,11 @@ Functions içinde `SUPABASE_SERVICE_KEY` kullanımı önerilir (Dashboard → **
 | `SUPABASE_ANON_KEY` | İsteğe bağlı yedek; service key yoksa kullanılır. |
 
 `SUPABASE_SERVICE_KEY` tanımlı değilse fonksiyonlar eskisi gibi anon anahtara düşer (yerel geliştirme uyumu).
+
+## Vakıfbank kart ödemesi (MPI arka plan + poll)
+
+Kartla 3D başlatma **Netlify Background Function** + `mpi_enroll_jobs` tablosu kullanır; tabloda RLS açık ve **anon için politika yok** — yalnızca **service role** REST ile yazabilir.
+
+1. SQL Editor’da `migrations/20260403120000_mpi_enroll_jobs.sql` dosyasını çalıştırın (`public.mpi_enroll_jobs`).
+2. Netlify ortamında **`SUPABASE_SERVICE_KEY`** zorunlu (anon ile INSERT reddedilir, ödeme sayfası poll’da takılır).
+3. Deploy sonrası ödeme: `odeme.html` → `/.netlify/functions/vakifbank-mpi-enroll-worker-background` + `vakifbank-mpi-enroll-status`.

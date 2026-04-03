@@ -875,48 +875,96 @@ async function submitPayment() {
       const cvv = document.getElementById('kartCvv').value.replace(/\D/g, '');
       const expiryYYMM = sktDigits.slice(2) + sktDigits.slice(0, 2);
 
-      const ir = await fetch('/.netlify/functions/vakifbank-mpi-enroll', {
+      const jobId =
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+              const r = (Math.random() * 16) | 0;
+              const v = c === 'x' ? r : (r & 0x3) | 0x8;
+              return v.toString(16);
+            });
+
+      const enrollPayload = {
+        jobId,
+        adSoyad,
+        email: emailEff,
+        telefon: telefonEff,
+        firmaAdi: firmaEff,
+        vkn: vknEff,
+        vd: vdEff,
+        faturaTipi: bireyselEff ? 'bireysel' : 'kurumsal',
+        paketKey: _paketKey,
+        kartUzerindeIsim: kIsimCard,
+        pan: panRaw,
+        expiryYYMM,
+        cvv,
+        mpiTest: mpiTestMin,
+      };
+
+      const ir = await fetch('/.netlify/functions/vakifbank-mpi-enroll-worker-background', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          adSoyad,
-          email: emailEff,
-          telefon: telefonEff,
-          firmaAdi: firmaEff,
-          vkn: vknEff,
-          vd: vdEff,
-          faturaTipi: bireyselEff ? 'bireysel' : 'kurumsal',
-          paketKey: _paketKey,
-          kartUzerindeIsim: kIsimCard,
-          pan: panRaw,
-          expiryYYMM,
-          cvv,
-          mpiTest: mpiTestMin,
-        })
+        body: JSON.stringify(enrollPayload),
       });
-      const rawEnroll = await ir.text();
-      let j = null;
-      try {
-        if (rawEnroll && rawEnroll.trim().startsWith('{')) j = JSON.parse(rawEnroll);
-      } catch (_) {
-        j = null;
-      }
-      if (!ir.ok) {
+
+      if (!ir.ok && ir.status !== 202) {
         const st = ir.status;
-        const tail =
-          st === 502 || st === 504 || st === 503
-            ? ' Genelde Netlify function süre limiti (ücretsiz planda ~10 sn) veya banka gecikmesi. Pro planda function süresi 26 sn yapılabilir (netlify.toml).'
-            : '';
-        const detail = j && (j.message || j.error) ? ' ' + String(j.message || j.error) : '';
+        let tail = '';
+        if (st === 502 || st === 504 || st === 503) {
+          tail =
+            ' Ağ veya geçici sunucu sorunu. Arka plan işi yine de başlamış olabilir; bir süre sonra tekrar deneyin veya sayfayı yenileyin.';
+        }
+        const rawEnroll = await ir.text();
+        let j0 = null;
+        try {
+          if (rawEnroll && rawEnroll.trim().startsWith('{')) j0 = JSON.parse(rawEnroll);
+        } catch (_) {
+          j0 = null;
+        }
+        const detail = j0 && (j0.message || j0.error) ? ' ' + String(j0.message || j0.error) : '';
         showToast('Sunucu yanıtı alınamadı (HTTP ' + st + ').' + tail + detail, true);
         btn.disabled = false;
         syncPayButtonLabel();
         return;
       }
-      if (j == null) {
+
+      btn.textContent = '⏳ Banka yanıtı bekleniyor (birkaç on saniye sürebilir)...';
+
+      const pollMs = 800;
+      const maxWaitMs = 120000;
+      const deadline = Date.now() + maxWaitMs;
+      let j = null;
+
+      while (Date.now() < deadline) {
+        const sr = await fetch(
+          '/.netlify/functions/vakifbank-mpi-enroll-status?jobId=' + encodeURIComponent(jobId),
+          { credentials: 'include' }
+        );
+        const rawSt = await sr.text();
+        try {
+          j = rawSt && rawSt.trim().startsWith('{') ? JSON.parse(rawSt) : null;
+        } catch (_) {
+          j = null;
+        }
+        if (!sr.ok || j == null) {
+          await new Promise(function (r) {
+            setTimeout(r, pollMs);
+          });
+          continue;
+        }
+        if (j.pending) {
+          await new Promise(function (r) {
+            setTimeout(r, pollMs);
+          });
+          continue;
+        }
+        break;
+      }
+
+      if (j == null || j.pending) {
         showToast(
-          'Ödeme sunucusu geçersiz yanıt döndü (JSON değil). Zaman aşımı veya ağ hatası olabilir; Netlify function loglarına bakın.',
+          '3D kayıt zaman aşımına uğradı (2 dk). Banka gecikmesi veya kurulum hatası olabilir; Netlify log ve Supabase mpi_enroll_jobs tablosunu kontrol edin.',
           true
         );
         btn.disabled = false;

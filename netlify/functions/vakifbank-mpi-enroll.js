@@ -42,7 +42,7 @@ function sanitizeBankBodyForCopy(text) {
   return s;
 }
 
-exports.handler = async (event) => {
+async function runMpiEnroll(event) {
   const origin = event.headers.origin || event.headers.Origin || '';
 
   if (event.httpMethod === 'OPTIONS') {
@@ -363,4 +363,30 @@ exports.handler = async (event) => {
       termUrl: acsFormTermUrl,
     }),
   };
-};
+}
+
+async function enrollEntryHandler(event) {
+  if ((process.env.VAKIF_MPI_USE_SYNC_ENROLL || '').trim() === '1') {
+    return runMpiEnroll(event);
+  }
+  const origin = event.headers.origin || event.headers.Origin || '';
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers: corsHeaders(origin), body: '' };
+  }
+  return {
+    statusCode: 410,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+    body: JSON.stringify({
+      ok: false,
+      code: 'MPI_ASYNC_REQUIRED',
+      message:
+        'Bu uç senkron kullanımdan kalktı. Ödeme sayfası vakifbank-mpi-enroll-worker + status kullanır (Netlify süre limiti).',
+      worker: '/.netlify/functions/vakifbank-mpi-enroll-worker-background',
+      statusPath: '/.netlify/functions/vakifbank-mpi-enroll-status',
+    }),
+  };
+}
+
+exports.handler = enrollEntryHandler;
+exports.runMpiEnroll = runMpiEnroll;
+exports.corsHeaders = corsHeaders;
