@@ -700,9 +700,26 @@ function buildVposSaleXml(opts) {
   let extra = '';
   if (eci) extra += `<ECI>${escXml(eci)}</ECI>`;
   if (cavv) extra += `<CAVV>${escXml(cavv)}</CAVV>`;
-  if (verifyEnrollmentRequestId)
-    extra += `<VerifyEnrollmentRequestId>${escXml(verifyEnrollmentRequestId)}</VerifyEnrollmentRequestId>`;
+  /* Enrollment tekil id → VPOS: MpiTransactionId (kılavuz). Stil: both | mpi_only | verify_only (varsayılan both) */
+  if (verifyEnrollmentRequestId) {
+    const mpiId = String(verifyEnrollmentRequestId).trim();
+    const style = (process.env.VAKIF_VPOS_MPI_XML_STYLE || 'both').toLowerCase();
+    if (style === 'verify_only') {
+      extra += `<VerifyEnrollmentRequestId>${escXml(mpiId)}</VerifyEnrollmentRequestId>`;
+    } else if (style === 'mpi_only') {
+      extra += `<MpiTransactionId>${escXml(mpiId)}</MpiTransactionId>`;
+    } else {
+      extra += `<MpiTransactionId>${escXml(mpiId)}</MpiTransactionId>`;
+      extra += `<VerifyEnrollmentRequestId>${escXml(mpiId)}</VerifyEnrollmentRequestId>`;
+    }
+  }
   if (xid3ds) extra += `<Xid>${escXml(xid3ds)}</Xid>`;
+  /* Eksikse 1121 vb. dönüşüm raporlanabiliyor; kılavuzdaki kodu bankadan doğrulayın. Kapatmak: VAKIF_VPOS_OMIT_TRANSACTION_DEVICE_SOURCE=1 */
+  const omitDev = (process.env.VAKIF_VPOS_OMIT_TRANSACTION_DEVICE_SOURCE || '').trim() === '1';
+  if (!omitDev) {
+    const tds = (process.env.VAKIF_VPOS_TRANSACTION_DEVICE_SOURCE || '0').trim();
+    if (tds) extra += `<TransactionDeviceSource>${escXml(tds)}</TransactionDeviceSource>`;
+  }
   return (
     '<?xml version="1.0" encoding="UTF-8"?>' +
     '<VposRequest>' +

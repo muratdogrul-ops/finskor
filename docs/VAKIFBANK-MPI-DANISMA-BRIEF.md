@@ -64,7 +64,9 @@ Zorunlu / kritik:
 
 Kod: `netlify/functions/vakif-mpi-shared.js` (`resolveMpiEnrollUrl`, `resolveVposUrl`, `resolveMpiStartThreeDFlowUrl`).
 
-**Port:** Vakıfbank tarafı **:8443 kullanılmıyor**; beklenen **HTTPS 443** (yukarıdaki gibi port belirtmeden) veya bankanın ilettiği **:4443** tam taban adres. `:4443` gerekiyorsa `VAKIF_MPI_ENROLL_URL_*`, `VAKIF_MPI_START_THREED_FLOW_*` ve gerekirse VPOS için bankanın verdiği tam URL Netlify env’de tanımlanır.
+**Port (PDF vs yetkili):** Bazı PDF sürümlerinde test veya eski örnekler **:8443** gösterebilir. **Canlıda banka yetkilisinin yazılı talimatı önceliklidir** — bu projede yetkili **443 / (gerekirse) 4443** demiş; varsayılan kod **portsuz HTTPS = 443** kullanır. **:4443** için tam URL’yi env ile verin (`VAKIF_*_URL_*`, `VAKIF_VPOS_URL_*`). Başka bir LLM “mutlaka 8443 ekleyin” derse, **yetkiliyle çelişiyorsa yetkili + güncel e-posta** esas alın.
+
+**VPOS XML (3D sonrası satış):** `buildVposSaleXml` içinde enrollment’daki `VerifyEnrollmentRequestId` ile aynı değer **`MpiTransactionId`** ve **`VerifyEnrollmentRequestId`** etiketlerine yazılır. **`TransactionDeviceSource`** varsayılan `0` (kılavuz kodunu bankadan teyit edin); kapatmak: `VAKIF_VPOS_OMIT_TRANSACTION_DEVICE_SOURCE=1`, özelleştirmek: `VAKIF_VPOS_TRANSACTION_DEVICE_SOURCE`.
 
 ---
 
