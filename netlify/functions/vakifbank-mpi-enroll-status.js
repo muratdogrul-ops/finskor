@@ -27,7 +27,9 @@ exports.handler = async (event) => {
     return { statusCode: 405, headers: statusCors(origin), body: 'Method Not Allowed' };
   }
 
-  const jobId = (event.queryStringParameters && event.queryStringParameters.jobId) || '';
+  /* Netlify / API Gateway sorgu anahtarlarını küçük harfe indirger → jobId okunmazsa poll 2 dk boşa döner */
+  const qp = event.queryStringParameters || {};
+  const jobId = String(qp.jobId || qp.jobid || '').trim();
   if (!jobId || !UUID_RE.test(String(jobId))) {
     return {
       statusCode: 400,

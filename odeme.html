@@ -932,13 +932,13 @@ async function submitPayment() {
       btn.textContent = '⏳ Banka yanıtı bekleniyor (birkaç on saniye sürebilir)...';
 
       const pollMs = 800;
-      const maxWaitMs = 120000;
+      const maxWaitMs = 60000;
       const deadline = Date.now() + maxWaitMs;
       let j = null;
 
       while (Date.now() < deadline) {
         const sr = await fetch(
-          '/.netlify/functions/vakifbank-mpi-enroll-status?jobId=' + encodeURIComponent(jobId),
+          '/.netlify/functions/vakifbank-mpi-enroll-status?jobid=' + encodeURIComponent(jobId),
           { credentials: 'include' }
         );
         const rawSt = await sr.text();
@@ -947,7 +947,19 @@ async function submitPayment() {
         } catch (_) {
           j = null;
         }
-        if (!sr.ok || j == null) {
+        if (!sr.ok) {
+          if (sr.status === 400 && j && j.message) {
+            showToast(j.message, true);
+            btn.disabled = false;
+            syncPayButtonLabel();
+            return;
+          }
+          await new Promise(function (r) {
+            setTimeout(r, pollMs);
+          });
+          continue;
+        }
+        if (j == null) {
           await new Promise(function (r) {
             setTimeout(r, pollMs);
           });
@@ -964,7 +976,7 @@ async function submitPayment() {
 
       if (j == null || j.pending) {
         showToast(
-          '3D kayıt zaman aşımına uğradı (2 dk). Kontrol: Supabase’de mpi_enroll_jobs satırı oluşuyor mu; Netlify’da SUPABASE_SERVICE_KEY doğru projeye mi; (isteğe bağlı) SUPABASE_URL=https://PROJE_REF.supabase.co. Ardından function logları.',
+          '3D kayıt yanıtı gecikti veya sunucu işini tamamlayamadı. Netlify’da vakifbank-mpi-enroll-worker-background loglarına ve Supabase mpi_enroll_jobs satırına bakın.',
           true
         );
         btn.disabled = false;

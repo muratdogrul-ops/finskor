@@ -238,7 +238,20 @@ async function vakifFetch(url, options = {}) {
       '[vakif-fetch] Proxy yok — doğrudan Netlify çıkışı. Vakıfbank HTML/WAF için QUOTAGUARDSTATIC_URL ekleyin.'
     );
   }
-  return fetch(url, options);
+  /* Proxy yolunda setTimeout var; düz fetch’te yoktu — takılınca mpi_enroll_jobs running’de kalıyordu. */
+  const merged = { ...options };
+  if (merged.signal == null && typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    merged.signal = AbortSignal.timeout(REQUEST_MS);
+  } else if (merged.signal == null) {
+    const ac = new AbortController();
+    const tid = setTimeout(() => ac.abort(), REQUEST_MS);
+    try {
+      return await fetch(url, { ...merged, signal: ac.signal });
+    } finally {
+      clearTimeout(tid);
+    }
+  }
+  return fetch(url, merged);
 }
 
 function vakifFetchErrorResponse(err) {
