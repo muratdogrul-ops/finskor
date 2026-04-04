@@ -79,6 +79,8 @@ const OUT  = path.join(DIST, 'app.html');
 
   fs.writeFileSync(OUT, result, 'utf8');
 
+  writeFaviconIco(path.join(DIST, 'favicon.ico'));
+
   const origSize = (fs.statSync(SRC).size / 1024).toFixed(1);
   const newSize  = (fs.statSync(OUT).size / 1024).toFixed(1);
   console.log(`Build tamamlandi: ${origSize}KB → ${newSize}KB`);
@@ -95,4 +97,57 @@ function copyRecursive(src, dst) {
   } else {
     fs.copyFileSync(src, dst);
   }
+}
+
+/** 16×16 ICO (navy + basit altın F) — tarayıcı GET /favicon.ico için gerçek dosya */
+function writeFaviconIco(outPath) {
+  const w = 16;
+  const h = 16;
+  const navy = Buffer.from([0x21, 0x12, 0x07, 0xff]);
+  const gold = Buffer.from([0x4c, 0xa8, 0xc9, 0xff]);
+  const xor = Buffer.alloc(w * h * 4, 0);
+  for (let i = 0; i < w * h; i++) navy.copy(xor, i * 4);
+
+  function setPixel(vx, vy, c) {
+    if (vx < 0 || vx >= w || vy < 0 || vy >= h) return;
+    const row = h - 1 - vy;
+    c.copy(xor, row * w * 4 + vx * 4);
+  }
+
+  for (let vy = 1; vy <= 14; vy++) {
+    setPixel(2, vy, gold);
+    setPixel(3, vy, gold);
+  }
+  for (let vx = 2; vx <= 10; vx++) {
+    setPixel(vx, 1, gold);
+    setPixel(vx, 2, gold);
+  }
+  for (let vx = 2; vx <= 7; vx++) {
+    setPixel(vx, 7, gold);
+    setPixel(vx, 8, gold);
+  }
+
+  const bih = Buffer.alloc(40);
+  bih.writeUInt32LE(40, 0);
+  bih.writeInt32LE(w, 4);
+  bih.writeInt32LE(h * 2, 8);
+  bih.writeUInt16LE(1, 12);
+  bih.writeUInt16LE(32, 14);
+  bih.writeUInt32LE(0, 16);
+  bih.writeUInt32LE(w * h * 4, 20);
+
+  const andMask = Buffer.alloc(64, 0);
+  const img = Buffer.concat([bih, xor, andMask]);
+  const entry = Buffer.alloc(16);
+  entry.writeUInt8(w === 256 ? 0 : w, 0);
+  entry.writeUInt8(h === 256 ? 0 : h, 1);
+  entry.writeUInt8(0, 2);
+  entry.writeUInt8(0, 3);
+  entry.writeUInt16LE(1, 4);
+  entry.writeUInt16LE(32, 6);
+  entry.writeUInt32LE(img.length, 8);
+  entry.writeUInt32LE(6 + 16, 12);
+
+  const header = Buffer.from([0, 0, 1, 0, 1, 0]);
+  fs.writeFileSync(outPath, Buffer.concat([header, entry, img]));
 }
