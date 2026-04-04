@@ -46,6 +46,13 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
 
+# Tarayıcı varsayılan GET /favicon.ico — dosya yoksa 404; SVG ikona yönlendir
+[[redirects]]
+  from = "/favicon.ico"
+  to = "/favicon.svg"
+  status = 200
+  force = true
+
 # Ödeme sayfası — CDN/tarayıcı eski HTML göstermesin (kart alanları güncellenince sorun çıkmasın)
 [[headers]]
   for = "/odeme.html"
