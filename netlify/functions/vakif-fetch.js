@@ -119,6 +119,22 @@ function flattenHeaders(h) {
   return out;
 }
 
+/** QuotaGuard / upstream bazen ekler; Vakıfbank WAF tetiklenebilir — bankaya gönderilmez. */
+const PROXY_HOP_HEADER_NAMES = new Set([
+  'x-forwarded-for',
+  'via',
+  'proxy-connection',
+  'forwarded',
+  'x-real-ip',
+]);
+
+function stripProxyHopHeaders(headers) {
+  if (!headers || typeof headers !== 'object') return;
+  for (const key of Object.keys(headers)) {
+    if (PROXY_HOP_HEADER_NAMES.has(String(key).toLowerCase())) delete headers[key];
+  }
+}
+
 /**
  * HTTPS hedefe, HTTP CONNECT proxy üzerinden istek (Vakıfbank MPI/VPOS).
  */
@@ -137,6 +153,7 @@ function requestViaHttpsProxy(targetUrl, options = {}) {
 
   const method = String(options.method || 'GET').toUpperCase();
   const headers = flattenHeaders(options.headers);
+  stripProxyHopHeaders(headers);
   const body = options.body;
   const reqMs = Number.isFinite(options.timeoutMs)
     ? Math.min(REQUEST_MS, Math.max(1000, options.timeoutMs))
