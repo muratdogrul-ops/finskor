@@ -166,6 +166,28 @@ function mpiTermDiagnosticPayload(fields) {
   };
 }
 
+/**
+ * Vakıfbank bazı TermUrl yanıtlarında PaRes yerine url-encoded düz alan gönderir (Eci, Cavv, MdStatus, …).
+ * @returns {{ eci: string, cavv: string, xid: string, status: string, transStatus: string, signature: string, xml: string }}
+ */
+function parseThreeDSFromVakifFlatForm(form) {
+  return {
+    eci: getField(form, 'Eci', 'ECI', 'eci'),
+    cavv: getField(form, 'Cavv', 'CAVV', 'cavv', 'AuthenticationValue', 'authenticationValue'),
+    xid: getField(form, 'Xid', 'XID', 'xid'),
+    status: getField(form, 'Status', 'status'),
+    transStatus:
+      getField(form, 'MdStatus', 'mdStatus') ||
+      getField(form, 'TransStatus', 'transStatus', 'TransactionStatus'),
+    signature: getField(form, 'Hash', 'hash', 'Signature', 'signature') || '',
+    xml: '',
+  };
+}
+
+function flatVakifThreeDSUsable(p) {
+  return !!(p && String(p.eci || '').trim() && String(p.cavv || '').trim());
+}
+
 function mpiTermDiagnosticFooter(payload) {
   if (!mpiTermDebugHtmlEnabled()) return '';
   const json = JSON.stringify(payload, null, 2);
@@ -314,11 +336,14 @@ exports.handler = async (event) => {
   const bodyByteLen = Buffer.byteLength(rawBody, 'utf8');
   const paPresent = !!(paRes && String(paRes).trim());
   const mdPresent = !!(md && String(md).trim());
+  const flatParsed = !paPresent ? parseThreeDSFromVakifFlatForm(form) : null;
+  const flatUsable = !paPresent && flatVakifThreeDSUsable(flatParsed);
   const reqPath = event.path || event.rawPath || event.requestContext?.http?.path || '';
   /* Netlify log araması için sabit önek — Claude önerisiyle uyumlu */
   console.log(`[MPI-TERM] PaRes present: ${paPresent}`);
   console.log(`[MPI-TERM] body length: ${bodyByteLen}`);
   console.log(`[MPI-TERM] MD present: ${mdPresent}`);
+  console.log(`[MPI-TERM] Vakif flat Eci+Cavv usable: ${flatUsable}`);
   console.log(
     `[MPI-TERM] meta: path=${reqPath || '?'} multipart=${isMultipart} boundary_ok=${!!mpBoundary} base64Body=${!!event.isBase64Encoded}`
   );
@@ -338,6 +363,7 @@ exports.handler = async (event) => {
         paResLen: paRes ? String(paRes).length : 0,
         hasMd: mdPresent,
         mdLen: md ? String(md).length : 0,
+        vakifFlatThreeDS: flatUsable,
       })
     );
   }
@@ -387,7 +413,7 @@ exports.handler = async (event) => {
     };
   }
 
-  if (!paRes) {
+  if (!paPresent && !flatVakifThreeDSUsable(flatParsed)) {
     const host = event.headers.host || event.headers.Host || '';
     const hasCookie = /finskor_mpi=/.test(String(cookieHeader || ''));
     return {
@@ -395,7 +421,7 @@ exports.handler = async (event) => {
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
       body: htmlPage(
         '3D Secure',
-        '<h1 class="err">Banka yanıtı eksik</h1><p>PARes alınamadı.</p><a class="btn" href="/odeme.html">Ödeme sayfası</a>',
+        '<h1 class="err">Banka yanıtı eksik</h1><p>Ne PARes ne de yeterli 3D alanı (Eci+Cavv) alınamadı.</p><a class="btn" href="/odeme.html">Ödeme sayfası</a>',
         false,
         mpiTermDiagnosticFooter(
           mpiTermDiagnosticPayload({
@@ -417,7 +443,23 @@ exports.handler = async (event) => {
     };
   }
 
-  const parsed = parsePares(paRes);
+  const parsed = paPresent ? parsePares(paRes) : flatParsed;
+  if (!paPresent) {
+    console.log('[MPI-TERM] TermUrl: Vakif düz form (Eci/Cavv), PaRes yok — VPOS yoluna devam');
+  }
+  /* Vakif MdStatus: 0 çoğunlukla başarısız; 1/2/… genelde ilerlenebilir (Status ile birlikte değerlendirilir) */
+  const mdStatusFlat = paPresent ? '' : String(getField(form, 'MdStatus', 'mdStatus') || '').trim();
+  if (!paPresent && mdStatusFlat === '0') {
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      body: htmlPage(
+        '3D Secure',
+        '<h1 class="err">Kart doğrulaması tamamlanamadı</h1><p>3D Secure doğrulama banka tarafından tamamlanmadı (MdStatus).</p><a class="btn" href="/odeme.html">Ödeme sayfası</a>',
+        false
+      ),
+    };
+  }
   const threeD = parseThreeDSResultFromPares(parsed);
   if (threeD === 'N' || threeD === 'R') {
     return {
@@ -434,6 +476,10 @@ exports.handler = async (event) => {
   const eci = resolveVposEci(parsed, brand);
   const expiryYYYYMM = (process.env.VAKIF_VPOS_EXPIRY_YYYYMM || '').trim() === '1';
   const expiry = normalizeVposExpiry(sess.expiry, expiryYYYYMM);
+  const verifyFromForm = getField(form, 'VerifyEnrollmentRequestId', 'verifyEnrollmentRequestId');
+  const verifyEnrollmentRequestId =
+    String(sess.verifyEnrollmentRequestId || '').trim() || String(verifyFromForm || '').trim();
+
   const vposXml = buildVposSaleXml({
     merchantId: mid,
     password: pwd,
@@ -446,7 +492,7 @@ exports.handler = async (event) => {
     cvv: sess.cvv,
     eci,
     cavv: parsed.cavv,
-    verifyEnrollmentRequestId: sess.verifyEnrollmentRequestId,
+    verifyEnrollmentRequestId,
     xid3ds: parsed.xid,
     clientIp: clientIpFromEvent(event),
   });
