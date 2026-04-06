@@ -409,6 +409,79 @@ nav {
 }
 .bar-val { font-family: var(--mono); font-size: 11px; color: var(--white-dim); width: 36px; text-align: right; }
 
+/* ── HERO: üç aşamalı not / banka görünümü ── */
+.hero-tier-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+@media (max-width: 900px) {
+  .hero-tier-grid { grid-template-columns: 1fr; }
+}
+.hero-tier-card {
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 12px;
+  text-align: center;
+}
+.hero-tier-card.hero-tier--cc { border-top: 3px solid #fb923c; }
+.hero-tier-card.hero-tier--bb { border-top: 3px solid #f59e0b; }
+.hero-tier-card.hero-tier--bbb { border-top: 3px solid #fbbf24; }
+.hero-tier-rating {
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 4px;
+  letter-spacing: -0.5px;
+}
+.hero-tier-score {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--gold2);
+  margin-bottom: 10px;
+}
+.hero-tier-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.hero-tier-label.tier-bad { color: #f87171; }
+.hero-tier-label.tier-mid { color: #E8A84C; }
+.hero-tier-label.tier-ok { color: var(--green); }
+.hero-tier-desc {
+  font-size: 11px;
+  color: var(--white-dim);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+.hero-tier-param {
+  font-size: 10px;
+  color: var(--white-muted);
+  line-height: 1.45;
+  margin-bottom: 6px;
+}
+.hero-tier-delta {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gold);
+}
+
+.scenario-corporate-line {
+  font-family: var(--serif);
+  font-size: clamp(17px, 2vw, 22px);
+  color: var(--gold);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  margin: 4px 0 28px;
+  max-width: 720px;
+  line-height: 1.4;
+}
+
 /* ── BANKA KARARI (senaryo bölümü) ── */
 .banka-karari-wrap { background: var(--navy2); border: 1px solid var(--border); border-radius: 8px; padding: 32px; }
 .banka-karari-head { font-family: var(--serif); font-size: clamp(22px, 2.5vw, 30px); font-weight: 600; color: var(--white); margin-bottom: 28px; letter-spacing: -0.3px; }
@@ -430,8 +503,9 @@ nav {
 .landing-kblock { margin-bottom: 72px; }
 .landing-kblock:last-child { margin-bottom: 0; }
 .landing-kblock h3 { font-family: var(--serif); font-size: clamp(22px, 2.8vw, 32px); color: var(--white); margin-bottom: 20px; letter-spacing: -0.3px; }
-.landing-kimler-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 24px; }
-@media (max-width: 900px) { .landing-kimler-grid { grid-template-columns: 1fr; } }
+.landing-kimler-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 24px; }
+@media (max-width: 1024px) { .landing-kimler-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 520px) { .landing-kimler-grid { grid-template-columns: 1fr; } }
 .landing-kimler-item {
   padding: 22px 20px;
   border: 1px solid var(--border);
@@ -442,14 +516,29 @@ nav {
   color: var(--white-dim);
   text-align: center;
 }
-.landing-problem-list { list-style: none; margin: 28px 0 0; padding: 0; max-width: 720px; }
-.landing-problem-list li {
-  margin-bottom: 28px;
-  border-left: 3px solid var(--gold);
-  padding-left: 20px;
+.landing-problem-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 24px;
+  max-width: 960px;
 }
-.landing-problem-list strong { display: block; color: var(--white); font-size: 15px; margin-bottom: 8px; font-weight: 600; }
-.landing-problem-list span { font-size: 14px; color: var(--white-dim); line-height: 1.65; }
+@media (max-width: 768px) { .landing-problem-grid { grid-template-columns: 1fr; } }
+.landing-problem-card {
+  padding: 22px 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--navy2);
+  border-top: 3px solid var(--gold);
+}
+.landing-problem-card strong {
+  display: block;
+  color: var(--white);
+  font-size: 15px;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+.landing-problem-card span { font-size: 13px; color: var(--white-dim); line-height: 1.65; }
 .landing-problem-close { font-size: 15px; color: var(--white-dim); line-height: 1.7; margin-top: 28px; max-width: 720px; }
 .landing-cozum-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 28px; }
 @media (max-width: 900px) { .landing-cozum-grid { grid-template-columns: 1fr; } }
@@ -1080,7 +1169,7 @@ footer {
 <section class="hero">
   <div class="hero-inner">
     <div class="hero-left">
-      <div class="hero-badge fade-up">Senaryo · Otomatik öneri · PDF rapor</div>
+      <div class="hero-badge fade-up">Kurumsal analiz · Puan simülasyonu · PDF rapor</div>
       <h1 class="hero-title fade-up fade-up-1">
         Firmanızın Kredi Notunu<br><em>Nasıl Artırırsınız?</em>
       </h1>
@@ -1120,38 +1209,33 @@ footer {
           <div class="dashboard-url">finskor.tr/app</div>
         </div>
         <div class="dashboard-body">
-          <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--white-muted);margin-bottom:16px">Örnek Senaryo</div>
-          <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
-            <div style="text-align:center">
-              <div style="font-family:var(--serif);font-size:28px;color:#fb923c;font-weight:600">CCC</div>
-              <div style="font-size:10px;color:var(--white-muted);margin-top:4px">Mevcut</div>
+          <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--white-muted);margin-bottom:14px">Örnek banka görünümü</div>
+          <div class="hero-tier-grid">
+            <div class="hero-tier-card hero-tier--cc">
+              <div class="hero-tier-rating">CC</div>
+              <div class="hero-tier-score">43,80</div>
+              <div class="hero-tier-label tier-bad">Uygun Değil</div>
+              <div class="hero-tier-desc">Finansal yapı krediye erişim için yetersiz.</div>
             </div>
-            <div style="flex:1;height:2px;background:linear-gradient(90deg,#fb923c,var(--gold),#22c55e);border-radius:1px"></div>
-            <div style="text-align:center">
-              <div style="font-family:var(--serif);font-size:28px;color:var(--gold);font-weight:600">BBB</div>
-              <div style="font-size:10px;color:var(--white-muted);margin-top:4px">Hedef (1 kademe)</div>
+            <div class="hero-tier-card hero-tier--bb">
+              <div class="hero-tier-rating">BB</div>
+              <div class="hero-tier-score">64,80</div>
+              <div class="hero-tier-label tier-mid">Teminatla Uygun</div>
+              <div class="hero-tier-desc">Belirli koşul ve teminat ile erişim mümkün.</div>
+              <div class="hero-tier-param">Parametre: 38,4 Milyon TL sermaye artışı</div>
+              <div class="hero-tier-delta">+21 puan</div>
             </div>
-          </div>
-          <div style="background:rgba(0,0,0,0.2);border:1px solid rgba(201,168,76,0.12);border-radius:4px;padding:12px 14px;margin-bottom:8px">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <div>
-                <div style="font-size:11px;color:var(--white-dim);margin-bottom:3px">💰 Sermaye Artışı</div>
-                <div style="font-family:var(--mono);font-size:12px;color:var(--white)">27.6 Milyon TL</div>
-              </div>
-              <div style="font-family:var(--mono);font-size:12px;color:var(--gold)">+9 puan</div>
-            </div>
-          </div>
-          <div style="background:rgba(0,0,0,0.2);border:1px solid rgba(201,168,76,0.12);border-radius:4px;padding:12px 14px">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <div>
-                <div style="font-size:11px;color:var(--white-dim);margin-bottom:3px">🔄 KV→UV Borç Taşıma (%75 · 48 ay)</div>
-                <div style="font-family:var(--mono);font-size:12px;color:var(--white)">11.8M TL'nin %75'i</div>
-              </div>
-              <div style="font-family:var(--mono);font-size:12px;color:var(--gold)">+3 puan</div>
+            <div class="hero-tier-card hero-tier--bbb">
+              <div class="hero-tier-rating">BBB</div>
+              <div class="hero-tier-score">68,80</div>
+              <div class="hero-tier-label tier-ok">Uygun</div>
+              <div class="hero-tier-desc">Güçlü finansal yapı ile krediye erişebilir.</div>
+              <div class="hero-tier-param">Parametre: %45 ciro artışı</div>
+              <div class="hero-tier-delta">+4 puan</div>
             </div>
           </div>
-          <div style="font-size:12px;color:var(--white-muted);line-height:1.55;margin-top:14px">
-            CCC → BBB: örnek iki adımda 12 puan. <strong style="color:var(--white)">Firmanızın</strong> BB notunun bir üst kademesi BBB’dir.
+          <div style="font-size:11px;color:var(--white-muted);line-height:1.5;margin-top:14px;text-align:center">
+            Örnek gösterim — <strong style="color:var(--white)">firmanızın</strong> notu ve parametreleri analizde gerçek verilerle hesaplanır.
           </div>
         </div>
       </div>
@@ -1164,8 +1248,9 @@ footer {
   <div class="section-inner">
     <div style="margin-bottom:56px">
       <div class="section-tag">Senaryo Analizi</div>
-      <h2 class="section-title"><strong style="font-weight:600;color:var(--white)">Firmanızın</strong> Notunu Nasıl<br>Artırırsınız?</h2>
-      <p class="section-desc">Hangi adımı atsanız <strong style="color:var(--white)">firmanızın</strong> notu ne kadar değişir? FinSkor simüle eder.</p>
+      <p class="scenario-corporate-line">FinSkor Otomatik Kredi Notu Artırma Önerileri</p>
+      <h2 class="section-title">Parametreleri hareket ettirin,<br><strong style="font-weight:600;color:var(--white)">firmanızın</strong> notunu görün</h2>
+      <p class="section-desc">Sermaye, borç yapısı, kârlılık ve ciro üzerinde yaptığınız her değişikliğin nota etkisini FinSkor anında hesaplar; en verimli kombinasyonu önerir.</p>
     </div>
     <div class="scenario-inner">
       <div>
@@ -1241,6 +1326,7 @@ footer {
         <div class="landing-kimler-item">KOBİ'ler</div>
         <div class="landing-kimler-item">Ticari Firmalar</div>
         <div class="landing-kimler-item">Mali Müşavirler</div>
+        <div class="landing-kimler-item">Finansal Danışmanlar</div>
       </div>
     </div>
     <div class="landing-kblock" id="problem">
@@ -1249,22 +1335,22 @@ footer {
       <p class="section-desc" style="max-width:720px;margin-bottom:0">
         Birçok firma bankaya gitmeden önce finansal durumunun nasıl değerlendirileceğini bilmez. Riskler geç fark edilir, süreç çoğu zaman olumsuz sonuçlanır.
       </p>
-      <ul class="landing-problem-list">
-        <li>
+      <div class="landing-problem-grid">
+        <div class="landing-problem-card">
           <strong>Finansal yapı doğru okunmaz</strong>
           <span>Bilanço ve gelir tablosu bankacılık kriterleriyle analiz edilmez.</span>
-        </li>
-        <li>
+        </div>
+        <div class="landing-problem-card">
           <strong>Banka kriterleri bilinmez</strong>
           <span>Hangi oranların, hangi eşik değerlerin önemli olduğu önceden görülmez.</span>
-        </li>
-        <li>
+        </div>
+        <div class="landing-problem-card">
           <strong>Riskler son ana kalır</strong>
           <span>Düzeltilebilecek sorunlar banka kapısında fark edilir, iş işten geçer.</span>
-        </li>
-      </ul>
+        </div>
+      </div>
       <p class="landing-problem-close">
-        <strong style="color:var(--white)">Finansal danışmanlar</strong> ve işletme sahipleri için: FinSkor, krediye gitmeden önce bu belirsizliği ortadan kaldırır.
+        İşletme sahipleri ve danışmanlar için: FinSkor, krediye gitmeden önce bu belirsizliği ortadan kaldırır.
       </p>
     </div>
     <div class="landing-kblock" id="cozum">
@@ -1871,7 +1957,7 @@ const observer = new IntersectionObserver((entries) => {
 }, { threshold: 0.1 });
 
 /* Fiyat kartları: opacity 0 + observer bazen tetiklenmez → NakitFlow görünmez kalıyordu; vitrin her zaman görünür */
-document.querySelectorAll('.feature-card, .how-step, .scenario-card, .rating-row, .flow-step, .banka-karari-card, .landing-kimler-item, .landing-cozum-card').forEach(el => {
+document.querySelectorAll('.feature-card, .how-step, .scenario-card, .rating-row, .flow-step, .banka-karari-card, .landing-kimler-item, .landing-cozum-card, .hero-tier-card, .landing-problem-card').forEach(el => {
   el.style.opacity = '0';
   el.style.transform = 'translateY(16px)';
   el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
