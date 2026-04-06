@@ -733,6 +733,75 @@ function buildEnrollmentXml(opts) {
   );
 }
 
+/** Banka API aracı örneği: multipart/form-data alanları (VerifyEnrollmentReq / FailUrl). */
+function buildEnrollmentFormFields(opts) {
+  const {
+    merchantId,
+    merchantPassword,
+    verifyId,
+    pan,
+    expiryYYMM,
+    amount,
+    brandName,
+    successUrl,
+    failureUrl,
+    terminalNo,
+    includeTerminalNo,
+  } = opts;
+  const fields = {
+    MerchantId: String(merchantId || ''),
+    MerchantPassword: String(merchantPassword || ''),
+    VerifyEnrollmentReq: String(verifyId || ''),
+    Pan: String(pan || ''),
+    PurchaseAmount: String(amount || ''),
+    ExpiryDate: String(expiryYYMM || ''),
+    BrandName: String(brandName || ''),
+    Currency: '949',
+    SuccessUrl: String(successUrl || ''),
+    FailUrl: String(failureUrl || ''),
+  };
+  if (includeTerminalNo && terminalNo != null && String(terminalNo).trim()) {
+    fields.TerminalNo = String(terminalNo).trim();
+  }
+  return fields;
+}
+
+function buildEnrollmentMultipartBody(fields) {
+  const boundary = '----FinSkorMpi' + crypto.randomBytes(12).toString('hex');
+  const CRLF = '\r\n';
+  const order = [
+    'MerchantId',
+    'MerchantPassword',
+    'VerifyEnrollmentReq',
+    'Pan',
+    'PurchaseAmount',
+    'ExpiryDate',
+    'BrandName',
+    'Currency',
+    'SuccessUrl',
+    'FailUrl',
+    'TerminalNo',
+  ];
+  let body = '';
+  for (const k of order) {
+    if (!Object.prototype.hasOwnProperty.call(fields, k)) continue;
+    const v = fields[k];
+    if (v === undefined || v === null) continue;
+    body += `--${boundary}${CRLF}Content-Disposition: form-data; name="${k}"${CRLF}${CRLF}${String(v)}${CRLF}`;
+  }
+  for (const k of Object.keys(fields)) {
+    if (order.includes(k)) continue;
+    const v = fields[k];
+    if (v === undefined || v === null) continue;
+    body += `--${boundary}${CRLF}Content-Disposition: form-data; name="${k}"${CRLF}${CRLF}${String(v)}${CRLF}`;
+  }
+  body += `--${boundary}--${CRLF}`;
+  return {
+    body,
+    contentType: `multipart/form-data; boundary=${boundary}`,
+  };
+}
+
 function escXml(s) {
   return String(s || '')
     .replace(/&/g, '&amp;')
@@ -957,6 +1026,85 @@ async function postXml(url, xmlBody) {
   return { status: res.status, text, contentType: String(contentType || '') };
 }
 
+/**
+ * MPI Enrollment (threeDGateway/Enrollment) — banka örneği: multipart/form-data alanları.
+ * VAKIF_MPI_ENROLL_FORMAT: multipart (varsayılan) | urlencoded | prmstr | raw_xml
+ */
+async function postMpiEnrollment(url, enrollOpts) {
+  const fmt = (process.env.VAKIF_MPI_ENROLL_FORMAT || 'multipart').toLowerCase().trim();
+  const ua = vakifHttpUserAgent();
+  let body;
+  let headers;
+
+  if (fmt === 'raw_xml' || fmt === 'xml') {
+    body = buildEnrollmentXml(enrollOpts);
+    headers = {
+      'Content-Type': 'application/xml; charset=utf-8',
+      Accept: 'application/xml, text/xml, */*',
+      'User-Agent': ua,
+    };
+  } else if (fmt === 'prmstr') {
+    const xml = buildEnrollmentXml(enrollOpts);
+    body = new URLSearchParams({ prmstr: String(xml || '') }).toString();
+    headers = {
+      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      Accept: 'application/xml, text/xml, */*',
+      'User-Agent': ua,
+    };
+  } else if (fmt === 'urlencoded' || fmt === 'form') {
+    const fields = buildEnrollmentFormFields(enrollOpts);
+    const p = new URLSearchParams();
+    const keyOrder = [
+      'MerchantId',
+      'MerchantPassword',
+      'VerifyEnrollmentReq',
+      'Pan',
+      'PurchaseAmount',
+      'ExpiryDate',
+      'BrandName',
+      'Currency',
+      'SuccessUrl',
+      'FailUrl',
+      'TerminalNo',
+    ];
+    for (const k of keyOrder) {
+      if (!Object.prototype.hasOwnProperty.call(fields, k)) continue;
+      p.append(k, String(fields[k]));
+    }
+    for (const k of Object.keys(fields)) {
+      if (keyOrder.includes(k)) continue;
+      p.append(k, String(fields[k]));
+    }
+    body = p.toString();
+    headers = {
+      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      Accept: 'application/xml, text/xml, */*',
+      'User-Agent': ua,
+    };
+  } else {
+    const fields = buildEnrollmentFormFields(enrollOpts);
+    const m = buildEnrollmentMultipartBody(fields);
+    body = m.body;
+    headers = {
+      'Content-Type': m.contentType,
+      Accept: 'application/xml, text/xml, */*',
+      'User-Agent': ua,
+    };
+  }
+
+  const res = await vakifFetch(url, {
+    method: 'POST',
+    headers,
+    body,
+  });
+  const text = await res.text();
+  const contentType =
+    (typeof res.headers?.get === 'function' && res.headers.get('content-type')) ||
+    res.headers?.['content-type'] ||
+    '';
+  return { status: res.status, text, contentType: String(contentType || '') };
+}
+
 module.exports = {
   PAKET,
   MPI_ENROLL_URL,
@@ -975,6 +1123,7 @@ module.exports = {
   decryptMpiSession,
   sbRequest,
   buildEnrollmentXml,
+  buildEnrollmentFormFields,
   buildVposSaleXml,
   parsePares,
   normalizeVposExpiry,
@@ -984,4 +1133,5 @@ module.exports = {
   decodeUrlEncodedFormField,
   isVposOk,
   postXml,
+  postMpiEnrollment,
 };

@@ -16,8 +16,7 @@ const {
   siteBase,
   detectBrand,
   encryptMpiSession,
-  buildEnrollmentXml,
-  postXml,
+  postMpiEnrollment,
   parseMpiEnrollmentResponse,
   buildMpiSessionCookie,
 } = require('./vakif-mpi-shared');
@@ -195,7 +194,7 @@ async function runMpiEnroll(event) {
   const tutarSayi = parseFloat(amount);
 
   const includeTerminalNo = (process.env.VAKIF_MPI_ENROLL_INCLUDE_TERMINAL || '').trim() === '1';
-  const enrollXml = buildEnrollmentXml({
+  const enrollOpts = {
     merchantId: mid,
     merchantPassword: pwd,
     verifyId,
@@ -207,14 +206,14 @@ async function runMpiEnroll(event) {
     failureUrl: failUrl,
     terminalNo: term,
     includeTerminalNo,
-  });
+  };
   const enrollUrl = resolveMpiEnrollUrl(mode);
 
   /* Supabase bu function’da yok — Netlify ~10 sn limit + banka MPI toplamı 504 veriyordu.
    * Ödeme satırı vakifbank-mpi-term içinde VPOS başarısından sonra oluşturulur (billing oturumda). */
   let xmlRes;
   try {
-    xmlRes = await postXml(enrollUrl, enrollXml);
+    xmlRes = await postMpiEnrollment(enrollUrl, enrollOpts);
   } catch (e) {
     console.error('MPI Enrollment:', e);
     const pe = vakifFetchErrorResponse(e);

@@ -25,8 +25,7 @@ try {
 const {
   resolveMpiEnrollUrl,
   resolveMpiStartThreeDFlowUrl,
-  buildEnrollmentXml,
-  postXml,
+  postMpiEnrollment,
   parseMpiEnrollmentResponse,
   detectBrand,
   siteBase,
@@ -71,7 +70,7 @@ async function main() {
   const failUrl = `${base}/odeme.html?mpi=hata`;
 
   const includeTerminalNo = (process.env.VAKIF_MPI_ENROLL_INCLUDE_TERMINAL || '').trim() === '1';
-  const xml = buildEnrollmentXml({
+  const enrollOpts = {
     merchantId: mid,
     merchantPassword: pwd,
     verifyId,
@@ -83,7 +82,7 @@ async function main() {
     failureUrl: failUrl,
     terminalNo: term,
     includeTerminalNo,
-  });
+  };
 
   const url = resolveMpiEnrollUrl(mode);
   console.log('Ortam:', mode);
@@ -94,7 +93,7 @@ async function main() {
 
   let res;
   try {
-    res = await postXml(url, xml);
+    res = await postMpiEnrollment(url, enrollOpts);
   } catch (e) {
     console.error('Bağlantı hatası:', e.message);
     process.exit(1);
