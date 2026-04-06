@@ -585,7 +585,7 @@ function parseMpiEnrollmentResponse(rawText, httpStatus, contentType) {
       !hasAcs
         ? looksHtml
           ? /request\s*rejected/i.test(pageTitle)
-            ? 'Güvenlik duvarı / WAF isteği reddetti (sayfa başlığı genelde “Request Rejected”). Banka tarafı IP listesi istemeyebilir; yine de Netlify’nın değişken çıkış IP’leri bu katmanda sık engellenir. Netlify’da QUOTAGUARDSTATIC_URL veya VAKIF_HTTPS_PROXY ile sabit çıkış üzerinden deneyin; `/.netlify/functions/ip-egress` ile görünen IPv4’ü doğrulayın. Canlıda enrollment URL’sinin 8443 ve VAKIF_INIT=prod olduğundan emin olun. Düzelmezse Netlify log’daki `MPI_FAIL_JSON` satırı + kullanılan enrollUrl ile bankaya yazın.'
+            ? 'Güvenlik duvarı / WAF “Request Rejected” (HTML) döndü; istek çoğu zaman banka MPI uygulamasına ulaşmıyor. QuotaGuard kullanmıyorsanız: QUOTAGUARDSTATIC_URL + `/.netlify/functions/ip-egress` ile sabit çıkışı doğrulayın. QuotaGuard açıkken de aynıysa: canlı enrollment URL (8443), VAKIF_INIT=prod ve üye işyeri (test/canlı) eşleşmesini bankayla teyit edin; Netlify log’da `MPI_FAIL_JSON` (egressProxyHost / egressProxyActive) + enrollUrl + ip-egress IPv4 ile desteğe yazın. İsteğe bağlı: VAKIF_HTTP_USER_AGENT veya VAKIF_POSTXML_FORCE_RAW=1 ile gövde denemesi (banka kılavuzuna göre).'
             : 'Banka MPI/XML yerine bir HTML sayfası döndü (yanlış URL, test–canlı uyumsuzluğu, IP kısıtı veya sunucu hata sayfası olabilir). Endpoint ve üye işyeri ayarlarını Vakıfbank ile doğrulayın; aşağıdaki etiket listesini desteğe iletin.'
           : 'ACS adresi veya PaReq okunamadı. Yanıttaki etiket isimleri farklı olabilir — aşağıdaki listeyi bankaya iletin.'
         : null,

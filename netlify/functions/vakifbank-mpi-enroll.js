@@ -274,7 +274,7 @@ async function runMpiEnroll(event) {
         'Bu yanıt genelde WAF (Request Rejected): istek banka uygulamasına düşmeden kesiliyor. Netlify’da QUOTAGUARDSTATIC_URL (QuotaGuard Static tam URL) veya VAKIF_HTTPS_PROXY tanımlayın, deploy edin. Sonra `/.netlify/functions/ip-egress` açın: viaQuotaGuardOrVakifProxy true ve IPv4 görünmeli. Olmuyorsa proxy URL/şifre (özel karakter URL-encode) kontrol edin. İsteğe bağlı: VAKIF_REQUIRE_EGRESS_PROXY=1 ile proxy yokken canlı enrollment başlamaz (daha net). Bankaya log’daki MPI_FAIL_JSON (egressProxyActive alanı) ile yazın.';
     } else if (mode === 'prod' && egressStatus.proxyAgentActive && /\btext\/html\b/i.test(ctShort)) {
       mpiHint =
-        'Sabit IP kullanılıyor; yanıt hâlâ HTML ise bankadan bu enrollment URL’si ve üye işyeri (test/canlı) eşleşmesini doğrulatın; gerekirse MPI için ikinci whitelist kaydı isteyin.';
+        'Sabit çıkış (QuotaGuard) aktif görünüyor; yanıt hâlâ “Request Rejected” ise WAF banka tarafında: çıkış IPv4’ü (ip-egress), enrollUrl, üye işyeri no ve `MPI_FAIL_JSON` satırını bankaya iletin. İsteğe bağlı deneme: VAKIF_POSTXML_FORCE_RAW=1 (ham XML) veya VAKIF_HTTP_USER_AGENT — hangisinin geçerli olduğunu banka PDF/teyidi belirler.';
     }
     const bodyOut = {
       ok: false,
