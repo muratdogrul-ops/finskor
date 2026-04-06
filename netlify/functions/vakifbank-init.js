@@ -10,6 +10,7 @@ const { sbHost, sbKey } = require('./sb-config');
 const { vakifFetch, vakifFetchErrorResponse } = require('./vakif-fetch');
 
 const PAKET = {
+  test1tl: { fiyat: '1.00', fiyatLabel: '1', credits: 0, ad: 'TEST 1 ₺ (geçici)' },
   profesyonel: { fiyat: '2490.00', fiyatLabel: '2.490', credits: 4, ad: 'FinSkor Profesyonel Paket' },
   danisan: { fiyat: '36000.00', fiyatLabel: '36.000', credits: 100, ad: 'FinSkor Finansal Danışman Paketi' },
   nakitflow: { fiyat: '4990.00', fiyatLabel: '4.990', credits: 1, ad: 'NakitFlow 60 Aylık Projeksiyon Paketi' },

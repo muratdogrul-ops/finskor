@@ -53,6 +53,12 @@ exports.handler = async (event) => {
   const { paymentId, customerId, email, firma, telefon, credits } = body;
   if (!paymentId) return { statusCode: 400, body: 'paymentId eksik.' };
 
+  const creditsNum = Number(credits);
+  const creditsForCode =
+    credits !== undefined && credits !== null && credits !== '' && Number.isFinite(creditsNum) && creditsNum >= 0
+      ? Math.floor(creditsNum)
+      : 10;
+
   // 1. Erişim kodu üret (çakışma olursa tekrar dene)
   let code = generateCode();
   for (let i = 0; i < 5; i++) {
@@ -67,7 +73,7 @@ exports.handler = async (event) => {
     customer_id: customerId || null,
     client_name: firma || '',
     email: email || null,
-    credits: credits || 10,
+    credits: creditsForCode,
     active: true,
     usage_count: 0
   });
@@ -100,7 +106,7 @@ exports.handler = async (event) => {
         <div style="background:rgba(201,168,76,0.08);border:2px solid rgba(201,168,76,0.4);border-radius:12px;padding:20px 24px;text-align:center;margin-bottom:20px">
           <div style="font-size:12px;color:rgba(244,246,249,0.5);margin-bottom:8px;letter-spacing:1px">ERİŞİM KODUNUZ</div>
           <div style="font-size:28px;font-weight:700;color:#C9A84C;letter-spacing:4px;font-family:monospace">${code}</div>
-          <div style="font-size:12px;color:rgba(244,246,249,0.5);margin-top:8px">${credits || 10} kontör</div>
+          <div style="font-size:12px;color:rgba(244,246,249,0.5);margin-top:8px">${creditsForCode} kontör</div>
         </div>
         <div style="text-align:center;margin-bottom:24px">
           <a href="${loginUrl}" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#C9A84C,#a8873a);color:#fff;border-radius:8px;text-decoration:none;font-size:15px;font-weight:700">
