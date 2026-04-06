@@ -36,7 +36,7 @@ Zorunlu / kritik:
 - `QUOTAGUARDSTATIC_URL` veya `VAKIF_HTTPS_PROXY`
 - `VAKIF_MPI_ENROLL_URL_TEST` / `VAKIF_MPI_ENROLL_URL_PROD` (banka farklı URL verdiyse)
 - `VAKIF_MPI_START_THREED_FLOW_TEST` / `_PROD` (ACS formundaki TermUrl banka farklı istiyorsa)
-- `VAKIF_VPOS_URL_TEST` / `VAKIF_VPOS_URL_PROD` (VPOS için bankanın verdiği tam URL, örn. `:4443`)
+- `VAKIF_VPOS_URL_TEST` / `VAKIF_VPOS_URL_PROD` (VPOS için bankanın verdiği tam URL)
 - `VAKIF_MPI_SESSION_SECRET`
 - `VAKIF_HTTPS_TIMEOUT_MS` (banka HTTP; varsayılan ~55s)
 - `SB_HTTPS_TIMEOUT_MS` (Supabase REST; varsayılan ~25s)
@@ -47,24 +47,18 @@ Zorunlu / kritik:
 
 ## 4) Kodda sabit / varsayılan banka URL’leri
 
-**MPI Enrollment (XML POST):**
+**MPI Enrollment + startThreeDFlow — banka teyidi: port `:8443`**
 
-- Test: `https://inbound.apigatewaytest.vakifbank.com.tr/threeDGateway/Enrollment`
-- Canlı: `https://inbound.apigateway.vakifbank.com.tr/threeDGateway/Enrollment`
+- Test: `https://inbound.apigatewaytest.vakifbank.com.tr:8443/threeDGateway/Enrollment`
+- Canlı: `https://inbound.apigateway.vakifbank.com.tr:8443/threeDGateway/Enrollment`
+- `startThreeDFlow`: aynı host’lar, path `…/threeDGateway/startThreeDFlow`
 
-**startThreeDFlow (TermUrl için varsayılan):**
+**VPOS Sale (varsayılan `:8443`; farkı için `VAKIF_VPOS_URL_*`):**
 
-- Test: `https://inbound.apigatewaytest.vakifbank.com.tr/threeDGateway/startThreeDFlow`
-- Canlı: `https://inbound.apigateway.vakifbank.com.tr/threeDGateway/startThreeDFlow`
+- Test: `https://apiportalprep.vakifbank.com.tr:8443/virtualPos/Vposreq`
+- Canlı: `https://apigw.vakifbank.com.tr:8443/virtualPos/Vposreq`
 
-**VPOS Sale:**
-
-- Test: `https://apiportalprep.vakifbank.com.tr/virtualPos/Vposreq`
-- Canlı: `https://apigw.vakifbank.com.tr/virtualPos/Vposreq`
-
-Kod: `netlify/functions/vakif-mpi-shared.js` (`resolveMpiEnrollUrl`, `resolveVposUrl`, `resolveMpiStartThreeDFlowUrl`).
-
-**Port (PDF vs yetkili):** Bazı PDF sürümlerinde test veya eski örnekler **:8443** gösterebilir. **Canlıda banka yetkilisinin yazılı talimatı önceliklidir** — bu projede yetkili **443 / (gerekirse) 4443** demiş; varsayılan kod **portsuz HTTPS = 443** kullanır. **:4443** için tam URL’yi env ile verin (`VAKIF_*_URL_*`, `VAKIF_VPOS_URL_*`). Başka bir LLM “mutlaka 8443 ekleyin” derse, **yetkiliyle çelişiyorsa yetkili + güncel e-posta** esas alın.
+Kod: `netlify/functions/vakif-mpi-shared.js` (`resolveMpiEnrollUrl`, `resolveVposUrl`, `resolveMpiStartThreeDFlowUrl`). Tam URL her zaman `VAKIF_*_URL_*` env ile override edilebilir.
 
 **VPOS XML (3D sonrası satış):** `buildVposSaleXml` — enrollment’daki tekil id **`MpiTransactionId`** (+ isteğe bağlı **`VerifyEnrollmentRequestId`**) ile gönderilir; stil: `VAKIF_VPOS_MPI_XML_STYLE` = `both` (varsayılan) \| `mpi_only` \| `verify_only`. **`TransactionDeviceSource`** varsayılan `0` (bankadan kod teyidi); kapatma / özelleştirme: `VAKIF_VPOS_OMIT_TRANSACTION_DEVICE_SOURCE`, `VAKIF_VPOS_TRANSACTION_DEVICE_SOURCE`.
 
@@ -139,9 +133,39 @@ Aşağıdaki başlıklar **tipik** MPI/VPOS dokümanlarıyla örtüşür; sizin 
 
 ---
 
-## 11) Ana kaynak dosyalar (repo)
+## 11) Son çalışan yapı (Nisan 2026 — referans)
 
-- `netlify/functions/vakif-mpi-shared.js` — URL’ler, XML, parse, `postXml`, `sbRequest`
+Bu özet, **ACS / banka 3D doğrulama ekranına kadar gelen** akışla uyumlu son kod durumunu kaydeder. Kart numarası, SMS içeriği veya kişisel veri burada tutulmaz.
+
+### MPI Enrollment (istek gövdesi)
+
+- Varsayılan: **`multipart/form-data`** — bankanın API aracında gösterilen form alanlarıyla uyumlu.
+- Alanlar: `MerchantId`, `MerchantPassword`, **`VerifyEnrollmentReq`** ve aynı tekil id ile **`VerifyEnrollmentRequestId`** (MessageErrorCode 2022 / “request Id cannot be empty” önlemi), `Pan`, `PurchaseAmount`, `ExpiryDate`, `BrandName`, `Currency` (949), `SuccessUrl`, `FailUrl`; isteğe bağlı `TerminalNo` (`VAKIF_MPI_ENROLL_INCLUDE_TERMINAL=1`).
+- `VAKIF_MPI_ENROLL_FORMAT`: `multipart` (varsayılan) \| `urlencoded` \| `prmstr` (tek XML) \| `raw_xml`.
+
+### VPOS satış (Enrollment sonrası)
+
+- `postXml`: gövde **`prmstr=`** + `application/x-www-form-urlencoded` (varsayılan). Kaçış: `VAKIF_POSTXML_FORCE_RAW=1`.
+
+### Çıkış IP / WAF
+
+- **`QUOTAGUARDSTATIC_URL`** (veya `VAKIF_HTTPS_PROXY`) + doğrulama: `GET /.netlify/functions/ip-egress`.
+- HTML “Request Rejected” teşhisi ve `MPI_FAIL_JSON` log satırı; `egressProxyActive` alanı bankaya kanıt için kullanılabilir.
+
+### Hata / banka iletişimi
+
+- **`VERes` / `Status: E`**: yanıtta `bankSupportPaste` üretilir; `odeme.html` içinde **“Bankaya e-posta metni”** kutusu + kopyala.
+- `MessageErrorCode` ayrıştırması; `MessageErrorCode` alanı `errCode` ile birlikte okunur.
+
+### İstemci
+
+- `odeme.html`: `vakifbank-mpi-enroll-worker-background` → `jobid` ile poll → başarıda ACS’e form POST.
+
+---
+
+## 12) Ana kaynak dosyalar (repo)
+
+- `netlify/functions/vakif-mpi-shared.js` — URL’ler, enrollment form/multipart, parse, `postXml`, `postMpiEnrollment`, `sbRequest`
 - `netlify/functions/vakif-fetch.js` — proxy / düz çıkış / timeout
 - `netlify/functions/vakifbank-mpi-enroll.js` — `runMpiEnroll`
 - `netlify/functions/vakifbank-mpi-enroll-worker-background.js` — arka plan iş + job persist
