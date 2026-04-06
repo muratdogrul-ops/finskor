@@ -269,7 +269,7 @@ async function runMpiEnroll(event) {
     let mpiHint = null;
     if (mode === 'prod' && !egressStatus.proxyAgentActive) {
       mpiHint =
-        'Canlıda QUOTAGUARDSTATIC_URL ile sabit çıkış IP kullanın. `/.netlify/functions/ip-egress` çıktısındaki IPv4’ü Vakıfbank’a özellikle MPI enrollment host’u (inbound.apigateway…) için tanımlatın.';
+        '“Request Rejected” HTML’si genelde WAF’tır; banka IP beyanı olmasa bile Netlify ham çıkışı engellenebilir. QUOTAGUARDSTATIC_URL (veya VAKIF_HTTPS_PROXY) açıp `/.netlify/functions/ip-egress` ile sabit IPv4’ü doğrulayın; deploy sonrası tekrar deneyin. Gerekirse o IPv4 + enrollUrl + log satırı `MPI_FAIL_JSON` ile bankaya iletin.';
     } else if (mode === 'prod' && egressStatus.proxyAgentActive && /\btext\/html\b/i.test(ctShort)) {
       mpiHint =
         'Sabit IP kullanılıyor; yanıt hâlâ HTML ise bankadan bu enrollment URL’si ve üye işyeri (test/canlı) eşleşmesini doğrulatın; gerekirse MPI için ikinci whitelist kaydı isteyin.';
