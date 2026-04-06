@@ -280,6 +280,11 @@ async function runMpiEnroll(event) {
       message: parsed.message || 'Banka 3D kayıt yanıtı reddedildi veya okunamadı.',
       mpiStatus: parsed.status || null,
     };
+    if (parsed.bankSupportPaste) {
+      const jid = String(body.jobId || '').trim();
+      bodyOut.bankSupportPaste =
+        parsed.bankSupportPaste + (jid ? '\n\n—\nFinSkor işlem no (destek): ' + jid : '');
+    }
     if (mpiHint) bodyOut.mpiHint = mpiHint;
     if (clientDebug) {
       bodyOut.supportCopy = {

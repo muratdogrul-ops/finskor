@@ -380,6 +380,22 @@ nav {
   padding: 2px 6px;
   border-radius: 4px;
 }
+.mpi-bank-paste-wrap { margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(201,168,76,0.2); }
+.mpi-bank-paste-ta {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 8px 0;
+  padding: 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--white-dim);
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(201,168,76,0.22);
+  border-radius: 8px;
+  resize: vertical;
+  min-height: 200px;
+}
 .mpi-diag-copy {
   margin-left: 8px;
   padding: 4px 10px;
@@ -570,6 +586,11 @@ nav {
           <div class="mpi-diag-row"><span id="mpiDiagPhase">—</span></div>
           <div class="mpi-diag-hint">
             Kart numarası burada görünmez. Sorun olursa bu metni veya işlem numarasını info@finskor.tr ile paylaşabilirsiniz.
+          </div>
+          <div id="mpiBankPasteWrap" class="mpi-bank-paste-wrap" style="display:none">
+            <div class="mpi-diag-title">Bankaya e-posta metni (kopyala-yapıştır)</div>
+            <textarea id="mpiBankPasteTa" class="mpi-bank-paste-ta" readonly spellcheck="false" aria-label="Bankaya iletilecek metin"></textarea>
+            <button type="button" class="mpi-diag-copy" id="mpiBankPasteCopyBtn" onclick="copyMpiBankPaste()">Metni kopyala</button>
           </div>
         </div>
       </div>
@@ -825,6 +846,48 @@ function hideMpiDiag() {
     const jid = document.getElementById('mpiDiagJobId');
     if (jid) jid.textContent = '—';
   }
+  clearMpiBankPaste();
+}
+function setMpiBankPaste(text) {
+  const wrap = document.getElementById('mpiBankPasteWrap');
+  const ta = document.getElementById('mpiBankPasteTa');
+  if (!wrap || !ta) return;
+  if (text && String(text).trim()) {
+    ta.value = String(text).trim();
+    wrap.style.display = 'block';
+  } else {
+    ta.value = '';
+    wrap.style.display = 'none';
+  }
+}
+function clearMpiBankPaste() {
+  setMpiBankPaste('');
+}
+function copyMpiBankPaste() {
+  const ta = document.getElementById('mpiBankPasteTa');
+  const v = ta && ta.value ? String(ta.value).trim() : '';
+  if (!v) {
+    showToast('Kopyalanacak metin yok.', true);
+    return;
+  }
+  function ok() {
+    showToast('Bankaya metin panoya kopyalandı.');
+  }
+  function fail() {
+    showToast('Kopyalanamadı — metni elle seçip kopyalayın.', true);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(v).then(ok).catch(fail);
+  } else {
+    try {
+      ta.focus();
+      ta.select();
+      var did = document.execCommand('copy');
+      did ? ok() : fail();
+    } catch (e) {
+      fail();
+    }
+  }
 }
 function mpiStatusLabel(j) {
   if (j == null) return 'Sunucu yanıtı okunamadı veya JSON değil.';
@@ -1046,6 +1109,7 @@ async function submitPayment() {
         }
         const detail = j0 && (j0.message || j0.error) ? ' ' + String(j0.message || j0.error) : '';
         showMpiDiag(jobId);
+        clearMpiBankPaste();
         setMpiDiagPhase('Sunucu isteği reddedildi (HTTP ' + st + ').' + (detail ? detail : ''));
         showToast('Sunucu yanıtı alınamadı (HTTP ' + st + ').' + tail + detail, true);
         btn.disabled = false;
@@ -1054,6 +1118,7 @@ async function submitPayment() {
       }
 
       showMpiDiag(jobId);
+      clearMpiBankPaste();
       setMpiDiagPhase('Sunucuya iletildi; banka yanıtı sorgulanıyor…');
       btn.textContent = '⏳ Banka yanıtı bekleniyor (birkaç on saniye sürebilir)...';
 
@@ -1147,6 +1212,8 @@ async function submitPayment() {
       }
       if (!j.ok) {
         setMpiDiagPhase(mpiStatusLabel(j));
+        if (j.bankSupportPaste) setMpiBankPaste(j.bankSupportPaste);
+        else clearMpiBankPaste();
         let errMsg = j.message || '3D kayıt başlatılamadı.';
         if (j.code === 'PROXY_MISCONFIGURED' || j.code === 'EGRESS_PROXY_REQUIRED') {
           errMsg = (j.message || '') + (j.mpiHint ? ' ' + j.mpiHint : '');

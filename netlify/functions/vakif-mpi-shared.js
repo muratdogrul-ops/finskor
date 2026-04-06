@@ -372,6 +372,34 @@ function jsonFindMpiFields(obj) {
   };
 }
 
+/** Status E — bankaya e-posta / ticket için düz metin (kopyala-yapıştır). */
+function buildBankSupportPasteE({ message, errCode, errorMessageXml, verifyIdXml, foundTags }) {
+  const mec = String(errCode || '').trim() || '—';
+  const em = String(errorMessageXml || '').trim() || '(boş veya ayrıştırılamadı)';
+  const vid = String(verifyIdXml || '').trim() || '—';
+  const tags = String(foundTags || '').trim() || '—';
+  const msg = String(message || '').trim() || '—';
+  return [
+    'Konu: MPI Enrollment — VERes Status E / MessageErrorCode ' + mec,
+    '',
+    'Sayın Yetkili,',
+    '',
+    'MPI Verify Enrollment yanıtında:',
+    '',
+    '• VERes / Status: E',
+    '• MessageErrorCode: ' + mec,
+    '• ErrorMessage: ' + em,
+    '• VerifyEnrollmentRequestId: ' + vid,
+    '• Yanıtta görülen XML yerel etiket adları: ' + tags,
+    '• Message (genel alan, varsa): ' + msg,
+    '',
+    'MessageErrorCode ' + mec + ' için iş anlamı ve tarafımızda yapılması gereken düzeltmeyi rica ederiz.',
+    'Gerekirse ham XML yanıtı ve Netlify log satırı MPI_FAIL_JSON ayrıca iletilebilir.',
+    '',
+    'Saygılarımızla',
+  ].join('\n');
+}
+
 /**
  * MPI Enrollment yanıtını ayrıştırır (Vakıfbank / namespace / JSON / attribute varyantları).
  */
@@ -558,11 +586,26 @@ function parseMpiEnrollmentResponse(rawText, httpStatus, contentType) {
   }
 
   if (status === 'E') {
+    const errorMessageXml =
+      xmlFirstOf(xmlSearch, ['ErrorMessage', 'ErrorMsg']) ||
+      xmlFirstOf(raw, ['ErrorMessage', 'ErrorMsg']) ||
+      '';
+    const verifyIdXml =
+      xmlFirstOf(xmlSearch, ['VerifyEnrollmentRequestId']) ||
+      xmlFirstOf(raw, ['VerifyEnrollmentRequestId']) ||
+      '';
+    const bankSupportPaste = buildBankSupportPasteE({
+      message,
+      errCode,
+      errorMessageXml,
+      verifyIdXml,
+      foundTags,
+    });
     const bits = [
       message && String(message).trim(),
       errCode && `MessageErrorCode / kod: ${errCode}`,
       '<VERes> içinde Status E: banka veya şem 3D kaydı hata ile kapattı; ACS/PaReq üretilmez.',
-      'Bankaya iletin: ham XML veya log’daki MPI_FAIL_JSON; özellikle ErrorMessage, MessageErrorCode, VerifyEnrollmentRequestId.',
+      'Bankaya metin: aşağıdaki “Bankaya e-posta metni” kutusundan kopyalayın veya JSON alanı bankSupportPaste.',
       foundTags && `Etiket özeti (liste): ${foundTags}`,
     ].filter(Boolean);
     return {
@@ -574,6 +617,7 @@ function parseMpiEnrollmentResponse(rawText, httpStatus, contentType) {
       md,
       logHint: snippet,
       foundTags,
+      bankSupportPaste,
     };
   }
 
