@@ -99,6 +99,24 @@ function getField(form, ...names) {
   return '';
 }
 
+/** ACS ara katmanı bazen application/json veya Content-Type yanıltıcı olabiliyor */
+function parsePaResMdFromJson(rawBody) {
+  const s = String(rawBody || '').trim();
+  if (!s.startsWith('{')) return { paRes: '', md: '' };
+  try {
+    const j = JSON.parse(s);
+    const pr =
+      j.PaRes ?? j.PARes ?? j.pares ?? j.pARes ?? '';
+    const m = j.MD ?? j.Md ?? j.md ?? '';
+    return {
+      paRes: pr != null && String(pr).trim() ? String(pr).trim() : '',
+      md: m != null && String(m).trim() ? String(m).trim() : '',
+    };
+  } catch (_) {
+    return { paRes: '', md: '' };
+  }
+}
+
 /** VPOS kılavuzu: ClientIp — kart hamili IP (Netlify: X-Forwarded-For ilk adres) */
 function clientIpFromEvent(event) {
   const h = event.headers || {};
@@ -233,12 +251,38 @@ exports.handler = async (event) => {
     : parseFormBody(rawBody);
 
   /* PaRes/MD: urlencoded’de regex (+ korunur); multipart’ta form alanları */
-  const paRes =
+  let paRes =
     (!isMultipart && decodeUrlEncodedFormField(rawBody, ['PaRes', 'PARes', 'pares'])) ||
     getField(form, 'PaRes', 'PARes', 'pares');
-  const md =
+  let md =
     (!isMultipart && decodeUrlEncodedFormField(rawBody, ['MD', 'Md'])) || getField(form, 'MD', 'Md');
 
+  if (!paRes || !md) {
+    const j = parsePaResMdFromJson(rawBody);
+    if (!paRes && j.paRes) paRes = j.paRes;
+    if (!md && j.md) md = j.md;
+  }
+  /* Content-Type multipart olsa bile gövde düz x-www-form-urlencoded gelebilir */
+  if (!paRes) {
+    const fb = decodeUrlEncodedFormField(rawBody, ['PaRes', 'PARes', 'pares']);
+    if (fb) paRes = fb;
+  }
+  if (!md) {
+    const fbMd = decodeUrlEncodedFormField(rawBody, ['MD', 'Md']);
+    if (fbMd) md = fbMd;
+  }
+
+  const bodyByteLen = Buffer.byteLength(rawBody, 'utf8');
+  const paPresent = !!(paRes && String(paRes).trim());
+  const mdPresent = !!(md && String(md).trim());
+  const reqPath = event.path || event.rawPath || event.requestContext?.http?.path || '';
+  /* Netlify log araması için sabit önek — Claude önerisiyle uyumlu */
+  console.log(`[MPI-TERM] PaRes present: ${paPresent}`);
+  console.log(`[MPI-TERM] body length: ${bodyByteLen}`);
+  console.log(`[MPI-TERM] MD present: ${mdPresent}`);
+  console.log(
+    `[MPI-TERM] meta: path=${reqPath || '?'} multipart=${isMultipart} boundary_ok=${!!mpBoundary} base64Body=${!!event.isBase64Encoded}`
+  );
   {
     const ctHdr = contentTypeFull.split(';')[0].trim();
     const formKeys = Object.keys(form).sort().join(',');
@@ -249,11 +293,11 @@ exports.handler = async (event) => {
         base64Body: !!event.isBase64Encoded,
         isMultipart,
         multipartBoundary: !!mpBoundary,
-        bodyBytes: Buffer.byteLength(rawBody, 'utf8'),
+        bodyBytes: bodyByteLen,
         formKeys: formKeys || '(yok)',
-        hasPaRes: !!(paRes && String(paRes).trim()),
+        hasPaRes: paPresent,
         paResLen: paRes ? String(paRes).length : 0,
-        hasMd: !!md,
+        hasMd: mdPresent,
         mdLen: md ? String(md).length : 0,
       })
     );
