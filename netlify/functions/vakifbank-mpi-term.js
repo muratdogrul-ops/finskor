@@ -37,6 +37,59 @@ function parseFormBody(raw) {
   return out;
 }
 
+/** Netlify bazen POST gövdesini base64 ile verir */
+function getRawBodyString(event) {
+  const b = event.body;
+  if (b == null || b === '') return '';
+  if (event.isBase64Encoded) {
+    try {
+      return Buffer.from(String(b), 'base64').toString('utf8');
+    } catch (_) {
+      return String(b);
+    }
+  }
+  return String(b);
+}
+
+function extractMultipartBoundary(contentType) {
+  const m = /boundary\s*=\s*([^;\s]+|"[^"]+"|'[^']+')/i.exec(contentType || '');
+  if (!m) return null;
+  let b = String(m[1]).trim();
+  if ((b.startsWith('"') && b.endsWith('"')) || (b.startsWith("'") && b.endsWith("'"))) b = b.slice(1, -1);
+  return b || null;
+}
+
+/** ACS bazen application/x-www-form-urlencoded yerine multipart/form-data POST eder */
+function parseMultipartFormData(rawBody, boundary) {
+  const out = {};
+  const raw = String(rawBody || '');
+  const delim = '--' + String(boundary || '').replace(/^["']|["']$/g, '');
+  if (!delim || delim === '--') return out;
+  const parts = raw.split(delim);
+  for (const part of parts) {
+    let c = part.replace(/^\r\n/, '').replace(/^\n/, '');
+    if (!c || c === '--' || /^\-\-\s*$/.test(c)) continue;
+    let sep = c.indexOf('\r\n\r\n');
+    let skip = 4;
+    if (sep === -1) {
+      sep = c.indexOf('\n\n');
+      skip = 2;
+    }
+    if (sep === -1) continue;
+    const headers = c.slice(0, sep);
+    let body = c.slice(sep + skip);
+    body = body.replace(/\r\n$/, '').replace(/\n$/, '');
+    const nm =
+      /name\s*=\s*"([^"]+)"/i.exec(headers) ||
+      /name\s*=\s*'([^']+)'/i.exec(headers) ||
+      /name\s*=\s*([^;\s\r\n]+)/i.exec(headers);
+    if (!nm) continue;
+    const name = String(nm[1] || '').trim();
+    if (name) out[name] = body;
+  }
+  return out;
+}
+
 function getField(form, ...names) {
   for (const n of names) {
     if (form[n] != null && form[n] !== '') return form[n];
@@ -156,25 +209,35 @@ exports.handler = async (event) => {
   const term = process.env.VAKIF_HOST_TERMINAL_ID;
   const mode = (process.env.VAKIF_INIT || 'test').toLowerCase() === 'prod' ? 'prod' : 'test';
 
-  const form = parseFormBody(event.body);
-  /* PaRes/MD: ham gövdeden decode — URLSearchParams '+' → boşluk hatası (oturum/VPOS bozulur) */
+  const contentTypeFull = String(event.headers['content-type'] || event.headers['Content-Type'] || '');
+  const rawBody = getRawBodyString(event);
+  const isMultipart = /multipart\/form-data/i.test(contentTypeFull);
+  const mpBoundary = isMultipart ? extractMultipartBoundary(contentTypeFull) : null;
+  const form = isMultipart
+    ? mpBoundary
+      ? parseMultipartFormData(rawBody, mpBoundary)
+      : {}
+    : parseFormBody(rawBody);
+
+  /* PaRes/MD: urlencoded’de regex (+ korunur); multipart’ta form alanları */
   const paRes =
-    decodeUrlEncodedFormField(event.body, ['PaRes', 'PARes', 'pares']) ||
+    (!isMultipart && decodeUrlEncodedFormField(rawBody, ['PaRes', 'PARes', 'pares'])) ||
     getField(form, 'PaRes', 'PARes', 'pares');
-  const md = decodeUrlEncodedFormField(event.body, ['MD', 'Md']) || getField(form, 'MD', 'Md');
+  const md =
+    (!isMultipart && decodeUrlEncodedFormField(rawBody, ['MD', 'Md'])) || getField(form, 'MD', 'Md');
 
   {
-    const rawBody = String(event.body || '');
-    const ctHdr = String(
-      event.headers['content-type'] || event.headers['Content-Type'] || ''
-    ).split(';')[0].trim();
+    const ctHdr = contentTypeFull.split(';')[0].trim();
     const formKeys = Object.keys(form).sort().join(',');
     console.log(
       '[mpi-term] POST',
       JSON.stringify({
         contentType: ctHdr || null,
+        base64Body: !!event.isBase64Encoded,
+        isMultipart,
+        multipartBoundary: !!mpBoundary,
         bodyBytes: Buffer.byteLength(rawBody, 'utf8'),
-        formKeys: formKeys || '(yok — multipart veya boş gövde)',
+        formKeys: formKeys || '(yok)',
         hasPaRes: !!(paRes && String(paRes).trim()),
         paResLen: paRes ? String(paRes).length : 0,
         hasMd: !!md,
