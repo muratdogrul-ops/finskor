@@ -915,15 +915,34 @@ function isVposOk(xml) {
   return rc === '0000' || rc === '00' || rc === '0';
 }
 
+/**
+ * VPOS (…/virtualPos/Vposreq): banka gövdeyi `prmstr` + application/x-www-form-urlencoded bekler (“Mesaj Boş Geldi” hatası).
+ * MPI threeDGateway (Enrollment / startThreeDFlow): genelde ham application/xml — aynı gönderim her iki uca uygun değildir.
+ */
 async function postXml(url, xmlBody) {
-  const res = await vakifFetch(url, {
-    method: 'POST',
-    headers: {
+  const href = String(url || '');
+  const vposPath = /\/virtualPos\/Vposreq/i.test(href) || /Vposreq\.aspx/i.test(href);
+  let body;
+  let headers;
+  if (vposPath) {
+    body = new URLSearchParams({ prmstr: String(xmlBody || '') }).toString();
+    headers = {
+      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      Accept: 'application/xml, text/xml, */*',
+      'User-Agent': 'FinSkor-MPI/1.0',
+    };
+  } else {
+    body = String(xmlBody || '');
+    headers = {
       'Content-Type': 'application/xml; charset=utf-8',
       Accept: 'application/xml, text/xml, */*',
       'User-Agent': 'FinSkor-MPI/1.0',
-    },
-    body: xmlBody,
+    };
+  }
+  const res = await vakifFetch(url, {
+    method: 'POST',
+    headers,
+    body,
   });
   const text = await res.text();
   const contentType =
