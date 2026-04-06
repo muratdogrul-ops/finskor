@@ -920,6 +920,11 @@ function isVposOk(xml) {
  * threeDGateway (Enrollment, startThreeDFlow) + virtualPos/Vposreq → prmstr.
  * Acil ham XML: VAKIF_POSTXML_FORCE_RAW=1
  */
+function vakifHttpUserAgent() {
+  const ua = (process.env.VAKIF_HTTP_USER_AGENT || '').trim();
+  return ua || 'FinSkor-MPI/1.0';
+}
+
 async function postXml(url, xmlBody) {
   const href = String(url || '');
   const forceRaw = (process.env.VAKIF_POSTXML_FORCE_RAW || '').trim() === '1';
@@ -928,6 +933,7 @@ async function postXml(url, xmlBody) {
     (/\/virtualPos\/Vposreq/i.test(href) ||
       /Vposreq\.aspx/i.test(href) ||
       /\/threeDGateway\//i.test(href));
+  const ua = vakifHttpUserAgent();
   let body;
   let headers;
   if (usePrmstrForm) {
@@ -935,14 +941,14 @@ async function postXml(url, xmlBody) {
     headers = {
       'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
       Accept: 'application/xml, text/xml, */*',
-      'User-Agent': 'FinSkor-MPI/1.0',
+      'User-Agent': ua,
     };
   } else {
     body = String(xmlBody || '');
     headers = {
       'Content-Type': 'application/xml; charset=utf-8',
       Accept: 'application/xml, text/xml, */*',
-      'User-Agent': 'FinSkor-MPI/1.0',
+      'User-Agent': ua,
     };
   }
   const res = await vakifFetch(url, {
