@@ -163,6 +163,26 @@ exports.handler = async (event) => {
     getField(form, 'PaRes', 'PARes', 'pares');
   const md = decodeUrlEncodedFormField(event.body, ['MD', 'Md']) || getField(form, 'MD', 'Md');
 
+  {
+    const rawBody = String(event.body || '');
+    const ctHdr = String(
+      event.headers['content-type'] || event.headers['Content-Type'] || ''
+    ).split(';')[0].trim();
+    const formKeys = Object.keys(form).sort().join(',');
+    console.log(
+      '[mpi-term] POST',
+      JSON.stringify({
+        contentType: ctHdr || null,
+        bodyBytes: Buffer.byteLength(rawBody, 'utf8'),
+        formKeys: formKeys || '(yok — multipart veya boş gövde)',
+        hasPaRes: !!(paRes && String(paRes).trim()),
+        paResLen: paRes ? String(paRes).length : 0,
+        hasMd: !!md,
+        mdLen: md ? String(md).length : 0,
+      })
+    );
+  }
+
   const cookieHeader = event.headers.cookie || event.headers.Cookie || '';
   let sess = null;
   const mCookie = cookieHeader.match(/finskor_mpi=([^;]+)/);
