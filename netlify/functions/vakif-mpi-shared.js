@@ -512,8 +512,8 @@ function parseMpiEnrollmentResponse(rawText, httpStatus, contentType) {
     bankTermUrl =
       xmlFirstOf(x2, ['TermUrl', 'TermURL']) || xmlFirstOf(x1, ['TermUrl', 'TermURL']) || '';
     errCode =
-      xmlFirstOf(x2, ['ErrorCode', 'ResultCode', 'ResponseCode']) ||
-      xmlFirstOf(x1, ['ErrorCode', 'ResultCode', 'ResponseCode']) ||
+      xmlFirstOf(x2, ['MessageErrorCode', 'ErrorCode', 'ResultCode', 'ResponseCode']) ||
+      xmlFirstOf(x1, ['MessageErrorCode', 'ErrorCode', 'ResultCode', 'ResponseCode']) ||
       '';
   }
 
@@ -549,6 +549,26 @@ function parseMpiEnrollmentResponse(rawText, httpStatus, contentType) {
       ok: false,
       status,
       message: message || 'Bu kart için 3D Secure kullanılamıyor veya kart doğrulanamadı (Status ' + status + ').',
+      acsUrl,
+      paReq,
+      md,
+      logHint: snippet,
+      foundTags,
+    };
+  }
+
+  if (status === 'E') {
+    const bits = [
+      message && String(message).trim(),
+      errCode && `MessageErrorCode / kod: ${errCode}`,
+      '<VERes> içinde Status E: banka veya şem 3D kaydı hata ile kapattı; ACS/PaReq üretilmez.',
+      'Bankaya iletin: ham XML veya log’daki MPI_FAIL_JSON; özellikle ErrorMessage, MessageErrorCode, VerifyEnrollmentRequestId.',
+      foundTags && `Etiket özeti (liste): ${foundTags}`,
+    ].filter(Boolean);
+    return {
+      ok: false,
+      status,
+      message: bits.join(' — '),
       acsUrl,
       paReq,
       md,
