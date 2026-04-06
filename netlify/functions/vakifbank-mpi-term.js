@@ -130,14 +130,53 @@ function clientIpFromEvent(event) {
   return '';
 }
 
-function htmlPage(title, bodyInner, ok) {
+function htmlPage(title, bodyInner, ok, diagnosticFooter = '') {
+  const foot = diagnosticFooter ? String(diagnosticFooter) : '';
   return `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
   <style>body{font-family:system-ui,sans-serif;background:#071221;color:#F4F6F9;padding:24px;text-align:center;line-height:1.55}
   .c{max-width:480px;margin:40px auto;padding:28px;background:#0D1E35;border:1px solid rgba(201,168,76,.25);border-radius:14px}
   h1{font-size:1.2rem;color:#C9A84C;margin-bottom:12px}
   .code{font-size:1.5rem;font-weight:800;color:#C9A84C;font-family:monospace;margin:16px 0;padding:14px;background:rgba(201,168,76,.08);border-radius:10px}
   a.btn{display:inline-block;margin-top:14px;padding:12px 22px;background:linear-gradient(135deg,#C9A84C,#a07828);color:#071221;font-weight:700;text-decoration:none;border-radius:8px}
-  .err{color:#f87171}</style></head><body><div class="c">${bodyInner}</div></body></html>`;
+  .err{color:#f87171}code{font-size:0.9em;background:rgba(255,255,255,.06);padding:2px 6px;border-radius:4px}</style></head><body><div class="c">${bodyInner}${foot}</div></body></html>`;
+}
+
+function mpiTermDebugHtmlEnabled() {
+  return (process.env.VAKIF_MPI_TERM_DEBUG_HTML || '').trim() === '1';
+}
+
+/** PaRes/MD/ham gövde yok — yalnızca güvenli özet (Netlify log alternatifi) */
+function mpiTermDiagnosticPayload(fields) {
+  const ct = String(fields.contentTypeFull || '').split(';')[0].trim();
+  return {
+    reason: fields.reason,
+    paResPresent: !!fields.paPresent,
+    mdPresent: !!fields.mdPresent,
+    bodyLengthUtf8Bytes: fields.bodyByteLen,
+    contentType: ct || null,
+    multipart: !!fields.isMultipart,
+    multipartBoundaryParsed: !!fields.mpBoundary,
+    base64EncodedBody: !!fields.isBase64Encoded,
+    formFieldNames: Object.keys(fields.form || {}).sort(),
+    requestPath: fields.reqPath || null,
+    host: fields.host || null,
+    finskorMpiCookiePresent: !!fields.hasCookie,
+    hint:
+      'Netlify function logu yoksa: tarayıcıda F12 → Ağ (Network) → bu sayfayı oluşturan vakifbank-mpi-term POST isteğinde Payload / Form verilerine bakın (PaRes alanı var mı).',
+  };
+}
+
+function mpiTermDiagnosticFooter(payload) {
+  if (!mpiTermDebugHtmlEnabled()) return '';
+  const json = JSON.stringify(payload, null, 2);
+  return (
+    `<details open style="margin-top:20px;text-align:left;max-width:100%">` +
+    `<summary style="cursor:pointer;color:#94a3b8;font-size:0.85rem">Teknik teşhis (operatör)</summary>` +
+    `<pre style="margin-top:10px;padding:12px;background:#0a1628;border-radius:8px;font-size:11px;overflow:auto;white-space:pre-wrap;word-break:break-word;color:#cbd5e1;text-align:left">` +
+    escapeHtml(json) +
+    `</pre><p style="font-size:11px;color:#64748b;margin-top:8px;line-height:1.45">` +
+    `Netlify’da <code>VAKIF_MPI_TERM_DEBUG_HTML=1</code> iken görünür; canlıda iş bitince kapatın.</p></details>`
+  );
 }
 
 async function callConfirmPayment(payload) {
@@ -327,19 +366,53 @@ exports.handler = async (event) => {
       body: htmlPage(
         'Oturum',
         '<h1 class="err">Oturum bulunamadı</h1><p>Ödeme oturumu süresi dolmuş olabilir. Tekrar deneyin.</p><a class="btn" href="/odeme.html">Ödeme sayfası</a>',
-        false
+        false,
+        mpiTermDiagnosticFooter(
+          mpiTermDiagnosticPayload({
+            reason: 'session_missing',
+            bodyByteLen,
+            contentTypeFull,
+            isMultipart,
+            mpBoundary,
+            isBase64Encoded: !!event.isBase64Encoded,
+            form,
+            reqPath,
+            paPresent,
+            mdPresent,
+            hasCookie,
+            host,
+          })
+        )
       ),
     };
   }
 
   if (!paRes) {
+    const host = event.headers.host || event.headers.Host || '';
+    const hasCookie = /finskor_mpi=/.test(String(cookieHeader || ''));
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
       body: htmlPage(
         '3D Secure',
         '<h1 class="err">Banka yanıtı eksik</h1><p>PARes alınamadı.</p><a class="btn" href="/odeme.html">Ödeme sayfası</a>',
-        false
+        false,
+        mpiTermDiagnosticFooter(
+          mpiTermDiagnosticPayload({
+            reason: 'pares_missing',
+            bodyByteLen,
+            contentTypeFull,
+            isMultipart,
+            mpBoundary,
+            isBase64Encoded: !!event.isBase64Encoded,
+            form,
+            reqPath,
+            paPresent,
+            mdPresent,
+            hasCookie,
+            host,
+          })
+        )
       ),
     };
   }
