@@ -916,15 +916,21 @@ function isVposOk(xml) {
 }
 
 /**
- * VPOS (…/virtualPos/Vposreq): banka gövdeyi `prmstr` + application/x-www-form-urlencoded bekler (“Mesaj Boş Geldi” hatası).
- * MPI threeDGateway (Enrollment / startThreeDFlow): genelde ham application/xml — aynı gönderim her iki uca uygun değildir.
+ * Banka: XML’i `prmstr` + application/x-www-form-urlencoded ile bekler (VPOS “mesaj boş”; MPI tarafında ham XML bazen WAF “Request Rejected”).
+ * threeDGateway (Enrollment, startThreeDFlow) + virtualPos/Vposreq → prmstr.
+ * Acil ham XML: VAKIF_POSTXML_FORCE_RAW=1
  */
 async function postXml(url, xmlBody) {
   const href = String(url || '');
-  const vposPath = /\/virtualPos\/Vposreq/i.test(href) || /Vposreq\.aspx/i.test(href);
+  const forceRaw = (process.env.VAKIF_POSTXML_FORCE_RAW || '').trim() === '1';
+  const usePrmstrForm =
+    !forceRaw &&
+    (/\/virtualPos\/Vposreq/i.test(href) ||
+      /Vposreq\.aspx/i.test(href) ||
+      /\/threeDGateway\//i.test(href));
   let body;
   let headers;
-  if (vposPath) {
+  if (usePrmstrForm) {
     body = new URLSearchParams({ prmstr: String(xmlBody || '') }).toString();
     headers = {
       'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
