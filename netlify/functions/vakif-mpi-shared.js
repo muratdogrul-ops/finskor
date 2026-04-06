@@ -12,12 +12,13 @@ const PAKET = {
 };
 
 /**
- * Varsayılan MPI/VPOS URL’leri banka dokümanına göre :4443 (prod) / :8443 (test) içerir.
- * Farklı port veya hosts için VAKIF_HTTP_API_PORT veya tam URL env: VAKIF_MPI_*_URL / VAKIF_VPOS_URL_*.
+ * MPI Enrollment / startThreeDFlow: banka teyidiyle test ve canlı :8443.
+ * VPOS (apigw) ayrı host; canlı varsayılan :8443 — VAKIF_VPOS_URL_* ile override.
+ * Farklı port için VAKIF_HTTP_API_PORT veya tam URL env: VAKIF_MPI_*_URL.
  */
 const MPI_ENROLL_URL = {
   test: 'https://inbound.apigatewaytest.vakifbank.com.tr:8443/threeDGateway/Enrollment',
-  prod: 'https://inbound.apigateway.vakifbank.com.tr:4443/threeDGateway/Enrollment',
+  prod: 'https://inbound.apigateway.vakifbank.com.tr:8443/threeDGateway/Enrollment',
 };
 
 /** Sabit port URL’lere gömülü. Env override hâlâ çalışır. Tam URL env her zaman baskın. */
@@ -44,7 +45,7 @@ function resolveMpiEnrollUrl(mode) {
 
 const VPOS_URL = {
   test: 'https://apiportalprep.vakifbank.com.tr:8443/virtualPos/Vposreq',
-  prod: 'https://apigw.vakifbank.com.tr:4443/virtualPos/Vposreq',
+  prod: 'https://apigw.vakifbank.com.tr:8443/virtualPos/Vposreq',
 };
 
 function resolveVposUrl(mode) {
@@ -57,7 +58,7 @@ function resolveVposUrl(mode) {
 /** ACS, PARes sonucunu buraya POST eder; MPI sonucu ÜİY SuccessUrl’e iletir (kılavuz 5.2.1 / 5.2.2). */
 const MPI_START_THREED_FLOW_URL = {
   test: 'https://inbound.apigatewaytest.vakifbank.com.tr:8443/threeDGateway/startThreeDFlow',
-  prod: 'https://inbound.apigateway.vakifbank.com.tr:4443/threeDGateway/startThreeDFlow',
+  prod: 'https://inbound.apigateway.vakifbank.com.tr:8443/threeDGateway/startThreeDFlow',
 };
 
 function resolveMpiStartThreeDFlowUrl(mode) {
