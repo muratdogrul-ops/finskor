@@ -916,9 +916,8 @@ function isVposOk(xml) {
 }
 
 /**
- * Banka: XML’i `prmstr` + application/x-www-form-urlencoded ile bekler (VPOS “mesaj boş”; MPI tarafında ham XML bazen WAF “Request Rejected”).
- * threeDGateway (Enrollment, startThreeDFlow) + virtualPos/Vposreq → prmstr.
- * Acil ham XML: VAKIF_POSTXML_FORCE_RAW=1
+ * Vakıfbank: XML gövde `prmstr` alanında, application/x-www-form-urlencoded (URL-encoded).
+ * Ham application/xml: yalnızca VAKIF_POSTXML_FORCE_RAW=1 (banka / teşhis).
  */
 function vakifHttpUserAgent() {
   const ua = (process.env.VAKIF_HTTP_USER_AGENT || '').trim();
@@ -926,17 +925,11 @@ function vakifHttpUserAgent() {
 }
 
 async function postXml(url, xmlBody) {
-  const href = String(url || '');
   const forceRaw = (process.env.VAKIF_POSTXML_FORCE_RAW || '').trim() === '1';
-  const usePrmstrForm =
-    !forceRaw &&
-    (/\/virtualPos\/Vposreq/i.test(href) ||
-      /Vposreq\.aspx/i.test(href) ||
-      /\/threeDGateway\//i.test(href));
   const ua = vakifHttpUserAgent();
   let body;
   let headers;
-  if (usePrmstrForm) {
+  if (!forceRaw) {
     body = new URLSearchParams({ prmstr: String(xmlBody || '') }).toString();
     headers = {
       'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
