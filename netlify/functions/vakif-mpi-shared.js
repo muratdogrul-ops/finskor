@@ -888,6 +888,13 @@ function escXmlValue(s) {
   return escXml(stripInvalidXmlChars(s));
 }
 
+/** Kılavuz örneği: ondalık nokta, iki hane (örn. 90.50) */
+function formatVposCurrencyAmount(amount) {
+  const n = parseFloat(String(amount || '').replace(/\s/g, '').replace(',', '.'));
+  if (!Number.isFinite(n)) return escXmlValue(String(amount ?? ''));
+  return escXmlValue(n.toFixed(2));
+}
+
 /** PARes içinden ilk eşleşen etiket (büyük/küçük harf duyarsız). */
 function paresXmlText(xml, tagNames) {
   const s = String(xml || '');
@@ -993,16 +1000,18 @@ function buildVposSaleXml(opts) {
   const include3dsXmlFields = tdsVal !== '1';
   /* XSD: çift etiket (Mpi + Verify aynı değer) bazı kurulumlarda “Xml Standardına Uygun Değil” üretebiliyor — varsayılan mpi_only */
   const style = (process.env.VAKIF_VPOS_MPI_XML_STYLE || 'mpi_only').toLowerCase();
-  /* Kılavuz örneğinde Xid yok; şema dışı sayılıyorsa VAKIF_VPOS_INCLUDE_XID=1 ile açın */
+  /* Kılavuz örneğinde Xid yok; banka istiyorsa VAKIF_VPOS_INCLUDE_XID=1 */
   const includeXid = (process.env.VAKIF_VPOS_INCLUDE_XID || '').trim() === '1';
+  /* Kılavuz örneğinde ExpSign yok; TermUrl’de gelse bile şema dışı kalmasın — yalnızca env ile */
+  const includeExpSign = (process.env.VAKIF_VPOS_INCLUDE_EXPSIGN || '').trim() === '1';
   let threeDsBlock = '';
   if (include3dsXmlFields) {
+    /* Banka örnek sırası: ECI → CAVV → MpiTransactionId (Xid yalnızca isteğe bağlı, CAVV ile Mpi arasında) */
     if (eci) threeDsBlock += `<ECI>${escXmlValue(eci)}</ECI>`;
     if (cavv) threeDsBlock += `<CAVV>${escXmlValue(cavv)}</CAVV>`;
     if (xid3ds && includeXid) {
       threeDsBlock += `<Xid>${escXmlValue(xid3ds)}</Xid>`;
     }
-    /* Sıra: ECI, CAVV [, Xid] → MpiTransactionId / VerifyEnrollmentRequestId (kılavuz örneği) */
     if (verifyEnrollmentRequestId) {
       const mpiId = stripInvalidXmlChars(verifyEnrollmentRequestId).trim();
       if (mpiId) {
@@ -1025,12 +1034,17 @@ function buildVposSaleXml(opts) {
   const omit1127 = (process.env.VAKIF_VPOS_3DS_OMIT_CARD_FIELDS || '').trim() === '1';
   const has3ds = String(eci || '').trim() && String(cavv || '').trim();
   const omitCardAmount = omit1127 && has3ds;
-  const expSignTrim = stripInvalidXmlChars(expSign || '').trim();
+  const expSignTrim = includeExpSign ? stripInvalidXmlChars(expSign || '').trim() : '';
   const expSignBlock = expSignTrim ? `<ExpSign>${escXmlValue(expSignTrim)}</ExpSign>` : '';
-  /* Örnek sıra: CurrencyAmount, CurrencyCode, Pan, Cvv, Expiry [, ExpSign] → 3DS alanları → OrderId → ClientIp → TransactionDeviceSource */
+  /*
+   * Banka kılavuz örneği sırası (CustomItems opsiyonel — göndermiyoruz):
+   * MerchantId, Password, TerminalNo, TransactionType, TransactionId,
+   * CurrencyAmount, CurrencyCode, Pan, Cvv, Expiry,
+   * ECI, CAVV, MpiTransactionId, OrderId, ClientIp, TransactionDeviceSource
+   */
   const amountBlock = omitCardAmount
     ? ''
-    : `<CurrencyAmount>${escXmlValue(amount)}</CurrencyAmount>` +
+    : `<CurrencyAmount>${formatVposCurrencyAmount(amount)}</CurrencyAmount>` +
       `<CurrencyCode>949</CurrencyCode>` +
       `<Pan>${escXmlValue(pan)}</Pan>` +
       `<Cvv>${escXmlValue(cvv)}</Cvv>` +
@@ -1041,7 +1055,7 @@ function buildVposSaleXml(opts) {
   const ip = stripInvalidXmlChars(clientIp || '').trim();
   const clientIpBlock = ip ? `<ClientIp>${escXmlValue(ip)}</ClientIp>` : '';
   return (
-    '<?xml version="1.0" encoding="utf-8"?>' +
+    '<?xml version="1.0" encoding="utf-8"?>\n' +
     '<VposRequest>' +
     `<MerchantId>${escXmlValue(merchantId)}</MerchantId>` +
     `<Password>${escXmlValue(password)}</Password>` +
