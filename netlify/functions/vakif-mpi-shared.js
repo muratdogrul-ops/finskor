@@ -797,7 +797,7 @@ function buildEnrollmentXml(opts) {
   );
 }
 
-/** Banka API aracı örneği: multipart/form-data alanları (VerifyEnrollmentReq / FailUrl). */
+/** Banka form: VerifyEnrollmentReq (örnek) + VerifyEnrollmentRequestId (aynı değer; boş id hatası önlenir). */
 function buildEnrollmentFormFields(opts) {
   const {
     merchantId,
@@ -812,10 +812,12 @@ function buildEnrollmentFormFields(opts) {
     terminalNo,
     includeTerminalNo,
   } = opts;
+  const vid = String(verifyId || '').trim();
   const fields = {
     MerchantId: String(merchantId || ''),
     MerchantPassword: String(merchantPassword || ''),
-    VerifyEnrollmentReq: String(verifyId || ''),
+    VerifyEnrollmentReq: vid,
+    VerifyEnrollmentRequestId: vid,
     Pan: String(pan || ''),
     PurchaseAmount: String(amount || ''),
     ExpiryDate: String(expiryYYMM || ''),
@@ -837,6 +839,7 @@ function buildEnrollmentMultipartBody(fields) {
     'MerchantId',
     'MerchantPassword',
     'VerifyEnrollmentReq',
+    'VerifyEnrollmentRequestId',
     'Pan',
     'PurchaseAmount',
     'ExpiryDate',
@@ -1122,6 +1125,7 @@ async function postMpiEnrollment(url, enrollOpts) {
       'MerchantId',
       'MerchantPassword',
       'VerifyEnrollmentReq',
+      'VerifyEnrollmentRequestId',
       'Pan',
       'PurchaseAmount',
       'ExpiryDate',
