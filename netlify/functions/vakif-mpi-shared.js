@@ -879,6 +879,15 @@ function escXml(s) {
     .replace(/"/g, '&quot;');
 }
 
+/** XML 1.0 metin düğümlerinde yasak kontrol karakterleri (banka “Xml Standardına Uygun Değil” dönebiliyor) */
+function stripInvalidXmlChars(s) {
+  return String(s || '').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+}
+
+function escXmlValue(s) {
+  return escXml(stripInvalidXmlChars(s));
+}
+
 /** PARes içinden ilk eşleşen etiket (büyük/küçük harf duyarsız). */
 function paresXmlText(xml, tagNames) {
   const s = String(xml || '');
@@ -974,59 +983,71 @@ function buildVposSaleXml(opts) {
     xid3ds,
     orderId,
     clientIp,
+    expSign,
   } = opts;
+  const txId = stripInvalidXmlChars(transactionId).trim();
   /* Kılavuz: TransactionDeviceSource 0 (ECommerce) + 3D → ECI, CAVV, MpiTransactionId zorunlu; 1 ise bu alanlar mesajda olmamalı. */
   const omitDev = (process.env.VAKIF_VPOS_OMIT_TRANSACTION_DEVICE_SOURCE || '').trim() === '1';
   const tdsVal = (process.env.VAKIF_VPOS_TRANSACTION_DEVICE_SOURCE || '0').trim();
   /* Kılavuz: TDS=1 iken 3D alanları olmamalı; TDS etiketi kapalı olsa bile (omitDev) aynı kural */
   const include3dsXmlFields = tdsVal !== '1';
+  /* XSD: çift etiket (Mpi + Verify aynı değer) bazı kurulumlarda “Xml Standardına Uygun Değil” üretebiliyor — varsayılan mpi_only */
+  const style = (process.env.VAKIF_VPOS_MPI_XML_STYLE || 'mpi_only').toLowerCase();
+  /* Kılavuz örneğinde Xid yok; şema dışı sayılıyorsa VAKIF_VPOS_INCLUDE_XID=1 ile açın */
+  const includeXid = (process.env.VAKIF_VPOS_INCLUDE_XID || '').trim() === '1';
   let threeDsBlock = '';
   if (include3dsXmlFields) {
-    if (eci) threeDsBlock += `<ECI>${escXml(eci)}</ECI>`;
-    if (cavv) threeDsBlock += `<CAVV>${escXml(cavv)}</CAVV>`;
-    /* Enrollment tekil id → VPOS: MpiTransactionId. Stil: both | mpi_only | verify_only */
+    if (eci) threeDsBlock += `<ECI>${escXmlValue(eci)}</ECI>`;
+    if (cavv) threeDsBlock += `<CAVV>${escXmlValue(cavv)}</CAVV>`;
+    if (xid3ds && includeXid) {
+      threeDsBlock += `<Xid>${escXmlValue(xid3ds)}</Xid>`;
+    }
+    /* Sıra: ECI, CAVV [, Xid] → MpiTransactionId / VerifyEnrollmentRequestId (kılavuz örneği) */
     if (verifyEnrollmentRequestId) {
-      const mpiId = String(verifyEnrollmentRequestId).trim();
-      const style = (process.env.VAKIF_VPOS_MPI_XML_STYLE || 'both').toLowerCase();
-      if (style === 'verify_only') {
-        threeDsBlock += `<VerifyEnrollmentRequestId>${escXml(mpiId)}</VerifyEnrollmentRequestId>`;
-      } else if (style === 'mpi_only') {
-        threeDsBlock += `<MpiTransactionId>${escXml(mpiId)}</MpiTransactionId>`;
-      } else {
-        threeDsBlock += `<MpiTransactionId>${escXml(mpiId)}</MpiTransactionId>`;
-        threeDsBlock += `<VerifyEnrollmentRequestId>${escXml(mpiId)}</VerifyEnrollmentRequestId>`;
+      const mpiId = stripInvalidXmlChars(verifyEnrollmentRequestId).trim();
+      if (mpiId) {
+        if (style === 'verify_only') {
+          threeDsBlock += `<VerifyEnrollmentRequestId>${escXmlValue(mpiId)}</VerifyEnrollmentRequestId>`;
+        } else if (style === 'mpi_only') {
+          threeDsBlock += `<MpiTransactionId>${escXmlValue(mpiId)}</MpiTransactionId>`;
+        } else {
+          threeDsBlock += `<MpiTransactionId>${escXmlValue(mpiId)}</MpiTransactionId>`;
+          threeDsBlock += `<VerifyEnrollmentRequestId>${escXmlValue(mpiId)}</VerifyEnrollmentRequestId>`;
+        }
       }
     }
-    if (xid3ds) threeDsBlock += `<Xid>${escXml(xid3ds)}</Xid>`;
   }
   let tdsTag = '';
   if (!omitDev && tdsVal) {
-    tdsTag = `<TransactionDeviceSource>${escXml(tdsVal)}</TransactionDeviceSource>`;
+    tdsTag = `<TransactionDeviceSource>${escXmlValue(tdsVal)}</TransactionDeviceSource>`;
   }
   /* 1127: 3D sonrası bazı kurulumlarda Pan/tutar gönderilmez; VAKIF_VPOS_3DS_OMIT_CARD_FIELDS=1 ve ECI+CAVV varken. */
   const omit1127 = (process.env.VAKIF_VPOS_3DS_OMIT_CARD_FIELDS || '').trim() === '1';
   const has3ds = String(eci || '').trim() && String(cavv || '').trim();
   const omitCardAmount = omit1127 && has3ds;
-  /* Örnek sıra: CurrencyAmount, CurrencyCode, Pan, Cvv, Expiry → ECI, CAVV, Mpi… → OrderId → ClientIp → TransactionDeviceSource */
+  const expSignTrim = stripInvalidXmlChars(expSign || '').trim();
+  const expSignBlock = expSignTrim ? `<ExpSign>${escXmlValue(expSignTrim)}</ExpSign>` : '';
+  /* Örnek sıra: CurrencyAmount, CurrencyCode, Pan, Cvv, Expiry [, ExpSign] → 3DS alanları → OrderId → ClientIp → TransactionDeviceSource */
   const amountBlock = omitCardAmount
     ? ''
-    : `<CurrencyAmount>${escXml(amount)}</CurrencyAmount>` +
+    : `<CurrencyAmount>${escXmlValue(amount)}</CurrencyAmount>` +
       `<CurrencyCode>949</CurrencyCode>` +
-      `<Pan>${escXml(pan)}</Pan>` +
-      `<Cvv>${escXml(cvv)}</Cvv>` +
-      `<Expiry>${escXml(expiry)}</Expiry>`;
-  const oid = String(orderId || transactionId || '').trim();
-  const orderBlock = oid ? `<OrderId>${escXml(oid)}</OrderId>` : '';
-  const ip = String(clientIp || '').trim();
-  const clientIpBlock = ip ? `<ClientIp>${escXml(ip)}</ClientIp>` : '';
+      `<Pan>${escXmlValue(pan)}</Pan>` +
+      `<Cvv>${escXmlValue(cvv)}</Cvv>` +
+      `<Expiry>${escXmlValue(expiry)}</Expiry>` +
+      expSignBlock;
+  const oid = stripInvalidXmlChars(String(orderId || txId || '').trim()).trim();
+  const orderBlock = oid ? `<OrderId>${escXmlValue(oid)}</OrderId>` : '';
+  const ip = stripInvalidXmlChars(clientIp || '').trim();
+  const clientIpBlock = ip ? `<ClientIp>${escXmlValue(ip)}</ClientIp>` : '';
   return (
-    '<?xml version="1.0" encoding="UTF-8"?>' +
+    '<?xml version="1.0" encoding="utf-8"?>' +
     '<VposRequest>' +
-    `<MerchantId>${escXml(merchantId)}</MerchantId>` +
-    `<Password>${escXml(password)}</Password>` +
-    `<TerminalNo>${escXml(terminalNo)}</TerminalNo>` +
+    `<MerchantId>${escXmlValue(merchantId)}</MerchantId>` +
+    `<Password>${escXmlValue(password)}</Password>` +
+    `<TerminalNo>${escXmlValue(terminalNo)}</TerminalNo>` +
     `<TransactionType>Sale</TransactionType>` +
-    `<TransactionId>${escXml(transactionId)}</TransactionId>` +
+    `<TransactionId>${escXmlValue(txId)}</TransactionId>` +
     amountBlock +
     threeDsBlock +
     orderBlock +

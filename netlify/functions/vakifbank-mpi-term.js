@@ -480,6 +480,8 @@ exports.handler = async (event) => {
   const verifyEnrollmentRequestId =
     String(sess.verifyEnrollmentRequestId || '').trim() || String(verifyFromForm || '').trim();
 
+  const expSignFromBank = getField(form, 'ExpSign', 'expSign', 'EXPSIGN');
+
   const vposXml = buildVposSaleXml({
     merchantId: mid,
     password: pwd,
@@ -495,6 +497,7 @@ exports.handler = async (event) => {
     verifyEnrollmentRequestId,
     xid3ds: parsed.xid,
     clientIp: clientIpFromEvent(event),
+    expSign: expSignFromBank,
   });
 
   let vtxt;
