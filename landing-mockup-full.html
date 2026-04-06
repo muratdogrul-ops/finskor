@@ -1,0 +1,1910 @@
+<!-- FinSkor landing — index.html ile aynı içerik. Tasarımcı / dışarıya copy-paste: bu dosyayı açıp Ctrl+A, Ctrl+C. Canlı site: index.html -->
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FinSkor — Firmanızın kredi notunu nasıl artırırsınız?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:       #071221;
+  --navy2:      #0D1E35;
+  --navy3:      #132845;
+  --gold:       #C9A84C;
+  --gold2:      #E8C96A;
+  --gold-dim:   rgba(201,168,76,0.15);
+  --gold-line:  rgba(201,168,76,0.25);
+  --white:      #F4F6F9;
+  --white-dim:  rgba(244,246,249,0.55);
+  --white-muted:rgba(244,246,249,0.30);
+  --green:      #2ECC9A;
+  --red:        #E05252;
+  --border:     rgba(201,168,76,0.18);
+  --radius:     4px;
+  --serif: 'Playfair Display', Georgia, serif;
+  --sans:  'DM Sans', system-ui, sans-serif;
+  --mono:  'DM Mono', 'Courier New', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--navy);
+  color: var(--white);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* ── NOISE TEXTURE ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.4;
+}
+
+/* ── TYPOGRAPHY ── */
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; line-height: 1.15; }
+p { color: var(--white-dim); }
+
+/* ── NAVBAR ── */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 60px;
+  height: 72px;
+  background: rgba(7,18,33,0.92);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-logo {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--white);
+  text-decoration: none;
+  letter-spacing: -0.3px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.nav-logo span {
+  display: inline-block;
+  width: 8px; height: 8px;
+  background: var(--gold);
+  border-radius: 50%;
+  margin-bottom: 1px;
+}
+
+.nav-links {
+  display: flex;
+  gap: 36px;
+  list-style: none;
+}
+.nav-links a {
+  color: var(--white-dim);
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 400;
+  letter-spacing: 0.3px;
+  transition: color 0.2s;
+}
+.nav-links a:hover { color: var(--white); }
+
+.nav-cta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.btn-outline {
+  padding: 9px 22px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--white-dim);
+  font-size: 13.5px;
+  font-family: var(--sans);
+  background: transparent;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.btn-outline:hover { border-color: var(--gold-line); color: var(--white); }
+
+.btn-primary {
+  padding: 9px 22px;
+  background: var(--gold);
+  border: none;
+  border-radius: var(--radius);
+  color: var(--navy);
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: var(--sans);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s;
+  letter-spacing: 0.2px;
+}
+.btn-primary:hover { background: var(--gold2); transform: translateY(-1px); }
+
+.btn-mini {
+  padding: 7px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  text-decoration: none;
+  border: 1px solid var(--border);
+  color: var(--white-dim);
+  background: transparent;
+  cursor: pointer;
+}
+.btn-mini:hover { border-color: var(--gold-line); color: var(--white); }
+.btn-mini-gold {
+  background: var(--gold);
+  color: var(--navy);
+  border-color: transparent;
+  font-weight: 600;
+}
+.btn-mini-gold:hover { background: var(--gold2); }
+.btn-mini.active {
+  border-color: rgba(46,204,154,0.5);
+  color: #2ECC9A;
+  background: rgba(46,204,154,0.1);
+}
+
+/* ── HERO ── */
+.hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  padding: 120px 60px 80px;
+  overflow: hidden;
+}
+
+/* Grid background */
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(201,168,76,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(201,168,76,0.04) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%);
+  pointer-events: none;
+}
+
+.hero-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: center;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: var(--gold-dim);
+  border: 1px solid var(--gold-line);
+  border-radius: 2px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--gold2);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 28px;
+}
+.hero-badge::before {
+  content: '';
+  width: 6px; height: 6px;
+  background: var(--gold);
+  border-radius: 50%;
+}
+
+.hero-title {
+  font-size: clamp(38px, 4.5vw, 58px);
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--white);
+  margin-bottom: 24px;
+  letter-spacing: -1px;
+}
+.hero-title em {
+  font-style: normal;
+  color: var(--gold);
+}
+
+.hero-desc {
+  font-size: 16px;
+  line-height: 1.75;
+  color: var(--white-dim);
+  margin-bottom: 40px;
+  max-width: 480px;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.btn-hero-primary {
+  padding: 14px 32px;
+  background: var(--gold);
+  border: none;
+  border-radius: var(--radius);
+  color: var(--navy);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--sans);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.25s;
+  letter-spacing: 0.3px;
+}
+.btn-hero-primary:hover { background: var(--gold2); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(201,168,76,0.3); }
+
+.btn-hero-outline {
+  padding: 14px 32px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--white);
+  font-size: 14px;
+  font-family: var(--sans);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.25s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-hero-outline:hover { border-color: var(--gold-line); background: var(--gold-dim); }
+
+.hero-stats {
+  display: flex;
+  gap: 32px;
+  margin-top: 48px;
+  padding-top: 32px;
+  border-top: 1px solid var(--border);
+}
+.hero-stat-val {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--white);
+  margin-bottom: 4px;
+}
+.hero-stat-lbl {
+  font-size: 12px;
+  color: var(--white-muted);
+  letter-spacing: 0.5px;
+}
+
+/* Hero right — dashboard mockup */
+.hero-visual {
+  position: relative;
+}
+
+.dashboard-card {
+  background: var(--navy2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(201,168,76,0.08);
+}
+
+.dashboard-topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,0.2);
+}
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+.dot-r { background: #FF5F57; }
+.dot-y { background: #FFBD2E; }
+.dot-g { background: #28CA41; }
+.dashboard-url {
+  margin-left: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--white-muted);
+  background: rgba(255,255,255,0.04);
+  padding: 4px 10px;
+  border-radius: 3px;
+}
+
+.dashboard-body { padding: 20px; }
+
+.score-hero {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 20px;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+.score-circle {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  border: 3px solid var(--gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-family: var(--serif);
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--gold);
+  box-shadow: 0 0 24px rgba(201,168,76,0.2);
+}
+.score-info-label {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--white-muted);
+  margin-bottom: 6px;
+}
+.score-info-note { font-family: var(--serif); font-size: 22px; font-weight: 600; color: var(--gold); margin-bottom: 4px; }
+.score-info-desc { font-size: 11px; color: var(--white-dim); }
+
+.metrics-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.metric-box {
+  padding: 12px 14px;
+  background: rgba(0,0,0,0.15);
+  border: 1px solid rgba(201,168,76,0.1);
+  border-radius: 4px;
+}
+.metric-lbl { font-size: 10px; color: var(--white-muted); letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 5px; }
+.metric-val { font-family: var(--mono); font-size: 17px; font-weight: 500; color: var(--white); }
+.metric-val.ok { color: var(--green); }
+.metric-val.warn { color: #E8A84C; }
+
+.bars-section { display: block; }
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.bar-label { font-size: 11px; color: var(--white-muted); width: 90px; flex-shrink: 0; }
+.bar-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--gold) 0%, var(--gold2) 100%);
+}
+.bar-val { font-family: var(--mono); font-size: 11px; color: var(--white-dim); width: 36px; text-align: right; }
+
+/* ── SECTION BASE ── */
+section { position: relative; z-index: 1; }
+.section-inner { max-width: 1200px; margin: 0 auto; padding: 0 60px; }
+
+.section-tag {
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 500;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section-tag::before {
+  content: '';
+  display: inline-block;
+  width: 24px; height: 1px;
+  background: var(--gold);
+}
+
+.section-title {
+  font-size: clamp(28px, 3.5vw, 42px);
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 16px;
+  letter-spacing: -0.5px;
+}
+.section-desc {
+  font-size: 16px;
+  color: var(--white-dim);
+  max-width: 560px;
+  line-height: 1.7;
+}
+
+/* ── LOGO BAR ── */
+.logo-bar {
+  padding: 48px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin: 0;
+  overflow: hidden;
+}
+.logo-bar-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 60px;
+  display: flex;
+  align-items: center;
+  gap: 60px;
+}
+.logo-bar-label {
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--white-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.logo-bar-line {
+  width: 1px; height: 28px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+.logo-bar-logos {
+  display: flex;
+  align-items: center;
+  gap: 48px;
+  flex-wrap: wrap;
+}
+.logo-item {
+  font-family: var(--serif);
+  font-size: 13px;
+  color: var(--white-muted);
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  transition: color 0.2s;
+}
+.logo-item:hover { color: var(--white-dim); }
+
+/* ── TRUST STRIP ── */
+.trust-strip {
+  padding: 48px 0;
+  background: rgba(0,0,0,0.18);
+  border-bottom: 1px solid var(--border);
+}
+.trust-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+.trust-card {
+  background: var(--navy2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px 18px;
+}
+.trust-title { font-size: 12px; color: var(--gold2); margin-bottom: 6px; letter-spacing: 0.7px; text-transform: uppercase; }
+.trust-desc { font-size: 13px; color: var(--white-dim); line-height: 1.55; }
+
+/* ── FEATURES ── */
+.features {
+  padding: 100px 0;
+}
+.features-header {
+  margin-bottom: 64px;
+}
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.feature-card {
+  background: var(--navy);
+  padding: 36px 32px;
+  transition: background 0.25s;
+  position: relative;
+}
+.feature-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 32px; right: 32px;
+  height: 1px;
+  background: transparent;
+  transition: background 0.3s;
+}
+.feature-card:hover { background: var(--navy2); }
+.feature-card:hover::after { background: var(--gold-line); }
+
+.feature-icon {
+  width: 40px; height: 40px;
+  background: var(--gold-dim);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  margin-bottom: 20px;
+}
+.feature-title {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 10px;
+}
+.feature-desc {
+  font-size: 13.5px;
+  color: var(--white-dim);
+  line-height: 1.65;
+}
+
+/* ── RATING SCALE ── */
+.rating-section {
+  padding: 100px 0;
+  background: var(--navy2);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.rating-inner {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 80px;
+  align-items: center;
+}
+.rating-scale {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rating-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  transition: all 0.2s;
+  cursor: default;
+}
+.rating-row:hover {
+  background: rgba(255,255,255,0.03);
+  border-color: var(--border);
+}
+.rating-note {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 500;
+  width: 48px;
+  flex-shrink: 0;
+}
+.rating-bar-wrap { flex: 1; height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+.rating-bar { height: 100%; border-radius: 2px; }
+.rating-teminat { font-size: 11px; color: var(--white-muted); width: 220px; flex-shrink: 0; text-align: right; }
+
+/* ── SCENARIO ── */
+.scenario-section { padding: 100px 0; }
+.scenario-inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: start;
+}
+.scenario-cards { display: flex; flex-direction: column; gap: 14px; }
+.scenario-card {
+  padding: 20px 24px;
+  background: var(--navy2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: all 0.25s;
+}
+.scenario-card:hover {
+  border-color: var(--gold-line);
+  transform: translateX(4px);
+}
+.sc-icon {
+  width: 36px; height: 36px;
+  background: var(--gold-dim);
+  border: 1px solid var(--gold-line);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.sc-title { font-size: 14px; font-weight: 500; color: var(--white); margin-bottom: 2px; }
+.sc-desc { font-size: 12px; color: var(--white-dim); }
+
+.scenario-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.flow-step {
+  display: flex;
+  gap: 20px;
+  padding-bottom: 28px;
+  position: relative;
+}
+.flow-step:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 17px;
+  top: 36px;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+}
+.flow-num {
+  width: 36px; height: 36px;
+  border: 1px solid var(--gold-line);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--gold);
+  flex-shrink: 0;
+  background: var(--navy2);
+  position: relative;
+  z-index: 1;
+}
+.flow-content { padding-top: 4px; }
+.flow-title { font-size: 14px; font-weight: 500; color: var(--white); margin-bottom: 4px; }
+.flow-desc { font-size: 13px; color: var(--white-dim); }
+
+/* ── HOW IT WORKS ── */
+.how-section {
+  padding: 100px 0;
+  background: var(--navy2);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.how-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 56px;
+}
+.how-step {
+  background: var(--navy2);
+  padding: 36px 28px;
+  position: relative;
+}
+.how-step-num {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--gold);
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+  opacity: 0.7;
+}
+.how-step-title {
+  font-family: var(--serif);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 10px;
+}
+.how-step-desc { font-size: 13px; color: var(--white-dim); line-height: 1.6; }
+
+/* ── PRICING ── */
+.pricing-section { padding: 100px 0; }
+/* Site vitrininde gizli paketler (HTML korunur; odeme.html?paket= ile doğrudan erişim) */
+.pricing-grid > .paket-site-hidden {
+  display: none !important;
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 56px;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.pricing-card {
+  background: var(--navy);
+  padding: 40px 32px;
+  position: relative;
+  transition: background 0.25s;
+}
+.pricing-card.featured {
+  background: var(--navy2);
+}
+.pricing-card.featured::before {
+  content: 'EN POPÜLER';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  background: var(--gold);
+  color: var(--navy);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-align: center;
+  padding: 6px;
+}
+.pricing-tier {
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--white-muted);
+  margin-bottom: 20px;
+  margin-top: 10px;
+}
+.pricing-card.featured .pricing-tier { margin-top: 30px; }
+.pricing-price {
+  font-family: var(--serif);
+  font-size: 40px;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 4px;
+  letter-spacing: -1px;
+}
+.pricing-card.featured .pricing-price { color: var(--gold); }
+.pricing-period { font-size: 12px; color: var(--white-muted); margin-bottom: 28px; }
+.pricing-features { list-style: none; margin-bottom: 32px; }
+.pricing-features li {
+  font-size: 13.5px;
+  color: var(--white-dim);
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pricing-features li::before {
+  content: '—';
+  color: var(--gold);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.pricing-btn {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  text-align: center;
+  text-decoration: none;
+  border-radius: var(--radius);
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: var(--sans);
+  transition: all 0.2s;
+  cursor: pointer;
+  border: none;
+}
+.pricing-btn-outline {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--white);
+}
+.pricing-btn-outline:hover { border-color: var(--gold-line); background: var(--gold-dim); }
+.pricing-btn-gold {
+  background: var(--gold);
+  color: var(--navy);
+}
+.pricing-btn-gold:hover { background: var(--gold2); transform: translateY(-1px); }
+
+/* ── REFERANSLAR ── */
+.ref-section { padding: 80px 0; }
+.ref-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-top: 56px;
+  max-width: 860px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.ref-card {
+  background: var(--navy);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+  transition: border-color 0.25s, transform 0.25s;
+}
+.ref-card:hover { border-color: rgba(201,168,76,0.4); transform: translateY(-3px); }
+.ref-logo {
+  width: 120px; height: 64px; border-radius: 10px;
+  background: #fff;
+  border: 1px solid rgba(255,255,255,0.15);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--serif); font-size: 20px; font-weight: 700;
+  color: var(--gold); letter-spacing: 1px;
+  overflow: hidden; padding: 8px;
+}
+.ref-logo img { width: 100%; height: 100%; object-fit: contain; }
+.ref-name { font-size: 14px; font-weight: 700; color: var(--white); line-height: 1.4; }
+.ref-sector { font-size: 11px; color: var(--white-muted); margin-top: 2px; letter-spacing: 0.5px; }
+@media(max-width:640px) { .ref-grid { grid-template-columns: 1fr; max-width: 360px; } }
+
+/* ── FAQ ── */
+.faq-section { padding: 100px 0; }
+.faq-list { margin-top: 56px; max-width: 760px; margin-left: auto; margin-right: auto; display: flex; flex-direction: column; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.faq-item { background: var(--navy); }
+.faq-q {
+  width: 100%; text-align: left; background: none; border: none; padding: 22px 28px;
+  display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  font-family: var(--sans); font-size: 15px; font-weight: 600; color: var(--white);
+  cursor: pointer; transition: background 0.2s;
+}
+.faq-q:hover { background: rgba(201,168,76,0.05); }
+.faq-q.open { color: var(--gold); }
+.faq-icon { flex-shrink: 0; font-size: 18px; color: var(--gold); transition: transform 0.25s; }
+.faq-q.open .faq-icon { transform: rotate(45deg); }
+.faq-a {
+  display: none; padding: 0 28px 22px;
+  font-size: 14px; color: var(--white-dim); line-height: 1.75;
+  border-top: 1px solid var(--border);
+}
+.faq-a.open { display: block; }
+
+/* ── CTA SECTION ── */
+.cta-section {
+  padding: 100px 0;
+  background: var(--navy2);
+  border-top: 1px solid var(--border);
+}
+.cta-inner {
+  max-width: 700px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 0 60px;
+}
+.cta-title {
+  font-size: clamp(28px, 3.5vw, 42px);
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 20px;
+  letter-spacing: -0.5px;
+}
+.cta-title span { color: var(--gold); }
+.cta-desc { font-size: 16px; color: var(--white-dim); margin-bottom: 40px; line-height: 1.7; }
+.cta-actions { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; }
+
+/* ── FOOTER ── */
+footer {
+  background: rgba(0,0,0,0.3);
+  border-top: 1px solid var(--border);
+  padding: 48px 0;
+}
+.footer-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.footer-logo {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--white);
+}
+.footer-links { display: flex; gap: 28px; flex-wrap: wrap; }
+.footer-links a {
+  font-size: 13px;
+  color: var(--white-muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.footer-links a:hover { color: var(--white-dim); }
+.footer-copy { font-size: 12px; color: var(--white-muted); }
+.copy-mail-footer { cursor: pointer; color: var(--gold); text-decoration: underline; text-underline-offset: 3px; transition: color 0.2s; }
+.copy-mail-footer:hover { color: #f5c842; }
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.6s ease both; }
+.fade-up-1 { animation-delay: 0.1s; }
+.fade-up-2 { animation-delay: 0.2s; }
+.fade-up-3 { animation-delay: 0.3s; }
+.fade-up-4 { animation-delay: 0.4s; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.pulse { animation: pulse 2s ease-in-out infinite; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1024px) {
+  nav { padding: 0 30px; }
+  .hero { padding: 100px 30px 60px; }
+  .hero-inner { grid-template-columns: 1fr; gap: 50px; }
+  .section-inner { padding: 0 30px; }
+  .features-grid { grid-template-columns: 1fr 1fr; }
+  .how-steps { grid-template-columns: 1fr 1fr; }
+  .rating-inner { grid-template-columns: 1fr; }
+  .scenario-inner { grid-template-columns: 1fr; }
+  .trust-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 768px) {
+  nav { padding: 0 20px; }
+  .nav-links { display: none; }
+  .hero { padding: 90px 20px 50px; }
+  .section-inner { padding: 0 20px; }
+  .features-grid { grid-template-columns: 1fr; }
+  .how-steps { grid-template-columns: 1fr; }
+  .pricing-grid { grid-template-columns: 1fr; }
+  .footer-inner { flex-direction: column; gap: 16px; }
+  .logo-bar-inner { padding: 0 20px; gap: 24px; }
+  .logo-bar-logos { gap: 24px; }
+  .cta-inner { padding: 0 20px; }
+  .hero-stats { flex-wrap: wrap; gap: 20px; }
+  .trust-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="index.html" class="nav-logo">
+    <span></span>
+    FinSkor
+  </a>
+  <ul class="nav-links">
+    <li><a href="platform.html">Kredi notu analizi</a></li>
+    <li><a href="#ozellikler">Özellikler</a></li>
+    <li><a href="#guven">Güven</a></li>
+    <li><a href="#senaryo">Senaryo Analizi</a></li>
+    <li><a href="#baykus">Baykuş AI</a></li>
+    <li><a href="#nasil">Nasıl Çalışır</a></li>
+    <li><a href="#fiyat">Fiyatlar</a></li>
+    <li><a href="#referanslar">Referanslar</a></li>
+    <li><a href="#sss">SSS</a></li>
+  </ul>
+  <div class="nav-cta">
+    <a href="app.html" class="btn-primary">Platforma Giriş →</a>
+  </div>
+</nav>
+
+
+<!-- HERO: Nasıl artırırsınız (ana mesaj) -->
+
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-left">
+      <div class="hero-badge fade-up">Senaryo · Otomatik öneri · PDF rapor</div>
+      <h1 class="hero-title fade-up fade-up-1">
+        Firmanızın Kredi Notunu<br><em>Nasıl Artırırsınız?</em>
+      </h1>
+      <p class="hero-desc fade-up fade-up-2">
+        Önce mevcut notunuzu ve zayıf oranlarınızı görün; sermaye, KV→UV taşıma, kârlılık ve ciro senaryolarını kaydırarak <strong style="color:var(--white)">puanınızın anlık değişimini</strong> izleyin. FinSkor Otomatik Senaryo Önerisi, notunuzu bir ve iki kademe yükseltecek kombinasyonu hesaplar — bankaya gitmeden önce hangi adımın kaç puan getireceğini bilirsiniz.
+      </p>
+      <div class="hero-actions fade-up fade-up-3">
+        <a href="app.html" class="btn-hero-primary">Analiz ve Senaryo →</a>
+        <a href="#senaryo" class="btn-hero-outline">Bu sayfada adımlar</a>
+        <a href="app.html" class="btn-hero-outline" style="background:rgba(46,204,154,0.12);border-color:rgba(46,204,154,0.4);color:#2ECC9A;">
+          <span>▶</span> Demo Yap — Ücretsiz
+        </a>
+      </div>
+      <div class="hero-stats fade-up fade-up-4">
+        <div>
+          <div class="hero-stat-val">5+</div>
+          <div class="hero-stat-lbl">Senaryo parametresi</div>
+        </div>
+        <div>
+          <div class="hero-stat-val">2</div>
+          <div class="hero-stat-lbl">Kademe önerisi</div>
+        </div>
+        <div>
+          <div class="hero-stat-val">Anlık</div>
+          <div class="hero-stat-lbl">Puan simülasyonu</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dashboard Mockup -->
+    <div class="hero-visual fade-up fade-up-2">
+      <div class="dashboard-card">
+        <div class="dashboard-topbar">
+          <div class="dot dot-r"></div>
+          <div class="dot dot-y"></div>
+          <div class="dot dot-g"></div>
+          <div class="dashboard-url">finskor.tr/app</div>
+        </div>
+        <div class="dashboard-body">
+          <div class="score-hero">
+            <div class="score-circle">BB</div>
+            <div>
+              <div class="score-info-label">Kredi Notu</div>
+              <div class="score-info-note">BB — 62.4 puan</div>
+              <div class="score-info-desc">+1 kademe için hangi adım? → Senaryo</div>
+            </div>
+          </div>
+          <div class="metrics-row">
+            <div class="metric-box">
+              <div class="metric-lbl">Finansal Puan</div>
+              <div class="metric-val">47.4 <span style="font-size:11px;color:var(--white-muted)">/75</span></div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-lbl">Subjektif Puan</div>
+              <div class="metric-val ok">15.0 <span style="font-size:11px;color:var(--white-muted)">/30</span></div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-lbl">Cari Oran</div>
+              <div class="metric-val warn">1.24</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-lbl">Borç/ÖzK.</div>
+              <div class="metric-val">3.18x</div>
+            </div>
+          </div>
+          <div class="bars-section">
+            <div class="bar-row">
+              <div class="bar-label">Likidite</div>
+              <div class="bar-track"><div class="bar-fill" style="width:58%"></div></div>
+              <div class="bar-val">58%</div>
+            </div>
+            <div class="bar-row">
+              <div class="bar-label">Kârlılık</div>
+              <div class="bar-track"><div class="bar-fill" style="width:72%"></div></div>
+              <div class="bar-val">72%</div>
+            </div>
+            <div class="bar-row">
+              <div class="bar-label">Borçlanma</div>
+              <div class="bar-track"><div class="bar-fill" style="width:41%;background:linear-gradient(90deg,#E05252,#E8744C)"></div></div>
+              <div class="bar-val">41%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LOGO BAR -->
+<div class="logo-bar">
+  <div class="logo-bar-inner">
+    <div class="logo-bar-label">Uyumlu Formatlar</div>
+    <div class="logo-bar-line"></div>
+    <div class="logo-bar-logos">
+      <div class="logo-item">Excel Mizan</div>
+      <div class="logo-item">PDF Beyanname</div>
+      <div class="logo-item">PDF Mizan</div>
+      
+      
+    </div>
+  </div>
+</div>
+
+<!-- TRUST -->
+<section class="trust-strip" id="guven">
+  <div class="section-inner">
+    <div class="trust-grid">
+      <div class="trust-card">
+        <div class="trust-title">Metodoloji</div>
+        <div class="trust-desc">18+ finansal oran, 10 kademe rating skala ve senaryo simülasyonu ile tutarlı değerlendirme.</div>
+      </div>
+      <div class="trust-card">
+        <div class="trust-title">Veri Güvenliği</div>
+        <div class="trust-desc">Sunucu tarafı doğrulama, rol bazlı erişim ve kurumsal kullanım için izlenebilir rapor akışı.</div>
+      </div>
+      <div class="trust-card">
+        <div class="trust-title">Örnek Sonuç</div>
+        <div class="trust-desc">Tipik vaka: CCC seviyesinden 2 adımlı senaryoyla BB/B seviyesine çıkış yol haritası.</div>
+      </div>
+      <div class="trust-card">
+        <div class="trust-title">Karar Destek</div>
+        <div class="trust-desc">Not yanında teminat yapısı, kritik oran analizi ve iyileştirme önerileri tek raporda sunulur.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- SLOGAN BAR -->
+<div id="slogan" style="background:var(--navy3);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:28px 0;text-align:center">
+  <div style="max-width:1200px;margin:0 auto;padding:0 60px">
+    <p style="font-family:var(--serif);font-size:clamp(18px,2vw,26px);font-weight:600;color:var(--white);letter-spacing:-0.3px">
+      "Sadece analiz değil, <em style="font-style:normal;color:var(--gold)">yol haritası üretir</em>"
+    </p>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section class="features" id="ozellikler">
+  <div class="section-inner">
+    <div class="features-header">
+      <div class="section-tag">Özellikler</div>
+      <h2 class="section-title">Bankadan Önce<br>Siz Bilin</h2>
+      <p class="section-desc">
+        Mali tablolarınızı yükleyin, FinSkor sistemi saniyeler içinde kredi notunuzu hesaplasın.
+      </p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <div class="feature-title">Finansal Analiz</div>
+        <div class="feature-desc">Likidite, borçlanma, kârlılık ve etkinlik kategorilerinde 18 finansal oran. Her oran için referans aralığı ve değerlendirme.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🎯</div>
+        <div class="feature-title">Subjektif Faktörler</div>
+        <div class="feature-desc">Kredi geçmişi, limit kullanımı, faaliyet süresi ve denetim durumu. Toplam 105 puanın 30 puanı bu kriterlerden oluşur.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📈</div>
+        <div class="feature-title">Senaryo Analizi</div>
+        <div class="feature-desc">Sermaye artışı, KV borç taşıma, faaliyet kar marjı artışı, net kar marjı ve ciro büyümesi ile notunuzun nasıl değişeceğini simüle edin.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔮</div>
+        <div class="feature-title">Otomatik Senaryo Önerisi</div>
+        <div class="feature-desc">FinSkor, 1 ve 2 kademe not artışı için en uygun kombinasyonu otomatik hesaplar. Sermaye mi, borç taşıma mı, satış büyümesi mi?</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📄</div>
+        <div class="feature-title">PDF Rapor</div>
+        <div class="feature-desc">Tüm analiz, oranlar, senaryo önerileri ve rating artırıcı öneriler profesyonel PDF raporda. Bankaya götürebilirsiniz.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🦉</div>
+        <div class="feature-title">Baykuş AI Asistan</div>
+        <div class="feature-desc">Sesli analiz asistanı. Kredi notunuzu, finansal oranlarınızı ve iyileştirme adımlarını sade bir dille açıklar.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- BAYKUŞ SECTION -->
+<section style="padding:100px 0;background:var(--navy2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);" id="baykus">
+  <div class="section-inner">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;">
+      <div>
+        <div class="section-tag">Baykuş AI Asistan</div>
+        <h2 class="section-title">Finansal Analizinizi<br>Sesli Dinleyin</h2>
+        <p class="section-desc" style="margin-bottom:32px">
+          Baykuş, kredi notunuzu sade ve anlaşılır bir dille anlatır. 
+          Zayıf oranlarınızı, güçlü noktalarınızı ve iyileştirme adımlarını 
+          sesli olarak açıklar. Sorularınızı yazın, anında yanıt alın.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:36px">
+          <div style="display:flex;align-items:flex-start;gap:14px;padding:16px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:6px;">
+            <div style="font-size:20px;flex-shrink:0">🎙️</div>
+            <div>
+              <div style="font-size:14px;font-weight:500;color:var(--white);margin-bottom:4px">Sesli Anlatım</div>
+              <div style="font-size:13px;color:var(--white-dim)">Analiz sonuçlarını Türkçe sesli olarak adım adım açıklar.</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:14px;padding:16px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:6px;">
+            <div style="font-size:20px;flex-shrink:0">💬</div>
+            <div>
+              <div style="font-size:14px;font-weight:500;color:var(--white);margin-bottom:4px">Soru & Cevap</div>
+              <div style="font-size:13px;color:var(--white-dim)">"Cari oranım neden düşük?" gibi sorularınızı anlayıp yanıtlar.</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:14px;padding:16px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:6px;">
+            <div style="font-size:20px;flex-shrink:0">🗺️</div>
+            <div>
+              <div style="font-size:14px;font-weight:500;color:var(--white);margin-bottom:4px">Yol Haritası</div>
+              <div style="font-size:13px;color:var(--white-dim)">Notunuzu artırmak için hangi adımı atmanız gerektiğini söyler.</div>
+            </div>
+          </div>
+        </div>
+        <a href="app.html" class="btn-hero-primary" style="display:inline-block;text-decoration:none">Baykuş ile Tanışın →</a>
+      </div>
+      <!-- Baykuş chat mockup -->
+      <div>
+        <div style="background:var(--navy);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,0.4);">
+          <!-- Header -->
+          <div style="padding:14px 18px;border-bottom:1px solid var(--border);background:rgba(0,0,0,0.2);display:flex;align-items:center;gap:12px;">
+            <div style="width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#C9A84C,#2ECC9A);display:flex;align-items:center;justify-content:center;font-size:18px;">🦉</div>
+            <div>
+              <div style="font-size:13px;font-weight:600;color:var(--white)">Baykuş</div>
+              <div style="font-size:11px;color:#2ECC9A;">● Çevrimiçi · Kredi Analiz Asistanı</div>
+            </div>
+          </div>
+          <!-- Messages -->
+          <div style="padding:20px;display:flex;flex-direction:column;gap:12px;">
+            <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.15);border-radius:4px 12px 12px 12px;padding:12px 14px;max-width:85%;">
+              <div style="font-size:13px;color:var(--white);line-height:1.5;">Analiz tamamlandı. Finansal puanınız <strong style="color:var(--gold)">47.4/75</strong>, subjektif puanınız <strong style="color:#2ECC9A">15.0/30</strong>. Kredi notunuz <strong style="color:#f59e0b">BB</strong>.</div>
+            </div>
+            <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.15);border-radius:4px 12px 12px 12px;padding:12px 14px;max-width:90%;">
+              <div style="font-size:13px;color:var(--white);line-height:1.5;">Cari oranınız <strong style="color:#E05252">1.24</strong> — referans değerin altında. Kısa vadeli borçlarınız dönen varlıklarınızı aşıyor. KV borçların bir kısmını UV'ye taşımak oranı düzeltir.</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px 12px 4px 12px;padding:12px 14px;max-width:75%;align-self:flex-end;">
+              <div style="font-size:13px;color:var(--white-dim);">Notumu B'ye çıkarmak için ne yapmalıyım?</div>
+            </div>
+            <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.15);border-radius:4px 12px 12px 12px;padding:12px 14px;max-width:90%;">
+              <div style="font-size:13px;color:var(--white);line-height:1.5;">27.6M TL sermaye artışı ile finansal notunuz <strong style="color:var(--gold)">9 puan</strong> artarak B notuna ulaşır. Senaryo detaylarını analiz ekranında görebilirsiniz.</div>
+            </div>
+          </div>
+          <!-- Input -->
+          <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;background:rgba(0,0,0,0.15);">
+            <div style="flex:1;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--white-muted);">Soru sorun…</div>
+            <div style="width:34px;height:34px;background:var(--gold);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--navy);cursor:pointer;">↑</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RATING SCALE -->
+<section class="rating-section" id="skala">
+  <div class="section-inner">
+    <div class="rating-inner">
+      <div>
+        <div class="section-tag">Kredi Not Skalası</div>
+        <h2 class="section-title">10 Kademeli<br>Değerlendirme Notu</h2>
+        <p class="section-desc" style="margin-bottom:28px">
+          AAA'dan D'ye uzanan skala, her kademe için farklı teminat koşullarını belirler. 
+          Notunuz yükseldikçe daha az teminat, daha iyi faiz.
+        </p>
+        <a href="app.html" class="btn-hero-primary" style="display:inline-block;text-decoration:none">Notunuzu Öğrenin →</a>
+      </div>
+      <div class="rating-scale">
+        <div class="rating-row">
+          <span class="rating-note" style="color:#22c55e">AAA</span>
+          <div class="rating-bar-wrap"><div class="rating-bar" style="width:100%;background:#22c55e"></div></div>
+          <span class="rating-teminat">Teminatsız çalışılabilir</span>
+        </div>
+        <div class="rating-row">
+          <span class="rating-note" style="color:#4ade80">AA</span>
+          <div class="rating-bar-wrap"><div class="rating-bar" style="width:88%;background:#4ade80"></div></div>
+          <span class="rating-teminat">Maddi teminatsız kefalet</span>
+        </div>
+        <div class="rating-row">
+          <span class="rating-note" style="color:#86efac">A</span>
+          <div class="rating-bar-wrap"><div class="rating-bar" style="width:76%;background:#86efac"></div></div>
+          <span class="rating-teminat">Kefalet yeterli</span>
+        </div>
+        <div class="rating-row">
+          <span class="rating-note" style="color:#fbbf24">BBB</span>
+          <div class="rating-bar-wrap"><div class="rating-bar" style="width:64%;background:#fbbf24"></div></div>
+          <span class="rating-teminat">Kefalet veya müşteri çeki</span>
+        </div>
+        <div class="rating-row">
+          <span class="rating-note" style="color:#f59e0b">BB</span>
+          <div class="rating-bar-wrap"><div class="rating-bar" style="width:52%;background:#f59e0b"></div></div>
+          <span class="rating-teminat">Kefalet + ipotek teminatı</span>
+        </div>
+        <div class="rating-row">
+          <span class="rating-note" style="color:#d97706">B</span>
+          <div class="rating-bar-wrap"><div class="rating-bar" style="width:42%;background:#d97706"></div></div>
+          <span class="rating-teminat">İpotek + müşteri çeki</span>
+        </div>
+        <div class="rating-row">
+          <span class="rating-note" style="color:#fb923c">CCC</span>
+          <div class="rating-bar-wrap"><div class="rating-bar" style="width:32%;background:#fb923c"></div></div>
+          <span class="rating-teminat">Marjlı ipotek karşılığı</span>
+        </div>
+        <div class="rating-row">
+          <span class="rating-note" style="color:#f87171">CC</span>
+          <div class="rating-bar-wrap"><div class="rating-bar" style="width:22%;background:#f87171"></div></div>
+          <span class="rating-teminat">Çalışma yapılmaz</span>
+        </div>
+        <div class="rating-row">
+          <span class="rating-note" style="color:#ef4444">C</span>
+          <div class="rating-bar-wrap"><div class="rating-bar" style="width:14%;background:#ef4444"></div></div>
+          <span class="rating-teminat">Çalışma yapılmaz</span>
+        </div>
+        <div class="rating-row">
+          <span class="rating-note" style="color:#dc2626">D</span>
+          <div class="rating-bar-wrap"><div class="rating-bar" style="width:6%;background:#dc2626"></div></div>
+          <span class="rating-teminat">Tasfiye</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SCENARIO -->
+<section class="scenario-section" id="senaryo">
+  <div class="section-inner">
+    <div style="margin-bottom:56px">
+      <div class="section-tag">Senaryo Analizi</div>
+      <h2 class="section-title">Notunuzu Nasıl<br>Artırırsınız?</h2>
+      <p class="section-desc">Hangi adımı atsanız notunuz ne kadar değişir? FinSkor simüle eder.</p>
+    </div>
+    <div class="scenario-inner">
+      <div>
+        <div class="scenario-cards">
+          <div class="scenario-card">
+            <div class="sc-icon">💰</div>
+            <div>
+              <div class="sc-title">Sermaye Artışı</div>
+              <div class="sc-desc">Borç/Özkaynak oranını iyileştirir. En etkili araç.</div>
+            </div>
+          </div>
+          <div class="scenario-card">
+            <div class="sc-icon">🔄</div>
+            <div>
+              <div class="sc-title">KV → UV Borç Taşıma</div>
+              <div class="sc-desc">Kısa vadeli banka borcunu uzun vadeye taşıyın. Cari oran düzelir.</div>
+            </div>
+          </div>
+          <div class="scenario-card">
+            <div class="sc-icon">📊</div>
+            <div>
+              <div class="sc-title">Net Kâr Marjı Artışı</div>
+              <div class="sc-desc">Gider kontrolü veya fiyat artışıyla kârlılık oranlarını iyileştirin.</div>
+            </div>
+          </div>
+          <div class="scenario-card">
+            <div class="sc-icon">🏭</div>
+            <div>
+              <div class="sc-title">Faaliyet Karı(FAVÖK)Marjı Artışı</div>
+              <div class="sc-desc">Gider azaltımı veya fiyat artışıyla operasyonel verimlilik hem c4 hem c5 kriterini iyileştirir.</div>
+            </div>
+          </div>
+          <div class="scenario-card">
+            <div class="sc-icon">📈</div>
+            <div>
+              <div class="sc-title">Ciro Büyümesi</div>
+              <div class="sc-desc">Satış artışı borç/satış oranını düzelterek notu artırır.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="background:var(--navy2);border:1px solid var(--border);border-radius:8px;padding:32px;margin-bottom:20px">
+          <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--white-muted);margin-bottom:20px">Örnek Senaryo</div>
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px">
+            <div style="text-align:center">
+              <div style="font-family:var(--serif);font-size:32px;color:#fb923c;font-weight:600">CCC</div>
+              <div style="font-size:11px;color:var(--white-muted);margin-top:4px">Mevcut</div>
+            </div>
+            <div style="flex:1;height:2px;background:linear-gradient(90deg,#fb923c,var(--gold),#22c55e);border-radius:1px"></div>
+            <div style="text-align:center">
+              <div style="font-family:var(--serif);font-size:32px;color:var(--gold);font-weight:600">B</div>
+              <div style="font-size:11px;color:var(--white-muted);margin-top:4px">Adım 1</div>
+            </div>
+          </div>
+          <div style="background:rgba(0,0,0,0.2);border:1px solid rgba(201,168,76,0.12);border-radius:4px;padding:14px 16px;margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div style="font-size:12px;color:var(--white-dim);margin-bottom:3px">💰 Sermaye Artışı</div>
+                <div style="font-family:var(--mono);font-size:13px;color:var(--white)">27.6 Milyon TL</div>
+              </div>
+              <div style="font-family:var(--mono);font-size:13px;color:var(--gold)">+9 puan</div>
+            </div>
+          </div>
+          <div style="background:rgba(0,0,0,0.2);border:1px solid rgba(201,168,76,0.12);border-radius:4px;padding:14px 16px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div style="font-size:12px;color:var(--white-dim);margin-bottom:3px">🔄 KV→UV Borç Taşıma (%75 · 48 ay)</div>
+                <div style="font-family:var(--mono);font-size:13px;color:var(--white)">11.8M TL'nin %75'i</div>
+              </div>
+              <div style="font-family:var(--mono);font-size:13px;color:var(--gold)">+3 puan</div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:13px;color:var(--white-muted);line-height:1.6">
+          CCC → B: 2 adımda 12 puan artış. Daha az teminat, daha düşük faiz.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how-section" id="nasil">
+  <div class="section-inner">
+    <div style="text-align:center;margin-bottom:0">
+      <div class="section-tag" style="justify-content:center">Nasıl Çalışır</div>
+      <h2 class="section-title" style="text-align:center">Saniyeler İçinde Kredi Notu</h2>
+      <p class="section-desc" style="margin:12px auto 0;text-align:center">Kayıt gerekmez. Erişim kodu ile girin, dosyanızı yükleyin, notunuzu öğrenin.</p>
+    </div>
+    <div class="how-steps">
+      <div class="how-step">
+        <div class="how-step-num">01</div>
+        <div class="how-step-title">Platforma Giriş</div>
+        <div class="how-step-desc">Erişim kodunuzla sisteme girin. Kayıt ya da hesap oluşturma gerekmiyor.</div>
+      </div>
+      <div class="how-step">
+        <div class="how-step-num">02</div>
+        <div class="how-step-title">Mali Veri Yükle</div>
+        <div class="how-step-desc">Excel mizan, PDF beyanname veya PDF mizan yükleyin. Cari yıl + önceki yıl.</div>
+      </div>
+      <div class="how-step">
+        <div class="how-step-num">03</div>
+        <div class="how-step-title">Analizi Çalıştır</div>
+        <div class="how-step-desc">18 finansal oran, subjektif faktörler, ÜFE düzeltmesi. Saniyeler içinde sonuç.</div>
+      </div>
+      <div class="how-step">
+        <div class="how-step-num">04</div>
+        <div class="how-step-title">Raporu İndir</div>
+        <div class="how-step-desc">Kredi notu, senaryo analizi ve iyileştirme önerileriyle birlikte PDF rapor alın.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="pricing-section" id="fiyat">
+  <div class="section-inner">
+    <div class="section-tag">Fiyatlandırma</div>
+    <h2 class="section-title">İhtiyacınıza Göre Paket</h2>
+    <p class="section-desc">Kontör bazlı çalışır. Kullandıkça ödersiniz.</p>
+    <div class="pricing-grid">
+
+      <div class="pricing-card featured">
+        <div class="pricing-tier">Profesyonel</div>
+        <div class="pricing-price">₺2.490</div>
+        <div class="pricing-period">4 analiz kontörü · tüm özellikler · KDV Dahil</div>
+        <ul class="pricing-features">
+          <li>Tüm finansal oranlar</li>
+          <li>Excel / PDF yükleme</li>
+          <li>3 yıllık trend analizi</li>
+          <li>Senaryo analizi modülü</li>
+          <li>Subjektif faktör değerlendirme</li>
+          <li>ÜFE reel büyüme düzeltmesi</li>
+          <li>Kredi notu artırıcı senaryo önerileri</li>
+          <li>PDF rapor üretimi</li>
+        </ul>
+        <a href="odeme.html" class="pricing-btn pricing-btn-gold">Hemen Satın Al</a>
+      </div>
+
+      <div class="pricing-card" style="border-color:rgba(16,185,129,0.5)">
+        <div class="pricing-tier" style="color:#34d399">NakitFlow</div>
+        <div class="pricing-price" style="color:#34d399">₺4.990</div>
+        <div class="pricing-period">KDV Dahil · 60 aylık projeksiyon</div>
+        <ul class="pricing-features">
+          <li>60 aylık nakit akış projeksiyonu</li>
+          <li>5 yıllık gelir tablosu ve bilanço</li>
+          <li>Otomatik TCMB referans faiz ve kur</li>
+          <li>Dövizli kredi & mevduat takibi</li>
+          <li>FinSkor entegrasyonu (açılış verisi otomatik aktarılır)</li>
+        </ul>
+        <a href="odeme.html?paket=nakitflow" class="pricing-btn" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none">Hemen Satın Al</a>
+      </div>
+
+      <div class="pricing-card">
+        <div class="pricing-tier">Kurumsal</div>
+        <div class="pricing-price" style="font-size:28px;padding-top:8px">Teklif Alın</div>
+        <div class="pricing-period">kuruma özel · sınırsız kullanım</div>
+        <ul class="pricing-features">
+          <li>Tüm özellikler dahil</li>
+          <li>Özelleştirilmiş raporlama</li>
+          <li>1 yıllık finansal danışmanlık</li>
+        </ul>
+        <button class="pricing-btn pricing-btn-outline" onclick="openContactModal()" style="cursor:pointer">İletişime Geçin</button>
+      </div>
+
+      <!-- Gizli vitrin paketi — doğrudan odeme.html?paket=danisan -->
+      <div class="pricing-card featured paket-site-hidden" hidden aria-hidden="true" style="display:none!important;border-color:rgba(99,179,237,0.6)">
+        <div class="pricing-tier" style="color:#63b3ed">Finansal Danışman</div>
+        <div class="pricing-price" style="color:#63b3ed">₺36.000</div>
+        <div class="pricing-period">100 analiz kontörü · tüm özellikler · KDV Dahil</div>
+        <ul class="pricing-features">
+          <li>Tüm finansal oranlar</li>
+          <li>Excel / PDF yükleme</li>
+          <li>3 yıllık trend analizi</li>
+          <li>Senaryo analizi modülü</li>
+          <li>Subjektif faktör değerlendirme</li>
+          <li>ÜFE reel büyüme düzeltmesi</li>
+          <li>Kredi notu artırıcı senaryo önerileri</li>
+          <li>PDF rapor üretimi</li>
+          <li>100 müşteri analizi kapasitesi</li>
+        </ul>
+        <a href="odeme.html?paket=danisan" class="pricing-btn" style="background:linear-gradient(135deg,#3182ce,#2b6cb0);color:#fff;border:none">Hemen Satın Al</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- REFERANSLAR -->
+<section class="ref-section" id="referanslar">
+  <div class="section-inner">
+    <div class="section-tag">Referanslar</div>
+    <h2 class="section-title">Bize Güvenen Firmalar</h2>
+    <p class="section-desc">Farklı sektörlerden firmalar FinSkor ile kredi notlarını analiz ediyor.</p>
+    <div class="ref-grid">
+
+      <div class="ref-card">
+        <div class="ref-logo">
+          <img src="https://halkarz.com/wp-content/uploads/2023/09/reedr-reeder-teknoloji-san-ve-tic-a-s.jpg" alt="Reeder Teknoloji" onerror="this.parentElement.textContent='RT'">
+        </div>
+        <div>
+          <div class="ref-name">Reeder Teknoloji A.Ş.</div>
+          <div class="ref-sector">Teknoloji &amp; Elektronik</div>
+        </div>
+      </div>
+
+      <div class="ref-card">
+        <div class="ref-logo">
+          <img src="https://www.karimex.com.tr/tr/home/logo.png" alt="Karimex Fındık" onerror="this.parentElement.textContent='KF'">
+        </div>
+        <div>
+          <div class="ref-name">Karimex Fındık Ltd. Şti.</div>
+          <div class="ref-sector">Gıda &amp; Tarım</div>
+        </div>
+      </div>
+
+      <div class="ref-card">
+        <div class="ref-logo">
+          <img src="https://www.dkcgrup.com.tr/Content/logo2.jpg?v=0.8" alt="DKC Grup" onerror="this.parentElement.textContent='DG'">
+        </div>
+        <div>
+          <div class="ref-name">DKC Grup A.Ş.</div>
+          <div class="ref-sector">Holding &amp; Yatırım</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="faq-section" id="sss">
+  <div class="section-inner">
+    <div class="section-tag">SSS</div>
+    <h2 class="section-title">Sıkça Sorulan Sorular</h2>
+    <p class="section-desc">Aklınızdaki soruların cevabı burada. Bulamazsanız <span class="copy-mail-footer" onclick="openContactModal()" style="color:var(--gold);cursor:pointer;border-bottom:1px dashed rgba(201,168,76,0.4)">bize yazın</span>.</p>
+    <div class="faq-list">
+
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          FinSkor nedir, ne işe yarar?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          FinSkor, firmaların kredi notunu 105 puan üzerinden hesaplayan ve bu notu nasıl artırabileceğini gösteren bir kredi analiz platformudur. Finansal tablolarınızı (mizan, beyanname) yükleyerek saniyeler içinde firmanızın bankalar nezdindeki kredi değerliliğini öğrenebilirsiniz.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          Kontör sistemi nasıl çalışır?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          Her analiz 1 kontör tüketir. Profesyonel pakette 4 kontör bulunur; yani 4 farklı firma için analiz yapabilirsiniz. Aynı firma için yeni yıl verileriyle tekrar analiz yapmak da 1 kontör kullanır. Kontörler satın alma tarihinden itibaren geçerlidir.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          Hangi dosya formatlarını yükleyebilirim?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          Excel (.xlsx / .xls) ve PDF formatındaki mizan dosyalarını yükleyebilirsiniz. Sistem, muhasebe programlarından alınan standart mizan çıktılarını otomatik olarak okur ve finansal oranları hesaplar. Aynı anda birden fazla yıla ait veri yükleyerek trend analizi yapabilirsiniz.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          Kredi notu nasıl hesaplanıyor?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          Analiz iki bölümden oluşur: <strong>Finansal kriterler</strong> (likidite, kaldıraç, kârlılık, büyüme oranları gibi nesnel göstergeler) ve <strong>subjektif kriterler</strong> (sektör riski, yönetim kalitesi, müşteri çeşitlendirmesi gibi nitel faktörler). Her iki bölüm birlikte değerlendirilerek 105 üzerinden bir puan hesaplanır ve AAA'dan D'ye kadar bir nota dönüştürülür.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          Senaryo analizi ne işe yarar?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          Senaryo analizi, firmanızın kredi notunu artırmak için hangi finansal adımları atması gerektiğini somut olarak gösterir. Örneğin "FAVÖK marjını %5 artırırsanız notunuz BB'den BBB'ye yükselir" gibi öneriler sunar. FinSkor ayrıca otomatik olarak en verimli senaryo kombinasyonunu da hesaplar.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          Verilerim güvende mi, sunucuda saklanıyor mu?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          Yüklediğiniz mizan ve beyanname dosyaları sunucuya gönderilmez; tüm hesaplamalar doğrudan tarayıcınızda gerçekleşir. Sadece firma adı, analiz notu ve tarih gibi özet bilgiler, siz kaydetmek istediğinizde yerel depolama alanınıza kaydedilir. Finansal verileriniz hiçbir zaman sistemimizde saklanmaz.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          Ödeme yaptıktan sonra erişim kodum ne zaman gelir?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          Ödeme yöntemine göre süreç şöyle işler:<br><br>
+          <strong>EFT / Havale:</strong> Ödemeniz teyit edildikten sonra erişim kodunuz hem e-posta adresinize hem de WhatsApp'ınıza iletilir. Havale/EFT açıklamasına e-posta adresinizi yazmayı unutmamanızı öneririz; bu sayede eşleştirme hızlanır.<br><br>
+          <strong>Kredi Kartı:</strong> 3D Secure ile gerçekleştirilen ödemenizin onaylanmasının ardından erişim kodunuz otomatik olarak e-posta adresinize ve WhatsApp'ınıza iletilir.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          Kim kullanabilir? Teknik bilgi gerekiyor mu?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          FinSkor; mali müşavirler, KOBİ sahipleri, CFO'lar ve finansal danışmanlar için tasarlanmıştır. Muhasebe programınızdan aldığınız mizan dosyasını yüklemek yeterlidir; herhangi bir teknik bilgiye gerek yoktur. Baykuş AI asistanı tüm analiz sürecinde size rehberlik eder.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          Kurumsal paket bireysel paketten ne farkı var?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          Profesyonel paket bireysel kullanım için uygundur; 4 analiz kontörü içerir. Kurumsal paket ise birden fazla kullanıcı, özelleştirilmiş raporlama ve 1 yıllık finansal danışmanlık desteği sunar. Kurumsal fiyatlandırma için <span class="copy-mail-footer" onclick="openContactModal()" style="color:var(--gold);cursor:pointer;border-bottom:1px dashed rgba(201,168,76,0.4)">bize ulaşın</span>.
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section" id="cta">
+  <div class="cta-inner">
+    <h2 class="cta-title">Bankaya <span>Hazırlıklı</span> Gidin</h2>
+    <p class="cta-desc">
+      Kredi notunuzu önceden öğrenin. Zayıf noktaları güçlendirin. 
+      Daha az teminat, daha iyi faiz, daha hızlı onay.
+    </p>
+    <div class="cta-actions">
+      <a href="app.html" class="btn-hero-primary">Demo Yap — Ücretsiz</a>
+      <button class="btn-hero-outline" onclick="openContactModal()" style="cursor:pointer">Bize Yazın</button>
+    </div>
+  </div>
+</section>
+
+<!-- İLETİŞİM MODAL -->
+<div id="contactModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeContactModal()">
+  <div style="background:#0d1e35;border:1px solid rgba(201,168,76,0.3);border-radius:16px;padding:36px 32px;width:100%;max-width:440px;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+    <button onclick="closeContactModal()" style="position:absolute;top:14px;right:16px;background:none;border:none;color:rgba(255,255,255,0.4);font-size:22px;cursor:pointer;line-height:1">✕</button>
+    <div style="font-size:11px;letter-spacing:2px;color:#C9A84C;font-weight:700;margin-bottom:10px">İLETİŞİM</div>
+    <h3 style="font-family:'Playfair Display',serif;font-size:22px;color:#fff;margin:0 0 6px">Bize Ulaşın</h3>
+    <p style="font-size:13px;color:rgba(244,246,249,0.55);margin:0 0 28px;line-height:1.6">Sizi arayalım veya bilgi verelim. Bilgilerinizi bırakın, en kısa sürede dönüş yapalım.</p>
+
+    <div id="contactForm">
+      <div style="margin-bottom:16px">
+        <label style="font-size:12px;font-weight:600;color:rgba(244,246,249,0.7);display:block;margin-bottom:6px">Ad Soyad <span style="color:#e74c3c">*</span></label>
+        <input id="cAdSoyad" type="text" placeholder="Adınız Soyadınız" style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;outline:none;font-family:'Plus Jakarta Sans',sans-serif" onfocus="this.style.borderColor='rgba(201,168,76,0.6)'" onblur="this.style.borderColor='rgba(255,255,255,0.12)'">
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="font-size:12px;font-weight:600;color:rgba(244,246,249,0.7);display:block;margin-bottom:6px">Cep Telefonu <span style="color:#e74c3c">*</span></label>
+        <input id="cTelefon" type="tel" placeholder="05xx xxx xx xx" style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;outline:none;font-family:'Plus Jakarta Sans',sans-serif" onfocus="this.style.borderColor='rgba(201,168,76,0.6)'" onblur="this.style.borderColor='rgba(255,255,255,0.12)'">
+      </div>
+      <div style="margin-bottom:24px">
+        <label style="font-size:12px;font-weight:600;color:rgba(244,246,249,0.7);display:block;margin-bottom:6px">Konu</label>
+        <select id="cKonu" onchange="toggleDiger('cAciklama','cKonu')" style="width:100%;padding:11px 14px;background:#0d1e35;border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;outline:none;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer" onfocus="this.style.borderColor='rgba(201,168,76,0.6)'" onblur="this.style.borderColor='rgba(255,255,255,0.12)'">
+          <option value="Fiyat Bilgisi">Fiyat Bilgisi</option>
+          <option value="Demo Talebi">Demo Talebi</option>
+          <option value="Kurumsal Paket">Kurumsal Paket</option>
+          <option value="Teknik Destek">Teknik Destek</option>
+          <option value="Diğer">Diğer</option>
+        </select>
+      </div>
+      <div id="cAciklama" style="display:none;margin-bottom:16px">
+        <label style="font-size:12px;font-weight:600;color:rgba(244,246,249,0.7);display:block;margin-bottom:6px">Açıklama</label>
+        <textarea id="cAciklamaText" rows="3" placeholder="Konuyu kısaca açıklayın..." style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;outline:none;font-family:'Plus Jakarta Sans',sans-serif;resize:vertical" onfocus="this.style.borderColor='rgba(201,168,76,0.6)'" onblur="this.style.borderColor='rgba(255,255,255,0.12)'"></textarea>
+      </div>
+      <button onclick="submitContact()" style="width:100%;padding:13px;background:linear-gradient(135deg,#C9A84C,#f5c842);color:#0d1e35;font-weight:700;font-size:15px;border:none;border-radius:10px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:opacity 0.2s" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+        Gönder →
+      </button>
+      <div id="cHata" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(231,76,60,0.1);border:1px solid rgba(231,76,60,0.3);border-radius:8px;font-size:13px;color:#e74c3c;text-align:center"></div>
+    </div>
+
+    <div id="contactSuccess" style="display:none;text-align:center;padding:20px 0">
+      <div style="font-size:48px;margin-bottom:16px">✅</div>
+      <h4 style="color:#2ECC9A;font-size:18px;margin:0 0 10px">Mesajınız Alındı!</h4>
+      <p style="color:rgba(244,246,249,0.6);font-size:14px;line-height:1.6">En kısa sürede sizi arayacağız.<br>İyi günler dileriz.</p>
+      <button onclick="closeContactModal()" style="margin-top:20px;padding:10px 28px;background:rgba(46,204,154,0.15);border:1px solid rgba(46,204,154,0.3);color:#2ECC9A;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Kapat</button>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-logo">FinSkor</div>
+    <div class="footer-links">
+      <a href="#">Gizlilik</a>
+      <a href="#">KVKK</a>
+      <a href="#">Sorumluluk Reddi</a>
+      <span class="copy-mail-footer" onclick="openContactModal()" title="Bize ulaşın">info@finskor.tr</span>
+    </div>
+    <div class="footer-copy">© 2026 FinSkor. Tüm hakları saklıdır.</div>
+  </div>
+</footer>
+
+<script>
+// Scroll reveal
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.style.opacity = '1';
+      entry.target.style.transform = 'translateY(0)';
+    }
+  });
+}, { threshold: 0.1 });
+
+/* Fiyat kartları: opacity 0 + observer bazen tetiklenmez → NakitFlow görünmez kalıyordu; vitrin her zaman görünür */
+document.querySelectorAll('.feature-card, .how-step, .scenario-card, .rating-row, .flow-step').forEach(el => {
+  el.style.opacity = '0';
+  el.style.transform = 'translateY(16px)';
+  el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+  observer.observe(el);
+});
+
+// Stagger delays
+document.querySelectorAll('.features-grid .feature-card').forEach((el, i) => el.style.transitionDelay = (i * 0.08) + 's');
+document.querySelectorAll('.how-steps .how-step').forEach((el, i) => el.style.transitionDelay = (i * 0.1) + 's');
+document.querySelectorAll('.rating-row').forEach((el, i) => el.style.transitionDelay = (i * 0.05) + 's');
+
+// İletişim Modal
+function openContactModal() {
+  const m = document.getElementById('contactModal');
+  m.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => { document.getElementById('cAdSoyad').focus(); }, 100);
+}
+function closeContactModal() {
+  const m = document.getElementById('contactModal');
+  m.style.display = 'none';
+  document.body.style.overflow = '';
+  // formu sıfırla
+  document.getElementById('cAdSoyad').value = '';
+  document.getElementById('cTelefon').value = '';
+  document.getElementById('cKonu').value = 'Fiyat Bilgisi';
+  document.getElementById('cAciklama').style.display = 'none';
+  document.getElementById('cAciklamaText').value = '';
+  document.getElementById('cHata').style.display = 'none';
+  document.getElementById('contactForm').style.display = 'block';
+  document.getElementById('contactSuccess').style.display = 'none';
+}
+function toggleDiger(alanId, selectId) {
+  const v = document.getElementById(selectId).value;
+  document.getElementById(alanId).style.display = v === 'Diğer' ? 'block' : 'none';
+}
+async function submitContact() {
+  const ad = document.getElementById('cAdSoyad').value.trim();
+  const tel = document.getElementById('cTelefon').value.trim();
+  const konu = document.getElementById('cKonu').value;
+  const aciklama = document.getElementById('cAciklamaText').value.trim();
+  const hata = document.getElementById('cHata');
+
+  if (!ad) { hata.textContent = 'Ad Soyad zorunludur.'; hata.style.display='block'; return; }
+  if (!tel || tel.length < 10) { hata.textContent = 'Geçerli bir telefon numarası giriniz.'; hata.style.display='block'; return; }
+  hata.style.display = 'none';
+
+  const btn = event.target;
+  btn.textContent = 'Gönderiliyor...';
+  btn.disabled = true;
+
+  try {
+    await fetch('/.netlify/functions/contact-form', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adSoyad: ad, telefon: tel, konu: konu + (aciklama ? (' — ' + aciklama) : '') })
+    });
+  } catch(e) { /* sessiz hata — başarı göster */ }
+
+  btn.textContent = 'Gönder →';
+  btn.disabled = false;
+  document.getElementById('contactForm').style.display = 'none';
+  document.getElementById('contactSuccess').style.display = 'block';
+}
+
+// FAQ accordion
+function toggleFaq(btn) {
+  const answer = btn.nextElementSibling;
+  const isOpen = btn.classList.contains('open');
+  document.querySelectorAll('.faq-q.open').forEach(b => {
+    b.classList.remove('open');
+    b.nextElementSibling.classList.remove('open');
+  });
+  if (!isOpen) {
+    btn.classList.add('open');
+    answer.classList.add('open');
+  }
+}
+
+// Mail kopyala — çoklu fallback
+function copyMailIndex(mail, el) {
+  function goster(basarili) {
+    // Buton metnini güncelle
+    if (el) {
+      const orig = el.textContent;
+      el.textContent = basarili ? '✓ Kopyalandı!' : '📧 ' + mail;
+      setTimeout(() => { el.textContent = orig; }, 3000);
+    }
+    // Merkezdeki toast
+    var tip = document.getElementById('mailTip');
+    if (!tip) return;
+    tip.textContent = basarili ? ('📋 ' + mail + ' kopyalandı') : ('📧 ' + mail + ' — elle kopyalayın');
+    tip.style.display = 'block';
+    tip.style.opacity = '1';
+    clearTimeout(tip._t);
+    tip._t = setTimeout(function() {
+      tip.style.opacity = '0';
+      setTimeout(function() { tip.style.display = 'none'; }, 400);
+    }, 3000);
+  }
+
+  // Yöntem 1: Clipboard API
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(mail).then(function() { goster(true); }).catch(function() { fallback(); });
+  } else {
+    fallback();
+  }
+
+  function fallback() {
+    // Yöntem 2: execCommand
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = mail; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      var ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      goster(ok);
+    } catch(e) { goster(false); }
+  }
+}
+</script>
+
+<div id="mailTip" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:#0d1e35;color:#C9A84C;border:2px solid rgba(201,168,76,0.5);
+  padding:18px 32px;border-radius:12px;font-size:15px;font-weight:700;
+  opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:99999;
+  box-shadow:0 8px 40px rgba(0,0,0,0.6);text-align:center;min-width:280px">
+</div>
+
+</body>
+</html>
