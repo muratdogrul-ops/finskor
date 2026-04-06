@@ -972,41 +972,53 @@ function buildVposSaleXml(opts) {
     cavv,
     verifyEnrollmentRequestId,
     xid3ds,
+    orderId,
+    clientIp,
   } = opts;
-  let extra = '';
-  if (eci) extra += `<ECI>${escXml(eci)}</ECI>`;
-  if (cavv) extra += `<CAVV>${escXml(cavv)}</CAVV>`;
-  /* Enrollment tekil id → VPOS: MpiTransactionId (kılavuz). Stil: both | mpi_only | verify_only (varsayılan both) */
-  if (verifyEnrollmentRequestId) {
-    const mpiId = String(verifyEnrollmentRequestId).trim();
-    const style = (process.env.VAKIF_VPOS_MPI_XML_STYLE || 'both').toLowerCase();
-    if (style === 'verify_only') {
-      extra += `<VerifyEnrollmentRequestId>${escXml(mpiId)}</VerifyEnrollmentRequestId>`;
-    } else if (style === 'mpi_only') {
-      extra += `<MpiTransactionId>${escXml(mpiId)}</MpiTransactionId>`;
-    } else {
-      extra += `<MpiTransactionId>${escXml(mpiId)}</MpiTransactionId>`;
-      extra += `<VerifyEnrollmentRequestId>${escXml(mpiId)}</VerifyEnrollmentRequestId>`;
-    }
-  }
-  if (xid3ds) extra += `<Xid>${escXml(xid3ds)}</Xid>`;
-  /* Eksikse 1121 vb. dönüşüm raporlanabiliyor; kılavuzdaki kodu bankadan doğrulayın. Kapatmak: VAKIF_VPOS_OMIT_TRANSACTION_DEVICE_SOURCE=1 */
+  /* Kılavuz: TransactionDeviceSource 0 (ECommerce) + 3D → ECI, CAVV, MpiTransactionId zorunlu; 1 ise bu alanlar mesajda olmamalı. */
   const omitDev = (process.env.VAKIF_VPOS_OMIT_TRANSACTION_DEVICE_SOURCE || '').trim() === '1';
-  if (!omitDev) {
-    const tds = (process.env.VAKIF_VPOS_TRANSACTION_DEVICE_SOURCE || '0').trim();
-    if (tds) extra += `<TransactionDeviceSource>${escXml(tds)}</TransactionDeviceSource>`;
+  const tdsVal = (process.env.VAKIF_VPOS_TRANSACTION_DEVICE_SOURCE || '0').trim();
+  /* Kılavuz: TDS=1 iken 3D alanları olmamalı; TDS etiketi kapalı olsa bile (omitDev) aynı kural */
+  const include3dsXmlFields = tdsVal !== '1';
+  let threeDsBlock = '';
+  if (include3dsXmlFields) {
+    if (eci) threeDsBlock += `<ECI>${escXml(eci)}</ECI>`;
+    if (cavv) threeDsBlock += `<CAVV>${escXml(cavv)}</CAVV>`;
+    /* Enrollment tekil id → VPOS: MpiTransactionId. Stil: both | mpi_only | verify_only */
+    if (verifyEnrollmentRequestId) {
+      const mpiId = String(verifyEnrollmentRequestId).trim();
+      const style = (process.env.VAKIF_VPOS_MPI_XML_STYLE || 'both').toLowerCase();
+      if (style === 'verify_only') {
+        threeDsBlock += `<VerifyEnrollmentRequestId>${escXml(mpiId)}</VerifyEnrollmentRequestId>`;
+      } else if (style === 'mpi_only') {
+        threeDsBlock += `<MpiTransactionId>${escXml(mpiId)}</MpiTransactionId>`;
+      } else {
+        threeDsBlock += `<MpiTransactionId>${escXml(mpiId)}</MpiTransactionId>`;
+        threeDsBlock += `<VerifyEnrollmentRequestId>${escXml(mpiId)}</VerifyEnrollmentRequestId>`;
+      }
+    }
+    if (xid3ds) threeDsBlock += `<Xid>${escXml(xid3ds)}</Xid>`;
   }
-  /* 1127: 3D tamamlandıysa bazı kurulumlarda Pan/tutar gönderilmez; yalnızca ECI+CAVV varken ve env açıkken. */
+  let tdsTag = '';
+  if (!omitDev && tdsVal) {
+    tdsTag = `<TransactionDeviceSource>${escXml(tdsVal)}</TransactionDeviceSource>`;
+  }
+  /* 1127: 3D sonrası bazı kurulumlarda Pan/tutar gönderilmez; VAKIF_VPOS_3DS_OMIT_CARD_FIELDS=1 ve ECI+CAVV varken. */
   const omit1127 = (process.env.VAKIF_VPOS_3DS_OMIT_CARD_FIELDS || '').trim() === '1';
   const has3ds = String(eci || '').trim() && String(cavv || '').trim();
   const omitCardAmount = omit1127 && has3ds;
+  /* Örnek sıra: CurrencyAmount, CurrencyCode, Pan, Cvv, Expiry → ECI, CAVV, Mpi… → OrderId → ClientIp → TransactionDeviceSource */
   const amountBlock = omitCardAmount
     ? ''
     : `<CurrencyAmount>${escXml(amount)}</CurrencyAmount>` +
       `<CurrencyCode>949</CurrencyCode>` +
       `<Pan>${escXml(pan)}</Pan>` +
-      `<Expiry>${escXml(expiry)}</Expiry>` +
-      `<Cvv>${escXml(cvv)}</Cvv>`;
+      `<Cvv>${escXml(cvv)}</Cvv>` +
+      `<Expiry>${escXml(expiry)}</Expiry>`;
+  const oid = String(orderId || transactionId || '').trim();
+  const orderBlock = oid ? `<OrderId>${escXml(oid)}</OrderId>` : '';
+  const ip = String(clientIp || '').trim();
+  const clientIpBlock = ip ? `<ClientIp>${escXml(ip)}</ClientIp>` : '';
   return (
     '<?xml version="1.0" encoding="UTF-8"?>' +
     '<VposRequest>' +
@@ -1016,7 +1028,10 @@ function buildVposSaleXml(opts) {
     `<TransactionType>Sale</TransactionType>` +
     `<TransactionId>${escXml(transactionId)}</TransactionId>` +
     amountBlock +
-    extra +
+    threeDsBlock +
+    orderBlock +
+    clientIpBlock +
+    tdsTag +
     '</VposRequest>'
   );
 }

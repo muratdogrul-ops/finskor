@@ -99,6 +99,19 @@ function getField(form, ...names) {
   return '';
 }
 
+/** VPOS kılavuzu: ClientIp — kart hamili IP (Netlify: X-Forwarded-For ilk adres) */
+function clientIpFromEvent(event) {
+  const h = event.headers || {};
+  const xff = h['x-forwarded-for'] || h['X-Forwarded-For'];
+  if (xff) return String(xff).split(',')[0].trim().slice(0, 45);
+  const nip = h['x-nf-client-connection-ip'] || h['X-Nf-Client-Connection-Ip'];
+  if (nip) return String(nip).trim().slice(0, 45);
+  const ctx = event.requestContext;
+  const ip = ctx?.identity?.sourceIp || ctx?.http?.sourceIp;
+  if (ip) return String(ip).trim().slice(0, 45);
+  return '';
+}
+
 function htmlPage(title, bodyInner, ok) {
   return `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
   <style>body{font-family:system-ui,sans-serif;background:#071221;color:#F4F6F9;padding:24px;text-align:center;line-height:1.55}
@@ -309,6 +322,7 @@ exports.handler = async (event) => {
     password: pwd,
     terminalNo: term,
     transactionId: sess.transactionId,
+    orderId: sess.transactionId,
     amount: sess.amount,
     pan: sess.pan,
     expiry,
@@ -317,6 +331,7 @@ exports.handler = async (event) => {
     cavv: parsed.cavv,
     verifyEnrollmentRequestId: sess.verifyEnrollmentRequestId,
     xid3ds: parsed.xid,
+    clientIp: clientIpFromEvent(event),
   });
 
   let vtxt;
