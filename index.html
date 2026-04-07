@@ -929,6 +929,53 @@ section { position: relative; z-index: 1; }
   text-align: center;
   padding: 6px;
 }
+/* Üst bant — Finansal Danışman / Mali Müşavir (EN POPÜLER ile aynı yapı) */
+.pricing-card.pricing-card--topband::before {
+  content: attr(data-band);
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-align: center;
+  padding: 7px 10px;
+  line-height: 1.35;
+  white-space: normal;
+}
+.pricing-card.pricing-card--topband-fin::before {
+  background: linear-gradient(135deg,#3182ce,#2b6cb0);
+  color: #fff;
+}
+.pricing-card.pricing-card--topband-mus::before {
+  background: linear-gradient(135deg,#7c3aed,#5b21b6);
+  color: #fff;
+}
+.pricing-card.pricing-card--topband .pricing-tier { margin-top: 30px; }
+.pricing-period--stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+.pricing-period--stack .ppm-line {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--white);
+  line-height: 1.4;
+}
+.pricing-period--stack .ppm-sub {
+  font-size: 12px;
+  color: var(--white-muted);
+  line-height: 1.5;
+  padding-left: 0;
+  border-left: none;
+}
+.pricing-period--stack .ppm-kdv {
+  font-size: 11px;
+  color: var(--white-muted);
+  opacity: 0.9;
+  margin-top: 2px;
+}
 .pricing-tier {
   font-size: 11px;
   letter-spacing: 2px;
@@ -1694,10 +1741,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <a href="odeme.html" class="pricing-btn pricing-btn-gold">Hemen Satın Al</a>
       </div>
 
-      <div class="pricing-card" style="border-color:rgba(99,179,237,0.35)">
+      <div class="pricing-card pricing-card--topband pricing-card--topband-fin" data-band="FİNANSAL DANIŞMANA ÖZEL" style="border-color:rgba(99,179,237,0.35)">
         <div class="pricing-tier" style="color:#63b3ed">Finansal Danışman</div>
         <div class="pricing-price" style="color:#63b3ed">₺36.000</div>
-        <div class="pricing-period">100 analiz kontörü · tüm özellikler · KDV Dahil</div>
+        <div class="pricing-period pricing-period--stack">
+          <span class="ppm-line">100 analiz kontörü</span>
+          <span class="ppm-sub">Profesyonel paketteki tüm özellikler dahil</span>
+          <span class="ppm-kdv">KDV dahil</span>
+        </div>
         <ul class="pricing-features">
           <li>Tüm finansal oranlar</li>
           <li>Excel / PDF yükleme</li>
@@ -1712,16 +1763,24 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <a href="odeme.html?paket=danisan" class="pricing-btn" style="background:linear-gradient(135deg,#3182ce,#2b6cb0);color:#fff;border:none">Hemen Satın Al</a>
       </div>
 
-      <div class="pricing-card" style="border-color:rgba(167,139,250,0.4)">
+      <div class="pricing-card pricing-card--topband pricing-card--topband-mus" data-band="MALİ MÜŞAVİRE ÖZEL" style="border-color:rgba(167,139,250,0.4)">
         <div class="pricing-tier" style="color:#c4b5fd">Mali Müşavir</div>
         <div class="pricing-price" style="color:#c4b5fd">₺8.400</div>
-        <div class="pricing-period">5 ayrı erişim kodu × 4 analiz kontörü · KDV Dahil</div>
+        <div class="pricing-period pricing-period--stack">
+          <span class="ppm-line">5 ayrı erişim kodu</span>
+          <span class="ppm-sub">Her kodda 4 analiz kontörü — müşterilerinize ayrı ayrı devredebilirsiniz (toplam 20 kontör)</span>
+          <span class="ppm-kdv">KDV dahil</span>
+        </div>
         <ul class="pricing-features">
-          <li>Her kod müşterinize ayrı devredilebilir</li>
-          <li>Toplam 20 analiz kontörü</li>
-          <li>Tüm finansal oranlar ve PDF rapor</li>
-          <li>Senaryo ve subjektif faktör modülleri</li>
-          <li>ÜFE düzeltmesi ve trend analizi</li>
+          <li>Tüm finansal oranlar</li>
+          <li>Excel / PDF yükleme</li>
+          <li>3 yıllık trend analizi</li>
+          <li>Senaryo analizi modülü</li>
+          <li>Subjektif faktör değerlendirme</li>
+          <li>ÜFE reel büyüme düzeltmesi</li>
+          <li>Kredi notu artırıcı senaryo önerileri</li>
+          <li>PDF rapor üretimi</li>
+          <li>5 ayrı erişim kodu (kod başı 4 analiz); müşterilerinize devredebilirsiniz</li>
         </ul>
         <a href="odeme.html?paket=malimusavir" class="pricing-btn" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none">Hemen Satın Al</a>
       </div>
