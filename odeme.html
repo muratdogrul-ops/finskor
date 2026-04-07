@@ -740,6 +740,13 @@ const PAKETLER = {
     fiyat:   '36.000',
     credits: 100
   },
+  malimusavir: {
+    ad:      'FinSkor Mali Müşavir Paketi',
+    desc:    '5 ayrı erişim kodu × 4 analiz kontörü (toplam 20) · müşterilerinize kod dağıtımı · KDV Dahil',
+    fiyat:   '8.400',
+    credits: 4,
+    codesCount: 5
+  },
   nakitflow: {
     ad:      'NakitFlow 60 Aylık Projeksiyon Paketi',
     desc:    '60 aylık nakit akış projeksiyonu · 5Y gelir & bilanço · TCMB otoentegrasyon · KDV Dahil',
@@ -1264,7 +1271,8 @@ async function submitPayment() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ adSoyad, email, telefon, firmaAdi, vkn, vd,
           faturaTipi: bireysel ? 'bireysel' : 'kurumsal', odemeYontemi,
-          paketAdi: SECILI_PAKET.ad, paketFiyat: SECILI_PAKET.fiyat, paketKredit: SECILI_PAKET.credits })
+          paketAdi: SECILI_PAKET.ad, paketFiyat: SECILI_PAKET.fiyat, paketKredit: SECILI_PAKET.credits,
+          paketKodAdet: SECILI_PAKET.codesCount || 1 })
       });
     } catch(mailErr) {
       console.warn('Mail gönderilemedi:', mailErr.message);

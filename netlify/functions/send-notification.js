@@ -40,7 +40,21 @@ function sbRequest(method, path, data) {
 }
 
 // Ödeme formundan gelen müşteriyi Supabase'e kaydet
-async function saveToSupabase(adSoyad, email, telefon, firmaAdi, vkn, vd, faturaTipi, odemeYontemi, tarih, paketAdi, paketFiyat, paketKredit) {
+async function saveToSupabase(
+  adSoyad,
+  email,
+  telefon,
+  firmaAdi,
+  vkn,
+  vd,
+  faturaTipi,
+  odemeYontemi,
+  tarih,
+  paketAdi,
+  paketFiyat,
+  paketKredit,
+  paketKodAdet
+) {
   try {
     // Müşteri zaten var mı kontrol et (email ile)
     const check = await sbRequest('GET', `customers?email=eq.${encodeURIComponent(email)}&select=id`, null);
@@ -67,12 +81,16 @@ async function saveToSupabase(adSoyad, email, telefon, firmaAdi, vkn, vd, fatura
     const _paket  = paketAdi   || 'FinSkor Profesyonel Paket';
     const _fiyat  = paketFiyat || '2.490';
     const _kredit = (paketKredit != null && paketKredit !== '') ? paketKredit : 4;
+    const _kodAdetNum = parseInt(paketKodAdet, 10);
+    const _kodAdet =
+      Number.isFinite(_kodAdetNum) && _kodAdetNum > 1 && _kodAdetNum <= 50 ? _kodAdetNum : 0;
     const tutarSayi = parseFloat(String(_fiyat).replace(/\./g,'').replace(',','.')) || 2490;
 
     const notlar = [
       `Paket:${_paket}`,
       `Tutar:${_fiyat}`,
       `Kontör:${_kredit}`,
+      _kodAdet ? `KodAdet:${_kodAdet}` : '',
       `Firma:${firmaAdi || ''}`,
       `Ad:${adSoyad}`,
       `Mail:${email}`,
@@ -138,7 +156,7 @@ exports.handler = async (event) => {
   }
 
   const { adSoyad, email, telefon, firmaAdi, vkn, vd, faturaTipi, odemeYontemi,
-          paketAdi, paketFiyat, paketKredit } = body;
+          paketAdi, paketFiyat, paketKredit, paketKodAdet } = body;
 
   if (!adSoyad || !email || !telefon) {
     return { statusCode: 400, body: 'Zorunlu alanlar eksik.' };
@@ -147,6 +165,9 @@ exports.handler = async (event) => {
   const paketLabel  = paketAdi    || 'FinSkor Profesyonel Paket';
   const fiyatLabel  = paketFiyat  || '2.490';
   const kredit      = (paketKredit != null && paketKredit !== '') ? paketKredit : 4;
+  const kodAdetNum  = parseInt(paketKodAdet, 10);
+  const kodAdetOk   = Number.isFinite(kodAdetNum) && kodAdetNum > 1 && kodAdetNum <= 50;
+  const kontorLine  = kodAdetOk ? `${kodAdetNum} erişim kodu × ${kredit} kontör` : `${kredit} kontör`;
 
   const transporter = createTransporter();
   const tarih = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
@@ -172,7 +193,7 @@ exports.handler = async (event) => {
         <tr><td style="padding:8px 0;color:rgba(244,246,249,0.5)">Fatura Tipi</td><td style="color:#F4F6F9">${faturaTipi || 'kurumsal'}</td></tr>
         <tr><td style="padding:8px 0;color:rgba(244,246,249,0.5)">Ödeme Yöntemi</td><td style="color:#F4F6F9">${odemeYontemi || 'EFT'}</td></tr>
         <tr><td style="padding:8px 0;color:rgba(244,246,249,0.5)">Paket</td><td style="color:#C9A84C;font-weight:600">${paketLabel}</td></tr>
-        <tr><td style="padding:8px 0;color:rgba(244,246,249,0.5)">Tutar</td><td style="color:#C9A84C;font-weight:600">₺${fiyatLabel} (${kredit} kontör)</td></tr>
+        <tr><td style="padding:8px 0;color:rgba(244,246,249,0.5)">Tutar</td><td style="color:#C9A84C;font-weight:600">₺${fiyatLabel} (${kontorLine})</td></tr>
       </table>
       <div style="margin-top:20px;padding:14px 16px;background:rgba(46,204,154,0.08);border:1px solid rgba(46,204,154,0.25);border-radius:8px;font-size:13px;color:rgba(244,246,249,0.7)">
         ⚡ Ödeme doğrulandıktan sonra erişim kodunu oluşturup müşteriye gönderin.
@@ -228,11 +249,11 @@ exports.handler = async (event) => {
     });
 
     // Yöneticiye WhatsApp bildirimi (CallMeBot)
-    const waMsg = `🔔 FinSkor Yeni Ödeme Talebi\n\nAd Soyad: ${adSoyad}\nTelefon: ${telefon}\nE-posta: ${email}\nFirma: ${firmaAdi || '—'}\nPaket: ${paketLabel} (${kredit} kontör)\nTutar: ₺${fiyatLabel}\nYöntem: ${odemeYontemi || 'EFT'}\nTarih: ${tarih}`;
+    const waMsg = `🔔 FinSkor Yeni Ödeme Talebi\n\nAd Soyad: ${adSoyad}\nTelefon: ${telefon}\nE-posta: ${email}\nFirma: ${firmaAdi || '—'}\nPaket: ${paketLabel} (${kontorLine})\nTutar: ₺${fiyatLabel}\nYöntem: ${odemeYontemi || 'EFT'}\nTarih: ${tarih}`;
     await sendAdminWhatsApp(waMsg);
 
     // Supabase'e müşteri + ödeme kaydı
-    await saveToSupabase(adSoyad, email, telefon, firmaAdi, vkn, vd, faturaTipi, odemeYontemi, tarih, paketLabel, fiyatLabel, kredit);
+    await saveToSupabase(adSoyad, email, telefon, firmaAdi, vkn, vd, faturaTipi, odemeYontemi, tarih, paketLabel, fiyatLabel, kredit, paketKodAdet);
 
     return {
       statusCode: 200,

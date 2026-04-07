@@ -44,16 +44,78 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body); }
   catch { return { statusCode: 400, body: 'Geçersiz istek.' }; }
 
-  const { code, email, phone, firma, credits } = body;
-
-  if (!code) return { statusCode: 400, body: 'Kod eksik.' };
+  const { code, email, phone, firma, credits, codes: codesArr } = body;
+  const multi = Array.isArray(codesArr) && codesArr.length > 0;
+  if (multi) {
+    for (const row of codesArr) {
+      if (!row || !row.code) return { statusCode: 400, body: 'Kod eksik.' };
+    }
+  } else if (!code) {
+    return { statusCode: 400, body: 'Kod eksik.' };
+  }
 
   const transporter = createTransporter();
   const loginUrl = 'https://finskor.tr/app.html';
   const kontorBilgi = credits ? `${credits} kontör` : '';
 
-  // ── MÜŞTERİYE KOD MAİLİ ──
-  const customerHtml = `
+  let customerHtml;
+  let adminHtml;
+  let mailSubject = 'FinSkor — Erişim Kodunuz Hazır';
+  let adminSubjectTag = multi ? codesArr.map((r) => r.code).join(', ') : code;
+
+  if (multi) {
+    const n = codesArr.length;
+    const blocks = codesArr
+      .map(
+        (row, idx) =>
+          `<div style="background:rgba(201,168,76,0.08);border:2px solid rgba(201,168,76,0.4);border-radius:12px;padding:16px 20px;text-align:center;margin-bottom:12px">
+        <div style="font-size:11px;color:rgba(244,246,249,0.5);margin-bottom:6px">KOD ${idx + 1} / ${n}</div>
+        <div style="font-size:22px;font-weight:700;color:#C9A84C;letter-spacing:3px;font-family:monospace">${row.code}</div>
+        <div style="font-size:12px;color:rgba(244,246,249,0.5);margin-top:6px">${row.credits != null ? row.credits : credits || '—'} kontör</div>
+      </div>`
+      )
+      .join('');
+    customerHtml = `
+  <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0D1E35;color:#F4F6F9;border-radius:12px;overflow:hidden">
+    <div style="background:linear-gradient(135deg,#132845,#0D1E35);padding:24px 32px;border-bottom:1px solid rgba(201,168,76,0.3)">
+      <h2 style="color:#C9A84C;margin:0;font-size:20px">🦉 FinSkor — Erişim Kodlarınız Hazır</h2>
+    </div>
+    <div style="padding:28px 32px">
+      <p style="font-size:15px;color:#F4F6F9;margin-bottom:16px">Sayın <strong>${firma || 'Değerli Kullanıcı'}</strong>,</p>
+      <p style="color:rgba(244,246,249,0.7);font-size:14px;line-height:1.7;margin-bottom:20px">
+        Aşağıda <strong>${n} ayrı erişim kodu</strong> bulunmaktadır. Her kodu müşterilerinizle paylaşabilirsiniz.
+      </p>
+      ${blocks}
+      <div style="text-align:center;margin-bottom:24px">
+        <a href="${loginUrl}" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#C9A84C,#a8873a);color:#fff;border-radius:8px;text-decoration:none;font-size:15px;font-weight:700">
+          🚀 Platforma Giriş Yap
+        </a>
+      </div>
+      <div style="background:rgba(46,204,154,0.08);border:1px solid rgba(46,204,154,0.2);border-radius:8px;padding:14px 18px;font-size:13px;color:rgba(244,246,249,0.6);line-height:1.7">
+        Giriş adresi: <a href="${loginUrl}" style="color:#C9A84C">${loginUrl}</a><br>
+        Sorularınız için: <a href="mailto:${ADMIN_MAIL}" style="color:#C9A84C">${ADMIN_MAIL}</a>
+      </div>
+    </div>
+  </div>`;
+    const kodSatirlari = codesArr
+      .map(
+        (row, idx) =>
+          `<tr><td style="color:rgba(244,246,249,0.5);padding:6px 0;vertical-align:top">Kod ${idx + 1}</td><td style="color:#C9A84C;font-family:monospace;font-weight:700">${row.code}</td></tr>`
+      )
+      .join('');
+    adminHtml = `
+  <div style="font-family:Arial,sans-serif;max-width:500px;background:#0D1E35;color:#F4F6F9;border-radius:12px;padding:24px 32px">
+    <h3 style="color:#C9A84C;margin:0 0 16px">✅ Erişim Kodları Gönderildi (${n})</h3>
+    <table style="font-size:14px;width:100%">
+      <tr><td style="color:rgba(244,246,249,0.5);padding:6px 0;width:120px">Firma</td><td style="color:#F4F6F9">${firma || '—'}</td></tr>
+      ${kodSatirlari}
+      <tr><td style="color:rgba(244,246,249,0.5);padding:6px 0">E-posta</td><td style="color:#F4F6F9">${email || '—'}</td></tr>
+      <tr><td style="color:rgba(244,246,249,0.5);padding:6px 0">Telefon</td><td style="color:#F4F6F9">${phone || '—'}</td></tr>
+    </table>
+  </div>`;
+    mailSubject = 'FinSkor — Erişim Kodlarınız Hazır';
+  } else {
+    customerHtml = `
   <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0D1E35;color:#F4F6F9;border-radius:12px;overflow:hidden">
     <div style="background:linear-gradient(135deg,#132845,#0D1E35);padding:24px 32px;border-bottom:1px solid rgba(201,168,76,0.3)">
       <h2 style="color:#C9A84C;margin:0;font-size:20px">🦉 FinSkor — Erişim Kodunuz Hazır</h2>
@@ -79,9 +141,7 @@ exports.handler = async (event) => {
       </div>
     </div>
   </div>`;
-
-  // ── YÖNETİCİYE BİLGİ MAİLİ ──
-  const adminHtml = `
+    adminHtml = `
   <div style="font-family:Arial,sans-serif;max-width:500px;background:#0D1E35;color:#F4F6F9;border-radius:12px;padding:24px 32px">
     <h3 style="color:#C9A84C;margin:0 0 16px">✅ Erişim Kodu Gönderildi</h3>
     <table style="font-size:14px;width:100%">
@@ -92,6 +152,7 @@ exports.handler = async (event) => {
       ${kontorBilgi ? `<tr><td style="color:rgba(244,246,249,0.5);padding:6px 0">Kontör</td><td style="color:#F4F6F9">${kontorBilgi}</td></tr>` : ''}
     </table>
   </div>`;
+  }
 
   const errors = [];
 
@@ -101,7 +162,7 @@ exports.handler = async (event) => {
       await transporter.sendMail({
         from: `"FinSkor" <${ADMIN_MAIL}>`,
         to: email,
-        subject: 'FinSkor — Erişim Kodunuz Hazır',
+        subject: mailSubject,
         html: customerHtml,
       });
     } catch (e) {
@@ -115,16 +176,17 @@ exports.handler = async (event) => {
     await transporter.sendMail({
       from: `"FinSkor" <${ADMIN_MAIL}>`,
       to: ADMIN_MAIL,
-      subject: `[FinSkor] Kod Gönderildi — ${firma || code}`,
+      subject: `[FinSkor] Kod Gönderildi — ${firma || adminSubjectTag}`,
       html: adminHtml,
     });
   } catch (e) {
     console.error('Admin mail hatası:', e.message);
   }
 
-  // Müşteriye WhatsApp
   if (phone) {
-    const waMsg = `🦉 *FinSkor Erişim Kodunuz*\n\n${firma ? firma + ' için e' : 'E'}rişim kodunuz:\n\n🔑 *${code}*${kontorBilgi ? `\n📊 ${kontorBilgi}` : ''}\n\n🌐 Giriş: ${loginUrl}\n\nSorularınız için: ${ADMIN_MAIL}`;
+    const waMsg = multi
+      ? `🦉 *FinSkor Erişim Kodlarınız*\n\n${firma ? firma + ' için ' : ''}${codesArr.length} ayrı kod:\n\n${codesArr.map((r, i) => `${i + 1}. *${r.code}* (${r.credits != null ? r.credits : credits} kontör)`).join('\n')}\n\n🌐 Giriş: ${loginUrl}\n\nSorularınız için: ${ADMIN_MAIL}`
+      : `🦉 *FinSkor Erişim Kodunuz*\n\n${firma ? firma + ' için e' : 'E'}rişim kodunuz:\n\n🔑 *${code}*${kontorBilgi ? `\n📊 ${kontorBilgi}` : ''}\n\n🌐 Giriş: ${loginUrl}\n\nSorularınız için: ${ADMIN_MAIL}`;
     await sendWhatsApp(phone, waMsg);
   }
 

@@ -561,6 +561,10 @@ exports.handler = async (event) => {
     customerId = ensured.customerId ?? customerId;
   }
 
+  const cc = sess.codesCount != null ? Number(sess.codesCount) : 1;
+  const codeCount =
+    Number.isFinite(cc) && cc >= 1 ? Math.min(50, Math.floor(cc)) : 1;
+
   const cp = await callConfirmPayment({
     paymentId,
     customerId,
@@ -568,6 +572,7 @@ exports.handler = async (event) => {
     firma: sess.firma,
     telefon: sess.telefon,
     credits: sess.credits,
+    codeCount,
   });
 
   if (!cp.ok || !cp.json.ok) {
@@ -582,13 +587,22 @@ exports.handler = async (event) => {
     };
   }
 
-  const code = cp.json.code || '—';
+  const list = Array.isArray(cp.json.codes) && cp.json.codes.length ? cp.json.codes : [cp.json.code || '—'];
+  const codesHtml =
+    list.length > 1
+      ? `<p>Kart işleminiz tamamlandı. <strong>${list.length} ayrı erişim kodu</strong> oluşturuldu; e-postanıza da gönderildi.</p><ul style="list-style:none;padding:0;margin:16px 0;text-align:center">${list
+          .map(
+            (c) =>
+              `<li class="code" style="margin-bottom:10px;font-size:1.1rem">${escapeHtml(c)}</li>`
+          )
+          .join('')}</ul>`
+      : `<p>Kart işleminiz tamamlandı. Erişim kodunuz aşağıdadır ve e-postanıza da gönderildi.</p><div class="code">${escapeHtml(list[0])}</div>`;
   return {
     statusCode: 200,
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
     body: htmlPage(
       'Başarılı',
-      `<h1>Ödeme talebiniz alındı</h1><p>Kart işleminiz tamamlandı. Erişim kodunuz aşağıdadır ve e-postanıza da gönderildi.</p><div class="code">${escapeHtml(code)}</div><a class="btn" href="https://finskor.tr/app.html">Platforma giriş</a><p style="margin-top:16px"><a href="/" style="color:#C9A84C">Ana sayfa</a></p>`,
+      `<h1>Ödeme talebiniz alındı</h1>${codesHtml}<a class="btn" href="https://finskor.tr/app.html">Platforma giriş</a><p style="margin-top:16px"><a href="/" style="color:#C9A84C">Ana sayfa</a></p>`,
       true
     ),
   };

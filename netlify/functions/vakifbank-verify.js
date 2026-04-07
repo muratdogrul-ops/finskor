@@ -202,6 +202,9 @@ exports.handler = async (event) => {
   const meta = parseNotlar(pay.notlar);
   const email = meta.Mail || '';
   const credits = parseInt(meta.Kontör, 10) || 4;
+  const codeCountRaw = parseInt(meta.KodAdet, 10);
+  const codeCount =
+    Number.isFinite(codeCountRaw) && codeCountRaw >= 1 && codeCountRaw <= 50 ? codeCountRaw : 1;
   const firma = meta.Firma || meta.Ad || '';
   const telefon = meta.Tel || '';
 
@@ -226,6 +229,7 @@ exports.handler = async (event) => {
         firma,
         telefon,
         credits,
+        codeCount,
       }),
     });
     const raw = await cr.text();

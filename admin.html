@@ -514,7 +514,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
       </div>
       <div class="form-group"><div class="form-label">Erişim Kodu</div>
         <div style="display:flex;gap:8px;align-items:center">
-          <input class="form-input" id="code-value" placeholder="KA-2026-001" style="flex:1">
+          <input class="form-input" id="code-value" placeholder="KA-2026-0001" style="flex:1">
           <button class="btn btn-outline btn-sm" onclick="generateCode()">🎲</button>
         </div>
       </div>
@@ -945,7 +945,7 @@ function openEditCodeModal(id) {
 
 function generateCode() {
   const yr = new Date().getFullYear();
-  const n = String(Math.floor(Math.random() * 999) + 1).padStart(3, '0');
+  const n = String(Math.floor(Math.random() * 9999) + 1).padStart(4, '0');
   const code = `KA-${yr}-${n}`;
   document.getElementById('code-value').value = code;
   document.getElementById('code-preview-val').textContent = code;
@@ -1110,6 +1110,9 @@ function parsePaymentInfo(p) {
   const telMatch     = notlar.match(/Tel:\s*([^\s|]+)/);
   const paketMatch   = notlar.match(/Paket:\s*([^|]+)/);
   const kontorMatch  = notlar.match(/Kont[öo]r:\s*(\d+)/);
+  const kodAdetMatch = notlar.match(/KodAdet:\s*(\d+)/);
+  const kodAdetRaw   = kodAdetMatch ? parseInt(kodAdetMatch[1], 10) : 1;
+  const kodAdet      = Number.isFinite(kodAdetRaw) && kodAdetRaw >= 1 && kodAdetRaw <= 50 ? kodAdetRaw : 1;
   const displayName = (firmaMatch ? firmaMatch[1].trim() : '') ||
                       (adMatch    ? adMatch[1].trim()    : '') ||
                       (p.client_name || '—');
@@ -1118,7 +1121,8 @@ function parsePaymentInfo(p) {
     telefon: telMatch    ? telMatch[1].trim()       : (p.telefon || null),
     firma:   displayName,
     paket:   paketMatch  ? paketMatch[1].trim()     : 'Profesyonel Paket',
-    credits: kontorMatch ? parseInt(kontorMatch[1]) : 4
+    credits: kontorMatch ? parseInt(kontorMatch[1]) : 4,
+    kodAdet
   };
 }
 
@@ -1149,9 +1153,13 @@ function renderBekleyenler(list) {
   }
   body.innerHTML = pending.map(p => {
     const info = parsePaymentInfo(p);
-    const paketBadge = info.paket && info.paket.toLowerCase().includes('danışman')
-      ? `<span style="font-size:10px;background:rgba(99,179,237,0.2);color:#63b3ed;border:1px solid rgba(99,179,237,0.4);border-radius:4px;padding:2px 6px;display:block;margin-top:4px">💼 ${info.credits} kontör</span>`
-      : `<span style="font-size:10px;background:rgba(201,168,76,0.15);color:#C9A84C;border:1px solid rgba(201,168,76,0.3);border-radius:4px;padding:2px 6px;display:block;margin-top:4px">⭐ ${info.credits} kontör</span>`;
+    const paketLower = (info.paket || '').toLowerCase();
+    const kontorEtiket = info.kodAdet > 1 ? `${info.kodAdet} kod × ${info.credits} kontör` : `${info.credits} kontör`;
+    const paketBadge = paketLower.includes('mali müşavir')
+      ? `<span style="font-size:10px;background:rgba(167,139,250,0.2);color:#c4b5fd;border:1px solid rgba(167,139,250,0.45);border-radius:4px;padding:2px 6px;display:block;margin-top:4px">📇 ${kontorEtiket}</span>`
+      : paketLower.includes('danışman')
+      ? `<span style="font-size:10px;background:rgba(99,179,237,0.2);color:#63b3ed;border:1px solid rgba(99,179,237,0.4);border-radius:4px;padding:2px 6px;display:block;margin-top:4px">💼 ${kontorEtiket}</span>`
+      : `<span style="font-size:10px;background:rgba(201,168,76,0.15);color:#C9A84C;border:1px solid rgba(201,168,76,0.3);border-radius:4px;padding:2px 6px;display:block;margin-top:4px">⭐ ${kontorEtiket}</span>`;
     return `<tr style="border-left:3px solid #f5a623">
       <td><strong>${info.firma}</strong>${paketBadge}</td>
       <td style="font-size:12px;color:#4dabf7">${info.email || '—'}</td>
@@ -1277,17 +1285,23 @@ async function deletePayment(id) {
 async function confirmPayment(paymentId) {
   const p = allPayments.find(x => x.id === paymentId);
   if (!p) return;
-  if (!confirm('Ödemeyi onaylayın — müşteri oluşturulacak, erişim kodu üretilecek, mail gönderilecek.')) return;
+  const infoPre = parsePaymentInfo(p);
+  const kdPre = (infoPre.kodAdet != null && infoPre.kodAdet > 1) ? infoPre.kodAdet : 1;
+  const confirmMsg =
+    kdPre > 1
+      ? `Ödemeyi onaylayın — ${kdPre} ayrı erişim kodu üretilecek (her biri ${infoPre.credits} kontör), mail gönderilecek.`
+      : 'Ödemeyi onaylayın — müşteri oluşturulacak, erişim kodu üretilecek, mail gönderilecek.';
+  if (!confirm(confirmMsg)) return;
 
   const info = parsePaymentInfo(p);
   const email   = info.email;
   const telefon = info.telefon;
   const firma   = info.firma || 'Müşteri';
   const credits = (info.credits != null) ? info.credits : 4;
+  const kodAdet = (info.kodAdet != null && info.kodAdet > 1) ? info.kodAdet : 1;
 
   toast('Onaylanıyor...', 'info');
   try {
-    // 1. Müşteri oluştur (yoksa)
     let customerId = p.customer_id || null;
     if (!customerId) {
       const { data: custData, error: custErr } = await sb.from('customers').insert({
@@ -1299,66 +1313,77 @@ async function confirmPayment(paymentId) {
       customerId = custData.id;
     }
 
-    // 2. Erişim kodu üret (çakışma olursa tekrar dene)
-    let code;
-    for (let i = 0; i < 5; i++) {
-      const yr = new Date().getFullYear();
-      const n = String(Math.floor(Math.random() * 999) + 1).padStart(3, '0');
-      const candidate = `KA-${yr}-${n}`;
-      const { data: existing } = await sb.from('access_codes').select('id').eq('code', candidate).maybeSingle();
-      if (!existing) { code = candidate; break; }
+    async function generateUniqueCode() {
+      for (let i = 0; i < 12; i++) {
+        const yr = new Date().getFullYear();
+        const n = String(Math.floor(Math.random() * 9999) + 1).padStart(4, '0');
+        const candidate = `KA-${yr}-${n}`;
+        const { data: existing } = await sb.from('access_codes').select('id').eq('code', candidate).maybeSingle();
+        if (!existing) return candidate;
+      }
+      return null;
     }
-    if (!code) throw new Error('Benzersiz kod üretilemedi, tekrar deneyin.');
 
-    // Paket NakitFlow içeriyor mu?
     const nakitAkisEnabled = info.paket && info.paket.toLowerCase().includes('nakitflow');
+    const codes = [];
+    for (let k = 0; k < kodAdet; k++) {
+      const code = await generateUniqueCode();
+      if (!code) throw new Error('Benzersiz kod üretilemedi, tekrar deneyin.');
+      const { error: codeErr } = await sb.from('access_codes').insert({
+        code,
+        customer_id: customerId,
+        client_name: firma,
+        email: email || null,
+        credits,
+        active: true,
+        usage_count: 0,
+        nakit_akis_enabled: nakitAkisEnabled
+      });
+      if (codeErr) throw new Error('Kod kaydedilemedi: ' + codeErr.message);
+      codes.push(code);
+    }
 
-    // 3. access_codes tablosuna ekle
-    const { error: codeErr } = await sb.from('access_codes').insert({
-      code,
-      customer_id: customerId,
-      client_name: firma,
-      email: email || null,
-      credits,
-      active: true,
-      usage_count: 0,
-      nakit_akis_enabled: nakitAkisEnabled
-    });
-    if (codeErr) throw new Error('Kod kaydedilemedi: ' + codeErr.message);
-
-    // 4. Ödeme durumunu "onaylandi" yap
     await sb.from('payments').update({ durum: 'onaylandi' }).eq('id', paymentId);
 
-    // 5. Mail gönder (Netlify sadece mail atıyor)
     let mailSent = false;
     if (email) {
       try {
+        const payload = kodAdet > 1
+          ? { email, phone: '', firma, codes: codes.map((c) => ({ code: c, credits })) }
+          : { code: codes[0], email, phone: '', firma, credits };
         const resp = await fetch('/.netlify/functions/send-code', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code, email, phone: '', firma, credits })
+          body: JSON.stringify(payload)
         });
         const r = await resp.json();
         mailSent = r.ok;
       } catch(e) { console.warn('Mail hatası:', e.message); }
     }
 
-    toast('✅ Onaylandı! Kod: ' + code + (mailSent ? ' · Mail gönderildi' : ''));
+    const kodOzeti = kodAdet > 1 ? (codes.length + ' kod') : ('Kod: ' + codes[0]);
+    toast('✅ Onaylandı! ' + kodOzeti + (mailSent ? ' · Mail gönderildi' : ''));
     loadPayments();
     loadCustomers();
     loadCodes();
     loadDashboard();
 
-    // 6. WhatsApp 1-tık butonu
     if (telefon) {
       const tel = telefon.replace(/\D/g,'').replace(/^0/,'');
       const waPhone = tel.startsWith('90') ? tel : '90' + tel;
-      const waMsg = encodeURIComponent(
-        '🦉 *FinSkor Erişim Kodunuz*\n\n' +
-        firma + ' için erişim kodunuz:\n\n' +
-        '🔑 *' + code + '*\n📊 ' + credits + ' kontör\n\n' +
-        '🌐 Giriş: https://finskor.tr/app.html\n\nSorularınız için: info@finskor.tr'
-      );
+      const waMsg = kodAdet > 1
+        ? encodeURIComponent(
+            '🦉 *FinSkor Erişim Kodlarınız*\n\n' +
+            firma + ' için ' + kodAdet + ' ayrı kod (her biri ' + credits + ' kontör):\n\n' +
+            codes.map((c, i) => (i + 1) + '. *' + c + '*').join('\n') +
+            '\n\n🌐 Giriş: https://finskor.tr/app.html\n\nSorularınız için: info@finskor.tr'
+          )
+        : encodeURIComponent(
+            '🦉 *FinSkor Erişim Kodunuz*\n\n' +
+            firma + ' için erişim kodunuz:\n\n' +
+            '🔑 *' + codes[0] + '*\n📊 ' + credits + ' kontör\n\n' +
+            '🌐 Giriş: https://finskor.tr/app.html\n\nSorularınız için: info@finskor.tr'
+          );
       showWaButton(waPhone, waMsg);
     }
   } catch(e) { toast('Hata: ' + e.message, 'error'); }

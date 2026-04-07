@@ -171,10 +171,12 @@ async function runMpiEnroll(event) {
   const merchantReturnUrl = `${base}/.netlify/functions/vakifbank-mpi-term`;
   const failUrl = `${base}/odeme.html?mpi=hata`;
 
+  const kodAdet = pkg.codesCount && pkg.codesCount > 1 ? pkg.codesCount : 0;
   const notlar = [
     `Paket:${pkg.ad}`,
     `Tutar:${pkg.fiyatLabel}`,
     `Kontör:${pkg.credits}`,
+    kodAdet ? `KodAdet:${kodAdet}` : '',
     `Firma:${firmaAdi || ''}`,
     `Ad:${adSoyad}`,
     `Mail:${email}`,
@@ -319,6 +321,7 @@ async function runMpiEnroll(event) {
     firma: firmaAdi || adSoyad,
     telefon,
     credits: pkg.credits,
+    codesCount: pkg.codesCount && pkg.codesCount > 1 ? pkg.codesCount : 1,
     pan: panDigits,
     cvv: cvvDigits,
     expiry: exp,
@@ -335,6 +338,7 @@ async function runMpiEnroll(event) {
       telefon,
       tutarSayi,
       credits: pkg.credits,
+      codesCount: pkg.codesCount && pkg.codesCount > 1 ? pkg.codesCount : 1,
       paketAd: pkg.ad,
       notlar,
     },

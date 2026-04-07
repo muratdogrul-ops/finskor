@@ -13,6 +13,13 @@ const PAKET = {
   test1tl: { fiyat: '1.00', fiyatLabel: '1', credits: 0, ad: 'TEST 1 ₺ (geçici)' },
   profesyonel: { fiyat: '2490.00', fiyatLabel: '2.490', credits: 4, ad: 'FinSkor Profesyonel Paket' },
   danisan: { fiyat: '36000.00', fiyatLabel: '36.000', credits: 100, ad: 'FinSkor Finansal Danışman Paketi' },
+  malimusavir: {
+    fiyat: '8400.00',
+    fiyatLabel: '8.400',
+    credits: 4,
+    codesCount: 5,
+    ad: 'FinSkor Mali Müşavir Paketi',
+  },
   nakitflow: { fiyat: '4990.00', fiyatLabel: '4.990', credits: 1, ad: 'NakitFlow 60 Aylık Projeksiyon Paketi' },
 };
 
@@ -144,10 +151,12 @@ exports.handler = async (event) => {
 
   const base = siteBase();
 
+  const kodAdet = pkg.codesCount && pkg.codesCount > 1 ? pkg.codesCount : 0;
   const notlar = [
     `Paket:${pkg.ad}`,
     `Tutar:${pkg.fiyatLabel}`,
     `Kontör:${pkg.credits}`,
+    kodAdet ? `KodAdet:${kodAdet}` : '',
     `Firma:${firmaAdi || ''}`,
     `Ad:${adSoyad}`,
     `Mail:${email}`,
