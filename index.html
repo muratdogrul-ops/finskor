@@ -950,31 +950,78 @@ section { position: relative; z-index: 1; }
   background: linear-gradient(135deg,#7c3aed,#5b21b6);
   color: #fff;
 }
+/* Kurumsal kuşağı — koyu zeminde okunaklı (siyah/sıkışık değil) */
+.pricing-card.pricing-card--topband-kur::before {
+  background: linear-gradient(135deg,#14b8a6,#0f766e);
+  color: #f8fafc;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.25);
+}
 .pricing-card.pricing-card--topband .pricing-tier { margin-top: 30px; }
 .pricing-period--stack {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 28px;
 }
 .pricing-period--stack .ppm-line {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--white);
-  line-height: 1.4;
+  font-size: 14px;
+  font-weight: 600;
+  color: #f1f5f9;
+  line-height: 1.45;
 }
 .pricing-period--stack .ppm-sub {
-  font-size: 12px;
-  color: var(--white-muted);
-  line-height: 1.5;
+  font-size: 13px;
+  color: rgba(226,232,240,0.92);
+  line-height: 1.6;
   padding-left: 0;
   border-left: none;
 }
 .pricing-period--stack .ppm-kdv {
-  font-size: 11px;
-  color: var(--white-muted);
-  opacity: 0.9;
-  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #cbd5e1;
+  margin-top: 4px;
+  letter-spacing: 0.02em;
+}
+.pricing-period--stack .ppm-mini {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pricing-period--stack .ppm-mini li {
+  font-size: 13px;
+  line-height: 1.55;
+  color: rgba(241,245,249,0.95);
+  padding: 0 0 0 1.15em;
+  position: relative;
+  border: none;
+}
+.pricing-period--stack .ppm-mini li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: var(--gold);
+  font-weight: 700;
+}
+.pricing-period--stack .ppm-mini strong {
+  color: #fff;
+  font-weight: 600;
+}
+.pricing-price--kur {
+  font-family: var(--serif);
+  font-size: 32px !important;
+  font-weight: 700 !important;
+  color: var(--gold) !important;
+  padding-top: 4px !important;
+  letter-spacing: -0.5px;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.2);
+}
+.pricing-card.pricing-card--kurumsal .pricing-period {
+  font-size: 13px;
+  color: rgba(226,232,240,0.9);
 }
 .pricing-tier {
   font-size: 11px;
@@ -1746,7 +1793,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="pricing-price" style="color:#63b3ed">₺36.000</div>
         <div class="pricing-period pricing-period--stack">
           <span class="ppm-line">100 analiz kontörü</span>
-          <span class="ppm-sub">Profesyonel paketteki tüm özellikler dahil</span>
+          <ul class="ppm-mini">
+            <li>Profesyonel paketteki <strong>tüm özellikler</strong> dahil</li>
+          </ul>
           <span class="ppm-kdv">KDV dahil</span>
         </div>
         <ul class="pricing-features">
@@ -1768,7 +1817,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="pricing-price" style="color:#c4b5fd">₺8.400</div>
         <div class="pricing-period pricing-period--stack">
           <span class="ppm-line">5 ayrı erişim kodu</span>
-          <span class="ppm-sub">Her kodda 4 analiz kontörü — müşterilerinize ayrı ayrı devredebilirsiniz (toplam 20 kontör)</span>
+          <ul class="ppm-mini">
+            <li>Her kodda <strong>4 analiz kontörü</strong></li>
+            <li>Toplam <strong>20 kontör</strong> (5 × 4)</li>
+            <li>Kodları müşterilerinize <strong>ayrı ayrı</strong> devredebilirsiniz</li>
+          </ul>
           <span class="ppm-kdv">KDV dahil</span>
         </div>
         <ul class="pricing-features">
@@ -1785,16 +1838,16 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <a href="odeme.html?paket=malimusavir" class="pricing-btn" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none">Hemen Satın Al</a>
       </div>
 
-      <div class="pricing-card">
+      <div class="pricing-card pricing-card--topband pricing-card--topband-kur pricing-card--kurumsal" data-band="KURUMSAL VE KOBİ’LERE ÖZEL">
         <div class="pricing-tier">Kurumsal</div>
-        <div class="pricing-price" style="font-size:28px;padding-top:8px">Teklif Alın</div>
-        <div class="pricing-period">kuruma özel · sınırsız kullanım</div>
+        <div class="pricing-price pricing-price--kur">Teklif Alın</div>
+        <div class="pricing-period">Kuruma özel çözümler · sınırsız kullanım</div>
         <ul class="pricing-features">
           <li>Tüm özellikler dahil</li>
           <li>Özelleştirilmiş raporlama</li>
           <li>1 yıllık finansal danışmanlık</li>
         </ul>
-        <button class="pricing-btn pricing-btn-outline" onclick="openContactModal()" style="cursor:pointer">İletişime Geçin</button>
+        <button class="pricing-btn pricing-btn-outline" onclick="openContactModal()" style="cursor:pointer;border-color:rgba(201,168,76,0.45);color:#f1f5f9">İletişime Geçin</button>
       </div>
 
       <div class="pricing-card paket-site-hidden" hidden aria-hidden="true" style="display:none!important;border-color:rgba(16,185,129,0.5)">
