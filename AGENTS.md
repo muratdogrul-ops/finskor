@@ -19,6 +19,17 @@ Bu dosya **çalışan uygulama davranışını tek başına değiştirmez**; eki
 
 - Analiz sayfasında ilgili bakiye **sıfırlanmış** kabul; tutar **özkaynak toplamından düşülür**. Kodda uygulanmalıdır.
 
+### Bu düzeltmeyi geri almak (git)
+
+Canlıda sorun çıkarsa, `main`’e alınan **131 / özkaynak tenzili** commit’ini geri almak için (history’yi bozmadan):
+
+```bash
+git revert 863a0fe --no-edit
+git push origin main
+```
+
+Alternatif: Netlify **Deploys** ekranından önceki başarılı deploy’a **Publish** (rollback).
+
 ## Supabase RLS
 
 - SQL: `supabase/migrations/20260331120000_enable_rls_finskor.sql` — Dashboard SQL Editor’da çalıştırılır; tabloda RLS açılır, `anon` / `authenticated` için mevcut tam erişim politikaları eklenir (app + admin kırılmadan uyarı kalkar).
