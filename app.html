@@ -270,6 +270,14 @@ tbody td { padding:8px 13px; color:var(--text); }
 .tab-bar{display:flex;gap:4px;background:var(--surface2);border-radius:10px;padding:4px;margin-bottom:20px;}
 .tab{padding:8px 18px;border-radius:7px;border:none;background:transparent;color:var(--text-muted);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;cursor:pointer;transition:all 0.2s;}
 .tab.active{background:var(--surface);color:var(--gold);box-shadow:0 1px 4px rgba(0,0,0,0.3);}
+/* Findeks — en sonda; yeşil + nabız (CSS filter/brightness kullanılmaz; opacity + gölge) */
+.tab-findeks-pulse{color:#4ade80 !important;font-weight:700;border:1px solid rgba(34,197,94,0.4);background:rgba(22,163,74,0.14);animation:findeksPulseTab 2s ease-in-out infinite;will-change:box-shadow;transform:translateZ(0);}
+.tab-findeks-pulse:hover{color:#86efac !important;background:rgba(22,163,74,0.22);}
+.tab-findeks-pulse.active{color:#ecfdf5 !important;background:linear-gradient(135deg,rgba(22,163,74,0.6),rgba(21,128,61,0.45)) !important;border-color:rgba(34,197,94,0.65);animation:findeksPulseTab 2s ease-in-out infinite;}
+@keyframes findeksPulseTab{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,197,94,0.15);}50%{opacity:0.9;box-shadow:0 0 12px rgba(34,197,94,0.4);}}
+@media (prefers-reduced-motion: reduce){
+  .tab-findeks-pulse{animation:none !important;}
+}
 /* ── SUBJEKTİF */
 .subj-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 .subj-section{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;}
@@ -437,6 +445,7 @@ tbody td { padding:8px 13px; color:var(--text); }
     <button class="tab active" id="tab-btn-bilgi"  onclick="showTab('tab-bilgi',this)">📋 Firma & Mali Veriler</button>
     <button class="tab"        id="tab-btn-subj"   onclick="showTab('tab-subj',this)">🎯 Subjektif Faktörler</button>
     <button class="tab"        id="tab-btn-sonuc"  onclick="showTab('tab-sonuc',this)">📈 Analiz Sonucu</button>
+    <button class="tab tab-findeks-pulse" id="tab-btn-findeks" style="display:none" onclick="showTab('tab-findeks',this)">📄 Findeks</button>
   </div>
 
   <!-- TAB 1: MALİ VERİLER -->
@@ -591,6 +600,24 @@ tbody td { padding:8px 13px; color:var(--text); }
   </div>
   </div>
 
+  <!-- TAB: FİNDEKS (yerel / ?findeks=1 — KV·UV bağlantısı sonraki adım) -->
+  <div id="tab-findeks" style="display:none">
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title" id="findeksCardTitle">📄 Findeks risk raporu</div>
+      <p id="findeksCardDesc" style="font-size:13px;color:var(--text-muted);line-height:1.7;margin:0 0 14px">
+        Risk Merkezi Findeks çıktısı <strong style="color:var(--gold)">yalnızca PDF</strong> formatında yüklenir; Excel desteklenmez.
+        KV / UV banka borcu projeksiyonu bu akışa bağlanacaktır.
+      </p>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:4px">
+        <label class="upload-btn" for="findeksPdfInput" style="display:inline-block;cursor:pointer;margin:0">📎 Findeks PDF seç</label>
+        <button type="button" id="findeksRemoveBtn" onclick="clearFindeksPdf()" disabled title="Önce PDF seçin"
+          style="padding:8px 14px;border-radius:8px;border:1px solid rgba(240,62,62,0.45);background:rgba(240,62,62,0.12);color:#f87171;font-size:12px;font-weight:600;cursor:not-allowed;font-family:inherit;opacity:0.45">🗑 Raporu kaldır</button>
+      </div>
+      <input type="file" id="findeksPdfInput" accept=".pdf,application/pdf" style="display:none" onchange="handleFindeksPdfInput(event)">
+      <div id="findeksFileInfo" class="file-info" style="margin-top:10px"></div>
+    </div>
+  </div>
+
   <!-- TAB 2: SUBJEKTİF FAKTÖRLER -->
   <div id="tab-subj" style="display:none">
     <div class="card" style="margin-bottom:14px">
@@ -667,7 +694,6 @@ tbody td { padding:8px 13px; color:var(--text); }
       <div class="action-bar">
         <button class="action-btn" onclick="saveFirm()">💾 Kaydet</button>
         <button class="action-btn" onclick="showKayitliModal()" style="background:rgba(16,185,129,0.12);border-color:rgba(16,185,129,0.35);color:#34d399">📂 Kayıtlı Analizler</button>
-        <button class="action-btn" onclick="window.print()">🖨️ Yazdır</button>
         <button class="action-btn" onclick="showOtomSenaryo()" 
           style="background:rgba(99,102,241,0.15);border-color:rgba(99,102,241,0.4);color:#818cf8">
           🎯 FinSkor Otomatik Senaryo Önerisi
@@ -835,8 +861,8 @@ tbody td { padding:8px 13px; color:var(--text); }
 
 <!-- ONBOARDING MODAL -->
 <div id="onboardModal" style="display:none;position:fixed;inset:0;z-index:9999;
-  background:rgba(5,10,20,.88);backdrop-filter:blur(8px);
-  align-items:center;justify-content:center;padding:16px">
+  background:rgba(5,10,20,.88);backdrop-filter:blur(2px);
+  align-items:center;justify-content:center;padding:16px;overflow-y:auto;-webkit-overflow-scrolling:touch">
   <div style="background:linear-gradient(160deg,#0a1a0f,#062010);
     border:1.5px solid #f5a623;border-radius:24px;max-width:520px;width:100%;
     box-shadow:0 32px 80px rgba(0,0,0,.8),0 0 40px rgba(245,166,35,.12);
@@ -961,7 +987,7 @@ tbody td { padding:8px 13px; color:var(--text); }
 // TAB YÖNETİMİ
 // ══════════════════════════════════════════
 function showTab(tabId, btn) {
-  ['tab-bilgi','tab-subj','tab-sonuc'].forEach(id => {
+  ['tab-bilgi','tab-findeks','tab-subj','tab-sonuc'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
@@ -974,10 +1000,124 @@ function showTab(tabId, btn) {
   }
   if (btn) btn.classList.add('active');
   else {
-    const map = {'tab-bilgi':'tab-btn-bilgi','tab-subj':'tab-btn-subj','tab-sonuc':'tab-btn-sonuc'};
+    const map = {'tab-bilgi':'tab-btn-bilgi','tab-findeks':'tab-btn-findeks','tab-subj':'tab-btn-subj','tab-sonuc':'tab-btn-sonuc'};
     const b = document.getElementById(map[tabId]);
     if (b) b.classList.add('active');
   }
+  if (typeof unlockPageScroll === 'function') unlockPageScroll();
+}
+
+/** Findeks sekmesi: localhost / 127.0.0.1 / file: veya ?findeks=1 (canlıda gizli test) */
+function findeksUiEnabled() {
+  try {
+    if (new URLSearchParams(location.search).get('findeks') === '1') return true;
+    const h = (location.hostname || '').toLowerCase();
+    if (h === 'localhost' || h === '127.0.0.1' || h === '[::1]') return true;
+    if (!h && location.protocol === 'file:') return true;
+    return false;
+  } catch (e) { return false; }
+}
+
+function initFindeksTabVisibility() {
+  const on = findeksUiEnabled();
+  const btn = document.getElementById('tab-btn-findeks');
+  if (btn) btn.style.display = on ? '' : 'none';
+  if (!on) {
+    const panel = document.getElementById('tab-findeks');
+    if (panel && panel.style.display === 'block') {
+      showTab('tab-bilgi', document.getElementById('tab-btn-bilgi'));
+    }
+  }
+}
+
+/** Modal / body overflow kilitleri — removeProperty ile tam sıfırla; giriş ekranı app’i örtmeye devam etmesin */
+function unlockPageScroll() {
+  try {
+    const h = document.documentElement;
+    const b = document.body;
+    ['overflow', 'position', 'height', 'width', 'top', 'left', 'touch-action', 'overscroll-behavior'].forEach(function (p) {
+      b.style.removeProperty(p);
+      h.style.removeProperty(p);
+    });
+    if (localStorage.getItem('kas_logged') === '1') {
+      const ls = document.getElementById('loginScreen');
+      const ap = document.getElementById('app');
+      if (ls) ls.style.setProperty('display', 'none', 'important');
+      if (ap) ap.style.setProperty('display', 'block', 'important');
+    }
+  } catch (e) {}
+}
+
+/** İçe aktar / senaryo / kayıtlı modal takılı kaldıysa kapat (sözleşme ve Baykuş tanıtımı bilerek dokunulmaz) */
+function closeOpenOverlaysForScroll() {
+  try {
+    const im = document.getElementById('importModal');
+    if (im && window.getComputedStyle(im).display !== 'none' && typeof hideImportModal === 'function') {
+      hideImportModal();
+    }
+  } catch (e) {}
+  try {
+    const sm = document.getElementById('senaryoModal');
+    if (sm && window.getComputedStyle(sm).display !== 'none') sm.style.display = 'none';
+  } catch (e) {}
+  try {
+    const km = document.getElementById('kayitliModal');
+    if (km && window.getComputedStyle(km).display !== 'none' && typeof closeKayitliModal === 'function') {
+      closeKayitliModal();
+    }
+  } catch (e) {}
+}
+
+function findeksUpdateRemoveButton() {
+  const btn = document.getElementById('findeksRemoveBtn');
+  if (!btn) return;
+  const has = !!state.findeksPdf;
+  const en = typeof state !== 'undefined' && state && state.lang === 'en';
+  btn.disabled = !has;
+  btn.style.opacity = has ? '1' : '0.45';
+  btn.style.cursor = has ? 'pointer' : 'not-allowed';
+  btn.title = has
+    ? (en ? 'Remove uploaded Findeks PDF' : 'Yüklenen Findeks PDF’ini kaldır')
+    : (en ? 'Select a PDF first' : 'Önce PDF seçin');
+}
+
+function clearFindeksPdf() {
+  state.findeksPdf = null;
+  const inp = document.getElementById('findeksPdfInput');
+  if (inp) inp.value = '';
+  const info = document.getElementById('findeksFileInfo');
+  if (info) { info.textContent = ''; info.className = 'file-info'; }
+  findeksUpdateRemoveButton();
+  closeOpenOverlaysForScroll();
+  unlockPageScroll();
+  if (typeof showToast === 'function') showToast('Findeks raporu kaldırıldı.', false);
+}
+
+function handleFindeksPdfInput(ev) {
+  const inp = ev && ev.target;
+  const f = inp && inp.files && inp.files[0];
+  if (!f) return;
+  const ok = f.type === 'application/pdf' || /\.pdf$/i.test(f.name || '');
+  if (!ok) {
+    if (typeof showToast === 'function') showToast('Findeks raporu yalnızca PDF olabilir (Excel desteklenmez).', true);
+    inp.value = '';
+    state.findeksPdf = null;
+    const info = document.getElementById('findeksFileInfo');
+    if (info) { info.textContent = ''; info.className = 'file-info'; }
+    findeksUpdateRemoveButton();
+    return;
+  }
+  // Dosya seçim diyaloğu kapandıktan sonra UI güncelle (bazı tarayıcılarda ana iş parçacığı nefes alır)
+  requestAnimationFrame(function () {
+    state.findeksPdf = { name: f.name, file: f };
+    const info = document.getElementById('findeksFileInfo');
+    if (info) {
+      info.textContent = '✓ ' + f.name;
+      info.className = 'file-info visible';
+    }
+    findeksUpdateRemoveButton();
+    unlockPageScroll();
+  });
 }
 
 // ══════════════════════════════════════════
@@ -1777,6 +1917,8 @@ function loginSuccess(userData) {
   }
 
   init(); // Önce sync init — kendi default yıllarıyla tabloyu kur
+  initFindeksTabVisibility();
+  if (typeof findeksUpdateRemoveButton === 'function') findeksUpdateRemoveButton();
 
   // init() bittikten SONRA admin ayarlarını uygula (race condition önlenir)
   loadUfeFromSupabase();
@@ -1909,6 +2051,62 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) avStopAudio();
 });
 
+/** Esc: açık modalları kapat + sayfa kaydırmasını geri ver (takılma kurtarma) */
+document.addEventListener('keydown', function (ev) {
+  if (ev.key !== 'Escape') return;
+  const app = document.getElementById('app');
+  if (!app || window.getComputedStyle(app).display === 'none') return;
+  try {
+    const belge = document.getElementById('belgeModalOverlay');
+    if (belge && window.getComputedStyle(belge).display !== 'none' && typeof belgeModalKapat === 'function') {
+      belgeModalKapat();
+      ev.preventDefault();
+      return;
+    }
+  } catch (e) {}
+  try {
+    const km = document.getElementById('kayitliModal');
+    if (km && window.getComputedStyle(km).display !== 'none' && typeof closeKayitliModal === 'function') {
+      closeKayitliModal();
+      ev.preventDefault();
+      return;
+    }
+  } catch (e) {}
+  try {
+    const im = document.getElementById('importModal');
+    if (im && window.getComputedStyle(im).display !== 'none' && typeof hideImportModal === 'function') {
+      hideImportModal();
+      ev.preventDefault();
+      return;
+    }
+  } catch (e) {}
+  try {
+    const sm = document.getElementById('senaryoModal');
+    if (sm && window.getComputedStyle(sm).display !== 'none') {
+      sm.style.display = 'none';
+      ev.preventDefault();
+      return;
+    }
+  } catch (e) {}
+  try {
+    const ob = document.getElementById('onboardModal');
+    if (ob && window.getComputedStyle(ob).display !== 'none' && typeof obClose === 'function') {
+      obClose();
+      ev.preventDefault();
+      return;
+    }
+  } catch (e) {}
+  try {
+    const av = document.getElementById('avatarModal');
+    if (av && window.getComputedStyle(av).display !== 'none' && typeof hideAvatarChat === 'function') {
+      hideAvatarChat();
+      ev.preventDefault();
+      return;
+    }
+  } catch (e) {}
+  if (typeof unlockPageScroll === 'function') unlockPageScroll();
+});
+
 // ══════════════════════════════════════════
 // DİL YÖNETİMİ
 // ══════════════════════════════════════════
@@ -2010,11 +2208,20 @@ function applyLang() {
   if (tbSubj) tbSubj.innerHTML = en ? '🎯 Subjective Factors' : '🎯 Subjektif Faktörler';
   const tbSonuc = document.getElementById('tab-btn-sonuc');
   if (tbSonuc) tbSonuc.innerHTML = en ? '📈 Analysis Result' : '📈 Analiz Sonucu';
+  const tbFindeks = document.getElementById('tab-btn-findeks');
+  if (tbFindeks) tbFindeks.innerHTML = en ? '📄 Findeks' : '📄 Findeks';
 
   // ── Config kartları ──
   const setTitle = (sel, tr, en2) => { const e=document.querySelector(sel); if(e) e.textContent=en?en2:tr; };
   const setHTML  = (sel, tr, en2) => { const e=document.querySelector(sel); if(e) e.innerHTML=en?en2:tr; };
   const setInner = (id, tr, en2)  => { const e=document.getElementById(id); if(e) e.innerHTML=en?en2:tr; };
+
+  setInner('findeksCardTitle', '📄 Findeks risk raporu', '📄 Findeks risk report');
+  setInner('findeksCardDesc', 'Risk Merkezi Findeks çıktısı <strong style="color:var(--gold)">yalnızca PDF</strong> formatında yüklenir; Excel desteklenmez. KV / UV banka borcu projeksiyonu bu akışa bağlanacaktır.',
+    'Findeks output is <strong style="color:var(--gold)">PDF only</strong> (Excel is not supported). KV / UV bank debt projection will plug in here.');
+  const frb = document.getElementById('findeksRemoveBtn');
+  if (frb) frb.textContent = en ? '🗑 Remove report' : '🗑 Raporu kaldır';
+  if (typeof findeksUpdateRemoveButton === 'function') findeksUpdateRemoveButton();
 
   // Bilanço dönemi kartı
   setTitle('.card-title:nth-of-type(1)', '📅 BİLANÇO DÖNEMİ', '📅 BALANCE SHEET PERIOD');
@@ -2217,7 +2424,8 @@ const state = {
   yearData: { 2022:{}, 2023:{}, 2024:{}, 2025:{}, 2026:{} },
   activeYears: [2022,2023,2024,2025,2026],
   lang: 'tr',
-  lastResult: null
+  lastResult: null,
+  findeksPdf: null
 };
 
 const HESAPLAR = [
@@ -8071,6 +8279,7 @@ function showImportModal() {
 function hideImportModal() {
   const modal = document.getElementById('importModal');
   if (modal) modal.style.display = 'none';
+  if (typeof unlockPageScroll === 'function') unlockPageScroll();
 }
 
 function updateYrBtnLabels() {
@@ -8451,6 +8660,7 @@ function obOpen() {
 function obClose() {
   const el = document.getElementById('onboardModal');
   if (el) el.style.display = 'none';
+  if (typeof unlockPageScroll === 'function') unlockPageScroll();
   window._obShown = true;
   localStorage.setItem('kas_ob_shown','1');
   // Baykuş butonu görünür olsun ve kullanıcı isterse kapatabilsin
@@ -9487,6 +9697,7 @@ function belgeModalKapat() {
   const overlay = document.getElementById('belgeModalOverlay');
   if (overlay) overlay.style.display = 'none';
   document.body.style.overflow = '';
+  document.documentElement.style.overflow = '';
 }
 
 // Admin girişinde onay kutusu gerekmez — login butonunu aktif et
@@ -9576,6 +9787,7 @@ function demoBaslat() {
 
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
+  if (typeof initFindeksTabVisibility === 'function') initFindeksTabVisibility();
 
   const banner = document.getElementById('demoBanner');
   if (banner) banner.style.display = 'flex';
