@@ -2394,7 +2394,8 @@ function recalc() {
     setT('kvYKToplam',y,kv);
     const uv = D('uvMaliBorclar')+uvTic+D('uvDigBorclar')+D('uvAlinanAvans')+D('uvBorcKarsilik')+D('uvDigYK');
     setT('uvYKToplam',y,uv);
-    const oz = D('odenmisSermaye')+D('sermaYedek')+D('karYedek')+D('gecmisKar')-D('gecmisZarar')+D('donemNetKar');
+    const ortak131Tenzil = Math.max(0, D('ortakAlacak131'));
+    const oz = D('odenmisSermaye')+D('sermaYedek')+D('karYedek')+D('gecmisKar')-D('gecmisZarar')+D('donemNetKar')-ortak131Tenzil;
     setT('ozKaynak',y,oz);
     setT('pasifToplam',y,kv+uv+oz);
     const netSat = D('brutSatis')-D('satisInd');
@@ -2537,6 +2538,7 @@ function applyParsedToYear(parsed, year) {
       n++;
     }
   });
+  normalizeOrtakAlacak131(state.yearData[year]);
   // Gelir tablosu varsa donemNetKar sıfırla (hesapToplamlar yeniden hesaplasın)
   // SADECE 2023: dönem net karı gelir tablosundan alınmaz (parse da yazmaz); her durumda 0/boş
   const d0 = state.yearData[year];
@@ -2570,6 +2572,14 @@ function autoMap(rows,year) {
     for(const[kw,mk] of Object.entries(km)){if(lbl.includes(kw)){state.yearData[year][mk]=val;break;}}
   });
   refreshInputs(year); recalc();
+}
+
+function normalizeOrtakAlacak131(d) {
+  if (!d) return;
+  const ortak131 = Math.max(0, parseFloat(d.ortakAlacak131 || 0) || 0);
+  if (ortak131 <= 0) return;
+  const digerAlacak = Math.max(0, parseFloat(d.digerAlacaklar || 0) || 0);
+  d.digerAlacaklar = Math.max(0, digerAlacak - ortak131);
 }
 
 function refreshInputs(year) {
@@ -7030,6 +7040,11 @@ function mizanRowlariIsle(rows) {
     }
     if (katki === 0) continue;
 
+    // 131 Ortaklardan Alacaklar: analizde sıfırlanır, özkaynaktan ayrıca tenzil edilir.
+    if (kod === 131) {
+      result['ortakAlacak131'] = (result['ortakAlacak131'] || 0) + Math.max(0, katki);
+      continue;
+    }
     // gecmisZarar daima pozitif kaydedilir — özkaynaktan düşülür ayrıca
     result[key] = (result[key] || 0) + (key === 'gecmisZarar' ? Math.abs(katki) : katki);
     if (kod === 601) result['ihracat'] = (result['ihracat'] || 0) + Math.abs(katki);
@@ -7047,6 +7062,7 @@ const BEYAN_GRUP_MAP = [
   [/hazir deger|kasa ve banka/,           'hazirDegerler'],
   [/menkul kiymet/,                        'menkKiymetler'],
   [/ticari alacak/,                        'ticAlacaklar'],      // DURAN bölümünde uzunTicAlacak'a override edilir
+  [/ortaklardan alacak/,                   'ortakAlacak131'],    // 131 ayrı izlenir; analizde sıfırlanır
   [/diger alacak/,                         'digerAlacaklar'],    // DURAN bölümünde uzunDigAlacak'a override edilir
   [/stok/,                                 'stoklar'],
   [/yillara yaygin/,                        'yilYayginMal'],  // 17x(DONEN) veya 35x(KV) — bolum override ile ayrılır
@@ -7297,8 +7313,9 @@ function mizanTextIsleBeyanname(lines, result, year) {
     // ". 2. Yurtdışı Satışlar" — ihracat tespiti için tek istisna
     const isYurtdisi = /^\.\s+\d+\.?\s*yurt/.test(ln);  // boşluk/nokta varyasyonlarını yakala
     // KURAL: Alt rakam satırları atla (ihracat hariç) — grup harf satırları ve gelir ana satırları al
-    if (isAltRakam && !isYurtdisi) continue;
-    if (!isGrupHarf && !isGelirAna && !isGelirIJ && !isYurtdisi) continue;
+    const isOrtakAlt = isAltRakam && /ortaklardan alacak/.test(ln);
+    if (isAltRakam && !isYurtdisi && !isOrtakAlt) continue;
+    if (!isGrupHarf && !isGelirAna && !isGelirIJ && !isYurtdisi && !isOrtakAlt) continue;
 
     // Sayıları çek: "Önceki Dönem  Cari Dönem" → son sayı = cari dönem
     const sayilar = [...line.matchAll(/(?<![\w\d])-?[\d]+[\d.]*,\d{2,4}/g)]
@@ -7518,6 +7535,10 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
     const net = hesapDeger(rawKod, borcBak, alacBak);
     if (Math.abs(net) > MIZAN_PDF_MAX_PLAUSIBLE_TL) continue;
     if (net === 0) continue;
+    if (rawKod === 131) {
+      result['ortakAlacak131'] = (result['ortakAlacak131'] || 0) + Math.max(0, net);
+      continue;
+    }
     const deltaKoord = key === 'gecmisZarar' ? Math.abs(net) : net;
     result[key] = (result[key] || 0) + deltaKoord;
     if (rawKod === 601) result['ihracat'] = (result['ihracat'] || 0) + Math.abs(net);
@@ -7744,6 +7765,10 @@ function mizanTextIsleMizan(lines, result, silent) {
     const absK = Math.abs(katki);
     if (absK > MIZAN_PDF_MAX_PLAUSIBLE_TL) continue;
     if (kod >= 100 && kod <= 591) {
+      if (rawKod === 131) {
+        result['ortakAlacak131'] = (result['ortakAlacak131'] || 0) + Math.max(0, katki);
+        continue;
+      }
       const deltaTxt = key === 'gecmisZarar' ? absK : katki;
       result[key] = (result[key] || 0) + deltaTxt;
     } else {
@@ -7844,6 +7869,7 @@ function applyImport() {
     d0.donemNetKar = 0;
   }
   if (year === 2023) d0.donemNetKar = 0;
+  normalizeOrtakAlacak131(d0);
 
   // Önce eksik toplamları hesapla
   hesapToplamlar(year);
@@ -7889,7 +7915,8 @@ function hesapToplamlar(year) {
   d.uvYKToplam = uvAlt > 0 ? uvAlt : (d.uvYKToplam || 0);
 
   // Öz Kaynak — alt kalemler varsa onlardan hesapla
-  const ozAlt = sum('odenmisSermaye','sermaYedek','karYedek','gecmisKar','donemNetKar') - (d.gecmisZarar||0);
+  const ortak131Tenzil = Math.max(0, d.ortakAlacak131 || 0);
+  const ozAlt = sum('odenmisSermaye','sermaYedek','karYedek','gecmisKar','donemNetKar') - (d.gecmisZarar||0) - ortak131Tenzil;
   d.ozKaynak = Math.abs(ozAlt) > 0 ? ozAlt : (d.ozKaynak || 0);
 
   // Pasif Toplam
