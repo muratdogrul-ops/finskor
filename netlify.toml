@@ -48,6 +48,12 @@
 
 # Tarayıcı varsayılan GET /favicon.ico — dosya yoksa 404; SVG ikona yönlendir
 [[redirects]]
+  from = "/kgf-rehber.html"
+  to = "/kgf.html"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "/favicon.ico"
   to = "/favicon.svg"
   status = 200
