@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FinSkor — KGF paket rehberi (bilgilendirme)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #07080f;
+  --surface: #0e1119;
+  --surface2: #141823;
+  --border: #1c2436;
+  --gold: #f5a623;
+  --gold2: #e8c56b;
+  --text: #edf0f7;
+  --muted: #8896b3;
+  --dim: #556080;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.65;
+  font-size: 15px;
+  padding-bottom: 48px;
+}
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: linear-gradient(rgba(245,166,35,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245,166,35,0.02) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+.wrap { position: relative; z-index: 1; max-width: 920px; margin: 0 auto; padding: 28px 20px; }
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.brand {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  background: linear-gradient(135deg, var(--gold), var(--gold2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  transition: border-color 0.2s, color 0.2s;
+}
+.back:hover { border-color: var(--gold); color: var(--gold); }
+h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(26px, 4vw, 34px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+  color: var(--text);
+}
+.lead { color: var(--muted); font-size: 14px; margin-bottom: 20px; max-width: 720px; }
+.notice {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 28px;
+  font-size: 13px;
+  color: var(--muted);
+  border-left: 3px solid var(--gold);
+}
+.notice strong { color: var(--text); }
+.toc {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 28px;
+}
+.toc h2 { font-family: 'Syne', sans-serif; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); margin-bottom: 12px; }
+.toc ul { list-style: none; }
+.toc a { color: var(--muted); text-decoration: none; font-size: 13px; display: block; padding: 4px 0; }
+.toc a:hover { color: var(--gold); }
+section { margin-bottom: 32px; }
+section > h2 {
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+details {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+details[open] { border-color: rgba(245,166,35,0.25); }
+summary {
+  padding: 14px 16px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+summary::-webkit-details-marker { display: none; }
+summary::after { content: '+'; color: var(--gold); font-weight: 800; font-size: 18px; }
+details[open] summary::after { content: '−'; }
+.pkg-body { padding: 0 16px 16px; color: var(--muted); font-size: 13px; }
+.pkg-body p { margin-bottom: 10px; }
+.pkg-body ul { margin: 8px 0 0 18px; }
+.pkg-body li { margin-bottom: 6px; }
+.mono { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--dim); }
+.ext {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.ext a { color: var(--gold); }
+h3 { font-size: 13px; color: var(--text); margin: 14px 0 8px; font-weight: 600; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 10px;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--surface2); color: var(--muted); font-weight: 600; }
+footer {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--dim);
+}
+footer a { color: var(--gold); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">FinSkor</div>
+    <a class="back" href="app.html">← Platforma dön</a>
+  </div>
+
+  <h1>KGF paket rehberi</h1>
+  <p class="lead">
+    Kredi Garanti Fonu (KGF) ürünlerinin özet bilgilendirme tablosu. FinSkor hukuki danışmanlık vermez; kredi koşulları banka ve KGF’nin güncel metnine bağlıdır.
+  </p>
+
+  <div class="notice">
+    <strong>Yasal uyarı:</strong> Bu sayfa genel bilgi içindir. Faiz, limit, vade, kefalet oranı ve banka listesi <strong>program bazında değişir</strong> ve KGF duyurularıyla güncellenir. Kesin bilgi için
+    <a href="https://www.kgf.com.tr/" target="_blank" rel="noopener noreferrer" style="color:var(--gold)">kgf.com.tr</a>
+    ve ilgili bankayı kullanın.
+  </div>
+
+  <nav class="toc" aria-label="İçindekiler">
+    <h2>İçindekiler</h2>
+    <ul>
+      <li><a href="#genel">KGF nedir, faiz kim belirler</a></li>
+      <li><a href="#yatirim-isletme">Yatırım ve işletme kredisi (örnek paket)</a></li>
+      <li><a href="#ozkaynak">Özkaynak kefaletli programlar</a></li>
+      <li><a href="#hazine">Hazine destekli aktif paketler</a></li>
+      <li><a href="#kosgeb">KOSGEB destekli kefalet paketleri</a></li>
+      <li><a href="#tematik">Tematik programlar</a></li>
+    </ul>
+  </nav>
+
+  <section id="genel">
+    <h2>Genel</h2>
+    <p style="color:var(--muted);font-size:14px;margin-bottom:12px">
+      KGF, teminat yetersizliği nedeniyle kredi kullanımını kolaylaştırmak için <strong>kefalet</strong> sağlar. Kredi sözleşmesi ve <strong>faiz / kar payı</strong> genelde <strong>kredi veren banka</strong> tarafından belirlenir. KGF ayrıca <strong>kefalet komisyonu</strong> ve <strong>başvuru ücreti</strong> uygulayabilir.
+    </p>
+  </section>
+
+  <section id="yatirim-isletme">
+    <h2>Yatırım ve işletme kredisi (Yatırım–İşletme Destek Paketi)</h2>
+    <p style="color:var(--muted);font-size:14px;margin-bottom:12px">
+      <span class="mono">Hazine fonu</span> · <span class="mono">İmalatçı KOBİ</span> · Resmi sayfa:
+      <a href="https://www.kgf.com.tr/index.php/tr/urunlerimiz/hazine-destekli-kefaletler/aktif-destek-paketleri-2025/yatirim-isletme-destek-paketi" target="_blank" rel="noopener noreferrer" style="color:var(--gold)">KGF — Yatırım-İşletme</a>
+    </p>
+    <table>
+      <thead>
+        <tr><th>Tür</th><th>Ödemesiz (en fazla)</th><th>Toplam vade (ödemesiz dahil)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>İşletme kredisi</td><td>6 ay</td><td>24 ay</td></tr>
+        <tr><td>Yatırım kredisi</td><td>12 ay</td><td>120 ay</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:12px;font-size:13px;color:var(--muted)">
+      Faiz/kar payı bankada belirlenir. Örnek ürün metninde: banka kredi komisyonu en fazla %1, KGF kefalet komisyonu %0,5 (program sayfasından doğrulayın).
+    </p>
+    <h3>Bu paketteki bankalar (KGF listesi)</h3>
+    <p class="mono" style="line-height:1.8">
+      Ziraat Bankası, Vakıfbank, Halkbank, İş Bankası, Garanti BBVA, Yapı Kredi Bankası, Akbank, Denizbank, QNB Bank, TEB, Şekerbank, Anadolubank, ING Bank
+    </p>
+  </section>
+
+  <section id="ozkaynak">
+    <h2>Özkaynak kefaletli banka kredileri</h2>
+
+    <details open>
+      <summary>KGF Genel Destek Programı</summary>
+      <div class="pkg-body">
+        <p><strong>Bankalar:</strong> Akbank, Anadolubank, Burgan Bank, Denizbank, Garanti BBVA, Halkbank, İş Bankası, QNB Bank, Şekerbank, TEB, TSKB, Vakıfbank, Yapı Kredi, Ziraat Bankası, Ziraat Katılım</p>
+        <p><strong>Vade (özet):</strong> En fazla 6 ay ödemesiz dahil 24 ay; stratejik sektör/yararlanıcı gruplarında 12 ay ödemesiz dahil 36 ay.</p>
+        <p><strong>Ücret/komisyon (özet):</strong> Başvuru 3 M TL altı/üstü için 5.000 / 10.000 TL; KGF komisyonu yıllık %1,5.</p>
+        <div class="ext"><a href="https://www.kgf.com.tr/index.php/tr/urunlerimiz/ozkaynak-kefaletlerimiz/banka-kredileri/kgf-genel-destek-programi" target="_blank" rel="noopener noreferrer">KGF sayfası →</a></div>
+      </div>
+    </details>
+
+    <details>
+      <summary>KGF Özkaynak Kefalet Programı</summary>
+      <div class="pkg-body">
+        <p><strong>Finans kuruluşları:</strong> KGF ile protokolü olan ortak bankalar ve (metne göre) ilgili finansal kiralama / finansman şirketleri — güncel tam liste KGF’de.</p>
+        <p><strong>Vade (özet):</strong> İşletme 6–60 ay (ödemesiz en fazla 1 yıl); yatırım 6–84 ay (ödemesiz en fazla 2 yıl). Yararlanıcı başına kefalet 5 M TL; azami kefalet oranı %80.</p>
+        <p><strong>Komisyon (özet):</strong> Kefalet tutarı üzerinden yıllık %2; başvuru en az 5.000 TL veya kefaletin %0,2’si.</p>
+        <div class="ext"><a href="https://www.kgf.com.tr/index.php/tr/urunlerimiz/ozkaynak-kefaletlerimiz/banka-kredileri/kgf-ozkaynak-kefalet-programi" target="_blank" rel="noopener noreferrer">KGF sayfası →</a></div>
+      </div>
+    </details>
+
+    <details>
+      <summary>KGF Savunma Sanayii Tedarikçi Destek Programı</summary>
+      <div class="pkg-body">
+        <p><strong>Bankalar:</strong> Halkbank, Vakıfbank, Ziraat Bankası, Ziraat Katılım, Denizbank, Yapı Kredi Bankası</p>
+        <p><strong>Vade:</strong> En fazla 6 ay anapara ödemesiz dahil 24 ay.</p>
+        <p><strong>Limit/oran (KOBİ):</strong> Kefalet üst limiti 20 M TL, oran %80.</p>
+        <div class="ext"><a href="https://www.kgf.com.tr/index.php/tr/urunlerimiz/ozkaynak-kefaletlerimiz/banka-kredileri/savunma-sanayi-i-tedari-kci-destek-programi" target="_blank" rel="noopener noreferrer">KGF sayfası →</a></div>
+      </div>
+    </details>
+
+    <details>
+      <summary>KOSGEB’li kefalet (faiz/kar payı destekli — banka kredileri bölümü)</summary>
+      <div class="pkg-body">
+        <p><strong>Bankalar:</strong> Akbank, İş Bankası, TEB, Halkbank, QNB Finansbank, Vakıfbank, Denizbank, Ziraat Bankası, Yapı Kredi, Kuveyt Türk Katılım Bankası</p>
+        <p><strong>Kredi türleri:</strong> İşletme kredisi; makine teçhizat kredisi.</p>
+        <p><strong>Vade:</strong> İşletme 12 ve 18 ay; makine teçhizat 12–36 ay.</p>
+        <p><strong>Limit:</strong> Girişimci işletme 50.000 TL (özel gruplarda 70.000 TL); stratejik sektör 500.000 TL.</p>
+        <p><strong>Kefalet:</strong> Azami %80; başvuru 500 TL; komisyon yıllık %1.</p>
+        <div class="ext"><a href="https://www.kgf.com.tr/index.php/tr/19-urunlerimiz/banka-kredileri" target="_blank" rel="noopener noreferrer">KGF — Banka kredileri →</a></div>
+      </div>
+    </details>
+  </section>
+
+  <section id="hazine">
+    <h2>Hazine destekli aktif paketler</h2>
+
+    <details>
+      <summary>TURYIB Programı Destek Paketi</summary>
+      <div class="pkg-body">
+        <p><strong>Banka:</strong> Şekerbank</p>
+        <p><strong>Hedef:</strong> Genç sahibi ve/veya yöneticisi olan KOBİ (metindeki istisna ve ortaklık şartları geçerli).</p>
+        <p><strong>Vade:</strong> İşletme ödemesiz dahil en fazla 60 ay; yatırım ödemesiz dahil en fazla 120 ay.</p>
+        <p><strong>Limit/oran:</strong> Kefalet üst limiti 85 M TL, oran %80.</p>
+        <div class="ext"><a href="https://www.kgf.com.tr/index.php/tr/urunlerimiz/hazine-destekli-kefaletler/aktif-destek-paketleri-2025/turyib-programi-destek-paketi" target="_blank" rel="noopener noreferrer">KGF sayfası →</a></div>
+      </div>
+    </details>
+
+    <details>
+      <summary>2024 Dijital Dönüşüm Destek Paketi</summary>
+      <div class="pkg-body">
+        <p><strong>Bankalar:</strong> Türkiye İş Bankası, TEB</p>
+        <p><strong>Koşul:</strong> KOSGEB KOBİ Dijital Dönüşüm programı onaylı imalatçı KOBİ.</p>
+        <p><strong>Vade:</strong> İşletme: ödemesiz 6 ay, toplam 12 ay; yatırım: ödemesiz 12 ay, toplam 36 ay.</p>
+        <div class="ext"><a href="https://www.kgf.com.tr/index.php/tr/urunlerimiz/hazine-destekli-kefaletler/aktif-destek-paketleri-2025/2024-dijital-donusum-destek-paketi" target="_blank" rel="noopener noreferrer">KGF sayfası →</a></div>
+      </div>
+    </details>
+
+    <details>
+      <summary>İhracat Destek Paketi</summary>
+      <div class="pkg-body">
+        <p><strong>Bankalar:</strong> Akbank, Denizbank, Garanti Bankası, Eximbank, Halkbank, İş Bankası, TEB, QNB Finansbank, Vakıfbank, Yapı Kredi Bankası, Ziraat Bankası</p>
+        <p><strong>Vade (özet):</strong> En fazla 6 ay anapara ödemesiz, toplam 24 ay; reeskont için ayrı ödemesiz süre (program metninde).</p>
+        <div class="ext"><a href="https://www.kgf.com.tr/index.php/tr/urunlerimiz/hazine-destekli-kefaletler/aktif-destek-paketleri-2025/i-hracat-destek-paketi" target="_blank" rel="noopener noreferrer">KGF sayfası →</a></div>
+      </div>
+    </details>
+
+    <details>
+      <summary>TURWIB Programı Destek Paketi</summary>
+      <div class="pkg-body">
+        <p><strong>Bankalar:</strong> Akbank, Denizbank, QNB Finansbank, TEB, Yapı Kredi Bankası</p>
+        <p><strong>Hedef:</strong> Kadın yöneticili KOBİ (metindeki kamu ortaklığı istisnası geçerli).</p>
+        <p><strong>Vade:</strong> İşletme ödemesiz dahil 60 ay; yatırım ödemesiz dahil 120 ay.</p>
+        <div class="ext"><a href="https://www.kgf.com.tr/index.php/tr/urunlerimiz/hazine-destekli-kefaletler/aktif-destek-paketleri-2025/turwib-programi-destek-paketi" target="_blank" rel="noopener noreferrer">KGF sayfası →</a></div>
+      </div>
+    </details>
+
+    <details>
+      <summary>TKYB Kredi Destek Paketi</summary>
+      <div class="pkg-body">
+        <p><strong>Kurum:</strong> Türkiye Kalkınma ve Yatırım Bankası A.Ş.</p>
+        <p><strong>Vade:</strong> İşletme: 1 yıla kadar anapara ödemesiz dahil 5 yıl; yatırım: 3 yıla kadar ödemesiz dahil 10 yıl.</p>
+        <div class="ext"><a href="https://www.kgf.com.tr/index.php/tr/urunlerimiz/hazine-destekli-kefaletler/aktif-destek-paketleri-2025/tkyb-kredi-destek-paketi" target="_blank" rel="noopener noreferrer">KGF sayfası →</a></div>
+      </div>
+    </details>
+
+    <details>
+      <summary>Yatırım–İşletme Destek Paketi (banka listesi tekrar)</summary>
+      <div class="pkg-body">
+        <p>Yukarıdaki <a href="#yatirim-isletme" style="color:var(--gold)">Yatırım ve işletme kredisi</a> bölümüne bakın.</p>
+      </div>
+    </details>
+  </section>
+
+  <section id="kosgeb">
+    <h2>KOSGEB destekli kefalet paketleri</h2>
+
+    <details>
+      <summary>Refinansman Kefalet Programı</summary>
+      <div class="pkg-body">
+        <p><strong>Bankalar:</strong> Ziraat, Vakıfbank, Halkbank, İş Bankası, Garanti BBVA, Yapı Kredi, QNB, Denizbank, Akbank</p>
+        <p><strong>Vade:</strong> En az 6 ay ödemesiz dahil 24 ay, en fazla 48 ay.</p>
+        <p><strong>Limit/oran:</strong> Kefalet üst limiti 10 M TL, %80.</p>
+        <div class="ext"><a href="https://www.kgf.com.tr/index.php/tr/urunlerimiz/kosgeb-destekli-kefaletler/refinansman-kefalet-programi" target="_blank" rel="noopener noreferrer">KGF sayfası →</a></div>
+      </div>
+    </details>
+
+    <details>
+      <summary>Kapasite Geliştirme Destek Paketi</summary>
+      <div class="pkg-body">
+        <p><strong>Bankalar:</strong> Ziraat Bankası, Vakıfbank, Halkbank, Ziraat Katılım</p>
+        <p><strong>Vade:</strong> İşletme ve yatırım için en fazla 36 ay.</p>
+        <p><strong>Limit:</strong> Kefalet üst limiti 16 M TL (%80); kredi üst limiti 20 M TL.</p>
+        <div class="ext"><a href="https://www.kgf.com.tr/index.php/tr/urunlerimiz/kosgeb-destekli-kefaletler/kapasite-gelistirme-destek-paketi" target="_blank" rel="noopener noreferrer">KGF sayfası →</a></div>
+      </div>
+    </details>
+
+    <details>
+      <summary>Küresel Rekabetçilik Destek Paketi</summary>
+      <div class="pkg-body">
+        <p>Banka listesi KGF ve KOSGEB protokol duyurularına göre güncellenir; tipik olarak kamu bankaları ve Ziraat Katılım ile sınırlı protokol bulunur. Güncel listeyi mutlaka KGF ürün sayfasından doğrulayın.</p>
+        <div class="ext"><a href="https://www.kgf.com.tr/index.php/tr/urunlerimiz/kosgeb-destekli-kefaletler/kuresel-rekabetcilik-destek-paketi" target="_blank" rel="noopener noreferrer">KGF sayfası →</a></div>
+      </div>
+    </details>
+  </section>
+
+  <section id="tematik">
+    <h2>Tematik özkaynak programlar</h2>
+    <p style="color:var(--muted);font-size:14px;margin-bottom:12px">
+      KGF menüsünde ayrı sayfaları bulunan örnekler: Ziraat Yeşil İhracat (Greendeks), Halkbank İlk Adım, Halkbank Genç İşi, Vakıfbank Hukuk Bürosu, Tarım Kefalet, KGF Kooperatif, TOBB Nefes 2025 vb. Her birinin <strong>banka listesi ve şartları kendi sayfasındadır</strong>.
+    </p>
+    <p class="mono"><a href="https://www.kgf.com.tr/" target="_blank" rel="noopener noreferrer" style="color:var(--gold)">kgf.com.tr</a> → Ürünlerimiz → Özkaynak kefaletler → KGF tematik destek programları</p>
+  </section>
+
+  <section>
+    <h2>Genel vadeler ve limitler (çerçeve)</h2>
+    <p style="color:var(--muted);font-size:14px;margin-bottom:10px">
+      KGF “Vadeler ve Limitler” sayfasında özkaynak ve hazine destekli kefalet için üst çerçeve anlatılır (ör. özkaynakta KOBİ başına 5 M TL; hazine tarafta daha yüksek tavanlar). Detay için:
+    </p>
+    <p><a href="https://www.kgf.com.tr/index.php/tr/kefalet-isleyisi/vadeler-ve-limitler" target="_blank" rel="noopener noreferrer" style="color:var(--gold)">KGF — Vadeler ve Limitler</a></p>
+  </section>
+
+  <footer>
+    Son derleme: Nisan 2026 · FinSkor bilgilendirme sayfası ·
+    <a href="app.html">app.html</a>
+  </footer>
+</div>
+</body>
+</html>
