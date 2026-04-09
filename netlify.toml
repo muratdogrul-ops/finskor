@@ -39,6 +39,9 @@
 [functions."ip-egress"]
   timeout = 26
 
+[functions."destek-bilgi"]
+  timeout = 26
+
 [[headers]]
   for = "/*"
   [headers.values]

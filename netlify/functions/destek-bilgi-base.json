@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "kosgeb": {
+    "officialUrl": "https://www.kosgeb.gov.tr",
+    "edevletUrl": "https://edevlet.kosgeb.gov.tr",
+    "desteklerUrl": "https://www.kosgeb.gov.tr/site/tr/genel/destekler/3/destekler",
+    "summary": "KOSGEB; KOBİ ve girişimcilere hibe, geri ödemesiz ve geri ödemeli destek programları sunar. Başvuru ve uygunluk e-Devlet KOSGEB veya KOSGEB portalı üzerinden yürür.",
+    "programs": [
+      {
+        "title": "Girişimcilik Destek Programı",
+        "type": "hibe",
+        "note": "Genelde geri ödemesiz / hibe niteliğinde kalemler; dönem ve şartlar duyuruya göre değişir."
+      },
+      {
+        "title": "Geleneksel Girişimci Destek Programı",
+        "type": "hibe",
+        "note": "İşletme kuruluşu ve işletme giderleri için hibe kalemleri; başvuru pencereleri sınırlı olabilir."
+      },
+      {
+        "title": "KOBİGEL — KOBİ Gelişim Destek Programı",
+        "type": "geri_odemeli",
+        "note": "Makine-teçhizat, yazılım, danışmanlık vb. için geri ödemeli kredi benzeri destek; faiz ve vade duyuruda belirtilir."
+      },
+      {
+        "title": "İhracat Destek Programları",
+        "type": "hibe_veya_geri_odemeli",
+        "note": "Fuar, pazar araştırması, belgelendirme gibi kalemler; program bazında hibe veya geri ödemeli olabilir."
+      },
+      {
+        "title": "Ar-Ge, İnovasyon ve Endüstriyel Tasarım",
+        "type": "hibe_veya_geri_odemeli",
+        "note": "Proje bazlı; uygunluk ve geri ödeme şartları çağrı metnine bağlıdır."
+      }
+    ],
+    "disclaimer": "Bu özet bilgilendirme amaçlıdır. Güncel çağrılar, tutarlar ve şartlar için kosgeb.gov.tr ve e-Devlet başvuru ekranlarını kullanın."
+  },
+  "kgf": {
+    "officialUrl": "https://www.kgf.com.tr",
+    "summary": "KGF, bankalardan kullandırılan kredilere kefalet sağlar. Faiz ve kar payı genelde bankada; KGF kefalet komisyonu ve başvuru ücreti uygulanabilir. Paketler ve banka listeleri dönemsel güncellenir."
+  }
+}
