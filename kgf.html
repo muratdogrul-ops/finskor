@@ -302,6 +302,69 @@ footer a { color: var(--gold); }
 .live-strip strong { color: var(--text); }
 .live-strip .live-meta { font-size: 11px; color: var(--dim); margin-top: 10px; line-height: 1.4; }
 .live-strip a { color: var(--gold); }
+
+/* FinSkor — kredi notu reklam kuşağı */
+.kgf-promo {
+  background: var(--surface2);
+  border: 1px solid rgba(245,166,35,0.28);
+  border-radius: 16px;
+  padding: 22px 20px 20px;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+}
+.kgf-promo::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  left: -40px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(46,204,154,0.12), transparent 70%);
+  pointer-events: none;
+}
+.kgf-promo-head {
+  font-family: 'Syne', sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 700;
+  margin-bottom: 14px;
+  position: relative;
+}
+.kgf-promo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 24px;
+  position: relative;
+}
+@media (max-width: 640px) {
+  .kgf-promo-grid { grid-template-columns: 1fr; }
+}
+.kgf-promo-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 16px;
+}
+.kgf-promo-card h2 {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(17px, 3.5vw, 20px);
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+.kgf-promo-card p {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 14px;
+}
+.kgf-promo-card .ads-btn { width: 100%; text-align: center; }
+.kgf-promo-card .ads-btn-ghost { margin-top: 0; }
 </style>
 </head>
 <body>
@@ -319,6 +382,23 @@ footer a { color: var(--gold); }
     <div id="kgfLiveBody" style="margin-top:8px">Yükleniyor…</div>
     <div id="kgfLiveMeta" class="live-meta"></div>
   </div>
+
+  <section class="kgf-promo" aria-label="FinSkor kredi notu ve senaryo">
+    <div class="kgf-promo-head">FinSkor — Kredi notu</div>
+    <div class="kgf-promo-grid">
+      <div class="kgf-promo-card">
+        <h2>Kredi notunu öğren</h2>
+        <p>Mizan veya beyanname PDF / Excel’inizi yükleyin; firmanızın <strong style="color:var(--text)">kredi notunu</strong> ve zayıf finansal oranları saniyeler içinde görün. KGF öncesi bankaya hazırlıklı gidin.</p>
+        <a href="app.html" class="ads-btn ads-btn-primary">Kredi notunu öğren →</a>
+      </div>
+      <div class="kgf-promo-card">
+        <h2>Kredi notun nasıl artar?</h2>
+        <p>FinSkor’da <strong style="color:var(--text)">senaryo analizi</strong> ile sermaye, borç yapısı ve kârlılığı değiştirin; notunuzun anlık nasıl yükseldiğini ve hangi adımın kaç puan getirdiğini izleyin.</p>
+        <a href="app.html" class="ads-btn ads-btn-primary">Senaryo ile notu artır →</a>
+        <a href="index.html#senaryo" class="ads-btn ads-btn-ghost" style="margin-top:10px">Ana sayfada senaryo anlatımı</a>
+      </div>
+    </div>
+  </section>
 
   <section class="ads-hero" aria-label="FinSkor ve KGF giriş">
     <p class="ads-kicker">FinSkor — KOBİ finansal analiz ve kredi görünümü</p>
