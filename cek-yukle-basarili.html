@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gönderildi | FinSkor</title>
+<meta name="robots" content="noindex,follow">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root { --bg:#07080f; --surface:#0e1119; --border:#1c2436; --gold:#f5a623; --gold2:#e8c56b; --text:#edf0f7; --muted:#8896b3; --green:#2ECC9A; }
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'Plus Jakarta Sans',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+.card { max-width:520px; background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:32px 28px; text-align:center; }
+h1 { font-family:'Syne',sans-serif; font-size:26px; color:var(--green); margin-bottom:12px; }
+p { color:var(--muted); font-size:15px; line-height:1.65; margin-bottom:16px; }
+.sla { font-size:14px; color:var(--text); background:rgba(46,204,154,0.1); border:1px solid rgba(46,204,154,0.3); border-radius:10px; padding:12px 14px; margin-bottom:22px; line-height:1.5; }
+.sla strong { color:var(--green); }
+a { display:inline-flex; align-items:center; justify-content:center; padding:12px 22px; border-radius:10px; font-weight:700; font-size:14px; text-decoration:none;
+  background:linear-gradient(135deg,var(--gold),var(--gold2)); color:#07080f; margin:6px; }
+a.secondary { background:transparent; border:1px solid var(--border); color:var(--text); }
+a.secondary:hover { border-color:var(--gold); color:var(--gold); }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Talebiniz alındı</h1>
+  <p>Çek ön/arka yüzleri, örnek fatura ve iletişim bilgileriniz bize ulaştı.</p>
+  <div class="sla">
+    <strong>Ön değerlendirme:</strong> Mesai günlerinde, evraklar eksiksizse <strong>en geç 3 saat</strong> içinde dönüş hedeflenir. Yoğunluk veya ek bilgi ihtiyacında süre uzayabilir.
+  </div>
+  <p style="font-size:13px">Bu arada firma kredi notunuzu görmek için:</p>
+  <div>
+    <a href="app.html">Kredi notu analizi</a>
+    <a href="cek-yukle.html" class="secondary">Yeni belge gönder</a>
+  </div>
+  <div style="margin-top:18px">
+    <a href="index.html" class="secondary">Ana sayfa</a>
+  </div>
+</div>
+</body>
+</html>

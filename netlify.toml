@@ -62,6 +62,13 @@
   status = 301
   force = true
 
+# Eski kredi notu analiz alt sayfası → çek yükleme
+[[redirects]]
+  from = "/platform.html"
+  to = "/cek-yukle.html"
+  status = 301
+  force = true
+
 [[redirects]]
   from = "/favicon.ico"
   to = "/favicon.svg"

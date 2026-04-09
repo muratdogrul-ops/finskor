@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>İskonto kredi (faktoring) — çek ve fatura yükleme | FinSkor</title>
+<meta name="description" content="Çek ön/arka yüz ve satış örnek faturanızı yükleyin; faktoring / iskonto kredi ön değerlendirmesi için en geç 3 saatte dönüş hedefi. FinSkor kredi notu analizi.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://finskor.tr/cek-yukle.html">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#07080f; --surface:#0e1119; --border:#1c2436; --gold:#f5a623; --gold2:#e8c56b;
+  --text:#edf0f7; --muted:#8896b3; --dim:#556080; --green:#2ECC9A; --red:#e05252;
+  --navy2:#0D1E35;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'Plus Jakarta Sans',system-ui,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; font-size:15px; padding-bottom:48px; }
+.wrap { max-width:1080px; margin:0 auto; padding:24px 20px; }
+.top { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:16px; margin-bottom:20px; padding-bottom:18px; border-bottom:1px solid var(--border); }
+.brand { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; letter-spacing:1px; background:linear-gradient(135deg,var(--gold),var(--gold2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; text-decoration:none; }
+.back { display:inline-flex; align-items:center; gap:8px; padding:10px 16px; border-radius:10px; border:1px solid var(--border); color:var(--muted); text-decoration:none; font-size:13px; font-weight:600; }
+.back:hover { border-color:var(--gold); color:var(--gold); }
+
+.layout { display:grid; gap:24px; }
+@media (min-width:960px) {
+  .layout { grid-template-columns: 1fr 320px; align-items:start; }
+}
+
+.hero {
+  background:linear-gradient(165deg,rgba(245,166,35,0.12),var(--surface));
+  border:1px solid rgba(245,166,35,0.28); border-radius:18px; padding:24px 22px; margin-bottom:20px;
+}
+.hero h1 { font-family:'Syne',sans-serif; font-size:clamp(22px,3.5vw,34px); margin-bottom:12px; line-height:1.15; }
+.hero .lead { color:var(--muted); font-size:15px; max-width:720px; margin-bottom:14px; }
+.sla {
+  display:inline-flex; flex-wrap:wrap; align-items:center; gap:10px 16px;
+  background:rgba(46,204,154,0.1); border:1px solid rgba(46,204,154,0.35); border-radius:12px;
+  padding:12px 16px; font-size:14px; color:var(--text); margin-top:8px;
+}
+.sla strong { color:var(--green); font-size:15px; }
+
+.checklist { display:grid; gap:10px; margin-top:16px; font-size:14px; color:var(--muted); }
+.checklist li { list-style:none; padding-left:28px; position:relative; }
+.checklist li::before {
+  content:'✓'; position:absolute; left:0; color:var(--gold); font-weight:800;
+}
+
+.notice { background:var(--surface); border-left:3px solid var(--gold); padding:14px 16px; border-radius:0 12px 12px 0; font-size:13px; color:var(--muted); margin-bottom:20px; }
+.notice strong { color:var(--text); }
+
+.promo-aside {
+  background:linear-gradient(180deg,var(--navy2),var(--surface)); border:1px solid var(--border); border-radius:16px;
+  padding:22px 20px; position:sticky; top:20px;
+}
+.promo-aside h2 { font-family:'Syne',sans-serif; font-size:17px; color:var(--gold); margin-bottom:10px; letter-spacing:0.02em; }
+.promo-aside p { font-size:13px; color:var(--muted); margin-bottom:14px; line-height:1.55; }
+.promo-aside .cta {
+  display:flex; flex-direction:column; gap:10px;
+}
+.promo-aside a.btn-p {
+  display:inline-flex; align-items:center; justify-content:center; padding:12px 16px; border-radius:10px; font-weight:700; font-size:13px; text-decoration:none;
+  background:linear-gradient(135deg,var(--gold),var(--gold2)); color:#07080f; text-align:center;
+}
+.promo-aside a.btn-s {
+  display:inline-flex; align-items:center; justify-content:center; padding:11px 16px; border-radius:10px; font-weight:600; font-size:13px; text-decoration:none;
+  border:1px solid var(--border); color:var(--text);
+}
+.promo-aside a.btn-s:hover { border-color:var(--gold); color:var(--gold); }
+
+.card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:22px 20px 26px; }
+
+.tabs-wrap { margin-bottom:20px; }
+.tabs-hint { font-size:12px; color:var(--dim); margin-bottom:10px; }
+.tabs { display:flex; gap:8px; flex-wrap:wrap; }
+.tab {
+  flex:1; min-width:140px; padding:12px 14px; border-radius:12px; border:1px solid var(--border); background:#07080f;
+  color:var(--muted); font-size:13px; font-weight:700; font-family:inherit; cursor:pointer; transition:border-color .2s, color .2s, background .2s;
+}
+.tab:hover { color:var(--text); border-color:var(--dim); }
+.tab[aria-selected="true"] {
+  border-color:var(--gold); color:var(--gold); background:rgba(245,166,35,0.08);
+}
+.tab-panel-hint { font-size:13px; color:var(--muted); margin:14px 0 18px; padding:12px 14px; background:#07080f; border-radius:10px; border:1px solid var(--border); }
+
+.upload-grid { display:grid; gap:20px; }
+@media (min-width:640px) { .upload-grid { grid-template-columns:1fr 1fr; } }
+.upload-slot:last-child { grid-column:1 / -1; }
+
+.slot-title { font-size:12px; font-weight:700; color:var(--gold); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:8px; }
+.drop {
+  border:2px dashed var(--border); border-radius:14px; padding:22px 14px; text-align:center; color:var(--muted); font-size:13px; cursor:pointer;
+  transition:border-color .2s, background .2s; min-height:100px; display:flex; align-items:center; justify-content:center;
+}
+.drop:hover, .drop.dragover { border-color:var(--gold); background:rgba(245,166,35,0.06); color:var(--text); }
+.drop strong { color:var(--gold); display:block; margin-top:4px; }
+.file-name { font-size:12px; color:var(--green); margin-top:8px; min-height:1.35em; word-break:break-all; }
+
+label.f { display:block; font-size:12px; color:var(--muted); margin-bottom:6px; font-weight:600; margin-top:4px; }
+input[type="text"], input[type="tel"], input[type="email"], textarea {
+  width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--border); background:#07080f; color:var(--text); font-size:15px; font-family:inherit; margin-bottom:14px;
+}
+textarea { min-height:64px; resize:vertical; }
+.hp { position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
+
+.btn { display:inline-flex; align-items:center; justify-content:center; padding:15px 24px; border-radius:12px; font-weight:700; font-size:15px; border:none; cursor:pointer; font-family:inherit;
+  background:linear-gradient(135deg,var(--gold),var(--gold2)); color:#07080f; width:100%; margin-top:16px;
+}
+.btn:disabled { opacity:0.45; cursor:not-allowed; }
+.form-err { color:var(--red); font-size:13px; margin-top:10px; display:none; }
+.size-note { font-size:11px; color:var(--dim); margin-top:12px; line-height:1.45; }
+
+footer { margin-top:32px; padding-top:18px; border-top:1px solid var(--border); font-size:12px; color:var(--dim); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <a href="index.html" class="brand">FinSkor</a>
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
+      <a class="back" href="index.html">Ana sayfa</a>
+      <a class="back" href="app.html">Kredi notu analizi →</a>
+    </div>
+  </div>
+
+  <div class="hero">
+    <h1>İskonto kredi · faktoring için belge yükleme</h1>
+    <p class="lead">
+      Çekinizin <strong style="color:var(--text)">ön yüzü</strong>, <strong style="color:var(--text)">arka yüzü</strong> ve <strong style="color:var(--text)">satışa örnek fatura</strong> görüntülerini gönderin.
+      Ekibimiz faktoring / iskonto kredi ön değerlendirmesi için talebinizi işler.
+    </p>
+    <div class="sla">
+      <span><strong>En geç 3 saat</strong> içinde dönüş hedefi</span>
+      <span style="color:var(--muted);font-size:13px">(mesai günleri, eksiksiz evrak; yoğunluğa bağlı sapma olabilir)</span>
+    </div>
+    <ul class="checklist">
+      <li>Çek üzerindeki tutar, vade, keşideci ve hamil bilgileri okunaklı olsun.</li>
+      <li>Fatura, çekle ilişkili ticari satışı gösteren güncel bir örnek olsun (PDF veya net fotoğraf).</li>
+      <li>Üç dosya birlikte gönderimde toplam boyut sınırına dikkat edin (aşağıda belirtildi).</li>
+    </ul>
+  </div>
+
+  <div class="notice">
+    <strong>KVKK ve taahhüt:</strong> Yüklediğiniz belgeler kişisel ve ticari veri içerebilir; yalnızca bu talebin değerlendirilmesi için kullanılır.
+    “3 saat” çalışma hedefidir; kesin onay, limit veya hukuki sonuç garantisi verilmez. FinSkor mali veya hukuki danışmanlık sunmaz.
+  </div>
+
+  <div class="layout">
+    <div class="main-col">
+      <div class="card">
+        <form id="cekForm" name="cek-yukle" method="POST" action="/cek-yukle-basarili.html" data-netlify="true" data-netlify-honeypot="bot-field" enctype="multipart/form-data">
+          <input type="hidden" name="form-name" value="cek-yukle">
+          <input type="hidden" name="yukleme-modu" id="yuklemeModu" value="fotograf">
+          <p class="hp"><label>Bu alanı boş bırakın: <input name="bot-field"></label></p>
+
+          <div class="tabs-wrap">
+            <div class="tabs-hint">Nasıl eklemek istiyorsunuz?</div>
+            <div class="tabs" role="tablist" aria-label="Yükleme yöntemi">
+              <button type="button" class="tab" role="tab" id="tabFoto" aria-selected="true" aria-controls="modeHint" data-mode="fotograf">Fotoğraf çek</button>
+              <button type="button" class="tab" role="tab" id="tabDesk" aria-selected="false" aria-controls="modeHint" data-mode="masaustu">Masaüstü / dosya yükle</button>
+            </div>
+            <div class="tab-panel-hint" id="modeHint" role="tabpanel" aria-live="polite">
+              <strong style="color:var(--text)">Mobil:</strong> Aşağıdaki kutulara dokunduğunuzda kamera veya galeri açılabilir. Çeki düz zeminde, gölgesiz ve net çekin.
+            </div>
+          </div>
+
+          <div class="upload-grid">
+            <div class="upload-slot">
+              <div class="slot-title">1 · Çek ön yüzü</div>
+              <div class="drop" data-slot="on" tabindex="0" role="button" aria-label="Çek ön yüzü seçin">Dokun veya sürükle<br><strong>Ön yüz görüntüsü</strong></div>
+              <input type="file" id="fileOn" name="cek-on" class="file-inp" data-slot="on" style="display:none">
+              <div class="file-name" id="nameOn"></div>
+            </div>
+            <div class="upload-slot">
+              <div class="slot-title">2 · Çek arka yüzü</div>
+              <div class="drop" data-slot="arka" tabindex="0" role="button" aria-label="Çek arka yüzü seçin">Dokun veya sürükle<br><strong>Arka yüz görüntüsü</strong></div>
+              <input type="file" id="fileArka" name="cek-arka" class="file-inp" data-slot="arka" style="display:none">
+              <div class="file-name" id="nameArka"></div>
+            </div>
+            <div class="upload-slot">
+              <div class="slot-title">3 · Satış örnek faturası</div>
+              <div class="drop" data-slot="fatura" tabindex="0" role="button" aria-label="Örnek fatura seçin">Dokun veya sürükle<br><strong>Fatura (PDF veya görüntü)</strong></div>
+              <input type="file" id="fileFatura" name="fatura-ornek" class="file-inp" data-slot="fatura" style="display:none">
+              <div class="file-name" id="nameFatura"></div>
+            </div>
+          </div>
+
+          <h3 style="font-family:'Syne',sans-serif;font-size:14px;color:var(--gold);margin:24px 0 12px;letter-spacing:0.06em;text-transform:uppercase">İletişim</h3>
+          <label class="f" for="unvan">Firma ünvanı / ad soyad</label>
+          <input type="text" id="unvan" name="unvan" autocomplete="organization" required placeholder="Örn. Örnek Ltd. Şti.">
+
+          <label class="f" for="telefon">Cep telefonu</label>
+          <input type="tel" id="telefon" name="telefon" autocomplete="tel" required placeholder="05xx xxx xx xx">
+
+          <label class="f" for="email">E-posta</label>
+          <input type="email" id="email" name="email" autocomplete="email" placeholder="ornek@firma.com (önerilir)">
+
+          <label class="f" for="not">Ek not (isteğe bağlı)</label>
+          <textarea id="not" name="not" placeholder="Talep tutarı, vade, banka…"></textarea>
+
+          <p class="form-err" id="formErr"></p>
+          <button type="submit" class="btn" id="submitBtn">Gönder — faktoring ön değerlendirme</button>
+          <p class="size-note">
+            Her dosya en fazla <strong>4 MB</strong> olmalıdır; üç dosyanın toplamı <strong>10 MB</strong>’ı aşmamalıdır (form altyapısı limiti).
+            PDF veya fotoğraf sıkıştırarak yükleyebilirsiniz.
+          </p>
+        </form>
+      </div>
+    </div>
+
+    <aside class="promo-aside" aria-label="FinSkor kredi notu">
+      <h2>Bankaya gitmeden kredi notunuzu görün</h2>
+      <p>
+        FinSkor ile mizan veya beyannamenizi yükleyerek firma kredi notu tahmini ve zayıf oranlarınızı dakikalar içinde alın;
+        notu artırmak için senaryo önerilerini inceleyin. Faktoring ön incelemenizle birlikte risk profilinizi de güçlendirin.
+      </p>
+      <div class="cta">
+        <a class="btn-p" href="app.html">Ücretsiz demo analiz →</a>
+        <a class="btn-s" href="index.html#senaryo">Notu nasıl artırırsınız?</a>
+        <a class="btn-s" href="en-uygun-ticari-faiz.html">Ticari faiz sıralama aracı</a>
+      </div>
+    </aside>
+  </div>
+
+  <footer>
+    © FinSkor · <a href="index.html" style="color:var(--dim)">Ana sayfa</a> · <a href="kgf.html" style="color:var(--dim)">KGF rehberi</a>
+  </footer>
+</div>
+<script>
+(function () {
+  var MAX_EACH = 4 * 1024 * 1024;
+  var MAX_TOTAL = 10 * 1024 * 1024;
+  var modeHidden = document.getElementById('yuklemeModu');
+  var tabFoto = document.getElementById('tabFoto');
+  var tabDesk = document.getElementById('tabDesk');
+  var modeHint = document.getElementById('modeHint');
+  var form = document.getElementById('cekForm');
+  var formErr = document.getElementById('formErr');
+
+  var slots = {
+    on: { input: document.getElementById('fileOn'), drop: document.querySelector('.drop[data-slot="on"]'), name: document.getElementById('nameOn') },
+    arka: { input: document.getElementById('fileArka'), drop: document.querySelector('.drop[data-slot="arka"]'), name: document.getElementById('nameArka') },
+    fatura: { input: document.getElementById('fileFatura'), drop: document.querySelector('.drop[data-slot="fatura"]'), name: document.getElementById('nameFatura') }
+  };
+
+  var hints = {
+    fotograf: '<strong style="color:var(--text)">Fotoğraf modu:</strong> Kutuya dokunduğunuzda telefonda kamera veya galeri açılabilir. Çeki düz zeminde, gölgesiz çekin; metinler net okunmalı.',
+    masaustu: '<strong style="color:var(--text)">Dosya modu:</strong> Bilgisayardan taranmış PDF veya JPG/PNG seçin. Üç alanı da doldurmadan göndermeyin.'
+  };
+
+  function setMode(mode) {
+    var isCam = mode === 'fotograf';
+    tabFoto.setAttribute('aria-selected', isCam ? 'true' : 'false');
+    tabDesk.setAttribute('aria-selected', isCam ? 'false' : 'true');
+    modeHidden.value = isCam ? 'fotograf' : 'masaustu';
+    modeHint.innerHTML = hints[mode];
+
+    ['on', 'arka'].forEach(function (key) {
+      var inp = slots[key].input;
+      inp.removeAttribute('capture');
+      if (isCam) inp.setAttribute('capture', 'environment');
+      inp.setAttribute('accept', isCam ? 'image/jpeg,image/png,image/webp' : 'image/jpeg,image/png,image/webp,application/pdf');
+    });
+    var finp = slots.fatura.input;
+    finp.removeAttribute('capture');
+    if (isCam) finp.setAttribute('capture', 'environment');
+    finp.setAttribute('accept', 'image/jpeg,image/png,image/webp,application/pdf');
+  }
+
+  tabFoto.addEventListener('click', function () { setMode('fotograf'); });
+  tabDesk.addEventListener('click', function () { setMode('masaustu'); });
+  setMode('fotograf');
+
+  function okType(file, slotKey) {
+    var im = /^image\/(jpeg|png|webp)$/.test(file.type);
+    var pdf = file.type === 'application/pdf';
+    if (slotKey === 'fatura') return im || pdf;
+    return im || pdf;
+  }
+
+  function setFile(slotKey, file) {
+    var s = slots[slotKey];
+    formErr.style.display = 'none';
+    formErr.textContent = '';
+    if (!file) {
+      s.name.textContent = '';
+      s.input.value = '';
+      return;
+    }
+    if (!okType(file, slotKey)) {
+      s.name.textContent = '';
+      s.input.value = '';
+      formErr.textContent = 'Geçersiz dosya türü.';
+      formErr.style.display = 'block';
+      return;
+    }
+    if (file.size > MAX_EACH) {
+      s.input.value = '';
+      s.name.textContent = '';
+      formErr.textContent = 'Dosya çok büyük (dosya başına en fazla 4 MB).';
+      formErr.style.display = 'block';
+      return;
+    }
+    var dt = new DataTransfer();
+    dt.items.add(file);
+    s.input.files = dt.files;
+    s.name.textContent = file.name + ' · ' + (file.size / 1024 / 1024).toFixed(2) + ' MB';
+  }
+
+  Object.keys(slots).forEach(function (key) {
+    var s = slots[key];
+    s.drop.addEventListener('click', function () { s.input.click(); });
+    s.drop.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); s.input.click(); }
+    });
+    s.input.addEventListener('change', function () {
+      var f = s.input.files && s.input.files[0];
+      setFile(key, f || null);
+    });
+    ['dragenter', 'dragover'].forEach(function (ev) {
+      s.drop.addEventListener(ev, function (e) { e.preventDefault(); e.stopPropagation(); s.drop.classList.add('dragover'); });
+    });
+    ['dragleave', 'drop'].forEach(function (ev) {
+      s.drop.addEventListener(ev, function (e) { e.preventDefault(); e.stopPropagation(); if (ev === 'dragleave') s.drop.classList.remove('dragover'); });
+    });
+    s.drop.addEventListener('drop', function (e) {
+      s.drop.classList.remove('dragover');
+      var f = e.dataTransfer.files && e.dataTransfer.files[0];
+      setFile(key, f || null);
+    });
+  });
+
+  form.addEventListener('submit', function (e) {
+    formErr.style.display = 'none';
+    formErr.textContent = '';
+    var total = 0;
+    var missing = [];
+    ['on', 'arka', 'fatura'].forEach(function (key) {
+      var inp = slots[key].input;
+      if (!inp.files || !inp.files[0]) {
+        missing.push(key);
+        return;
+      }
+      total += inp.files[0].size;
+    });
+    if (missing.length) {
+      e.preventDefault();
+      formErr.textContent = 'Lütfen çek ön yüzü, arka yüz ve örnek faturanın üçünü de yükleyin.';
+      formErr.style.display = 'block';
+      return;
+    }
+    if (total > MAX_TOTAL) {
+      e.preventDefault();
+      formErr.textContent = 'Üç dosyanın toplam boyutu 10 MB sınırını aşıyor. Daha küçük dosya veya sıkıştırılmış PDF kullanın.';
+      formErr.style.display = 'block';
+    }
+  });
+})();
+</script>
+</body>
+</html>
