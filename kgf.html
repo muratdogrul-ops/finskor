@@ -303,68 +303,76 @@ footer a { color: var(--gold); }
 .live-strip .live-meta { font-size: 11px; color: var(--dim); margin-top: 10px; line-height: 1.4; }
 .live-strip a { color: var(--gold); }
 
-/* FinSkor — kredi notu reklam kuşağı */
-.kgf-promo {
+/* Resmi link satırı + FinSkor promo (ana sayfa #kosgeb ile aynı kurgu) */
+.kgf-official-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 4px 0 0;
+}
+.kgf-finskor-promo {
+  margin-top: 24px;
+  margin-bottom: 6px;
+  padding: 24px 22px;
+  border: 1px solid rgba(245, 166, 35, 0.38);
+  border-radius: 12px;
   background: var(--surface2);
-  border: 1px solid rgba(245,166,35,0.28);
-  border-radius: 16px;
-  padding: 22px 20px 20px;
-  margin-bottom: 24px;
-  position: relative;
-  overflow: hidden;
 }
-.kgf-promo::before {
-  content: '';
-  position: absolute;
-  top: -40px;
-  left: -40px;
-  width: 140px;
-  height: 140px;
-  background: radial-gradient(circle, rgba(46,204,154,0.12), transparent 70%);
-  pointer-events: none;
-}
-.kgf-promo-head {
+.kgf-finskor-promo-head {
   font-family: 'Syne', sans-serif;
   font-size: 11px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--gold);
   font-weight: 700;
-  margin-bottom: 14px;
-  position: relative;
+  margin-bottom: 16px;
 }
-.kgf-promo-grid {
+.kgf-finskor-promo-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px 24px;
-  position: relative;
 }
-@media (max-width: 640px) {
-  .kgf-promo-grid { grid-template-columns: 1fr; }
+@media (max-width: 768px) {
+  .kgf-finskor-promo-grid { grid-template-columns: 1fr; }
 }
-.kgf-promo-card {
-  background: var(--surface);
+.kgf-finskor-card {
+  padding: 20px 18px;
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 18px 16px;
+  border-radius: 10px;
+  background: var(--surface);
+  border-top: 3px solid var(--gold);
 }
-.kgf-promo-card h2 {
+.kgf-finskor-card h4 {
   font-family: 'Syne', sans-serif;
-  font-size: clamp(17px, 3.5vw, 20px);
-  font-weight: 800;
+  font-size: clamp(17px, 2.5vw, 22px);
   color: var(--text);
-  margin-bottom: 8px;
+  margin: 0 0 10px;
+  font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.25;
 }
-.kgf-promo-card p {
-  font-size: 13px;
+.kgf-finskor-card p {
+  font-size: 14px;
   color: var(--muted);
-  line-height: 1.6;
-  margin-bottom: 14px;
+  line-height: 1.65;
+  margin: 0 0 16px;
 }
-.kgf-promo-card .ads-btn { width: 100%; text-align: center; }
-.kgf-promo-card .ads-btn-ghost { margin-top: 0; }
+.kgf-finskor-card .ads-btn {
+  width: 100%;
+  text-align: center;
+  box-sizing: border-box;
+  justify-content: center;
+}
+.kgf-finskor-foot {
+  font-size: 13px;
+  color: var(--dim);
+  line-height: 1.65;
+  max-width: 720px;
+  margin: 18px 0 28px;
+}
+.kgf-finskor-foot a { color: var(--gold); font-weight: 600; text-decoration: none; border-bottom: 1px solid rgba(245, 166, 35, 0.35); }
+.kgf-finskor-foot a:hover { border-bottom-color: var(--gold); }
 </style>
 </head>
 <body>
@@ -382,23 +390,6 @@ footer a { color: var(--gold); }
     <div id="kgfLiveBody" style="margin-top:8px">Yükleniyor…</div>
     <div id="kgfLiveMeta" class="live-meta"></div>
   </div>
-
-  <section class="kgf-promo" aria-label="FinSkor kredi notu ve senaryo">
-    <div class="kgf-promo-head">FinSkor — Kredi notu</div>
-    <div class="kgf-promo-grid">
-      <div class="kgf-promo-card">
-        <h2>Kredi notunu öğren</h2>
-        <p>Mizan veya beyanname PDF / Excel’inizi yükleyin; firmanızın <strong style="color:var(--text)">kredi notunu</strong> ve zayıf finansal oranları saniyeler içinde görün. KGF öncesi bankaya hazırlıklı gidin.</p>
-        <a href="app.html" class="ads-btn ads-btn-primary">Kredi notunu öğren →</a>
-      </div>
-      <div class="kgf-promo-card">
-        <h2>Kredi notun nasıl artar?</h2>
-        <p>FinSkor’da <strong style="color:var(--text)">senaryo analizi</strong> ile sermaye, borç yapısı ve kârlılığı değiştirin; notunuzun anlık nasıl yükseldiğini ve hangi adımın kaç puan getirdiğini izleyin.</p>
-        <a href="app.html" class="ads-btn ads-btn-primary">Senaryo ile notu artır →</a>
-        <a href="index.html#senaryo" class="ads-btn ads-btn-ghost" style="margin-top:10px">Ana sayfada senaryo anlatımı</a>
-      </div>
-    </div>
-  </section>
 
   <section class="ads-hero" aria-label="FinSkor ve KGF giriş">
     <p class="ads-kicker">FinSkor — KOBİ finansal analiz ve kredi görünümü</p>
@@ -418,6 +409,33 @@ footer a { color: var(--gold); }
     </div>
     <p class="ads-scroll-hint"><a href="#rehber-baslik">Paket ve banka tablolarına geç ↓</a></p>
   </section>
+
+  <div class="kgf-official-row" aria-label="Resmi ve FinSkor bağlantıları">
+    <a href="https://www.kgf.com.tr/" class="ads-btn ads-btn-primary" target="_blank" rel="noopener noreferrer">KGF resmi site →</a>
+    <a href="index.html#kosgeb" class="ads-btn ads-btn-ghost">Ana sayfada KOSGEB</a>
+    <a href="index.html" class="ads-btn ads-btn-ghost">FinSkor ana sayfa</a>
+  </div>
+
+  <div class="kgf-finskor-promo" role="complementary" aria-label="FinSkor kredi analizi">
+    <div class="kgf-finskor-promo-head">FinSkor — Kredi notu ve senaryo</div>
+    <div class="kgf-finskor-promo-grid">
+      <div class="kgf-finskor-card">
+        <h4>Kredi notunu öğren</h4>
+        <p>Hibe veya kefalet başvurusundan önce mali tablolarınızı yükleyin; <strong style="color:var(--text)">firmanızın kredi notunu</strong> ve banka gözüyle risk görünümünüzü görün.</p>
+        <a href="app.html" class="ads-btn ads-btn-primary">Kredi notunu öğren →</a>
+      </div>
+      <div class="kgf-finskor-card">
+        <h4>Kredi notun nasıl artar?</h4>
+        <p><strong style="color:var(--text)">Senaryo analizi</strong> ile sermaye, borç ve kârlılığı değiştirin; hangi adımın notu kaç puan yükselttiğini simüle edin.</p>
+        <a href="app.html" class="ads-btn ads-btn-primary">Senaryo ile notu artır →</a>
+        <a href="index.html#senaryo" class="ads-btn ads-btn-ghost" style="margin-top:10px">Ana sayfada senaryo anlatımı</a>
+      </div>
+    </div>
+  </div>
+
+  <p class="kgf-finskor-foot">
+    Yukarıdaki şerit <strong style="color:var(--muted)">kgf.com.tr</strong> için kısa özet gösterebilir. Tam KOSGEB/KGF bilgilendirme özeti için <a href="app.html">analiz uygulamasına giriş</a> yapıp üst menüden <strong style="color:var(--text)">KOSGEB · KGF</strong> özetini açın. FinSkor hukuki danışmanlık vermez; teyit için <a href="https://www.kgf.com.tr/" target="_blank" rel="noopener noreferrer">kgf.com.tr</a>.
+  </p>
 
   <h2 id="rehber-baslik" class="rehber-title">KGF paket ve banka rehberi</h2>
   <p class="lead">
@@ -581,26 +599,9 @@ footer a { color: var(--gold); }
 
   <section id="kosgeb">
     <h2>KOSGEB destekli kefalet paketleri</h2>
-
-    <div class="kgf-promo" style="margin-bottom:22px" role="complementary" aria-label="FinSkor KOSGEB ve kredi">
-      <div class="kgf-promo-head">FinSkor — Hibe, kefalet ve kredi görünümü</div>
-      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px;position:relative;max-width:640px">
-        KOSGEB desteği veya KGF kefaletine hazırlanırken <strong style="color:var(--text)">firma kredi notunuzu</strong> ve iyileştirme senaryolarınızı önceden netleştirin.
-      </p>
-      <div class="kgf-promo-grid">
-        <div class="kgf-promo-card">
-          <h2>Kredi notunu öğren</h2>
-          <p>Mizan / beyanname yükleyin; notunuzu ve zayıf oranları saniyeler içinde alın. Başvuru öncesi finansal tablonuzu güçlendirin.</p>
-          <a href="app.html" class="ads-btn ads-btn-primary">Kredi notunu öğren →</a>
-        </div>
-        <div class="kgf-promo-card">
-          <h2>Kredi notun nasıl artar?</h2>
-          <p>Senaryo ile parametreleri oynatın; KOSGEB ve banka süreçlerine daha güçlü mali profille girin.</p>
-          <a href="app.html" class="ads-btn ads-btn-primary">Senaryo ile notu artır →</a>
-          <a href="index.html#kosgeb" class="ads-btn ads-btn-ghost" style="margin-top:10px">Ana sayfada KOSGEB bilgisi</a>
-        </div>
-      </div>
-    </div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.65;margin:0 0 18px;max-width:640px">
+      Kefalet öncesi <a href="app.html" style="color:var(--gold);font-weight:600">FinSkor</a> ile <strong style="color:var(--text)">kredi notu ve senaryo</strong> · KOSGEB destek özeti: <a href="index.html#kosgeb" style="color:var(--gold)">ana sayfa</a> · Üstteki <strong style="color:var(--text)">FinSkor — Kredi notu ve senaryo</strong> kutusuna sayfa başından ulaşabilirsiniz.
+    </p>
 
     <details>
       <summary>Refinansman Kefalet Programı</summary>
