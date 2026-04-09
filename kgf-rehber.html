@@ -58,7 +58,9 @@ body::before {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  text-decoration: none;
 }
+a.brand:hover { filter: brightness(1.08); }
 .back {
   display: inline-flex;
   align-items: center;
@@ -175,8 +177,11 @@ footer a { color: var(--gold); }
 <body>
 <div class="wrap">
   <div class="top">
-    <div class="brand">FinSkor</div>
-    <a class="back" href="app.html">← Platforma dön</a>
+    <a href="index.html" class="brand">FinSkor</a>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end">
+      <a class="back" href="index.html">← Ana sayfa</a>
+      <a class="back" href="app.html">Platforma dön</a>
+    </div>
   </div>
 
   <h1>KGF paket rehberi</h1>
@@ -389,7 +394,9 @@ footer a { color: var(--gold); }
 
   <footer>
     Son derleme: Nisan 2026 · FinSkor bilgilendirme sayfası ·
-    <a href="app.html">app.html</a>
+    <a href="index.html">Ana sayfa</a>
+    ·
+    <a href="app.html">Platform</a>
   </footer>
 </div>
 </body>
