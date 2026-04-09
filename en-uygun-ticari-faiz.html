@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>En uygun ticari faiz oranı — sıralama ve ödeme planı | FinSkor</title>
+<meta name="description" content="Ticari / KOBİ kredi için en uygun faizi üstte sıralayın, taksit planı çıkarın. Oranları siz girersiniz; Enuygun Finans KOBİ sayfasına bilgi linki. FinSkor ile firma kredi notu.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://finskor.tr/en-uygun-ticari-faiz.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="En uygun ticari faiz oranı | FinSkor">
+<meta property="og:description" content="Ticari kredi faiz sıralaması ve ödeme planı aracı. Bireysel değil işletme kredisi odaklı bilgilendirme.">
+<meta property="og:url" content="https://finskor.tr/en-uygun-ticari-faiz.html">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#07080f; --surface:#0e1119; --border:#1c2436; --gold:#f5a623; --gold2:#e8c56b;
+  --text:#edf0f7; --muted:#8896b3; --dim:#556080; --green:#2ECC9A;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'Plus Jakarta Sans',system-ui,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; font-size:15px; padding-bottom:48px; }
+.wrap { max-width:920px; margin:0 auto; padding:28px 20px; }
+.top { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:16px; margin-bottom:24px; padding-bottom:20px; border-bottom:1px solid var(--border); }
+.brand { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; letter-spacing:1px; background:linear-gradient(135deg,var(--gold),var(--gold2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; text-decoration:none; }
+.back { display:inline-flex; align-items:center; gap:8px; padding:10px 16px; border-radius:10px; border:1px solid var(--border); color:var(--muted); text-decoration:none; font-size:13px; font-weight:600; }
+.back:hover { border-color:var(--gold); color:var(--gold); }
+.promo { background:linear-gradient(165deg,rgba(245,166,35,0.1),var(--surface)); border:1px solid rgba(245,166,35,0.25); border-radius:16px; padding:22px 20px; margin-bottom:22px; }
+.promo h1 { font-family:'Syne',sans-serif; font-size:clamp(22px,4vw,32px); margin-bottom:10px; line-height:1.2; }
+.promo p { color:var(--muted); font-size:14px; margin-bottom:14px; max-width:720px; }
+.btn { display:inline-flex; align-items:center; justify-content:center; padding:12px 20px; border-radius:10px; font-weight:700; font-size:14px; text-decoration:none; border:none; cursor:pointer; font-family:inherit; }
+.btn-gold { background:linear-gradient(135deg,var(--gold),var(--gold2)); color:#07080f; }
+.btn-ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
+.btn-ghost:hover { border-color:var(--gold); color:var(--gold); }
+.notice { background:var(--surface); border-left:3px solid var(--gold); padding:14px 16px; border-radius:0 10px 10px 0; font-size:13px; color:var(--muted); margin-bottom:22px; }
+.notice strong { color:var(--text); }
+.toolbar { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px; margin-bottom:18px; display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media(max-width:560px){ .toolbar { grid-template-columns:1fr; } }
+.toolbar label { display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
+.toolbar input { width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border); background:#07080f; color:var(--text); font-size:15px; }
+.actions { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:18px; }
+table.banks { width:100%; border-collapse:collapse; font-size:13px; margin-bottom:20px; }
+table.banks th, table.banks td { border:1px solid var(--border); padding:10px; text-align:left; }
+table.banks th { background:var(--surface); color:var(--muted); font-weight:600; }
+table.banks tr.sorted-top td { background:rgba(46,204,154,0.08); }
+table.banks input[type="text"], table.banks input[type="number"] { width:100%; min-width:0; padding:8px; border-radius:6px; border:1px solid var(--border); background:#07080f; color:var(--text); }
+table.banks input[type="radio"] { accent-color:var(--gold); width:18px; height:18px; }
+.rm { color:#f87171; cursor:pointer; font-size:12px; background:none; border:none; font-family:inherit; }
+.plan-wrap { overflow-x:auto; margin-top:16px; }
+.plan-table { width:100%; border-collapse:collapse; font-size:12px; }
+.plan-table th, .plan-table td { border:1px solid var(--border); padding:8px; text-align:right; }
+.plan-table th:first-child, .plan-table td:first-child { text-align:center; }
+h2 { font-family:'Syne',sans-serif; font-size:14px; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold); margin:28px 0 12px; }
+footer { margin-top:36px; padding-top:20px; border-top:1px solid var(--border); font-size:12px; color:var(--dim); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <a href="index.html" class="brand">FinSkor</a>
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
+      <a class="back" href="kgf.html">← KGF rehberi</a>
+      <a class="back" href="app.html">Platforma dön →</a>
+    </div>
+  </div>
+
+  <div class="promo">
+    <h1>En uygun ticari faiz oranı</h1>
+    <p>
+      <strong>Bireysel ihtiyaç kredisi değil</strong> — bu sayfa <strong>ticari / KOBİ</strong> kredisi düşünen işletmeler içindir.
+      Bankaların <strong>en uygun (en düşük) yıllık faiz</strong> sıralamasını kendiniz kurmak için tabloya oranları girin; tek tıkla <strong>en uygun faiz üstte</strong> olacak şekilde sıralayın ve seçtiğiniz banka için <strong>ödeme planı</strong> üretin.
+      Faizler <strong>sizin girdiğiniz değerlerdir</strong>; otomatik banka veya Enuygun verisi çekilmez.
+    </p>
+    <a class="btn btn-gold" href="app.html">FinSkor — kredi notu ve senaryo →</a>
+    <a class="btn btn-ghost" href="index.html#senaryo" style="margin-left:8px">Notunuzu nasıl artırırsınız?</a>
+  </div>
+
+  <div class="notice">
+    <strong>Güncel teklifleri nereden bakarsınız?</strong> Piyasadaki KOBİ/ticari kredi karşılaştırmaları için örnek olarak
+    <a href="https://www.enuygunfinans.com/kredi/kobi/" target="_blank" rel="noopener noreferrer" style="color:var(--gold)">Enuygun Finans — KOBİ kredi</a>
+    sayfasına göz atabilirsiniz. FinSkor bu siteyle entegre değildir; gördüğünüz oranları buraya elle yazıp sıralama ve plan çıkarırsınız.
+  </div>
+
+  <h2>Faiz ve vade</h2>
+  <div class="toolbar">
+    <div>
+      <label for="tutar">Kredi tutarı (TL)</label>
+      <input type="number" id="tutar" value="1000000" min="10000" step="10000">
+    </div>
+    <div>
+      <label for="vade">Vade (ay)</label>
+      <input type="number" id="vade" value="36" min="1" max="360" step="1">
+    </div>
+  </div>
+
+  <div class="actions">
+    <button type="button" class="btn btn-gold" id="btnSort">En uygun faizi üste al (düşük faiz sırala)</button>
+    <button type="button" class="btn btn-ghost" id="btnAdd">Banka satırı ekle</button>
+    <button type="button" class="btn btn-ghost" id="btnPlan">Seçili banka — ödeme planı</button>
+  </div>
+
+  <table class="banks" id="bankTable">
+    <thead>
+      <tr>
+        <th style="width:40px">Plan</th>
+        <th>Banka / ürün adı</th>
+        <th style="width:120px">Yıllık faiz %</th>
+        <th style="width:70px"></th>
+      </tr>
+    </thead>
+    <tbody id="bankBody"></tbody>
+  </table>
+
+  <div id="planOut"></div>
+
+  <h2>FinSkor ile tamamlayın</h2>
+  <p style="color:var(--muted);font-size:14px;margin-bottom:14px;max-width:720px">
+    En uygun ticari faiz tablosu tek başına yeterli değildir: banka <strong>firma riskinizi</strong> ve <strong>kredi notu</strong> görünümünüzü değerlendirir.
+    FinSkor’da mali tablolarınızla not ve senaryo simülasyonu yaparak başvuruya daha güçlü gidebilirsiniz.
+  </p>
+  <a class="btn btn-gold" href="app.html">Ücretsiz demo — analiz →</a>
+
+  <footer>
+    FinSkor hukuki danışmanlık ve kredi aracılığı yapmaz. Ödeme planı basit eşit taksit (anüite) modelidir; BSMV, komisyon, KKDF ve banka özel şartları dahil değildir. Kesin tablo için bankanızın resmi teklifini kullanın. “En uygun” ifadesi, sizin girdiğiniz yıllık faiz yüzdelerinin küçükten büyüğe sıralanması anlamındadır.
+  </footer>
+</div>
+
+<script>
+(function () {
+  const defaultRows = [
+    { name: 'Örnek Banka A (oranı siz girin)', rate: 34.5 },
+    { name: 'Örnek Banka C (oranı siz girin)', rate: 37.2 },
+    { name: 'Örnek Banka B (oranı siz girin)', rate: 39.9 },
+    { name: 'Örnek Banka D (oranı siz girin)', rate: 41.0 }
+  ];
+
+  const body = document.getElementById('bankBody');
+  const planOut = document.getElementById('planOut');
+
+  function rowHtml(r, i, checked) {
+    const tr = document.createElement('tr');
+    tr.dataset.idx = String(i);
+    tr.innerHTML =
+      '<td><input type="radio" name="pick" value="' + i + '"' + (checked ? ' checked' : '') + '></td>' +
+      '<td><input type="text" class="bn" value="' + escAttr(r.name) + '"></td>' +
+      '<td><input type="number" class="br" value="' + r.rate + '" min="0" max="200" step="0.01"></td>' +
+      '<td><button type="button" class="rm" data-rm="' + i + '">Sil</button></td>';
+    return tr;
+  }
+
+  function escAttr(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  }
+
+  function readRows() {
+    const rows = [];
+    body.querySelectorAll('tr').forEach((tr) => {
+      const name = tr.querySelector('.bn').value.trim() || 'İsimsiz';
+      const rate = parseFloat(tr.querySelector('.br').value);
+      rows.push({ name, rate: Number.isFinite(rate) ? rate : 0 });
+    });
+    return rows;
+  }
+
+  function render(rows, selIdx) {
+    body.innerHTML = '';
+    rows.forEach((r, i) => {
+      body.appendChild(rowHtml(r, i, i === selIdx));
+    });
+    body.querySelectorAll('.rm').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.rm, 10);
+        const cur = readRows();
+        cur.splice(idx, 1);
+        render(cur.length ? cur : [{ name: 'Yeni satır', rate: 35 }], 0);
+      });
+    });
+  }
+
+  function pmtMonthly(principal, annualPct, months) {
+    const r = annualPct / 100 / 12;
+    if (months <= 0) return 0;
+    if (r <= 0) return principal / months;
+    return principal * r / (1 - Math.pow(1 + r, -months));
+  }
+
+  document.getElementById('btnSort').addEventListener('click', () => {
+    let rows = readRows();
+    rows.sort((a, b) => a.rate - b.rate);
+    render(rows, 0);
+    markSortedTop();
+  });
+
+  function markSortedTop() {
+    body.querySelectorAll('tr').forEach((tr, i) => {
+      tr.classList.toggle('sorted-top', i === 0);
+    });
+  }
+
+  document.getElementById('btnAdd').addEventListener('click', () => {
+    const rows = readRows();
+    rows.push({ name: 'Yeni banka / ürün', rate: 38 });
+    render(rows, rows.length - 1);
+  });
+
+  document.getElementById('btnPlan').addEventListener('click', () => {
+    const rows = readRows();
+    const radios = body.querySelectorAll('input[name="pick"]');
+    let idx = 0;
+    radios.forEach((el, i) => { if (el.checked) idx = i; });
+    const row = rows[idx];
+    if (!row) return;
+
+    const P = parseFloat(document.getElementById('tutar').value) || 0;
+    const n = parseInt(document.getElementById('vade').value, 10) || 0;
+    const annual = row.rate;
+    const pay = pmtMonthly(P, annual, n);
+    const r = annual / 100 / 12;
+
+    let bal = P;
+    let totalInt = 0;
+    let html = '<h2>Ödeme planı — ' + esc(row.name) + '</h2>';
+    html += '<p style="font-size:13px;color:var(--muted);margin:8px 0 12px">Yıllık faiz %' + annual.toFixed(2) + ' · Aylık taksit (yaklaşık) ' + fmt(pay) + ' TL · Basit anüite modeli.</p>';
+    html += '<div class="plan-wrap"><table class="plan-table"><thead><tr><th>Ay</th><th>Taksit</th><th>Faiz</th><th>Anapara</th><th>Kalan</th></tr></thead><tbody>';
+
+    for (let m = 1; m <= n; m++) {
+      const interest = bal * r;
+      const principalP = pay - interest;
+      bal = Math.max(0, bal - principalP);
+      totalInt += interest;
+      html += '<tr><td>' + m + '</td><td>' + fmt(pay) + '</td><td>' + fmt(interest) + '</td><td>' + fmt(principalP) + '</td><td>' + fmt(bal) + '</td></tr>';
+    }
+
+    html += '</tbody></table></div>';
+    html += '<p style="font-size:13px;color:var(--muted);margin-top:12px">Toplam ödenen faiz (yaklaşık): <strong style="color:var(--text)">' + fmt(totalInt) + ' TL</strong></p>';
+    planOut.innerHTML = html;
+  });
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function fmt(x) {
+    return Math.round(x).toLocaleString('tr-TR');
+  }
+
+  render(defaultRows, 0);
+  markSortedTop();
+})();
+</script>
+</body>
+</html>

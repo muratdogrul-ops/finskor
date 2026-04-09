@@ -57,6 +57,12 @@
   force = true
 
 [[redirects]]
+  from = "/ticari-kredi.html"
+  to = "/en-uygun-ticari-faiz.html"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "/favicon.ico"
   to = "/favicon.svg"
   status = 200
