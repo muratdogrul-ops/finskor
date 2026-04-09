@@ -1,0 +1,65 @@
+FinSkor — Google Ads metinleri (KOSGEB · KGF · kredi notu)
+Son güncelleme: Nisan 2026
+Açılış sayfası önerisi: https://finskor.tr/kgf.html veya kampanyaya göre https://finskor.tr/
+
+────────────────────────────────────────
+YASAL / POLİTİKA NOTU (kampanya ayarı)
+────────────────────────────────────────
+• FinSkor bir kamu kurumu, KOSGEB veya KGF değildir; kredi onayı vermez.
+• Metinler “bilgilendirme / analiz yazılımı” çerçevesinde kalmalı; “resmi başvuru”, “garanti onay” iddiası kullanılmamalı.
+• Reklamda hedef URL ile açılış sayfası uyumu ve Google “Yanıltıcı temsil” politikalarına dikkat edin.
+
+────────────────────────────────────────
+KISA AÇIKLAMA (ilan metni / ekip içi — RSA’ya bölünebilir)
+────────────────────────────────────────
+KOSGEB destekleri ile KGF kefaletli kredi paketleri hakkında genel bilgi; FinSkor ise mali tablolarınızdan firma kredi notu ve senaryo simülasyonu sunan yazılımdır. İkisi birbirinin yerine geçmez: başvuru ve koşullar resmi sitelerdedir; FinSkor bankaya gitmeden finansal görünümünüzü güçlendirmenize yardımcı olur.
+
+────────────────────────────────────────
+RSA — BAŞLIKLAR (her biri en fazla 30 karakter)
+────────────────────────────────────────
+FinSkor · KOBİ kredi analizi
+KGF öncesi firma notu görün
+KOSGEB ve KGF bilgilendirme
+Ücretsiz demo · kredi notu
+Bankaya gitmeden not görün
+Senaryo ile not nasıl artar?
+Kefalet paketleri ve bankalar
+FinSkor ile mali görünüm
+KGF rehberi · FinSkor
+KOSGEB öncesi analiz
+Kredi notu · ücretsiz demo
+KOBİ finansal analiz
+kgf.com.tr özeti + analiz
+Hibe ve kefalet öncesi not
+FinSkor platform · demo
+Mizan yükleyin not alın
+
+────────────────────────────────────────
+RSA — AÇIKLAMALAR (her biri en fazla 90 karakter)
+────────────────────────────────────────
+KGF paket ve banka özeti bilgilendirme. FinSkor ile not ve senaryo; resmi koşul kgf.com.tr.
+KOSGEB destekleri genel bilgi. FinSkor analiz yazılımıdır; başvuru kosgeb.gov.tr üzerinden.
+Firma kredi notunuzu ve zayıf oranları görün. Ücretsiz demo. KGF/KOSGEB resmi değildir.
+Senaryo ile sermaye ve borç etkisini deneyin. Bilgilendirme; kredi kararı bankanızındadır.
+
+────────────────────────────────────────
+SİTE BAĞLANTISI AÇIKLAMALARI (isteğe bağlı, 25 karaktere kadar)
+────────────────────────────────────────
+kgf.html açılış
+FinSkor analiz
+Ücretsiz demo
+KGF rehberi
+
+────────────────────────────────────────
+ÇAĞRI İFADELERİ (varlık grupları / uzantı)
+────────────────────────────────────────
+Ücretsiz demo yap
+Kredi notunu öğren
+Senaryoyu dene
+Rehberi oku
+
+────────────────────────────────────────
+ANAHTAR KELİME ÖNERİLERİ (arama ağı — daraltın)
+────────────────────────────────────────
+kgf kredi garanti fonu, kosgeb destek, kobi kredi notu, firma kredi analizi, kefaletli kredi bankalar
+(Çakışan marka terimleri ve “resmi site” iddialarından kaçının; geniş eşleme dikkatle kullanın.)
