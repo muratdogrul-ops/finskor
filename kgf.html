@@ -15,7 +15,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600&family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg: #07080f;
@@ -182,104 +182,195 @@ footer {
 }
 footer a { color: var(--gold); }
 
-/* Google Ads / giriş hero */
-.ads-hero {
-  background: linear-gradient(165deg, rgba(245,166,35,0.08) 0%, var(--surface) 45%, var(--surface) 100%);
-  border: 1px solid rgba(245,166,35,0.2);
-  border-radius: 16px;
-  padding: 28px 24px 24px;
+/* Ana sayfa #kosgeb ile aynı sayfa planı: KGF giriş + FinSkor promo (landing paleti & tipografi) */
+.kgf-finskor-sayfa-plani {
+  --navy: #071221;
+  --navy2: #0d1e35;
+  --gold: #c9a84c;
+  --gold2: #e8c96a;
+  --gold-dim: rgba(201, 168, 76, 0.15);
+  --gold-line: rgba(201, 168, 76, 0.25);
+  --white: #f4f6f9;
+  --white-dim: rgba(244, 246, 249, 0.55);
+  --white-muted: rgba(244, 246, 249, 0.3);
+  --lp-border: rgba(201, 168, 76, 0.18);
+  --radius: 4px;
+  --serif: 'Playfair Display', Georgia, serif;
+  --sans: 'DM Sans', system-ui, sans-serif;
+  font-family: var(--sans);
+  color: var(--white);
+  padding: 32px 24px 28px;
   margin-bottom: 28px;
-  position: relative;
-  overflow: hidden;
+  border: 1px solid var(--lp-border);
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.12);
 }
-.ads-hero::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 200px;
-  height: 200px;
-  background: radial-gradient(circle, rgba(245,166,35,0.12), transparent 70%);
-  pointer-events: none;
-}
-.ads-kicker {
+.kgf-finskor-sayfa-plani .kgf-parity-section-tag {
   font-size: 11px;
   letter-spacing: 2px;
   text-transform: uppercase;
   color: var(--gold);
-  font-weight: 600;
-  margin-bottom: 10px;
-  position: relative;
-}
-.ads-hero h1 {
-  font-family: 'Syne', sans-serif;
-  font-size: clamp(24px, 4.5vw, 36px);
-  font-weight: 800;
-  line-height: 1.15;
-  margin-bottom: 14px;
-  color: var(--text);
-  position: relative;
-}
-.ads-lead {
-  color: var(--muted);
-  font-size: 15px;
-  line-height: 1.65;
+  font-weight: 500;
   margin-bottom: 16px;
-  max-width: 640px;
-  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
-.ads-points {
-  list-style: none;
-  margin: 0 0 20px;
-  padding: 0;
-  position: relative;
+.kgf-finskor-sayfa-plani .kgf-parity-section-tag::before {
+  content: '';
+  display: inline-block;
+  width: 24px;
+  height: 1px;
+  background: var(--gold);
 }
-.ads-points li {
-  padding: 8px 0 8px 26px;
-  position: relative;
-  color: var(--muted);
-  font-size: 14px;
+.kgf-finskor-sayfa-plani .kgf-parity-title {
+  font-family: var(--serif);
+  font-size: clamp(22px, 3vw, 32px);
+  color: var(--white);
+  margin-bottom: 16px;
+  letter-spacing: -0.3px;
+  font-weight: 600;
+  line-height: 1.2;
 }
-.ads-points li::before {
-  content: '✓';
-  position: absolute;
-  left: 0;
-  color: var(--gold);
-  font-weight: 800;
+.kgf-finskor-sayfa-plani .kgf-parity-desc {
+  font-size: 16px;
+  color: var(--white-dim);
+  max-width: 720px;
+  line-height: 1.7;
+  margin-bottom: 20px;
 }
-.ads-cta-row {
+.kgf-finskor-sayfa-plani .kgf-parity-desc strong { color: var(--white); }
+.kgf-finskor-sayfa-plani .kgf-parity-ul {
+  margin: 0 0 24px;
+  padding-left: 22px;
+  color: var(--white-dim);
+  font-size: 15px;
+  line-height: 1.75;
+  max-width: 720px;
+}
+.kgf-finskor-sayfa-plani .kgf-parity-ul strong { color: var(--white); }
+.kgf-finskor-sayfa-plani .kgf-parity-cta-row {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 14px;
-  position: relative;
-}
-.ads-btn {
-  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  padding: 14px 22px;
-  border-radius: 10px;
+  margin-bottom: 4px;
+}
+.kgf-finskor-sayfa-plani .btn-hero-primary {
+  padding: 14px 32px;
+  background: var(--gold);
+  border: none;
+  border-radius: var(--radius);
+  color: var(--navy);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
+  font-family: var(--sans);
+  cursor: pointer;
   text-decoration: none;
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition: all 0.25s;
+  letter-spacing: 0.3px;
+  display: inline-block;
 }
-.ads-btn-primary {
-  background: linear-gradient(135deg, var(--gold), var(--gold2));
-  color: #07080f;
-  box-shadow: 0 8px 28px rgba(245,166,35,0.25);
+.kgf-finskor-sayfa-plani .btn-hero-primary:hover {
+  background: var(--gold2);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(201, 168, 76, 0.3);
 }
-.ads-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 12px 36px rgba(245,166,35,0.35); }
-.ads-btn-ghost {
-  border: 1px solid var(--border);
-  color: var(--text);
-  background: rgba(0,0,0,0.2);
+.kgf-finskor-sayfa-plani .btn-hero-outline {
+  padding: 14px 32px;
+  background: transparent;
+  border: 1px solid var(--lp-border);
+  border-radius: var(--radius);
+  color: var(--white);
+  font-size: 14px;
+  font-family: var(--sans);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.25s;
+  display: inline-block;
 }
-.ads-btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
-.ads-scroll-hint { font-size: 13px; position: relative; }
-.ads-scroll-hint a { color: var(--gold); text-decoration: none; border-bottom: 1px solid rgba(245,166,35,0.35); }
-.ads-scroll-hint a:hover { border-bottom-color: var(--gold); }
+.kgf-finskor-sayfa-plani .btn-hero-outline:hover {
+  border-color: var(--gold-line);
+  background: var(--gold-dim);
+}
+.kgf-finskor-sayfa-plani .kosgeb-finskor-promo {
+  margin-top: 28px;
+  margin-bottom: 4px;
+  padding: 24px 22px;
+  border: 1px solid rgba(201, 168, 76, 0.38);
+  border-radius: 12px;
+  background: var(--navy2);
+}
+.kgf-finskor-sayfa-plani .kosgeb-finskor-promo-head {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+.kgf-finskor-sayfa-plani .kosgeb-finskor-promo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 24px;
+}
+@media (max-width: 768px) {
+  .kgf-finskor-sayfa-plani .kosgeb-finskor-promo-grid { grid-template-columns: 1fr; }
+}
+.kgf-finskor-sayfa-plani .kosgeb-finskor-card {
+  padding: 20px 18px;
+  border: 1px solid var(--lp-border);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.22);
+  border-top: 3px solid var(--gold);
+}
+.kgf-finskor-sayfa-plani .kosgeb-finskor-card h4 {
+  font-family: var(--serif);
+  font-size: clamp(17px, 2.5vw, 22px);
+  color: var(--white);
+  margin: 0 0 10px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  line-height: 1.25;
+}
+.kgf-finskor-sayfa-plani .kosgeb-finskor-card p {
+  font-size: 14px;
+  color: var(--white-dim);
+  line-height: 1.65;
+  margin: 0 0 16px;
+}
+.kgf-finskor-sayfa-plani .kosgeb-finskor-card p strong { color: var(--white); }
+.kgf-finskor-sayfa-plani .kosgeb-finskor-card .btn-hero-primary,
+.kgf-finskor-sayfa-plani .kosgeb-finskor-card .btn-hero-outline {
+  text-align: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+.kgf-finskor-sayfa-plani .kgf-parity-foot {
+  max-width: 720px;
+  margin-top: 20px;
+  font-size: 13px;
+  color: var(--white-muted);
+  line-height: 1.65;
+}
+.kgf-finskor-sayfa-plani .kgf-parity-foot a {
+  color: var(--gold);
+  font-weight: 600;
+  text-decoration: none;
+}
+.kgf-finskor-sayfa-plani .kgf-parity-foot a:hover { text-decoration: underline; }
+.kgf-finskor-sayfa-plani .kgf-parity-foot strong { color: var(--gold); }
+.kgf-finskor-sayfa-plani .kgf-parity-jump {
+  margin-top: 14px;
+  font-size: 13px;
+}
+.kgf-finskor-sayfa-plani .kgf-parity-jump a {
+  color: var(--gold);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px solid var(--gold-line);
+}
+.kgf-finskor-sayfa-plani .kgf-parity-jump a:hover { border-bottom-color: var(--gold); }
 .rehber-title {
   font-family: 'Syne', sans-serif;
   font-size: clamp(22px, 3.5vw, 30px);
@@ -302,77 +393,6 @@ footer a { color: var(--gold); }
 .live-strip strong { color: var(--text); }
 .live-strip .live-meta { font-size: 11px; color: var(--dim); margin-top: 10px; line-height: 1.4; }
 .live-strip a { color: var(--gold); }
-
-/* Resmi link satırı + FinSkor promo (ana sayfa #kosgeb ile aynı kurgu) */
-.kgf-official-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
-  margin: 4px 0 0;
-}
-.kgf-finskor-promo {
-  margin-top: 24px;
-  margin-bottom: 6px;
-  padding: 24px 22px;
-  border: 1px solid rgba(245, 166, 35, 0.38);
-  border-radius: 12px;
-  background: var(--surface2);
-}
-.kgf-finskor-promo-head {
-  font-family: 'Syne', sans-serif;
-  font-size: 11px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--gold);
-  font-weight: 700;
-  margin-bottom: 16px;
-}
-.kgf-finskor-promo-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px 24px;
-}
-@media (max-width: 768px) {
-  .kgf-finskor-promo-grid { grid-template-columns: 1fr; }
-}
-.kgf-finskor-card {
-  padding: 20px 18px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
-  border-top: 3px solid var(--gold);
-}
-.kgf-finskor-card h4 {
-  font-family: 'Syne', sans-serif;
-  font-size: clamp(17px, 2.5vw, 22px);
-  color: var(--text);
-  margin: 0 0 10px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.25;
-}
-.kgf-finskor-card p {
-  font-size: 14px;
-  color: var(--muted);
-  line-height: 1.65;
-  margin: 0 0 16px;
-}
-.kgf-finskor-card .ads-btn {
-  width: 100%;
-  text-align: center;
-  box-sizing: border-box;
-  justify-content: center;
-}
-.kgf-finskor-foot {
-  font-size: 13px;
-  color: var(--dim);
-  line-height: 1.65;
-  max-width: 720px;
-  margin: 18px 0 28px;
-}
-.kgf-finskor-foot a { color: var(--gold); font-weight: 600; text-decoration: none; border-bottom: 1px solid rgba(245, 166, 35, 0.35); }
-.kgf-finskor-foot a:hover { border-bottom-color: var(--gold); }
 </style>
 </head>
 <body>
@@ -391,51 +411,46 @@ footer a { color: var(--gold); }
     <div id="kgfLiveMeta" class="live-meta"></div>
   </div>
 
-  <section class="ads-hero" aria-label="FinSkor ve KGF giriş">
-    <p class="ads-kicker">FinSkor — KOBİ finansal analiz ve kredi görünümü</p>
-    <h1>Kredi Garanti Fonu (KGF) rehberi</h1>
-    <p class="ads-lead">
+  <div class="kgf-finskor-sayfa-plani" aria-labelledby="kgf-parity-h1">
+    <div class="kgf-parity-section-tag">KGF</div>
+    <h1 class="kgf-parity-title" id="kgf-parity-h1">Kredi Garanti Fonu (KGF) rehberi</h1>
+    <p class="kgf-parity-desc">
       Bu sayfa <strong>KGF kefaletli kredi paketleri</strong>, <strong>hangi bankaların</strong> hangi üründe yer aldığı ve <strong>işletme / yatırım kredisi</strong> vadeleri hakkında özet bilgi sunar.
       Kredi başvurusu veya hukuki danışmanlık değildir; teyit için her zaman <a href="https://www.kgf.com.tr/" target="_blank" rel="noopener noreferrer" style="color:var(--gold)">kgf.com.tr</a> ve bankanızı kullanın.
     </p>
-    <ul class="ads-points">
+    <ul class="kgf-parity-ul">
       <li>KGF faizi belirlemez; <strong>faiz ve kredi koşulları bankada</strong> netleşir.</li>
       <li>Aşağıda paket bazında <strong>banka listeleri</strong> ve KGF’ye bağlantılar yer alır.</li>
-      <li>FinSkor ile bilançonuzu yükleyebilir, <strong>firma skorunuzu ve senaryolarınızı</strong> görebilirsiniz.</li>
+      <li>Güncel kefalet üst limitleri, vadeler ve banka listesi <strong>KGF duyurularına</strong> bağlıdır.</li>
     </ul>
-    <div class="ads-cta-row">
-      <a class="ads-btn ads-btn-primary" href="app.html">Ücretsiz analiz demosu →</a>
-      <a class="ads-btn ads-btn-ghost" href="index.html#senaryo">Firma kredi notunu nasıl artırırsınız? →</a>
+    <div class="kgf-parity-cta-row">
+      <a href="https://www.kgf.com.tr/" class="btn-hero-primary" target="_blank" rel="noopener noreferrer" style="text-decoration:none;display:inline-block">KGF resmi site →</a>
+      <a href="index.html#kosgeb" class="btn-hero-outline" style="text-decoration:none;display:inline-block">Ana sayfada KOSGEB</a>
+      <a href="index.html" class="btn-hero-outline" style="text-decoration:none;display:inline-block">Ana sayfa</a>
     </div>
-    <p class="ads-scroll-hint"><a href="#rehber-baslik">Paket ve banka tablolarına geç ↓</a></p>
-  </section>
 
-  <div class="kgf-official-row" aria-label="Resmi ve FinSkor bağlantıları">
-    <a href="https://www.kgf.com.tr/" class="ads-btn ads-btn-primary" target="_blank" rel="noopener noreferrer">KGF resmi site →</a>
-    <a href="index.html#kosgeb" class="ads-btn ads-btn-ghost">Ana sayfada KOSGEB</a>
-    <a href="index.html#senaryo" class="ads-btn ads-btn-ghost">Firma kredi notunu nasıl artırırsınız? →</a>
-  </div>
-
-  <div class="kgf-finskor-promo" role="complementary" aria-label="FinSkor kredi analizi">
-    <div class="kgf-finskor-promo-head">FinSkor — Kredi notu ve senaryo</div>
-    <div class="kgf-finskor-promo-grid">
-      <div class="kgf-finskor-card">
-        <h4>Kredi notunu öğren</h4>
-        <p>Hibe veya kefalet başvurusundan önce mali tablolarınızı yükleyin; <strong style="color:var(--text)">firmanızın kredi notunu</strong> ve banka gözüyle risk görünümünüzü görün.</p>
-        <a href="app.html" class="ads-btn ads-btn-primary">Kredi notunu öğren →</a>
-      </div>
-      <div class="kgf-finskor-card">
-        <h4>Kredi notun nasıl artar?</h4>
-        <p><strong style="color:var(--text)">Senaryo analizi</strong> ile sermaye, borç ve kârlılığı değiştirin; hangi adımın notu kaç puan yükselttiğini simüle edin.</p>
-        <a href="app.html" class="ads-btn ads-btn-primary">Senaryo ile notu artır →</a>
-        <a href="index.html#senaryo" class="ads-btn ads-btn-ghost" style="margin-top:10px">Ana sayfada senaryo anlatımı</a>
+    <div class="kosgeb-finskor-promo" role="complementary" aria-label="FinSkor kredi analizi">
+      <div class="kosgeb-finskor-promo-head">FinSkor — Kredi notu ve senaryo</div>
+      <div class="kosgeb-finskor-promo-grid">
+        <div class="kosgeb-finskor-card">
+          <h4>Kredi notunu öğren</h4>
+          <p>Hibe veya kefalet başvurusundan önce mali tablolarınızı yükleyin; <strong>firmanızın kredi notunu</strong> ve banka gözüyle risk görünümünüzü görün.</p>
+          <a href="app.html" class="btn-hero-primary">Kredi notunu öğren →</a>
+        </div>
+        <div class="kosgeb-finskor-card">
+          <h4>Kredi notun nasıl artar?</h4>
+          <p><strong>Senaryo analizi</strong> ile sermaye, borç ve kârlılığı değiştirin; hangi adımın notu kaç puan yükselttiğini simüle edin.</p>
+          <a href="app.html" class="btn-hero-primary">Senaryo ile notu artır →</a>
+          <a href="index.html#senaryo" class="btn-hero-outline" style="margin-top:10px">Ana sayfada senaryo bölümü</a>
+        </div>
       </div>
     </div>
-  </div>
 
-  <p class="kgf-finskor-foot">
-    Yukarıdaki şerit <strong style="color:var(--muted)">kgf.com.tr</strong> için kısa özet gösterebilir. Tam KOSGEB/KGF bilgilendirme özeti için <a href="app.html">analiz uygulamasına giriş</a> yapıp üst menüden <strong style="color:var(--text)">KOSGEB · KGF</strong> özetini açın. FinSkor hukuki danışmanlık vermez; teyit için <a href="https://www.kgf.com.tr/" target="_blank" rel="noopener noreferrer">kgf.com.tr</a>.
-  </p>
+    <p class="kgf-parity-foot">
+      Tanıtım sayfalarında canlı özet yoktur. <a href="app.html">Analiz uygulamasına giriş</a> yaptıktan sonra üst menüden <strong>KOSGEB · KGF</strong> ile bilgilendirme özetine ulaşabilirsiniz. Üstteki şerit <strong>kgf.com.tr</strong> için kısa özet gösterebilir. FinSkor hukuki danışmanlık vermez; teyit için <a href="https://www.kgf.com.tr/" target="_blank" rel="noopener noreferrer">kgf.com.tr</a> ve <a href="https://www.kosgeb.gov.tr" target="_blank" rel="noopener noreferrer">kosgeb.gov.tr</a>.
+    </p>
+    <p class="kgf-parity-jump"><a href="#rehber-baslik">Paket ve banka tablolarına geç ↓</a></p>
+  </div>
 
   <h2 id="rehber-baslik" class="rehber-title">KGF paket ve banka rehberi</h2>
   <p class="lead">
@@ -600,7 +615,7 @@ footer a { color: var(--gold); }
   <section id="kosgeb">
     <h2>KOSGEB destekli kefalet paketleri</h2>
     <p style="font-size:13px;color:var(--muted);line-height:1.65;margin:0 0 18px;max-width:640px">
-      Kefalet öncesi <a href="app.html" style="color:var(--gold);font-weight:600">FinSkor</a> ile <strong style="color:var(--text)">kredi notu ve senaryo</strong> · KOSGEB destek özeti: <a href="index.html#kosgeb" style="color:var(--gold)">ana sayfa</a> · Üstteki <strong style="color:var(--text)">FinSkor — Kredi notu ve senaryo</strong> kutusuna sayfa başından ulaşabilirsiniz.
+      Kefalet öncesi <a href="app.html" style="color:var(--gold);font-weight:600">FinSkor</a> ile <strong style="color:var(--text)">kredi notu ve senaryo</strong> yapabilirsiniz. KOSGEB destek özeti: <a href="index.html#kosgeb" style="color:var(--gold)">ana sayfa — KOSGEB</a>. FinSkor tanıtımı sayfanın üst bölümündeki <strong style="color:var(--text)">FinSkor — Kredi notu ve senaryo</strong> kutusundadır.
     </p>
 
     <details>
