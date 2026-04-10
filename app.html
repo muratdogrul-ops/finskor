@@ -451,8 +451,6 @@ tbody td { padding:8px 13px; color:var(--text); }
 <header>
   <div class="logo">FinSkor</div>
   <div class="header-right">
-    <a href="kgf.html" class="nav-btn" title="KGF paketleri ve bankalar (bilgilendirme)" style="text-decoration:none;display:inline-flex;align-items:center">KGF rehberi</a>
-    <button type="button" class="nav-btn" onclick="openDestekModal()" title="KOSGEB ve KGF canlı özet (bilgilendirme)">KOSGEB · KGF</button>
     <button class="nav-btn active" id="navAnaliz" onclick="showPage('analiz')">📊 Analiz</button>
     <button class="nav-btn logout-btn" onclick="doLogout()">🚪 Çıkış</button>
   </div>
@@ -724,6 +722,39 @@ tbody td { padding:8px 13px; color:var(--text); }
           style="display:none;background:linear-gradient(135deg,rgba(16,185,129,0.18),rgba(5,150,105,0.18));border-color:rgba(16,185,129,0.5);color:#34d399;font-weight:600">
           📊 NakitFlow
         </button>
+      </div>
+
+      <!-- Lokal what-if (yalnız localhost / file:// — JS ile gösterilir) -->
+      <div id="localScenarioPanel" class="card" style="display:none;margin-bottom:16px;border:1px dashed rgba(129,140,248,0.45);background:rgba(99,102,241,0.06)">
+        <div class="card-title" style="color:#a5b4fc">🧪 Lokal what-if denemesi</div>
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.55">Bu kart yalnızca yerel açılışta görünür (canlı sitede yok). Analiz yılı satırına yüzde sapma uygulanır; tablodaki kayıtlı veriler değişmez. Kıyas için önce normal analiz çalıştırın.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:14px">
+          <div>
+            <div class="field-label">KV mali borç % Δ</div>
+            <input type="range" id="localScKv" min="-50" max="50" value="0" style="width:100%" oninput="localScenarioSliderLabel('localScKv','localScKvLbl')">
+            <div id="localScKvLbl" style="font-size:12px;color:var(--text-dim);margin-top:4px">0%</div>
+          </div>
+          <div>
+            <div class="field-label">UV mali borç % Δ</div>
+            <input type="range" id="localScUv" min="-50" max="50" value="0" style="width:100%" oninput="localScenarioSliderLabel('localScUv','localScUvLbl')">
+            <div id="localScUvLbl" style="font-size:12px;color:var(--text-dim);margin-top:4px">0%</div>
+          </div>
+          <div>
+            <div class="field-label">Brüt satış % Δ</div>
+            <input type="range" id="localScBrut" min="-50" max="50" value="0" style="width:100%" oninput="localScenarioSliderLabel('localScBrut','localScBrutLbl')">
+            <div id="localScBrutLbl" style="font-size:12px;color:var(--text-dim);margin-top:4px">0%</div>
+          </div>
+          <div>
+            <div class="field-label">Finansman gideri % Δ</div>
+            <input type="range" id="localScFin" min="-50" max="50" value="0" style="width:100%" oninput="localScenarioSliderLabel('localScFin','localScFinLbl')">
+            <div id="localScFinLbl" style="font-size:12px;color:var(--text-dim);margin-top:4px">0%</div>
+          </div>
+        </div>
+        <div class="btn-group">
+          <button type="button" class="btn" onclick="localScenarioRun()">Senaryoyu hesapla</button>
+          <button type="button" class="btn" onclick="localScenarioResetSliders()">Kaydırıcıları sıfırla</button>
+        </div>
+        <div id="localScenarioOut" style="margin-top:16px;font-size:13px;line-height:1.6;color:var(--text-dim)"></div>
       </div>
 
       <!-- KREDİ ANALİZ ASISTANI -->
@@ -1939,6 +1970,7 @@ function loginSuccess(userData) {
 
   init(); // Önce sync init — kendi default yıllarıyla tabloyu kur
   initFindeksTabVisibility();
+  initLocalScenarioPanel();
   if (typeof findeksUpdateRemoveButton === 'function') findeksUpdateRemoveButton();
 
   // init() bittikten SONRA admin ayarlarını uygula (race condition önlenir)
@@ -3378,6 +3410,96 @@ function _doRunAnalysis() {
   }
 }
 
+/** What-if paneli: yalnız yerel (canlıda kapalı). ? parametresi yok — Findeks gizli testiyle karışmaz. */
+function localScenarioLabEnabled() {
+  try {
+    const h = (location.hostname || '').toLowerCase();
+    if (h === 'localhost' || h === '127.0.0.1' || h === '[::1]') return true;
+    if (!h && location.protocol === 'file:') return true;
+    return false;
+  } catch (e) { return false; }
+}
+
+function initLocalScenarioPanel() {
+  const panel = document.getElementById('localScenarioPanel');
+  if (!panel || !localScenarioLabEnabled()) return;
+  panel.style.display = 'block';
+  localScenarioResetSliders();
+}
+
+function localScenarioSliderLabel(rangeId, labelId) {
+  const r = document.getElementById(rangeId);
+  const l = document.getElementById(labelId);
+  if (!r || !l) return;
+  const v = parseInt(r.value, 10) || 0;
+  l.textContent = (v >= 0 ? '+' : '') + v + '%';
+}
+
+function localScenarioResetSliders() {
+  [['localScKv','localScKvLbl'],['localScUv','localScUvLbl'],['localScBrut','localScBrutLbl'],['localScFin','localScFinLbl']].forEach(function (pair) {
+    const el = document.getElementById(pair[0]);
+    if (el) {
+      el.value = 0;
+      localScenarioSliderLabel(pair[0], pair[1]);
+    }
+  });
+  const out = document.getElementById('localScenarioOut');
+  if (out) out.innerHTML = '';
+}
+
+function localScenarioRun() {
+  if (!localScenarioLabEnabled()) return;
+  const refYear = parseInt((document.getElementById('refYear') || {}).value || '0', 10);
+  const out = document.getElementById('localScenarioOut');
+  if (!state.yearData[refYear] || !state.yearData[refYear].aktifToplam) {
+    showToast('Önce analiz yılı için veri girin.', true);
+    if (out) out.innerHTML = '<span style="color:var(--danger)">Analiz yılı verisi eksik.</span>';
+    return;
+  }
+  const pct = function (id) { return parseFloat((document.getElementById(id) || {}).value) || 0; };
+  const mul = function (id) { return 1 + pct(id) / 100; };
+  var backup = null;
+  try {
+    backup = JSON.parse(JSON.stringify(state.yearData));
+    var orig = backup[refYear] || {};
+    var Y = state.yearData[refYear];
+    Y.kvMaliBorclar = (orig.kvMaliBorclar || 0) * mul('localScKv');
+    Y.uvMaliBorclar = (orig.uvMaliBorclar || 0) * mul('localScUv');
+    Y.brutSatis = (orig.brutSatis || 0) * mul('localScBrut');
+    Y.finansmanGider = (orig.finansmanGider || 0) * mul('localScFin');
+    recalc();
+    var r = calcRatios(refYear);
+    enrichRatiosAfterCalc(r, refYear);
+    var _objHesaplanan = calcObjScore(r, state.firmType);
+    var objPuan = window._demoMod ? 35.00 : _objHesaplanan;
+    var subjPuan = calcSubjPuan();
+    var toplam = Math.round((objPuan + subjPuan) * 100) / 100;
+    var rating = getRating(toplam);
+    var baseT = window._lastToplam;
+    var baseN = window._lastRating && window._lastRating.note;
+    var baseBO = window._lastR && typeof window._lastR.borcOzKay === 'number' ? window._lastR.borcOzKay : null;
+    var dT = baseT != null ? (toplam - baseT) : null;
+    if (out) {
+      out.innerHTML =
+        '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="color:var(--text-muted);text-align:left"><th></th><th>Mevcut (son analiz)</th><th>Senaryo</th><th>Δ puan</th></tr></thead><tbody>' +
+        '<tr><td>Toplam</td><td>' + (baseT != null ? baseT.toFixed(1) : '—') + '</td><td><strong>' + toplam.toFixed(1) + '</strong></td><td>' + (dT != null ? ((dT >= 0 ? '+' : '') + dT.toFixed(2)) : '—') + '</td></tr>' +
+        '<tr><td>Not</td><td>' + (baseN || '—') + '</td><td><strong>' + rating.note + '</strong></td><td>—</td></tr>' +
+        '<tr><td>Borç/ÖzKay</td><td>' + (baseBO != null ? baseBO.toFixed(2) : '—') + '</td><td>' + r.borcOzKay.toFixed(2) + '</td><td>—</td></tr>' +
+        '</tbody></table>' +
+        (baseT == null ? '<p style="margin-top:10px;font-size:11px;color:var(--warning)">«Mevcut» sütunu için önce ANALİZİ BAŞLAT çalıştırın.</p>' : '');
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('Senaryo hatası: ' + (err && err.message), true);
+    if (out) out.innerHTML = '<span style="color:var(--danger)">' + (err && err.message ? err.message : err) + '</span>';
+  } finally {
+    if (backup) {
+      state.yearData = backup;
+      recalc();
+      [2022, 2023, 2024, 2025, 2026].forEach(function (y) { refreshInputs(y); });
+    }
+  }
+}
 
 
 function buildAnalizMetin(refYear, r, paz, prevYear, enflasyon, donemAd, isTaahhut, rating, firma, objPuan, subjPuan, toplam) {
@@ -9960,6 +10082,7 @@ function demoBaslat() {
 
   showTab('tab-bilgi', document.getElementById('tab-btn-bilgi'));
   window.scrollTo(0, 0);
+  initLocalScenarioPanel();
 
   // Açılış merhaba mesajı
   setTimeout(() => {
