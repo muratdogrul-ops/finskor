@@ -1078,12 +1078,12 @@ function updateAvatarAiLabUi() {
   el.style.display = 'block';
   if (avatarAiLabEnabled()) {
     el.innerHTML = en
-      ? '<code style="font-size:8px;opacity:.9">OPENAI_API_KEY</code> on Netlify · <code style="font-size:8px;opacity:.9">netlify dev</code> locally · opt-out: <span title="localStorage">kas_avatar_ai_off=1</span>'
-      : 'Netlify’da <code style="font-size:8px;opacity:.9">OPENAI_API_KEY</code> · lokal: <code style="font-size:8px;opacity:.9">netlify dev</code> · İstemezseniz <span title="localStorage">kas_avatar_ai_off=1</span> (yalnız klasik Baykuş)';
+      ? '<code style="font-size:8px;opacity:.9">OPENAI_API_KEY</code> on Netlify · <code style="font-size:8px;opacity:.9">netlify dev</code> locally · classic only: <span title="localStorage">kas_avatar_ai_on=0</span>'
+      : 'Netlify’da <code style="font-size:8px;opacity:.9">OPENAI_API_KEY</code> · lokal: <code style="font-size:8px;opacity:.9">netlify dev</code> · Yalnız klasik Baykuş: <span title="localStorage">kas_avatar_ai_on=0</span>';
   } else {
     el.innerHTML = en
-      ? 'AI replies are informational only, not investment or lending advice. <span title="localStorage">kas_avatar_ai_off=1</span> → rule-based owl only.'
-      : 'Yapay zeka yanıtları bilgilendirme amaçlıdır; yatırım veya kredi tavsiyesi değildir. <span title="localStorage">kas_avatar_ai_off=1</span> → yalnız klasik Baykuş.';
+      ? 'AI replies are informational only, not investment or lending advice. Classic owl only: <span title="localStorage">kas_avatar_ai_on=0</span>.'
+      : 'Yapay zeka yanıtları bilgilendirme amaçlıdır; yatırım veya kredi tavsiyesi değildir. Yalnız klasik Baykuş: <span title="localStorage">kas_avatar_ai_on=0</span>.';
   }
 }
 
@@ -9580,7 +9580,7 @@ function _avMatchText(q) {
     if (lines.length === 1) {
       lines.push('• Mevcut oranlarınız görece dengeli görünüyor; yine de <b>Senaryo</b> ile sermaye, vade, marj ve satış senaryolarını denemek faydalıdır.<br>');
     }
-    lines.push('<br><span style="color:#94a3b8">Ayrıntılı etki için <b>Senaryo Analizi</b> sekmesinde kaydırıcıları kullanın. Daha açıklayıcı sohbet için yapay zeka yanıtı açık olsun (<code style="font-size:10px">kas_avatar_ai_off</code> silin veya 0 yapın).</span>');
+    lines.push('<br><span style="color:#94a3b8">Ayrıntılı etki için <b>Senaryo Analizi</b> sekmesinde kaydırıcıları kullanın.</span>');
     return lines.join('');
   }
   if (s.includes('rating ne') || s.includes('not ne') || (s.includes('anlam') && (s.includes('rating') || s.includes('not')))) {
@@ -9811,7 +9811,8 @@ function sendAvatarMsg(presetText) {
 
   // Yazıyor göstergesi
   const typDiv = _avTyping();
-  const tryLlm = localStorage.getItem('kas_avatar_ai_off') !== '1';
+  const tryLlm =
+    localStorage.getItem('kas_avatar_ai_off') !== '1' && localStorage.getItem('kas_avatar_ai_on') !== '0';
 
   setTimeout(function () {
     (async function () {
