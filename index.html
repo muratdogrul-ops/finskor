@@ -742,6 +742,85 @@ section { position: relative; z-index: 1; }
 }
 .logo-item:hover { color: var(--white-dim); }
 
+/* ── Uyumlu formatlar (okunaklı kartlar) ── */
+.logo-bar-inner--formats {
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 32px 48px;
+}
+.logo-bar-formats-intro {
+  flex: 0 1 220px;
+  min-width: 200px;
+}
+.logo-bar-formats-kicker {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.logo-bar-formats-heading {
+  font-family: var(--serif);
+  font-size: clamp(20px, 2.4vw, 26px);
+  font-weight: 600;
+  color: var(--white);
+  line-height: 1.2;
+  margin: 0 0 10px;
+  letter-spacing: -0.3px;
+}
+.logo-bar-formats-lead {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--white-dim);
+  max-width: 280px;
+}
+.logo-bar-formats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+}
+.format-chip {
+  background: var(--navy2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 18px 16px;
+  border-top: 3px solid var(--gold);
+  transition: border-color 0.2s, background 0.2s;
+}
+.format-chip:hover {
+  background: rgba(13, 30, 53, 0.95);
+  border-color: rgba(201, 168, 76, 0.35);
+}
+.format-chip-icon {
+  display: block;
+  font-size: 22px;
+  line-height: 1;
+  margin-bottom: 10px;
+}
+.format-chip-name {
+  display: block;
+  font-family: var(--serif);
+  font-size: clamp(16px, 1.8vw, 19px);
+  font-weight: 600;
+  color: var(--white);
+  line-height: 1.25;
+  margin-bottom: 6px;
+  letter-spacing: -0.2px;
+}
+.format-chip-meta {
+  display: block;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--white-muted);
+  font-family: var(--mono);
+  letter-spacing: 0.04em;
+}
+
 /* ── TRUST STRIP ── */
 .trust-strip {
   padding: 48px 0;
@@ -1346,6 +1425,10 @@ footer {
   .pricing-grid { grid-template-columns: 1fr; }
   .footer-inner { flex-direction: column; gap: 16px; }
   .logo-bar-inner { padding: 0 20px; gap: 24px; }
+  .logo-bar-inner--formats { flex-direction: column; align-items: stretch; gap: 24px; }
+  .logo-bar-formats-intro { flex: none; min-width: 0; max-width: none; }
+  .logo-bar-formats-lead { max-width: none; }
+  .logo-bar-formats-grid { grid-template-columns: 1fr; }
   .logo-bar-logos { gap: 24px; }
   .cta-inner { padding: 0 20px; }
   .hero-stats { flex-wrap: wrap; gap: 20px; }
@@ -1646,17 +1729,30 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   </div>
 </section>
 
-<!-- LOGO BAR -->
-<div class="logo-bar">
-  <div class="logo-bar-inner">
-    <div class="logo-bar-label">Uyumlu Formatlar</div>
-    <div class="logo-bar-line"></div>
-    <div class="logo-bar-logos">
-      <div class="logo-item">Excel Mizan</div>
-      <div class="logo-item">PDF Beyanname</div>
-      <div class="logo-item">PDF Mizan</div>
-      
-      
+<!-- LOGO BAR — uyumlu yükleme formatları -->
+<div class="logo-bar" aria-label="Uyumlu yükleme formatları">
+  <div class="logo-bar-inner logo-bar-inner--formats">
+    <div class="logo-bar-formats-intro">
+      <span class="logo-bar-formats-kicker">Desteklenen dosyalar</span>
+      <p class="logo-bar-formats-heading">Uyumlu formatlar</p>
+      <p class="logo-bar-formats-lead">Mizan ve beyannameyi yükleyin; hesaplar ve tablolar otomatik okunur.</p>
+    </div>
+    <div class="logo-bar-formats-grid">
+      <div class="format-chip">
+        <span class="format-chip-icon" aria-hidden="true">📊</span>
+        <span class="format-chip-name">Excel mizan</span>
+        <span class="format-chip-meta">.xlsx · .xls</span>
+      </div>
+      <div class="format-chip">
+        <span class="format-chip-icon" aria-hidden="true">🏛</span>
+        <span class="format-chip-name">PDF beyanname</span>
+        <span class="format-chip-meta">Kurumlar / geçici vergi PDF</span>
+      </div>
+      <div class="format-chip">
+        <span class="format-chip-icon" aria-hidden="true">📄</span>
+        <span class="format-chip-name">PDF mizan</span>
+        <span class="format-chip-meta">Detay mizan çıktısı</span>
+      </div>
     </div>
   </div>
 </div>
