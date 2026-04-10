@@ -42,6 +42,14 @@
 [functions."destek-bilgi"]
   timeout = 26
 
+# Baykuş LLM (lokal/deneme): OPENAI_API_KEY veya FINSKOR_OPENAI_KEY; opsiyonel FINSKOR_AVATAR_MODEL
+[functions."avatar-chat"]
+  timeout = 45
+
+# Baykuş geri bildirimi → baykus_events (Supabase migrasyonu + SERVICE_KEY önerilir)
+[functions."avatar-feedback"]
+  timeout = 15
+
 [[headers]]
   for = "/*"
   [headers.values]

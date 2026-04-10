@@ -456,6 +456,14 @@ tbody td { padding:8px 13px; color:var(--text); }
   </div>
 </header>
 
+<!-- Lokal önizleme (sağ): yalnız localhost / file / ?findeks=1 / ?avatar_ai=1 — canlıda gizli -->
+<div id="localDevStrip" style="display:none;position:fixed;right:10px;top:50%;transform:translateY(-50%);z-index:9996;max-width:min(248px,calc(100vw - 20px));padding:10px 12px;background:rgba(15,23,42,.96);border:1px solid rgba(99,102,241,.45);border-radius:12px;font-size:10px;color:#94a3b8;line-height:1.45;box-shadow:0 10px 40px rgba(0,0,0,.45)">
+  <div style="font-weight:700;color:#a5b4fc;margin-bottom:6px;font-size:11px">Lokal program adresi</div>
+  <div id="localDevStripUrl" style="word-break:break-all;font-family:'DM Mono',monospace;font-size:9px;color:#e2e8f0;margin-bottom:8px"></div>
+  <button type="button" onclick="localDevCopyUrl()" style="width:100%;padding:7px;border-radius:8px;border:1px solid rgba(245,166,35,.45);background:rgba(245,166,35,.14);color:#f5a623;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">Panoya kopyala</button>
+  <div style="margin-top:8px;font-size:9px;color:#64748b;line-height:1.35">Önce terminalde <code style="font-size:8px;color:#94a3b8">npm run build</code> · <code style="font-size:8px;color:#94a3b8">netlify dev</code></div>
+</div>
+
 <!-- ══ ANALİZ SAYFASI ══ -->
 <div class="page active" id="analizPage">
 
@@ -635,6 +643,18 @@ tbody td { padding:8px 13px; color:var(--text); }
       <input type="file" id="findeksPdfInput" accept=".pdf,application/pdf" style="display:none" onchange="handleFindeksPdfInput(event)">
       <div id="findeksFileInfo" class="file-info" style="margin-top:10px"></div>
     </div>
+    <div class="card" style="margin-bottom:14px;border:1px solid rgba(245,166,35,0.22);background:rgba(245,166,35,0.05)">
+      <div class="card-title" id="findeksMethodologyTitle">Findeks → analiz uyumluluğu</div>
+      <div id="findeksMethodologyBody" style="font-size:12px;color:var(--text-muted);line-height:1.75;margin:0">
+        <ul style="margin:0;padding-left:1.15rem;list-style-type:disc">
+          <li style="margin-bottom:8px"><strong style="color:var(--text-dim)">Nakdi referans:</strong> Toplam nakdi tutarlar için rapordaki <strong style="color:var(--gold)">vade bazlı</strong> tabloda, elinizdeki bilançonun dönem ayı ile hizalı satır (ör. 31.12.2025 analizi → <strong>12/2025</strong>) referans alınır.</li>
+          <li style="margin-bottom:8px"><strong style="color:var(--text-dim)">Kredi türü kırılımı:</strong> PDF’te her vade satırında tür ayrımı bulunmayabilir. Bu durumda rapor tarihli <strong>«Kredi Türü Bazında»</strong> özetindeki paylar, KV/UV dağıtımında <strong>oransal</strong> uyarlama için kullanılabilir. Kesin sınıflandırma için orijinal raporu kontrol edin.</li>
+          <li style="margin-bottom:8px"><strong style="color:var(--text-dim)">Gayrinakdi:</strong> Gayrinakdi kalemler analizde ve KV/UV mali borç düzeltmesinde <strong>yok sayılır</strong>; içe aktarımda yalnızca <strong>nakdi</strong> tutarlar kullanılır.</li>
+          <li><strong style="color:var(--text-dim)">Kart riski:</strong> Kredi kartı / iş kartı limit riski <strong>mali borç</strong> kapsamında değerlendirilir (tipik sınıflandırma <strong>KV</strong>).</li>
+        </ul>
+        <p style="margin:12px 0 0;font-size:11px;color:var(--text-dim);font-style:italic">Bu metin metodoloji özetidir; FinSkor hesapları resmi Findeks çıktısı ve mizanınızla birlikte yorumlanmalıdır.</p>
+      </div>
+    </div>
   </div>
 
   <!-- TAB 2: SUBJEKTİF FAKTÖRLER -->
@@ -722,39 +742,6 @@ tbody td { padding:8px 13px; color:var(--text); }
           style="display:none;background:linear-gradient(135deg,rgba(16,185,129,0.18),rgba(5,150,105,0.18));border-color:rgba(16,185,129,0.5);color:#34d399;font-weight:600">
           📊 NakitFlow
         </button>
-      </div>
-
-      <!-- Lokal what-if (yalnız localhost / file:// — JS ile gösterilir) -->
-      <div id="localScenarioPanel" class="card" style="display:none;margin-bottom:16px;border:1px dashed rgba(129,140,248,0.45);background:rgba(99,102,241,0.06)">
-        <div class="card-title" style="color:#a5b4fc">🧪 Lokal what-if denemesi</div>
-        <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.55">Bu kart yalnızca yerel açılışta görünür (canlı sitede yok). Analiz yılı satırına yüzde sapma uygulanır; tablodaki kayıtlı veriler değişmez. Kıyas için önce normal analiz çalıştırın.</p>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:14px">
-          <div>
-            <div class="field-label">KV mali borç % Δ</div>
-            <input type="range" id="localScKv" min="-50" max="50" value="0" style="width:100%" oninput="localScenarioSliderLabel('localScKv','localScKvLbl')">
-            <div id="localScKvLbl" style="font-size:12px;color:var(--text-dim);margin-top:4px">0%</div>
-          </div>
-          <div>
-            <div class="field-label">UV mali borç % Δ</div>
-            <input type="range" id="localScUv" min="-50" max="50" value="0" style="width:100%" oninput="localScenarioSliderLabel('localScUv','localScUvLbl')">
-            <div id="localScUvLbl" style="font-size:12px;color:var(--text-dim);margin-top:4px">0%</div>
-          </div>
-          <div>
-            <div class="field-label">Brüt satış % Δ</div>
-            <input type="range" id="localScBrut" min="-50" max="50" value="0" style="width:100%" oninput="localScenarioSliderLabel('localScBrut','localScBrutLbl')">
-            <div id="localScBrutLbl" style="font-size:12px;color:var(--text-dim);margin-top:4px">0%</div>
-          </div>
-          <div>
-            <div class="field-label">Finansman gideri % Δ</div>
-            <input type="range" id="localScFin" min="-50" max="50" value="0" style="width:100%" oninput="localScenarioSliderLabel('localScFin','localScFinLbl')">
-            <div id="localScFinLbl" style="font-size:12px;color:var(--text-dim);margin-top:4px">0%</div>
-          </div>
-        </div>
-        <div class="btn-group">
-          <button type="button" class="btn" onclick="localScenarioRun()">Senaryoyu hesapla</button>
-          <button type="button" class="btn" onclick="localScenarioResetSliders()">Kaydırıcıları sıfırla</button>
-        </div>
-        <div id="localScenarioOut" style="margin-top:16px;font-size:13px;line-height:1.6;color:var(--text-dim)"></div>
       </div>
 
       <!-- KREDİ ANALİZ ASISTANI -->
@@ -989,6 +976,7 @@ tbody td { padding:8px 13px; color:var(--text); }
       <div style="font-size:13px;font-weight:700;color:#fff">Bayku&#x15F;</div>
       <div style="font-size:10px;color:rgba(167,243,208,.9)">
         &#x25CF; &#xC7;evrimi&#xE7;i &middot; Kredi Analiz Asistan&#x131;</div>
+      <div id="avatarAiLabHint" style="display:none;font-size:9px;color:rgba(167,243,208,.55);margin-top:3px;line-height:1.35"></div>
     </div>
     <button id="avSesBtn" onclick="avSesDegistir()" title="Sesli okuma aç/kapat"
       style="background:rgba(245,166,35,.15);border:none;
@@ -1068,6 +1056,99 @@ function findeksUiEnabled() {
     if (!h && location.protocol === 'file:') return true;
     return false;
   } catch (e) { return false; }
+}
+
+/** Baykuş: geliştirme ortamı (modalda ek ipucu) — lokal / file / ?avatar_ai=1 */
+function avatarAiLabEnabled() {
+  try {
+    const raw = (new URLSearchParams(location.search).get('avatar_ai') || '').trim().toLowerCase();
+    if (raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on') return true;
+    const h = (location.hostname || '').toLowerCase();
+    if (h === 'localhost' || h === '127.0.0.1' || h === '[::1]') return true;
+    if (!h && location.protocol === 'file:') return true;
+    return false;
+  } catch (e) { return false; }
+}
+
+/** Baykuş başlık altı: canlıda bilgilendirme; lokalde ek geliştirici satırı */
+function updateAvatarAiLabUi() {
+  const el = document.getElementById('avatarAiLabHint');
+  if (!el) return;
+  const en = typeof state !== 'undefined' && state && state.lang === 'en';
+  el.style.display = 'block';
+  if (avatarAiLabEnabled()) {
+    el.innerHTML = en
+      ? '<code style="font-size:8px;opacity:.9">OPENAI_API_KEY</code> on Netlify · <code style="font-size:8px;opacity:.9">netlify dev</code> locally · opt-out: <span title="localStorage">kas_avatar_ai_off=1</span>'
+      : 'Netlify’da <code style="font-size:8px;opacity:.9">OPENAI_API_KEY</code> · lokal: <code style="font-size:8px;opacity:.9">netlify dev</code> · İstemezseniz <span title="localStorage">kas_avatar_ai_off=1</span> (yalnız klasik Baykuş)';
+  } else {
+    el.innerHTML = en
+      ? 'AI replies are informational only, not investment or lending advice. <span title="localStorage">kas_avatar_ai_off=1</span> → rule-based owl only.'
+      : 'Yapay zeka yanıtları bilgilendirme amaçlıdır; yatırım veya kredi tavsiyesi değildir. <span title="localStorage">kas_avatar_ai_off=1</span> → yalnız klasik Baykuş.';
+  }
+}
+
+/** Sağ şerit: yalnız lokal / deneme parametreleri (findeksUiEnabled || avatarAiLabEnabled) */
+function localDevStripEnabled() {
+  try {
+    return findeksUiEnabled() || avatarAiLabEnabled();
+  } catch (e) {
+    return false;
+  }
+}
+
+function localDevSuggestAppUrl() {
+  try {
+    if (location.protocol === 'file:') {
+      const base = (location.href || '').split('#')[0].split('?')[0];
+      return base + (base.indexOf('?') >= 0 ? '&' : '?') + 'findeks=1&avatar_ai=1';
+    }
+    const o = location.origin || '';
+    const p = location.pathname || '';
+    const withoutFile = p.replace(/\/[^/]+\.html?$/i, '');
+    const basePath = withoutFile === '/' || withoutFile === '' ? '' : withoutFile.replace(/\/$/, '');
+    return o + basePath + '/app.html?findeks=1&avatar_ai=1';
+  } catch (e) {
+    return (location.origin || '') + '/app.html?findeks=1&avatar_ai=1';
+  }
+}
+
+function updateLocalDevStrip() {
+  const wrap = document.getElementById('localDevStrip');
+  const urlEl = document.getElementById('localDevStripUrl');
+  if (!wrap || !urlEl) return;
+  if (!localDevStripEnabled()) {
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = 'block';
+  urlEl.textContent = localDevSuggestAppUrl();
+}
+
+function localDevCopyUrlFallback(t) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = t;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    if (typeof showToast === 'function') showToast('Adres kopyalandı', false);
+  } catch (e) {}
+}
+
+function localDevCopyUrl() {
+  const urlEl = document.getElementById('localDevStripUrl');
+  if (!urlEl || !urlEl.textContent) return;
+  const t = urlEl.textContent;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t).then(function () {
+      if (typeof showToast === 'function') showToast('Adres panoya kopyalandı', false);
+    }).catch(function () {
+      localDevCopyUrlFallback(t);
+    });
+  } else {
+    localDevCopyUrlFallback(t);
+  }
 }
 
 function initFindeksTabVisibility() {
@@ -1970,7 +2051,8 @@ function loginSuccess(userData) {
 
   init(); // Önce sync init — kendi default yıllarıyla tabloyu kur
   initFindeksTabVisibility();
-  initLocalScenarioPanel();
+  updateAvatarAiLabUi();
+  updateLocalDevStrip();
   if (typeof findeksUpdateRemoveButton === 'function') findeksUpdateRemoveButton();
 
   // init() bittikten SONRA admin ayarlarını uygula (race condition önlenir)
@@ -2274,6 +2356,20 @@ function applyLang() {
   setInner('findeksCardTitle', '📄 Findeks risk raporu', '📄 Findeks risk report');
   setInner('findeksCardDesc', 'Risk Merkezi Findeks çıktısı <strong style="color:var(--gold)">yalnızca PDF</strong> formatında yüklenir; Excel desteklenmez. KV / UV banka borcu projeksiyonu bu akışa bağlanacaktır.',
     'Findeks output is <strong style="color:var(--gold)">PDF only</strong> (Excel is not supported). KV / UV bank debt projection will plug in here.');
+  setInner('findeksMethodologyTitle', 'Findeks → analiz uyumluluğu', 'Findeks → analysis alignment');
+  setInner('findeksMethodologyBody',
+    '<ul style="margin:0;padding-left:1.15rem;list-style-type:disc">' +
+    '<li style="margin-bottom:8px"><strong style="color:var(--text-dim)">Nakdi referans:</strong> Toplam nakdi tutarlar için rapordaki <strong style="color:var(--gold)">vade bazlı</strong> tabloda, elinizdeki bilançonun dönem ayı ile hizalı satır (ör. 31.12.2025 analizi → <strong>12/2025</strong>) referans alınır.</li>' +
+    '<li style="margin-bottom:8px"><strong style="color:var(--text-dim)">Kredi türü kırılımı:</strong> PDF’te her vade satırında tür ayrımı bulunmayabilir. Bu durumda rapor tarihli <strong>«Kredi Türü Bazında»</strong> özetindeki paylar, KV/UV dağıtımında <strong>oransal</strong> uyarlama için kullanılabilir. Kesin sınıflandırma için orijinal raporu kontrol edin.</li>' +
+    '<li style="margin-bottom:8px"><strong style="color:var(--text-dim)">Gayrinakdi:</strong> Gayrinakdi kalemler analizde ve KV/UV mali borç düzeltmesinde <strong>yok sayılır</strong>; içe aktarımda yalnızca <strong>nakdi</strong> tutarlar kullanılır.</li>' +
+    '<li><strong style="color:var(--text-dim)">Kart riski:</strong> Kredi kartı / iş kartı limit riski <strong>mali borç</strong> kapsamında değerlendirilir (tipik sınıflandırma <strong>KV</strong>).</li></ul>' +
+    '<p style="margin:12px 0 0;font-size:11px;color:var(--text-dim);font-style:italic">Bu metin metodoloji özetidir; FinSkor hesapları resmi Findeks çıktısı ve mizanınızla birlikte yorumlanmalıdır.</p>',
+    '<ul style="margin:0;padding-left:1.15rem;list-style-type:disc">' +
+    '<li style="margin-bottom:8px"><strong style="color:var(--text-dim)">Cash reference:</strong> For <strong style="color:var(--gold)">total cash (nakdi)</strong> amounts, the row in the maturity-based table that matches your balance-sheet period month is used (e.g. analysis as of 31 Dec 2025 → <strong>12/2025</strong>).</li>' +
+    '<li style="margin-bottom:8px"><strong style="color:var(--text-dim)">Credit-type split:</strong> The PDF may not show a type breakdown on every maturity row. The report-dated <strong>“By credit type”</strong> summary shares may then be applied <strong>proportionally</strong> for KV/UV mapping. Confirm final classification against the original report.</li>' +
+    '<li style="margin-bottom:8px"><strong style="color:var(--text-dim)">Non-cash:</strong> Non-cash lines are <strong>excluded</strong> from analysis and KV/UV debt adjustment; imports use <strong>cash</strong> lines only.</li>' +
+    '<li><strong style="color:var(--text-dim)">Card exposure:</strong> Credit- and business-card limit risk is treated as <strong>financial debt</strong> (typically <strong>short-term / KV</strong>).</li></ul>' +
+    '<p style="margin:12px 0 0;font-size:11px;color:var(--text-dim);font-style:italic">This is a methodology summary; interpret FinSkor together with the official Findeks output and your trial balance.</p>');
   const frb = document.getElementById('findeksRemoveBtn');
   if (frb) frb.textContent = en ? '🗑 Remove report' : '🗑 Raporu kaldır';
   if (typeof findeksUpdateRemoveButton === 'function') findeksUpdateRemoveButton();
@@ -2429,6 +2525,7 @@ function applyLang() {
   }
   const mainAnalyzeBtn = document.querySelector('.analyze-btn[onclick="runAnalysis()"]');
   if (mainAnalyzeBtn) mainAnalyzeBtn.textContent = en ? '🔍 ANALYSE' : '⚡ ANALİZİ BAŞLAT';
+  if (typeof updateAvatarAiLabUi === 'function') updateAvatarAiLabUi();
 }
 
 function saveSettings() {
@@ -3407,97 +3504,6 @@ function _doRunAnalysis() {
     // Hata mesajını sayfada göster
     const errEl = document.getElementById('analizMetin');
     if (errEl) errEl.innerHTML = '<div style="color:red;padding:20px;background:#fee2e2;border-radius:8px"><b>HATA:</b> ' + err.message + '<br><small>' + (err.stack||'').split("\n")[1] + '</small></div>';
-  }
-}
-
-/** What-if paneli: yalnız yerel (canlıda kapalı). ? parametresi yok — Findeks gizli testiyle karışmaz. */
-function localScenarioLabEnabled() {
-  try {
-    const h = (location.hostname || '').toLowerCase();
-    if (h === 'localhost' || h === '127.0.0.1' || h === '[::1]') return true;
-    if (!h && location.protocol === 'file:') return true;
-    return false;
-  } catch (e) { return false; }
-}
-
-function initLocalScenarioPanel() {
-  const panel = document.getElementById('localScenarioPanel');
-  if (!panel || !localScenarioLabEnabled()) return;
-  panel.style.display = 'block';
-  localScenarioResetSliders();
-}
-
-function localScenarioSliderLabel(rangeId, labelId) {
-  const r = document.getElementById(rangeId);
-  const l = document.getElementById(labelId);
-  if (!r || !l) return;
-  const v = parseInt(r.value, 10) || 0;
-  l.textContent = (v >= 0 ? '+' : '') + v + '%';
-}
-
-function localScenarioResetSliders() {
-  [['localScKv','localScKvLbl'],['localScUv','localScUvLbl'],['localScBrut','localScBrutLbl'],['localScFin','localScFinLbl']].forEach(function (pair) {
-    const el = document.getElementById(pair[0]);
-    if (el) {
-      el.value = 0;
-      localScenarioSliderLabel(pair[0], pair[1]);
-    }
-  });
-  const out = document.getElementById('localScenarioOut');
-  if (out) out.innerHTML = '';
-}
-
-function localScenarioRun() {
-  if (!localScenarioLabEnabled()) return;
-  const refYear = parseInt((document.getElementById('refYear') || {}).value || '0', 10);
-  const out = document.getElementById('localScenarioOut');
-  if (!state.yearData[refYear] || !state.yearData[refYear].aktifToplam) {
-    showToast('Önce analiz yılı için veri girin.', true);
-    if (out) out.innerHTML = '<span style="color:var(--danger)">Analiz yılı verisi eksik.</span>';
-    return;
-  }
-  const pct = function (id) { return parseFloat((document.getElementById(id) || {}).value) || 0; };
-  const mul = function (id) { return 1 + pct(id) / 100; };
-  var backup = null;
-  try {
-    backup = JSON.parse(JSON.stringify(state.yearData));
-    var orig = backup[refYear] || {};
-    var Y = state.yearData[refYear];
-    Y.kvMaliBorclar = (orig.kvMaliBorclar || 0) * mul('localScKv');
-    Y.uvMaliBorclar = (orig.uvMaliBorclar || 0) * mul('localScUv');
-    Y.brutSatis = (orig.brutSatis || 0) * mul('localScBrut');
-    Y.finansmanGider = (orig.finansmanGider || 0) * mul('localScFin');
-    recalc();
-    var r = calcRatios(refYear);
-    enrichRatiosAfterCalc(r, refYear);
-    var _objHesaplanan = calcObjScore(r, state.firmType);
-    var objPuan = window._demoMod ? 35.00 : _objHesaplanan;
-    var subjPuan = calcSubjPuan();
-    var toplam = Math.round((objPuan + subjPuan) * 100) / 100;
-    var rating = getRating(toplam);
-    var baseT = window._lastToplam;
-    var baseN = window._lastRating && window._lastRating.note;
-    var baseBO = window._lastR && typeof window._lastR.borcOzKay === 'number' ? window._lastR.borcOzKay : null;
-    var dT = baseT != null ? (toplam - baseT) : null;
-    if (out) {
-      out.innerHTML =
-        '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="color:var(--text-muted);text-align:left"><th></th><th>Mevcut (son analiz)</th><th>Senaryo</th><th>Δ puan</th></tr></thead><tbody>' +
-        '<tr><td>Toplam</td><td>' + (baseT != null ? baseT.toFixed(1) : '—') + '</td><td><strong>' + toplam.toFixed(1) + '</strong></td><td>' + (dT != null ? ((dT >= 0 ? '+' : '') + dT.toFixed(2)) : '—') + '</td></tr>' +
-        '<tr><td>Not</td><td>' + (baseN || '—') + '</td><td><strong>' + rating.note + '</strong></td><td>—</td></tr>' +
-        '<tr><td>Borç/ÖzKay</td><td>' + (baseBO != null ? baseBO.toFixed(2) : '—') + '</td><td>' + r.borcOzKay.toFixed(2) + '</td><td>—</td></tr>' +
-        '</tbody></table>' +
-        (baseT == null ? '<p style="margin-top:10px;font-size:11px;color:var(--warning)">«Mevcut» sütunu için önce ANALİZİ BAŞLAT çalıştırın.</p>' : '');
-    }
-  } catch (err) {
-    console.error(err);
-    showToast('Senaryo hatası: ' + (err && err.message), true);
-    if (out) out.innerHTML = '<span style="color:var(--danger)">' + (err && err.message ? err.message : err) + '</span>';
-  } finally {
-    if (backup) {
-      state.yearData = backup;
-      recalc();
-      [2022, 2023, 2024, 2025, 2026].forEach(function (y) { refreshInputs(y); });
-    }
   }
 }
 
@@ -8855,6 +8861,8 @@ function obRender() {
 
 // ── Avatar Chat ───────────────────────────────────────────────
 function showAvatarChat() {
+  updateAvatarAiLabUi();
+  updateLocalDevStrip();
   const m = document.getElementById('avatarModal');
   const b = document.getElementById('avatarBtn');
   if (!m) return;
@@ -8906,6 +8914,7 @@ function avSesOku(html) {
   // HTML taglarını temizle
   const tmp = document.createElement('div');
   tmp.innerHTML = html;
+  tmp.querySelectorAll('.av-no-speak').forEach(function (el) { el.remove(); });
   let text = tmp.textContent || tmp.innerText || '';
   // Yalnız finansal yorum kalsın: emoji/süs sembollerini seslendirme
   text = text
@@ -8993,7 +9002,15 @@ function avBuildQuickBtns() {
   const qb = document.getElementById('avatarQuickBtns');
   if (!qb) return;
   const analizSonrasi = !!(window._lastR);
-  const _qList = [
+  const _qList = [];
+  if (analizSonrasi) {
+    _qList.push({
+      l: '🤖 Uzman özeti (AI)',
+      m: 'Son analizi kısaca uzman gözüyle yorumla',
+      e: null,
+    });
+  }
+  _qList.push(
     {l:'📅 Analiz Yılı',     m:'analiz yili',                 e:'refYear'},
     {l:'📆 Analiz Dönemi',   m:'analiz donemi',                e:'period'},
     {l:'🏭 Firma Tipi',      m:'firma tipi',                   e:'firmType'},
@@ -9002,7 +9019,7 @@ function avBuildQuickBtns() {
     {l:'📄 PDF Mizan',       m:'pdf mizan yukle',              e:'importPdfMizanBtn'},
     {l:'▶️ Analiz Et',       m:'analiz et',                    e:'runAnalysisBtn'},
     {l:'📈 Senaryo Analizi', m:'senaryo analizi ne işe yarar', e:null},
-  ];
+  );
   if (analizSonrasi) {
     _qList.push({l:'🎯 Not Nasıl Artar?', m:'senaryo analizi ne işe yarar', e:null});
     _qList.push({l:'⚖️ Subjektif Kriter', m:'subjektif',                    e:null});
@@ -9569,6 +9586,127 @@ function _avGetAnswer(q) {
   return prefix + _avMatchText(q);
 }
 
+function _avEscapeHtml(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function _avRoundCtx(x, dec) {
+  if (x == null || x === '' || (typeof x === 'number' && isNaN(x))) return null;
+  const n = Number(x);
+  const m = Math.pow(10, dec);
+  return Math.round(n * m) / m;
+}
+
+/** LLM’e gidecek özet: tek seferlik ekran analizi (geçmiş yüklemeler dahil değil). */
+function _avBuildLlmContext() {
+  const refYear = parseInt((document.getElementById('refYear') || {}).value || '0', 10) || null;
+  const r = window._lastR;
+  const rating = window._lastRating;
+  const toplam = window._lastToplam;
+  const lr = (typeof state !== 'undefined' && state && state.lastResult) ? state.lastResult : null;
+  const base = {
+    uyari: 'Bu özet yalnızca şu an ekrandaki tek analize aittir. Geçmişte yüklenen diğer firmalar/dönemler bu bağlamda yoktur; model eğitilmez, yalnızca bu JSON kullanılır.',
+    refYear: refYear,
+    analizDonemiAyi: parseInt(state && state.period, 10) || 12,
+    firmaTipi: (state && state.firmType) || null,
+    krediNotu: rating && rating.note,
+    toplamPuan105: toplam != null ? Math.round(Number(toplam) * 100) / 100 : null,
+    finansalPuan75: lr && lr.objPuan != null ? lr.objPuan : null,
+    subjektifPuan30: (window._lastSubjPuan != null) ? window._lastSubjPuan : null,
+  };
+  if (!r) {
+    base.oranlarMevcutDegil = true;
+    return base;
+  }
+  base.oranlar = {
+    cariOran: _avRoundCtx(r.cariOran, 4),
+    likiditeOrani: _avRoundCtx(r.likOran, 4),
+    borcOzkaynak: _avRoundCtx(r.borcOzKay, 4),
+    netKarMarjiYuzde: _avRoundCtx(r.netKarMarj, 4),
+    faalKarMarjiYuzde: _avRoundCtx(r.faalKarMarj, 4),
+    brutKarMarjiYuzde: _avRoundCtx(r.brutKarMarj, 4),
+    kvBorcSatislaraYuzde: _avRoundCtx(r.kvBorcSat, 4),
+    kvBankaBorcSatislaraYuzde: _avRoundCtx(r.kvBankaB_Sat, 4),
+    bankaBorcAktifeYuzde: _avRoundCtx(r.bnkBorcAkt, 4),
+    satisBuyumesiNominalYuzde: _avRoundCtx(r.satisBuy, 4),
+    satisBuyumesiReelUfeYuzde: _avRoundCtx(r.reelSatisBuy, 4),
+    netSatisTL: _avRoundCtx(r.netSatis, 2),
+    aktifTL: _avRoundCtx(r.aktif, 2),
+    ozKaynakTL: _avRoundCtx(r.ozKaynak, 2),
+    netIsletmeSermayesiTL: _avRoundCtx(r.nisSermaye, 2),
+    roeYuzde: _avRoundCtx(r.netKarOzKay, 4),
+    roaYuzde: _avRoundCtx(r.netKarAktif, 4),
+    finansmanGideriCiroYuzde: _avRoundCtx(r.finGiderCiro, 4),
+  };
+  return base;
+}
+
+/** @returns {Promise<{ html: string, requestId: string }|null>} null: yerel cevaba düş */
+async function _avFetchLlmAnswer(question) {
+  try {
+    const res = await fetch('/.netlify/functions/avatar-chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question: question,
+        context: _avBuildLlmContext(),
+        lang: 'tr',
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (data.error === 'no_key') return null;
+      const errTxt = _avEscapeHtml(data.message || data.error || 'API hatası');
+      const errHtml = '<span style="color:#f87171">' + errTxt + '</span>'
+        + '<br><br><span style="font-size:11px;color:#94a3b8">LLM yanıt veremedi. Aynı soru yerel bilgi tabanına düşebilir; konsolu kontrol edin.</span>';
+      return { html: errHtml, requestId: '' };
+    }
+    if (!data.reply) return null;
+    let html = _avEscapeHtml(data.reply).replace(/\n/g, '<br>');
+    if (data.disclaimer) {
+      html += '<br><br><span style="font-size:10px;color:#64748b;font-style:italic">' + _avEscapeHtml(data.disclaimer) + '</span>';
+    }
+    html += '<div style="margin-top:6px;font-size:8px;color:#475569;opacity:.85">· LLM ·</div>';
+    const requestId = typeof data.request_id === 'string' && /^[0-9a-f-]{36}$/i.test(data.request_id) ? data.request_id : '';
+    return { html: html, requestId: requestId };
+  } catch (e) {
+    return null;
+  }
+}
+
+function _avFeedbackRowHtml(requestId) {
+  const rid = String(requestId).replace(/[^a-f0-9-]/gi, '');
+  if (!rid) return '';
+  return '<div class="av-feedback-row av-no-speak" style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(148,163,184,.25);font-size:11px;color:#94a3b8">'
+    + 'Yanıt faydalı mı? '
+    + '<button type="button" class="av-fb-btn" onclick="_avSendFeedback(this,&quot;' + rid + '&quot;,1)" style="margin:0 2px;padding:2px 8px;border-radius:8px;border:1px solid rgba(148,163,184,.4);background:rgba(15,23,42,.4);cursor:pointer;font-size:14px;line-height:1.2" title="Faydalı">&#x1F44D;</button>'
+    + '<button type="button" class="av-fb-btn" onclick="_avSendFeedback(this,&quot;' + rid + '&quot;,-1)" style="margin:0 2px;padding:2px 8px;border-radius:8px;border:1px solid rgba(148,163,184,.4);background:rgba(15,23,42,.4);cursor:pointer;font-size:14px;line-height:1.2" title="Yetersiz">&#x1F44E;</button>'
+    + '<span class="av-fb-thanks" style="display:none;margin-left:8px;color:#4ade80">Teşekkürler.</span>'
+    + '</div>';
+}
+
+function _avSendFeedback(btn, requestId, rating) {
+  const row = btn && btn.closest ? btn.closest('.av-feedback-row') : null;
+  fetch('/.netlify/functions/avatar-feedback', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ request_id: requestId, rating: rating }),
+  })
+    .then(function (r) { return r.json().catch(function () { return {}; }); })
+    .finally(function () {
+      if (row) {
+        row.querySelectorAll('.av-fb-btn').forEach(function (b) { b.disabled = true; b.style.opacity = '0.5'; });
+        const t = row.querySelector('.av-fb-thanks');
+        if (t) t.style.display = 'inline';
+      }
+    });
+}
+
 // ── SESLİ KOMUT (Web Speech API) ────────────────────────────
 let _avSR = null;
 window._avMicOn = false;
@@ -9638,14 +9776,31 @@ function sendAvatarMsg(presetText) {
 
   // Yazıyor göstergesi
   const typDiv = _avTyping();
+  const tryLlm = localStorage.getItem('kas_avatar_ai_off') !== '1';
 
-  setTimeout(() => {
-    if (typDiv) typDiv.remove();
-    const ans = _avGetAnswer(text);
-    _avAddMsg('bot', ans);
-    // Yeni hızlı butonlar
-    avBuildQuickBtns();
-  }, 650);
+  setTimeout(function () {
+    (async function () {
+      if (typDiv) typDiv.remove();
+      let ans = null;
+      let reqId = '';
+      if (tryLlm) {
+        const llm = await _avFetchLlmAnswer(text);
+        if (llm && llm.html) {
+          ans = llm.html;
+          reqId = llm.requestId || '';
+        }
+      }
+      if (ans == null) {
+        ans = _avGetAnswer(text);
+        _avAddMsg('bot', ans);
+      } else if (reqId) {
+        _avAddMsg('bot', ans + _avFeedbackRowHtml(reqId));
+      } else {
+        _avAddMsg('bot', ans);
+      }
+      avBuildQuickBtns();
+    })();
+  }, 500);
 }
 
 
@@ -10039,6 +10194,8 @@ function demoBaslat() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   if (typeof initFindeksTabVisibility === 'function') initFindeksTabVisibility();
+  if (typeof updateAvatarAiLabUi === 'function') updateAvatarAiLabUi();
+  if (typeof updateLocalDevStrip === 'function') updateLocalDevStrip();
 
   const banner = document.getElementById('demoBanner');
   if (banner) banner.style.display = 'flex';
@@ -10082,7 +10239,6 @@ function demoBaslat() {
 
   showTab('tab-bilgi', document.getElementById('tab-btn-bilgi'));
   window.scrollTo(0, 0);
-  initLocalScenarioPanel();
 
   // Açılış merhaba mesajı
   setTimeout(() => {
