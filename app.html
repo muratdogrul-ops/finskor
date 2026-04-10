@@ -8884,6 +8884,12 @@ function _avBaykusKvUvMetni(str) {
   o = o.replace(/KV\s*&rarr;\s*UV/gi, 'kısa vadeli banka borcundan uzun vadeli banka borcuna taşıma');
   o = o.replace(/KV\s*\/\s*UV/gi, 'kısa vadeli ve uzun vadeli banka borcu');
   o = o.replace(/KV\/UV/gi, 'kısa vadeli ve uzun vadeli banka borcu');
+  o = o.replace(/\bKV\s*borç\s*\/\s*satış/gi, 'kısa vadeli banka borcu / satış');
+  o = o.replace(/\bKV\s*\/\s*satış/gi, 'kısa vadeli banka borcu / satış');
+  o = o.replace(/KV\/satış/gi, 'kısa vadeli banka borcu / satış');
+  o = o.replace(/\bKV\s*yükü\b/gi, 'kısa vadeli banka borcu yükü');
+  o = o.replace(/\bKV\s*yük\b/gi, 'kısa vadeli banka borcu yükü');
+  o = o.replace(/\bKV\s*[’'‘]de\b/gi, 'kısa vadeli banka borcunda');
   o = o.replace(/\bKV\s*mali\s*borç/gi, 'kısa vadeli banka borcu');
   o = o.replace(/\bKV\s*banka\s*borçlarını?\b/gi, 'kısa vadeli banka borçlarını');
   o = o.replace(/\bKV\s*banka\s*borçları\b/gi, 'kısa vadeli banka borçları');
@@ -8899,13 +8905,28 @@ function _avBaykusKvUvMetni(str) {
   o = o.replace(/\bUV['']de\b/gi, 'uzun vadeli banka borcunda');
   o = o.replace(/\bUV\b/gi, 'uzun vadeli banka borcu');
   o = o.replace(/\bKV\b/gi, 'kısa vadeli banka borcu');
+  o = o.replace(/\bkârlılık\b/gi, 'karlılık');
+  o = o.replace(/\bkârlı\b/gi, 'karlı');
+  o = o.replace(/\bKâr\b/g, 'Kar');
+  o = o.replace(/\bkâr\b/gi, 'kar');
+  o = o.replace(/\bfaaliyet\s+kârı\b/gi, 'faaliyet karı');
+  o = o.replace(/\bnet\s+kâr\b/gi, 'net kar');
+  o = o.replace(/\bbrüt\s+kâr\b/gi, 'brüt kar');
   return o;
+}
+
+/** Metin eşlemesi için hafif normalizasyon (PDF / input farkı). */
+function _avNormFirmaStr(s) {
+  if (s == null || typeof s !== 'string') return '';
+  let t = s.replace(/\s+/g, ' ').trim();
+  try { t = t.normalize('NFC'); } catch (e) {}
+  return t;
 }
 
 /** TTS: unvan sonunu sözlü okuma (LTD ŞTİ → limited şirketi, A.Ş. → anonim şirketi). */
 function _avFirmaUnvanSesli(ad) {
   if (ad == null || typeof ad !== 'string') return '';
-  let t = ad.replace(/\s+/g, ' ').trim();
+  let t = _avNormFirmaStr(ad);
   if (!t) return '';
   let tip = '';
   if (/\b(a\.?\s*ş\.?|a\.s\.?|anonim\s*şirket[iİ]?)\s*$/i.test(t)) {
@@ -8918,15 +8939,56 @@ function _avFirmaUnvanSesli(ad) {
   return (t + tip).trim();
 }
 
-function _avMetindeFirmaSesli(text, firmaRaw) {
-  if (!text || !firmaRaw) return text;
-  const ses = _avFirmaUnvanSesli(firmaRaw);
-  if (!ses) return text;
-  try {
-    const esc = firmaRaw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const re = new RegExp(esc, 'gi');
-    return text.replace(re, ses);
-  } catch (e) { return text; }
+/** TTS: x/y puan ifadelerini doğal Türkçe söyleyişe çevir (örn. 46,6/105). */
+function _avSkorVeOranSesli(str) {
+  if (str == null || typeof str !== 'string') return str;
+  let o = str;
+  function rep(max) {
+    const m = String(max);
+    o = o.replace(new RegExp('(\\d+)[.,](\\d+)\\s*/\\s*' + m + '(?=[\\s).,;!?]|$)', 'g'), m + ' üzerinden $1 nokta $2 puan');
+    o = o.replace(new RegExp('(\\d+)\\s*/\\s*' + m + '(?=[\\s).,;!?]|$)', 'g'), m + ' üzerinden $1 puan');
+  }
+  rep(105);
+  rep(30);
+  rep(75);
+  return o;
+}
+
+/** TTS: circumflex / nadir harflerde takılan ses motorları için sade yazım. */
+function _avTtsTurkceKolay(str) {
+  if (str == null || typeof str !== 'string') return str;
+  return str
+    .replace(/\bkârlılık\b/gi, 'karlılık')
+    .replace(/\bkârlı\b/gi, 'karlı')
+    .replace(/\bKâr\b/g, 'Kar')
+    .replace(/\bkâr\b/gi, 'kar')
+    .replace(/\bfaaliyet\s+kârı\b/gi, 'faaliyet karı')
+    .replace(/\bnet\s+kâr\b/gi, 'net kar')
+    .replace(/\bbrüt\s+kâr\b/gi, 'brüt kar')
+    .replace(/(\d+),(\d+)(?=\s+puan\b)/g, '$1 nokta $2')
+    .replace(/(\d+),(\d+)(?=\s*\()/g, '$1 nokta $2')
+    .replace(/(\d+),(\d+)(?=\s+üzerinden\b)/g, '$1 nokta $2');
+}
+
+function _avMetindeFirmaSesli(text) {
+  if (!text) return text;
+  const a = _avNormFirmaStr((document.getElementById('firmaAdi') || {}).value || '');
+  const b = _avNormFirmaStr(window._avLastAnalizFirma || '');
+  const cands = [];
+  if (a) cands.push(a);
+  if (b && b.toLowerCase() !== a.toLowerCase()) cands.push(b);
+  cands.sort(function (x, y) { return y.length - x.length; });
+  let out = text;
+  for (let i = 0; i < cands.length; i++) {
+    const v = cands[i];
+    const ses = _avFirmaUnvanSesli(v);
+    if (!ses) continue;
+    try {
+      const esc = v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      out = out.replace(new RegExp(esc, 'gi'), ses);
+    } catch (e) {}
+  }
+  return out;
 }
 
 function _avAddMsg(role, text) {
@@ -8967,8 +9029,9 @@ function avSesOku(html) {
     .replace(/\s+/g, ' ')
     .trim();
   text = _avBaykusKvUvMetni(text);
-  const _fr = (document.getElementById('firmaAdi') || {}).value || '';
-  if (_fr) text = _avMetindeFirmaSesli(text, _fr);
+  text = _avSkorVeOranSesli(text);
+  text = _avTtsTurkceKolay(text);
+  text = _avMetindeFirmaSesli(text);
   if (!text) return;
   avStopAudio();
   window._avSesUtterChain = (window._avSesUtterChain || 0) + 1;
@@ -9041,6 +9104,7 @@ function avStopAudio() {
 function avAnalizOzetiMesaji(firma, rating, toplam) {
   if (!rating) return;
   const cleanFirma = (firma || 'Firma').toString().replace(/\s+/g, ' ').trim();
+  window._avLastAnalizFirma = _avNormFirmaStr(cleanFirma);
   const ab = document.getElementById('avatarBtn');
   if (ab) ab.style.display = 'flex';
   showAvatarChat();
@@ -9055,7 +9119,7 @@ function avAnalizOzetiMesaji(firma, rating, toplam) {
       + `<span style="font-size:11px;color:#94a3b8">Indicative collateral structure: ${rating.teminat}</span>${riskEk}`
       + `<br><span style="font-size:11px;color:#94a3b8;line-height:1.55">I’m here for questions on ratios, your grade, or how to use the app. Type below, or tap the microphone button to ask by voice.</span>`
     : `<b>${cleanFirma}</b> için bu analizde <b style="color:${rating.color}">kredi notu ${rating.note}</b> hesaplandı.<br>`
-      + `<span style="font-size:11px;color:#94a3b8">Toplam skor: <b>${toplam.toFixed(1)}</b> / 105.</span><br>`
+      + `<span style="font-size:11px;color:#94a3b8">Toplam puan: <b>${String(toplam.toFixed(1)).replace('.', ',')}</b> (105 üzerinden).</span><br>`
       + `<span style="font-size:11px;color:#94a3b8">Öngörülen teminat yapısı: ${rating.teminat}</span>${riskEk}`
       + `<br><span style="font-size:11px;color:#94a3b8;line-height:1.55">Finansal analiz, oranlar ve kredi notunuz hakkındaki sorularınızı bekliyorum. Yazarak sorabilir veya <b>mikrofon</b> düğmesine basıp sesli sorabilirsiniz.</span>`;
   _avAddMsg('bot', msg);
@@ -9450,7 +9514,7 @@ function _baykusSenaryoYorum() {
   }
 
   // Değişim özeti
-  msg += `📊 <b style="color:#e2e8f0">Senaryo sonucu: ${totalSen.toFixed(1)}/105</b> `
+  msg += `📊 <b style="color:#e2e8f0">Senaryo sonucu: ${String(totalSen.toFixed(1)).replace('.', ',')} puan (105 üzerinden)</b> `
     + `(<span style="color:${pDiff>=0?'#22c55e':'#ef4444'}">${pDiff>=0?'+':''}${pDiff} puan</span>)<br><br>`;
 
   // Hangi parametre aktif — ona özel yorum
@@ -9474,10 +9538,10 @@ function _baykusSenaryoYorum() {
     const c8Fark = sen.c8 - base.c8;
     const topFark = c1Fark + c8Fark;
     yorumlar.push(
-      `🔄 <b>%${kvTasima} KV→UV taşıma</b> (${vade} ay) → ${fmtTL(tasinanTutar)} uzun vadeye taşınıyor`
+      `🔄 <b>%${kvTasima} kısa vadeli banka borcunu uzun vadeye taşıma</b> (${vade} ay) → ${fmtTL(tasinanTutar)} uzun vadeye kaydırılıyor`
       + (topFark !== 0 ? ` (<b style="color:${topFark>0?'#22c55e':'#ef4444'}">${topFark>=0?'+':''}${topFark} puan</b>)` : '')
       + `<br><span style="font-size:10.5px;color:#94a3b8">Yeni cari oran: ${sen.cariOran.toFixed(2)} · Likidite: ${sen.likOran.toFixed(2)}</span>`
-      + (kvTasima > 70 ? `<br><span style="font-size:10.5px;color:#f59e0b">⚠ %${kvTasima} oranında UV kredi için banka onayı ve teminat gerekir.</span>` : '')
+      + (kvTasima > 70 ? `<br><span style="font-size:10.5px;color:#f59e0b">⚠ %${kvTasima} oranında uzun vadeli banka kredisi için banka onayı ve teminat gerekir.</span>` : '')
     );
   }
 
@@ -9545,28 +9609,29 @@ function _avSenaryoSoruYanit(s) {
       + `<span style="color:#94a3b8">Senaryo sekmesinde sermaye slider’ını oynatın; puan ve not değişimini anlık görün.</span>`;
   }
 
-  const _kvUvSoru = s.includes('kv') || s.includes('uv') || s.includes('taşıma') || s.includes('tasima')
-    || (s.includes('vade') && (s.includes('borç') || s.includes('borc') || s.includes('uzun') || s.includes('kısa') || s.includes('kisa')));
+  const _kvUvSoru = !/kvkk/i.test(s) && (
+    /\bkv\b/.test(s) || /\buv\b/.test(s) || s.includes('taşıma') || s.includes('tasima')
+    || (s.includes('vade') && (s.includes('borç') || s.includes('borc') || s.includes('uzun') || s.includes('kısa') || s.includes('kisa'))));
 
   if (_kvUvSoru) {
     if (!r) {
-      return `🔄 <b>KV → UV borç taşıma</b> (senaryo):<br><br>`
-        + `<b>①</b> Kısa vadeli banka borcunu uzun vadeye çekmek <b>cari oran</b> ve <b>KV borç/satış</b>ı iyileştirir.<br>`
-        + `<b>②</b> Vade: 36 ay → KV’de ~1/3; 48 ay → ~1/4; 60 ay → ~1/5 kalır.<br>`
+      return `🔄 <b>Kısa vadeli banka borcunu uzun vadeye taşıma</b> (senaryo):<br><br>`
+        + `<b>①</b> Kısa vadeli banka borcunu uzun vadeye çekmek <b>cari oranı</b> ve <b>kısa vadeli banka borcu / satışlar</b> oranını iyileştirir.<br>`
+        + `<b>②</b> Vade: 36 ay → kısa vadeli tarafta yaklaşık üçte biri; 48 ay → dörtte biri; 60 ay → beşte biri kalır.<br>`
         + `<b>③</b> Analiz sonrası firmanıza özel rakamlar burada görünür.<br><br>`
         + `<span style="color:#f59e0b">Banka onayı ve çoğunlukla teminat gerekir.</span><br>`
-        + `<span style="color:#94a3b8">Senaryo sekmesinde KV→UV slider’ını kullanın.</span>`;
+        + `<span style="color:#94a3b8">Senaryo sekmesinde vade taşıma kaydırıcısını kullanın.</span>`;
     }
     const cari = r.cariOran.toFixed(2);
     const kvSat = r.kvBorcSat.toFixed(1);
     const kvBankaTl = r.netSatis > 0 && r.kvBankaB_Sat > 0 ? (r.kvBankaB_Sat / 100) * r.netSatis : 0;
     const kvBankaStr = kvBankaTl > 0 ? fmtTL(kvBankaTl) : '—';
-    return `🔄 <b>KV → UV borç taşıma</b> (senaryo):<br><br>`
-      + `<b>① Mevcut yapı:</b> Cari oran ~<b>${cari}</b> · KV borç/satış ~<b>%${kvSat}</b> · Tahmini KV banka borcu ~<b>${kvBankaStr}</b>.<br>`
-      + `<b>② Etki:</b> Aynı tutar uzun vadeye çekilince KV yükü düşer; cari ve likidite güçlenir, <b>KV borç/satış</b> puanı yükselir.<br>`
-      + `<b>③ Vade kuralı:</b> 36 ay → borcun ~1/3’ü KV; 48 ay → ~1/4; 60 ay → ~1/5.<br><br>`
+    return `🔄 <b>Kısa vadeli banka borcunu uzun vadeye taşıma</b> (senaryo):<br><br>`
+      + `<b>① Mevcut yapı:</b> Cari oran ~<b>${cari}</b> · kısa vadeli banka borcu / satışlar ~<b>%${kvSat}</b> · tahmini kısa vadeli banka borcu ~<b>${kvBankaStr}</b>.<br>`
+      + `<b>② Etki:</b> Aynı tutar uzun vadeye çekilince kısa vadeli yük düşer; cari oran ve likidite güçlenir, ilgili puan kırılımı yükselir.<br>`
+      + `<b>③ Vade kuralı:</b> 36 ay → borcun yaklaşık üçte biri kısa vadeli tarafta; 48 ay → dörtte biri; 60 ay → beşte biri.<br><br>`
       + `<span style="color:#f59e0b">Not: Banka onayı ve çoğunlukla teminat gerekir.</span><br>`
-      + `<span style="color:#94a3b8">Senaryo slider’ı ile taşınan tutarı seçip puan etkisini anlık görün.</span>`;
+      + `<span style="color:#94a3b8">Senaryo kaydırıcısı ile taşınan tutarı seçip puan etkisini anlık görün.</span>`;
   }
 
   const _satisBuyumeSoru = (s.includes('satış') || s.includes('satis') || s.includes('ciro'))
@@ -9575,17 +9640,17 @@ function _avSenaryoSoruYanit(s) {
   if (_satisBuyumeSoru) {
     if (!r) {
       return `📈 <b>Satış büyümesi</b> (senaryo):<br><br>`
-        + `<b>①</b> Nominal satış artışı, borçlar sabitken <b>KV borç/satış</b> oranını düşürür.<br>`
+        + `<b>①</b> Nominal satış artışı, borçlar sabitken <b>kısa vadeli banka borcu / satışlar</b> oranını düşürür.<br>`
         + `<b>②</b> Reel büyüme için ÜFE ile hizalı olup olmadığınızı ana ekrandan kontrol edin.<br>`
-        + `<b>③</b> Senaryo slider’ı reel satış büyümesi puanını (C11) ve KV/satış’ı birlikte günceller.<br><br>`
+        + `<b>③</b> Senaryo kaydırıcısı reel satış büyümesi puanını ve kısa vadeli banka borcu / satışlar oranını birlikte günceller.<br><br>`
         + `<span style="color:#94a3b8">Analiz yaptıktan sonra firma rakamları burada kişiselleşir.</span>`;
     }
     const ns = fmtTL(r.netSatis || 0);
     const kvSat = r.kvBorcSat.toFixed(1);
     const reel = (r.reelSatisBuy != null) ? r.reelSatisBuy.toFixed(1) : '—';
     return `📈 <b>Satış büyümesi</b> (senaryo):<br><br>`
-      + `<b>① Mevcut:</b> Net satış ~<b>${ns}</b> · KV borç/satış ~<b>%${kvSat}</b> · Reel satış büyümesi (yaklaşık) ~<b>%${reel}</b>.<br>`
-      + `<b>② Etki:</b> Aynı KV borçla satış artınca <b>KV borç/satış</b> düşer; aşırı büyüme senaryosu reel büyüme puanında ters tepebilir — slider ile deneyin.<br>`
+      + `<b>① Mevcut:</b> Net satış ~<b>${ns}</b> · kısa vadeli banka borcu / satışlar ~<b>%${kvSat}</b> · reel satış büyümesi (yaklaşık) ~<b>%${reel}</b>.<br>`
+      + `<b>② Etki:</b> Kısa vadeli banka borcu aynı kalıp satış artınca bu oran düşer; aşırı büyüme senaryosu reel büyüme puanında ters tepebilir — kaydırıcı ile deneyin.<br>`
       + `<b>③</b> ÜFE girişi reel büyümeyi belirler; nominal ciroyu tek başına büyütmek yanıltıcı olabilir.<br><br>`
       + `<span style="color:#94a3b8">Senaryo sekmesinde satış büyümesi slider’ını hareket ettirin.</span>`;
   }
@@ -9596,18 +9661,18 @@ function _avSenaryoSoruYanit(s) {
 
   if (_karMarjSoru || ((s.includes('karlılık') || s.includes('karlilik') || s.includes('kârlılık') || s.includes('marj')) && (s.includes('iyileş') || s.includes('iyiles') || s.includes('artış') || s.includes('artis') || s.includes('senaryo')))) {
     if (!r) {
-      return `📊 <b>Kar marjı / kârlılık</b> (senaryo):<br><br>`
-        + `<b>①</b> Net kar marjı slider’ı doğrudan karlılık puanını (C4) etkiler; faaliyet karı ve diğer kırılımlarla bağlantılıdır.<br>`
+      return `📊 <b>Kar marjı ve karlılık</b> (senaryo):<br><br>`
+        + `<b>①</b> Net kar marjı kaydırıcısı doğrudan karlılık puanını (C4) etkiler; faaliyet karı ve diğer kırılımlarla bağlantılıdır.<br>`
         + `<b>②</b> Gerçek hayatta fiyat, maliyet ve ürün karması üzerinden gelir.<br>`
         + `<b>③</b> Analiz sonrası mevcut marjınız burada gösterilir.<br><br>`
-        + `<span style="color:#94a3b8">Senaryo sekmesinde kar marjı slider’ını kullanın.</span>`;
+        + `<span style="color:#94a3b8">Senaryo sekmesinde kar marjı kaydırıcısını kullanın.</span>`;
     }
     const nkm = r.netKarMarj.toFixed(1);
     const fkm = r.faalKarMarj != null ? r.faalKarMarj.toFixed(1) : '—';
     const hedef = paz ? '%9–14' : '%14+';
-    return `📊 <b>Kar marjı / kârlılık</b> (senaryo):<br><br>`
-      + `<b>① Mevcut:</b> VÖ net kar marjı ~<b>%${nkm}</b> · Faaliyet kar marjı ~<b>%${fkm}</b> (firma tipine göre eşikler değişir; hedef bandı kabaca <b>${hedef}</b>).<br>`
-      + `<b>② Etki:</b> Senaryoda marj artışı <b>karlılık puanını</b> yükseltir; toplam nota katkısı slider ile anlık hesaplanır (tipik üst band birkaç puan).<br>`
+    return `📊 <b>Kar marjı ve karlılık</b> (senaryo):<br><br>`
+      + `<b>① Mevcut:</b> VÖ net kar marjı ~<b>%${nkm}</b> · faaliyet kar marjı ~<b>%${fkm}</b> (firma tipine göre eşikler değişir; hedef bandı kabaca <b>${hedef}</b>).<br>`
+      + `<b>② Etki:</b> Senaryoda marj artışı <b>karlılık puanını</b> yükseltir; toplam nota katkısı kaydırıcı ile anlık hesaplanır (tipik üst band birkaç puan).<br>`
       + `<b>③</b> Fiyat, maliyet ve kırılım değişimi operasyoneldir — rakamı senaryoda “ne olursa” diye test edebilirsiniz.<br><br>`
       + `<span style="color:#94a3b8">Senaryo sekmesinde kar marjı slider’ını oynatın.</span>`;
   }
@@ -9617,7 +9682,7 @@ function _avSenaryoSoruYanit(s) {
     // En kolay = en az çaba gerektiren
     const liste = [];
     if (r.borcOzKay > (paz?2:1.5)) liste.push({ aksiyon: 'Sermaye artışı', zorluk: 'Orta', aciklama: 'Ortak desteği veya kar transferi ile yapılabilir.' });
-    if (r.cariOran < 1.25) liste.push({ aksiyon: 'KV→UV borç taşıma', zorluk: 'Orta', aciklama: 'Mevcut banka ilişkisi güçlüyse görece kolay.' });
+    if (r.cariOran < 1.25) liste.push({ aksiyon: 'Kısa vadeli borcu uzun vadeye taşıma', zorluk: 'Orta', aciklama: 'Mevcut banka ilişkisi güçlüyse görece kolay.' });
     if (r.netKarMarj < 5) liste.push({ aksiyon: 'Kar marjı iyileştirme', zorluk: 'Zor', aciklama: 'Fiyat artışı veya maliyet kesintisi gerektirir.' });
     if (liste.length === 0) return '🏆 Kriterler zaten güçlü! Büyük aksiyon gerekmiyor.';
     return `<b>Firmaya özel öneri sırası:</b><br>`
@@ -9640,7 +9705,7 @@ function _avMatchText(q) {
   if (s.includes('senaryo')) {
     const r = window._lastR;
     if (r) {
-      const firma = (document.getElementById('firmaAdi') || {}).value || 'Firma';
+      const firma = (window._avLastAnalizFirma || (document.getElementById('firmaAdi') || {}).value || 'Firma').replace(/\s+/g, ' ').trim();
       const subjPuan = window._lastSubjPuan || 0;
       // Taze hesaplama — _senaryoPrevC değerlerini bağımsız set et
       window._senaryoPrevC5  = r.reelFaalKarBuy > 14 ? 5 : r.reelFaalKarBuy > 9 ? 4 : r.reelFaalKarBuy > 5 ? 3 : r.reelFaalKarBuy > 2 ? 2 : r.reelFaalKarBuy > 0 ? 1 : 0;
@@ -9656,19 +9721,19 @@ function _avMatchText(q) {
       const totalBase = bc.s + subjPuan;
       const rating = getRating(totalBase);
       return `📈 <b>${firma} için Senaryo Analizi</b><br><br>`
-        + `Mevcut: <b style="color:${rating.color}">${rating.note}</b> (${totalBase.toFixed(1)}/105)<br><br>`
-        + `Senaryo modülünde 4 parametre değiştirerek etkisini anlık görebilirsiniz:<br>`
-        + `<div style="margin-top:6px;line-height:2">• 💰 Sermaye artışı → Borç/ÖK oranı<br>`
-        + `• 🔄 KV→UV borç taşıma → Cari & likidite<br>`
-        + `• 📊 Kar marjı iyileştirme → Karlılık puanı<br>`
-        + `• 📈 Satış büyümesi → KV borç/satış oranı</div><br>`
+        + `Mevcut durum: kredi notu <b style="color:${rating.color}">${rating.note}</b>; toplamda <b>${String(totalBase.toFixed(1)).replace('.', ',')}</b> puan (105 üzerinden).<br><br>`
+        + `Senaryo modülünde dört parametreyle etkiyi anlık görebilirsiniz:<br>`
+        + `<div style="margin-top:6px;line-height:2">• 💰 Sermaye artışı → borç / özkaynak oranı<br>`
+        + `• 🔄 Kısa vadeli banka borcunu uzun vadeye taşıma → cari oran ve likidite<br>`
+        + `• 📊 Kar marjı iyileştirme → karlılık puanı<br>`
+        + `• 📈 Satış büyümesi → kısa vadeli banka borcu / satışlar oranı</div><br>`
         + `<span style="color:#94a3b8">Senaryo butonu: Rating Hero bölümünde veya analiz sonrası.</span>`;
     }
-    return '<b>Senaryo Analizi</b> sekmesinde <b>sermaye artışı</b>, <b>KV→UV borç taşıması</b>, <b>satış büyümesi</b> ve <b>net kar marjı</b> kaydırıcılarını oynatarak etkiyi anında görebilirsiniz.<br><br>'
+    return '<b>Senaryo Analizi</b> sekmesinde <b>sermaye artışı</b>, <b>kısa vadeli banka borcunu uzun vadeye taşıma</b>, <b>satış büyümesi</b> ve <b>net kar marjı</b> kaydırıcılarını oynatarak etkiyi anında görebilirsiniz.<br><br>'
       + '<b>FinSkor otomatik senaryo önerisi</b>, mevcut notunuzu iki kademe iyileştirebilecek senaryoyu hesaplar; özeti raporda da bulunur.';
   }
   if (s.includes('subjektif') || s.includes('kriter')) return '⚖ <b>Subjektif Kriterler</b> butonu sayfanın <b>en altında sağ köşede</b> bulunur.<br><br>'
-    +'Doldurmazsanız sistem otomatik <b>20.60/30</b> puan verir. '
+    +'Doldurmazsanız sistem otomatik <b>20,60 puan (30 üzerinden)</b> verir. '
     +'Ortakların geçmişi, banka ilişkileri, alacak kalitesi gibi 19 kriter içerir.<br>'
     +'<span style="color:#94a3b8">Her kriter için seçenekler sunulur — en uygununu seçmeniz yeterli.</span>';
 
@@ -9681,8 +9746,8 @@ function _avMatchText(q) {
     && ((s.includes('kredi') && s.includes('not')) || s.includes('puan') || s.includes('rating') || s.includes('skor'));
   if (_avQGradeUp) {
     return '<b>Kredi notunuzu veya toplam puanınızı iyileştirmek</b> için özet yol haritası:<br><br>'
-      + '• <b>Finansal oranlar</b> — Borç/özkaynak, cari ve likidite, KV borç/satış, kar marjı, banka borcu/aktif gibi göstergeler <b>100 üzerinden 70</b> puana kadar olan finansal bölümü belirler. <b>Senaryo Analizi</b>nde kaydırıcılarla hangi hamlenin kaç puan getirdiğini anında görebilirsiniz.<br>'
-      + '• <b>Subjektif faktörler</b> — En alttaki <b>Subjektif Faktörler</b> en fazla <b>30 puan</b> taşır; doldurulmazsa otomatik <b>20,60 / 30</b> kullanılır. Notu yükseltmek için burayı gerçekçi doldurmak önemlidir.<br>'
+      + '• <b>Finansal oranlar</b> — Borç/özkaynak, cari ve likidite, kısa vadeli banka borcu/satışlar, kar marjı, banka borcu/aktif gibi göstergeler <b>100 üzerinden 70</b> puana kadar olan finansal bölümü belirler. <b>Senaryo Analizi</b>nde kaydırıcılarla hangi hamlenin kaç puan getirdiğini anında görebilirsiniz.<br>'
+      + '• <b>Subjektif faktörler</b> — En alttaki <b>Subjektif Faktörler</b> en fazla <b>30 puan</b> taşır; doldurulmazsa otomatik <b>20,60 puan (30 üzerinden)</b> kullanılır. Notu yükseltmek için burayı gerçekçi doldurmak önemlidir.<br>'
       + '• <b>Veri ve ayarlar</b> — Doğru bilanço/gelir tablosu, analiz yılı ve önceki yıl, firma tipi ve ÜFE girişi; eksik veya hatalı veri notu aşağı çeker.<br><br>'
       + '<span style="color:#94a3b8">Genel bilgilendirme; banka kararı veya yatırım tavsiyesi değildir.</span>';
   }
@@ -9694,7 +9759,7 @@ function _avMatchText(q) {
     return '<b>Finansal yapı</b>, firmanızın kaynaklarının (öz kaynak ile kısa/uzun vadeli borçların) <b>dağılımını</b> ve bunların işletme ile uyumunu ifade eder. Kısaca dört başlıkta düşünülür:<br><br>'
       + '• <b>Kaynak dengesi</b> — Özkaynak gücü ile toplam borcun oranı (ör. borç/özkaynak).<br>'
       + '• <b>Likidite</b> — Kısa vadeli borçları karşılama gücü; cari oran ve likidite ölçüleri.<br>'
-      + '• <b>Kârlılık</b> — Satıştan kalan kar (brüt, faaliyet, net kar marjı).<br>'
+      + '• <b>Karlılık</b> — Satıştan kalan kar (brüt, faaliyet ve net kar marjı).<br>'
       + '• <b>Borç yükü</b> — Özellikle kısa vadeli banka borcunun satış ve varlıklara göre büyüklüğü.<br><br>'
       + '<span style="color:#94a3b8">Bu uygulamadaki oranlar ve kredi notu bu yapının özetidir; ayrıntı tablolarda, “ne olursa” senaryoları için <b>Senaryo Analizi</b>nde denenebilir.</span>';
   }
@@ -9711,7 +9776,7 @@ function _avMatchText(q) {
   if (s.includes('findeks') || (s.includes('risk') && s.includes('merkezi') && (s.includes('rapor') || s.includes('pdf')))) {
     return '📄 <b>Findeks (Risk Merkezi)</b> çıktısı bu uygulamada <b>yalnızca PDF</b> olarak yüklenir; Excel desteklenmez.<br><br>'
       + 'Yükleme alanı <b>Findeks</b> sekmesindedir (ortamda açıksa). Rapor içeriğinden <b>nakdi</b> kalemler analizde kullanılır; <b>gayrinakdi</b> riskler bu özet analizde yer almaz. Kredi türü kırılımı satır satır yoksa, rapor tarihli özetten <b>oransal</b> uyarlama yapılabilir — ayrıntılar sekmedeki metodoloji notunda.<br><br>'
-      + '<span style="color:#94a3b8">Findeks ile KV/UV banka borcu hizalaması ürün yol haritasında; yüklü raporda analiz ekranı bu kurallara göre güncellenir.</span>';
+      + '<span style="color:#94a3b8">Findeks ile kısa ve uzun vadeli banka borcunun hizalanması ürün yol haritasında; yüklü raporda analiz ekranı bu kurallara göre güncellenir.</span>';
   }
   if (s.includes('teminat') && (s.includes('nedir') || s.includes('ne demek') || s.includes('anlam') || s.includes('göster') || s.includes('goster') || s.includes('nasıl') || s.includes('nasil') || s.includes('okun'))) {
     return '🏦 <b>Teminat / öngörülen teminat yapısı</b>, bankanın nihai kararı değildir; FinSkor’un harf notuna göre <b>özet, gösterge amaçlı</b> bir çerçevedir.<br><br>'
@@ -9783,7 +9848,7 @@ function _avMatchText(q) {
   }
 
   if (s.includes('enflasyon') || s.includes('üfe') || s.includes('reel') || s.includes('nominal')) return '📈 Ana ekrandaki <b>ÜFE / Enflasyon Girişi</b> bölümüne TÜİK Yurt İçi Üretici Fiyat Endeksi oranını girin.<br><br>'
-    +'<b>Neden önemli?</b> Ciro ve faaliyet kârı büyümesi önce <b>nominal</b> olarak hesaplanır; '
+    +'<b>Neden önemli?</b> Ciro ve faaliyet karı büyümesi önce <b>nominal</b> olarak hesaplanır; '
     +'bu oran ile <b>reel büyümeye</b> indirgenir.<br>'
     +'Örnek: Ciro %40 artmış, ÜFE %44 ise reel büyüme <b>negatif</b> — firma gerçekte küçülmüş demektir.<br>'
     +'<span style="color:#94a3b8">Ondalık girin: 0.4393 = %43.93 ÜFE</span>';
@@ -9803,7 +9868,7 @@ function _avMatchText(q) {
   if (_avNotGradeUpIntent && (s.includes('rating') || (s.includes('puan') && !s.includes('artır') && !s.includes('artir') && !s.includes('yükselt') && !s.includes('yukselt') && !s.includes('iyileş') && !s.includes('iyiles') && !s.includes('ne yap') && !s.includes('neler')))) {
     return 'FinSkor’da <b>rating / harf notu</b>, finansal oranlardan gelen bölüm ile subjektif faktörlerin birleşimidir (tavan 105 puan). Ölçek özeti: <b>AAA</b> 93+, <b>AA/A</b> 76–93, <b>BBB</b> 60–76, <b>BB/B</b> 45–60, <b>CCC</b> altı çok yüksek risk. Notu yükseltmek için ne yapabileceğinizi ayrıca sorabilirsiniz.';
   }
-  if (s.includes('ebitda') || s.includes('favök')) return 'FAVÖK = Faiz, Amortisman ve Vergi Öncesi Kâr. '
+  if (s.includes('ebitda') || s.includes('favök')) return 'FAVÖK = Faiz, Amortisman ve Vergi Öncesi Kar. '
     +'Operasyonel nakit yaratma gücünü gösterir.';
   // "Finansal yapımı iyileştirmek için ne yapmalıyım" vb. — puan kelimesi olmasa da yakalar
   const _avWantsFinImprove =
@@ -9818,12 +9883,12 @@ function _avMatchText(q) {
     const paz = typeof state !== 'undefined' && state && state.firmType === 'pazarlama';
     if (!r) {
       return 'Önce bu firma için <b>analizi tamamlayın</b>; böylece oranlarınıza göre somut başlıklar önerebilirim.<br><br>'
-        + '<span style="color:#94a3b8">Genel olarak: özkaynak güçlendirme, KV borcun vade yapısı, kar marjı ve satış büyümesi — hepsinin etkisini <b>Senaryo Analizi</b> sekmesinde deneyebilirsiniz.</span>';
+        + '<span style="color:#94a3b8">Genel olarak: özkaynak güçlendirme, kısa vadeli banka borcunun vade yapısı, kar marjı ve satış büyümesi — hepsinin etkisini <b>Senaryo Analizi</b> sekmesinde deneyebilirsiniz.</span>';
     }
     const lines = [];
     lines.push('<b>Finansal yapıyı güçlendirme</b> — özet yönler (genel bilgi, yatırım/kredi tavsiyesi değil):<br><br>');
     if (r.borcOzKay > (paz ? 2 : 1.5)) {
-      lines.push(`• <b>Borç / özkaynak</b> yüksek görünüyor (~<b>${r.borcOzKay.toFixed(2)}×</b>). Özkaynak artışı veya borcun daha uzun vadeye ötelenmesi yapıyı rahatlatır; senaryoda sermaye ve KV→UV taşımayı deneyin.<br>`);
+      lines.push(`• <b>Borç / özkaynak</b> yüksek görünüyor (~<b>${r.borcOzKay.toFixed(2)}×</b>). Özkaynak artışı veya borcun daha uzun vadeye ötelenmesi yapıyı rahatlatır; senaryoda sermaye ve kısa vadeli borcu uzun vadeye taşımayı deneyin.<br>`);
     }
     if (r.cariOran < 1.25) {
       lines.push(`• <b>Likidite (cari oran)</b> sıkışık olabilir (~<b>${r.cariOran.toFixed(2)}</b>). İşletme sermayesi ve kısa vadeli yükün yönetimi öne çıkar.<br>`);
@@ -9832,7 +9897,7 @@ function _avMatchText(q) {
       lines.push(`• <b>Net kar marjı</b> düşük (~<b>%${r.netKarMarj.toFixed(1)}</b>). Maliyet, fiyat ve operasyonel verimlilik puanları doğrudan etkiler.<br>`);
     }
     if (r.kvBorcSat > 40) {
-      lines.push(`• <b>KV borç / satış</b> yüksek (~<b>%${r.kvBorcSat.toFixed(1)}</b>). Nakit döngüsü ve kısa vadeli borç yükü kritik alanlar.<br>`);
+      lines.push(`• <b>Kısa vadeli banka borcu / satışlar</b> yüksek (~<b>%${r.kvBorcSat.toFixed(1)}</b>). Nakit döngüsü ve kısa vadeli yük kritik alanlar.<br>`);
     }
     if (lines.length === 1) {
       lines.push('• Mevcut oranlarınız görece dengeli görünüyor; yine de <b>Senaryo</b> ile sermaye, vade, marj ve satış senaryolarını denemek faydalıdır.<br>');
@@ -9848,7 +9913,7 @@ function _avMatchText(q) {
       +'<b style="color:#ef4444">CCC↓</b> (&lt;45) → Çok yüksek risk, kredi önerilmez<br>'
       +'<span style="color:#94a3b8">Finansal oranlar <b>%75</b>, subjektif kriterler <b>%30</b> ağırlıklıdır.</span>';
   }
-  if (s.includes('senaryo')) return '<b>Senaryo Analizi</b> sekmesinde <b>sermaye artışı</b>, <b>KV→UV borç taşıması</b>, <b>satış büyümesi</b> ve <b>net kar marjı</b> kaydırıcılarını oynatarak etkiyi anında görebilirsiniz.<br><br>'
+  if (s.includes('senaryo')) return '<b>Senaryo Analizi</b> sekmesinde <b>sermaye artışı</b>, <b>kısa vadeli banka borcunu uzun vadeye taşıma</b>, <b>satış büyümesi</b> ve <b>net kar marjı</b> kaydırıcılarını oynatarak etkiyi anında görebilirsiniz.<br><br>'
     + '<b>FinSkor otomatik senaryo önerisi</b>, mevcut notunuzu iki kademe iyileştirebilecek senaryoyu hesaplar; özeti raporda da bulunur.';
   if (s.includes('analiz yili') || s.includes('analiz yılı')) return '<b>Analiz Yılı:</b> Yükleme sırasında hedef yılı seçin. <b style="color:#f87171">Analiz yılı ve bir önceki yılın</b> her ikisinin de girilmesi zorunludur. Sistem, cari yılı önceki yılla karşılaştırarak hem yatay hem dikey analiz yapar.';
   if (s.includes('analiz donemi') || s.includes('analiz dönemi')) return '<b>Analiz Dönemi:</b> Ay sonu seçerek 3, 6, 9 veya 12 aylık dönem belirleyin. Ara dönem seçilirse sistem gelir tablosunu otomatik yıllıklaştırır.';
@@ -9856,11 +9921,11 @@ function _avMatchText(q) {
   if (s.includes('pdf beyanname')) return '<b>PDF Beyanname:</b> İlgili mali yılın kurumlar veya geçici vergi beyannamesini yükleyin. Bilanço ve gelir tablosu otomatik yüklenir, firma adı otomatik gelir. İlgili döneme ait kurumlar geçici vergi beyannamesini detay mizan ile aynı döneme peş peşe çoklu yükleyebilirsiniz.';
   if (s.includes('excel mizan yukle') || s.includes('excel mizan yükle')) return '<b>Excel Mizan:</b> Muhasebe programından ilgili mali dönem için alınan .xlsx veya .xls Excel dosyasını yükleyin. Hesap kodları, bakiyeler ve firma adı otomatik okunarak ilgili döneme yüklenir.';
   if (s.includes('pdf mizan yukle') || s.includes('pdf mizan yükle')) return '<b>PDF Mizan:</b> PDF mizan yükleyebilirsiniz. Aynı zamanda manuel mali veri girişi de yapabilirsiniz. <b style="color:#fbbf24">İpucu:</b> Detay mizan ile kurumlar beyannamesini aynı döneme peş peşe yükleyebilirsiniz!';
-  if (s.includes('analiz et')) return '<b>Analiz Et:</b> Önce en altta sağda bulunan <b>Subjektif Faktörler</b> sekmesini doldurun. Doldurmadan geçerseniz sistem 30 üzerinden 20.60 otomatik puan verir. Ardından <b style="color:#f5a623">Analiz Et</b> butonu aktif olur.';
+  if (s.includes('analiz et')) return '<b>Analiz Et:</b> Önce en altta sağda bulunan <b>Subjektif Faktörler</b> sekmesini doldurun. Doldurmadan geçerseniz sistem <b>20,60 puan (30 üzerinden)</b> otomatik verir. Ardından <b style="color:#f5a623">Analiz Et</b> butonu aktif olur.';
   if (s.includes('pdf') || s.includes('yükle') || s.includes('import') || s.includes('excel') || s.includes('mizan')) return 'Yıl kartındaki 📎 <b>Excel / PDF Yükle</b> butonuna tıklayın. Excel mizan, PDF mizan ve PDF beyanname desteklenir.';
   if (s.includes('yıllıklaştır') || s.includes('ara dönem')) return 'Ara dönem veri yüklendiğinde sistem otomatik yıllıklaştırır. '
     +'Örneğin 9 aylık gelir tablosu 12 aya çevrilir.';
-  if (s.includes('özkayna') || s.includes('öz kay')) return 'Özkaynak = Ödenmiş Sermaye + Yedekler + Geçmiş Kârlar + Dönem Net Kârı. '
+  if (s.includes('özkayna') || s.includes('öz kay')) return 'Özkaynak = Ödenmiş Sermaye + Yedekler + Geçmiş Karlar + Dönem Net Karı. '
     +'Büyüyen özkaynak sağlıklı bir işaret.';
   if (s.includes('merhaba') || s.includes('selam') || s.includes('nasılsın') || s.includes('nasilsin')) return 'Merhaba. Ben Baykuş, kredi analiz asistanınızım. Kredi notu, finansal oranlar veya uygulamanın kullanımı hakkında sorabilirsiniz.';
   if (s.includes('nasıl') && (s.includes('kullan') || s.includes('yapılır') || s.includes('yapilir'))) return 'Özet akış: mali verileri yükleyin veya girin, gerekirse ÜFE oranını ve firma tipini seçin, subjektif faktörleri doldurun, ardından <b>Analiz Et</b> ile notu görün. Ayrıntı için hızlı konu başlıklarına veya doğrudan soru yazabilirsiniz.';
