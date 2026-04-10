@@ -9613,6 +9613,42 @@ function _avMatchText(q) {
     +'Doldurmazsanız sistem otomatik <b>20.60/30</b> puan verir. '
     +'Ortakların geçmişi, banka ilişkileri, alacak kalitesi gibi 19 kriter içerir.<br>'
     +'<span style="color:#94a3b8">Her kriter için seçenekler sunulur — en uygununu seçmeniz yeterli.</span>';
+
+  // Sık sorulan: kredi notunu / puanı yükseltmek, ne yapmalıyım (genel "kredi notu" satırına düşmesin)
+  const _avQGradeUp = (s.includes('yükselt') || s.includes('yukselt') || s.includes('yüksel') || s.includes('yuksel')
+    || s.includes('artır') || s.includes('artir') || s.includes('iyileş') || s.includes('iyiles')
+    || (s.includes('neler') && (s.includes('yap') || s.includes('yapm'))) || s.includes('ne yap') || s.includes('ne yapm')
+    || ((s.includes('nasıl') || s.includes('nasil')) && !s.includes('hesaplan') && !s.includes('nedir') && !s.includes('anlam')
+      && !s.includes('tanım') && !s.includes('tanim') && !s.includes('çalış') && !s.includes('calis') && !s.includes('kullan')))
+    && ((s.includes('kredi') && s.includes('not')) || s.includes('puan') || s.includes('rating') || s.includes('skor'));
+  if (_avQGradeUp) {
+    return '<b>Kredi notunuzu veya toplam puanınızı iyileştirmek</b> için özet yol haritası:<br><br>'
+      + '• <b>Finansal oranlar</b> — Borç/özkaynak, cari ve likidite, KV borç/satış, kar marjı, banka borcu/aktif gibi göstergeler <b>100 üzerinden 70</b> puana kadar olan finansal bölümü belirler. <b>Senaryo Analizi</b>nde kaydırıcılarla hangi hamlenin kaç puan getirdiğini anında görebilirsiniz.<br>'
+      + '• <b>Subjektif faktörler</b> — En alttaki <b>Subjektif Faktörler</b> en fazla <b>30 puan</b> taşır; doldurulmazsa otomatik <b>20,60 / 30</b> kullanılır. Notu yükseltmek için burayı gerçekçi doldurmak önemlidir.<br>'
+      + '• <b>Veri ve ayarlar</b> — Doğru bilanço/gelir tablosu, analiz yılı ve önceki yıl, firma tipi ve ÜFE girişi; eksik veya hatalı veri notu aşağı çeker.<br><br>'
+      + '<span style="color:#94a3b8">Genel bilgilendirme; banka kararı veya yatırım tavsiyesi değildir.</span>';
+  }
+
+  const _avQFinYapi = (s.includes('finansal') && (s.includes('yapı') || s.includes('yapi')))
+    && (s.includes('anlat') || s.includes('açıkla') || s.includes('acikla') || s.includes('nedir') || s.includes('ne demek')
+      || s.includes('tanım') || s.includes('tanim') || s.includes('örnek') || s.includes('ornek') || s.includes('açıkl'));
+  if (_avQFinYapi) {
+    return '<b>Finansal yapı</b>, firmanızın kaynaklarının (öz kaynak ile kısa/uzun vadeli borçların) <b>dağılımını</b> ve bunların işletme ile uyumunu ifade eder. Kısaca dört başlıkta düşünülür:<br><br>'
+      + '• <b>Kaynak dengesi</b> — Özkaynak gücü ile toplam borcun oranı (ör. borç/özkaynak).<br>'
+      + '• <b>Likidite</b> — Kısa vadeli borçları karşılama gücü; cari oran ve likidite ölçüleri.<br>'
+      + '• <b>Kârlılık</b> — Satıştan kalan kar (brüt, faaliyet, net kar marjı).<br>'
+      + '• <b>Borç yükü</b> — Özellikle kısa vadeli banka borcunun satış ve varlıklara göre büyüklüğü.<br><br>'
+      + '<span style="color:#94a3b8">Bu uygulamadaki oranlar ve kredi notu bu yapının özetidir; ayrıntı tablolarda, “ne olursa” senaryoları için <b>Senaryo Analizi</b>nde denenebilir.</span>';
+  }
+
+  if ((s.includes('banka') && s.includes('kredi') && (s.includes('al') || s.includes('onay') || s.includes('verir'))) || s.includes('kredi alabilir') || s.includes('kredi çıkar')) {
+    return 'FinSkor <b>banka yerine geçmez</b>; gördüğünüz not model tahminidir. Gerçek kredi kararı bankanın politika, teminat ve incelemesine bağlıdır. Notu iyileştirmek için finansal oranlarınızı ve subjektif faktörleri güçlendirmeye odaklanabilirsiniz.';
+  }
+
+  if ((s.includes('105') || s.includes('toplam skor') || s.includes('toplam puan')) && (s.includes('nedir') || s.includes('nasıl') || s.includes('nasil') || s.includes('oluş') || s.includes('olusan') || s.includes('parça'))) {
+    return 'Toplam skor en fazla <b>105</b>: finansal oranlar <b>100 üzerinden 70</b> puana kadar, subjektif faktörler <b>30</b> puana kadar katkı verir (yaklaşık ağırlık: finansal taraf <b>%75</b>, subjektif <b>%30</b>). Harf notu eşikleri özetle: <b>AAA</b> 93+, <b>AA/A</b> 76–93, <b>BBB</b> 60–76, <b>BB/B</b> 45–60, <b>CCC</b> altı çok yüksek risk bandıdır.';
+  }
+
   if (s.includes('enflasyon') || s.includes('üfe') || s.includes('reel') || s.includes('nominal')) return '📈 Ana ekrandaki <b>ÜFE / Enflasyon Girişi</b> bölümüne TÜİK Yurt İçi Üretici Fiyat Endeksi oranını girin.<br><br>'
     +'<b>Neden önemli?</b> Ciro ve faaliyet kârı büyümesi önce <b>nominal</b> olarak hesaplanır; '
     +'bu oran ile <b>reel büyümeye</b> indirgenir.<br>'
@@ -9625,19 +9661,17 @@ function _avMatchText(q) {
     +'Stokları dışarıda bırakarak daha katı bir likidite ölçümü yapar.';
   if (s.includes('borç') || s.includes('kaldiraç') || s.includes('leverage')) return 'Borç/Özkaynak oranı finansal kaldıracı gösterir. '
     +'2 altı genellikle tercih edilir; sektöre göre değerlendirin.';
-  if (s.includes('rating') || s.includes('kredi notu') || s.includes('puan')) return 'Rating hesabı: '
-    +'Finansal oranlar %75 ağırlık, subjektif kriterler %30 ağırlık taşır. '
-    +'AAA=93+, AA/A=76-93, BBB=60-76, BB/B=45-60, CCC altı reddedilir.';
+  if ((s.includes('kredi') && s.includes('not') || s.includes('rating')) && (s.includes('hesaplan') || s.includes('ağırlık') || s.includes('agirlik') || s.includes('formül') || s.includes('formul') || (s.includes('nedir') && !s.includes('anlat')))) {
+    return 'Skor <b>105</b> üzerinden hesaplanır: finansal oranlar <b>100 üzerinden 70</b> puana kadar, subjektif faktörler <b>30</b> puana kadar (yaklaşık ağırlık: finansal <b>%75</b>, subjektif <b>%30</b>). Harf notu özet eşikleri: <b>AAA</b> 93+, <b>AA/A</b> 76–93, <b>BBB</b> 60–76, <b>BB/B</b> 45–60, <b>CCC</b> altı çok yüksek risk bandıdır.';
+  }
+  const _avNotGradeUpIntent = !s.includes('yükselt') && !s.includes('yukselt') && !s.includes('yüksel') && !s.includes('yuksel')
+    && !s.includes('artır') && !s.includes('artir') && !s.includes('iyileş') && !s.includes('iyiles')
+    && !s.includes('ne yap') && !s.includes('ne yapm') && !(s.includes('neler') && s.includes('yap'));
+  if (_avNotGradeUpIntent && (s.includes('rating') || (s.includes('puan') && !s.includes('artır') && !s.includes('artir') && !s.includes('yükselt') && !s.includes('yukselt') && !s.includes('iyileş') && !s.includes('iyiles') && !s.includes('ne yap') && !s.includes('neler')))) {
+    return 'FinSkor’da <b>rating / harf notu</b>, finansal oranlardan gelen bölüm ile subjektif faktörlerin birleşimidir (tavan 105 puan). Ölçek özeti: <b>AAA</b> 93+, <b>AA/A</b> 76–93, <b>BBB</b> 60–76, <b>BB/B</b> 45–60, <b>CCC</b> altı çok yüksek risk. Notu yükseltmek için ne yapabileceğinizi ayrıca sorabilirsiniz.';
+  }
   if (s.includes('ebitda') || s.includes('favök')) return 'FAVÖK = Faiz, Amortisman ve Vergi Öncesi Kâr. '
     +'Operasyonel nakit yaratma gücünü gösterir.';
-  if (s.includes('puan') && (s.includes('artır') || s.includes('iyileş') || s.includes('yükselt'))) {
-    return 'Puanı artırmanın en etkili yolları:<br>'
-      +'• <b>Sermaye artışı</b> — borç/özkaynak oranını iyileştirir (+6–12 puan potansiyel)<br>'
-      +'• <b>KV borçları UV\'ye taşıma</b> — cari oran ve likiditeyi güçlendirir<br>'
-      +'• <b>Karlılık artışı</b> — net kar marjı ve faaliyet karı puanı yükseltir<br>'
-      +'• <b>Banka borcu azaltma</b> — Banka borç/aktif oranını düşürür<br>'
-      +'<span style="color:#94a3b8">Senaryo sekmesinde bu değişikliklerin etkisini anlık görebilirsiniz.</span>';
-  }
   // "Finansal yapımı iyileştirmek için ne yapmalıyım" vb. — puan kelimesi olmasa da yakalar
   const _avWantsFinImprove =
     s.includes('iyileş') || s.includes('güçlen') || s.includes('guclen') || s.includes('düzel') || s.includes('duzel')
@@ -9698,7 +9732,7 @@ function _avMatchText(q) {
   if (s.includes('merhaba') || s.includes('selam') || s.includes('nasılsın') || s.includes('nasilsin')) return 'Merhaba. Ben Baykuş, kredi analiz asistanınızım. Kredi notu, finansal oranlar veya uygulamanın kullanımı hakkında sorabilirsiniz.';
   if (s.includes('nasıl') && (s.includes('kullan') || s.includes('yapılır') || s.includes('yapilir'))) return 'Özet akış: mali verileri yükleyin veya girin, gerekirse ÜFE oranını ve firma tipini seçin, subjektif faktörleri doldurun, ardından <b>Analiz Et</b> ile notu görün. Ayrıntı için hızlı konu başlıklarına veya doğrudan soru yazabilirsiniz.';
   // Varsayılan
-  return 'Bu soruyu şu an yerel bilgi tabanımdan yanıtlıyorum. Oranlar, kredi notu, senaryo veya uygulama adımlarıyla ilgili daha somut bir soruyla tekrar deneyebilirsiniz.';
+  return 'Bu soruyu şu an hazır cevaplarımda bulamadım. Şunları deneyebilirsiniz: <b>kredi notumu nasıl yükseltirim</b>, <b>finansal yapı nedir</b>, <b>cari oran</b>, <b>senaryo analizi</b>, <b>subjektif faktörler</b>. İsterseniz aynı konuyu farklı kelimelerle sorun.';
 }
 
 function _avGetAnswer(q) {
