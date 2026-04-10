@@ -8861,8 +8861,8 @@ function showAvatarChat() {
   if (b) b.style.animation = 'none';
   if (!document.getElementById('avatarMessages').children.length && !window._demoMod) {
     _avAddMsg('bot',
-      'Merhaba! &#x1F989;<br><br>'
-      + 'Sistem tanıtımı için aşağıdaki konu başlıklarına Analiz Yılından başlayarak teker teker basıp dinleyin lütfen.'
+      'Merhaba. &#x1F989;<br><br>'
+      + 'Kısayol düğmeleriyle tanıtımı dinleyebilirsiniz. İsterseniz <b>Analiz Yılı</b> ile başlayıp sırayla ilerleyin.'
     );
     avBuildQuickBtns();
   }
@@ -8902,48 +8902,81 @@ function avSesDegistir() {
 
 function avSesOku(html) {
   if (!window.speechSynthesis) return;
-  // HTML taglarını temizle
   const tmp = document.createElement('div');
   tmp.innerHTML = html;
   tmp.querySelectorAll('.av-no-speak').forEach(function (el) { el.remove(); });
   let text = tmp.textContent || tmp.innerText || '';
-  // Yalnız finansal yorum kalsın: emoji/süs sembollerini seslendirme
   text = text
     .replace(/[\u{1F300}-\u{1FAFF}]/gu, ' ')
-    .replace(/[✅⚠️🔶🚫🎯🎉📊📈💰🔄🏦💧📉🏆👇◈◆♦•●⭐]/g, ' ')
+    .replace(/[✅⚠️🔶🚫🎯🎉📊📈💰🔄🏦💧📉🏆👇◈◆♦•●⭐①②③]/g, ' ')
     .replace(/[→←↗↘]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
   if (!text) return;
   avStopAudio();
-  const utt = new SpeechSynthesisUtterance(text);
-  // Türkçe ses ara
+  window._avSesUtterChain = (window._avSesUtterChain || 0) + 1;
+  const chainId = window._avSesUtterChain;
   const voices = speechSynthesis.getVoices();
-  // Önce Türkçe kadın sesi ara, yoksa herhangi kadın sesi, yoksa Türkçe ses
-  const trKadin = voices.find(v => v.lang.startsWith('tr') && /female|kadin|woman|girl/i.test(v.name));
-  const trSes   = voices.find(v => v.lang.startsWith('tr'));
-  const kadinSes = voices.find(v => /female|woman|girl/i.test(v.name));
-  utt.voice = trKadin || trSes || kadinSes || null;
-  utt.lang = 'tr-TR';
-  utt.rate = 1.0;
-  utt.pitch = 1.0;
-  utt.onend = () => {
+  const trKadin = voices.find(function (v) { return v.lang.startsWith('tr') && /female|kadin|woman|girl/i.test(v.name); });
+  const trSes = voices.find(function (v) { return v.lang.startsWith('tr'); });
+  const kadinSes = voices.find(function (v) { return /female|woman|girl/i.test(v.name); });
+  const pickVoice = function () { return trKadin || trSes || kadinSes || null; };
+  // Cümle sonlarında kısa duraklama (nefes) — tek parça yerine sıralı okuma
+  const rawParts = text.split(/(?<=[.!?…])\s+/).map(function (p) { return p.trim(); }).filter(Boolean);
+  const parts = rawParts.length ? rawParts : [text];
+  const pauseMs = 380;
+  let idx = 0;
+  let _demoEndTimer = null;
+  function scheduleDemoFallback(totalLen) {
     if (_demoEndTimer) clearTimeout(_demoEndTimer);
-    if (typeof window._demoOnEnd === 'function') window._demoOnEnd();
-  };
-  utt.onerror = () => {
-    if (_demoEndTimer) clearTimeout(_demoEndTimer);
-    if (typeof window._demoOnEnd === 'function') window._demoOnEnd();
-  };
-  // Fallback: ses çalışmazsa kelime başına ~400ms bekle, min 6s max 20s
-  const _demoEndTimer = setTimeout(() => {
-    if (typeof window._demoOnEnd === 'function') window._demoOnEnd();
-  }, Math.min(20000, Math.max(6000, text.split(' ').length * 400)));
-  speechSynthesis.speak(utt);
+    _demoEndTimer = setTimeout(function () {
+      if (window._avSesUtterChain !== chainId) return;
+      if (typeof window._demoOnEnd === 'function') window._demoOnEnd();
+    }, Math.min(20000, Math.max(6000, totalLen * 400)));
+  }
+  function speakNext() {
+    if (window._avSesUtterChain !== chainId) return;
+    if (idx >= parts.length) {
+      if (_demoEndTimer) clearTimeout(_demoEndTimer);
+      if (typeof window._demoOnEnd === 'function') window._demoOnEnd();
+      return;
+    }
+    const chunk = parts[idx++];
+    const utt = new SpeechSynthesisUtterance(chunk);
+    utt.voice = pickVoice();
+    utt.lang = 'tr-TR';
+    utt.rate = 0.96;
+    utt.pitch = 1.0;
+    utt.onend = function () {
+      if (window._avSesUtterChain !== chainId) return;
+      if (idx >= parts.length) {
+        if (_demoEndTimer) clearTimeout(_demoEndTimer);
+        if (typeof window._demoOnEnd === 'function') window._demoOnEnd();
+        return;
+      }
+      window._avSesPauseTimer = setTimeout(function () {
+        window._avSesPauseTimer = null;
+        speakNext();
+      }, pauseMs);
+    };
+    utt.onerror = function () {
+      if (window._avSesUtterChain !== chainId) return;
+      if (_demoEndTimer) clearTimeout(_demoEndTimer);
+      if (typeof window._demoOnEnd === 'function') window._demoOnEnd();
+    };
+    speechSynthesis.speak(utt);
+  }
+  scheduleDemoFallback(text.split(' ').length);
+  speakNext();
 }
 
 function avStopAudio() {
   try {
+    window._avSesUtterChain = (window._avSesUtterChain || 0) + 1;
+    if (window._avSesPauseTimer) {
+      clearTimeout(window._avSesPauseTimer);
+      window._avSesPauseTimer = null;
+    }
     if (window.speechSynthesis) window.speechSynthesis.cancel();
   } catch (e) {}
 }
@@ -8954,17 +8987,20 @@ function avAnalizOzetiMesaji(firma, rating, toplam) {
   const ab = document.getElementById('avatarBtn');
   if (ab) ab.style.display = 'flex';
   showAvatarChat();
-  // Yeni analizde eski firmanın mesajları kalmasın
   const box = document.getElementById('avatarMessages');
   if (box) box.innerHTML = '';
   avBuildQuickBtns();
   const enUi = typeof state !== 'undefined' && state && state.lang === 'en';
   const riskEk = _ratingRiskHtmlExtra(rating.note, enUi);
-  const msg =
-    `<b>${cleanFirma}</b> için kredi notunuz <b style="color:${rating.color}">${rating.note}</b>.<br>` +
-    `<span style="font-size:11px;color:#94a3b8">105 üzerinden <b>${toplam.toFixed(1)}</b> puan.</span><br>` +
-    `<span style="font-size:11px;color:#94a3b8">Teminat yapısı: ${rating.teminat}</span>` +
-    riskEk;
+  const msg = enUi
+    ? `<b>${cleanFirma}</b> — credit grade for this run: <b style="color:${rating.color}">${rating.note}</b>.<br>`
+      + `<span style="font-size:11px;color:#94a3b8">Total score: <b>${toplam.toFixed(1)}</b> out of 105.</span><br>`
+      + `<span style="font-size:11px;color:#94a3b8">Indicative collateral structure: ${rating.teminat}</span>${riskEk}`
+      + `<br><span style="font-size:11px;color:#94a3b8;line-height:1.55">Ask me about ratios, the grade, scenarios, or how to use the app.</span>`
+    : `<b>${cleanFirma}</b> için bu analizde <b style="color:${rating.color}">kredi notu ${rating.note}</b> hesaplandı.<br>`
+      + `<span style="font-size:11px;color:#94a3b8">Toplam skor: <b>${toplam.toFixed(1)}</b> / 105.</span><br>`
+      + `<span style="font-size:11px;color:#94a3b8">Öngörülen teminat yapısı: ${rating.teminat}</span>${riskEk}`
+      + `<br><span style="font-size:11px;color:#94a3b8;line-height:1.55">Finansal analiz, oranlar, kredi notu veya uygulamanın kullanımı hakkında sorularınızı bekliyorum.</span>`;
   _avAddMsg('bot', msg);
 }
 
@@ -9571,8 +9607,8 @@ function _avMatchText(q) {
         + `• 📈 Satış büyümesi → KV borç/satış oranı</div><br>`
         + `<span style="color:#94a3b8">Senaryo butonu: Rating Hero bölümünde veya analiz sonrası.</span>`;
     }
-    return 'Senaryo Analizi sekmesinde <b>sermaye artışı</b>, <b>KV→UV borç taşıma</b>, <b>satış büyümesi</b> ve <b>net kar marjı değişimi</b> parametrelerini çok kere değiştirerek etki analizini görebilirsiniz.<br><br>'
-      + 'Aynı zamanda <b>FinSkor Otomatik Senaryo Önerisi</b> mevcut notunuzu 2 kademe artıracak senaryo analizini yapar ve bu analize raporda yer verir.';
+    return '<b>Senaryo Analizi</b> sekmesinde <b>sermaye artışı</b>, <b>KV→UV borç taşıması</b>, <b>satış büyümesi</b> ve <b>net kar marjı</b> kaydırıcılarını oynatarak etkiyi anında görebilirsiniz.<br><br>'
+      + '<b>FinSkor otomatik senaryo önerisi</b>, mevcut notunuzu iki kademe iyileştirebilecek senaryoyu hesaplar; özeti raporda da bulunur.';
   }
   if (s.includes('subjektif') || s.includes('kriter')) return '⚖ <b>Subjektif Kriterler</b> butonu sayfanın <b>en altında sağ köşede</b> bulunur.<br><br>'
     +'Doldurmazsanız sistem otomatik <b>20.60/30</b> puan verir. '
@@ -9646,8 +9682,8 @@ function _avMatchText(q) {
       +'<b style="color:#ef4444">CCC↓</b> (&lt;45) → Çok yüksek risk, kredi önerilmez<br>'
       +'<span style="color:#94a3b8">Finansal oranlar <b>%75</b>, subjektif kriterler <b>%30</b> ağırlıklıdır.</span>';
   }
-  if (s.includes('senaryo')) return 'Senaryo Analizi sekmesinde <b>sermaye artışı</b>, <b>KV→UV borç taşıma</b>, <b>satış büyümesi</b> ve <b>net kar marjı değişimi</b> parametrelerini çok kere değiştirerek etki analizini görebilirsiniz.<br><br>'
-    +'Aynı zamanda <b>FinSkor Otomatik Senaryo Önerisi</b> mevcut notunuzu 2 kademe artıracak senaryo analizini yapar ve bu analize raporda yer verir.';
+  if (s.includes('senaryo')) return '<b>Senaryo Analizi</b> sekmesinde <b>sermaye artışı</b>, <b>KV→UV borç taşıması</b>, <b>satış büyümesi</b> ve <b>net kar marjı</b> kaydırıcılarını oynatarak etkiyi anında görebilirsiniz.<br><br>'
+    + '<b>FinSkor otomatik senaryo önerisi</b>, mevcut notunuzu iki kademe iyileştirebilecek senaryoyu hesaplar; özeti raporda da bulunur.';
   if (s.includes('analiz yili') || s.includes('analiz yılı')) return '<b>Analiz Yılı:</b> Yükleme sırasında hedef yılı seçin. <b style="color:#f87171">Analiz yılı ve bir önceki yılın</b> her ikisinin de girilmesi zorunludur. Sistem, cari yılı önceki yılla karşılaştırarak hem yatay hem dikey analiz yapar.';
   if (s.includes('analiz donemi') || s.includes('analiz dönemi')) return '<b>Analiz Dönemi:</b> Ay sonu seçerek 3, 6, 9 veya 12 aylık dönem belirleyin. Ara dönem seçilirse sistem gelir tablosunu otomatik yıllıklaştırır.';
   if (s.includes('firma tipi')) return '<b>Firma Tipi:</b> Pazarlama ve Hizmet, Üretim veya Taahhüt seçeneklerinden birini seçin. Sistem borç, özkaynak, likidite ve satış oranlarının eşik değerlerini seçilen firma tipine göre otomatik ayarlar.';
@@ -9660,20 +9696,14 @@ function _avMatchText(q) {
     +'Örneğin 9 aylık gelir tablosu 12 aya çevrilir.';
   if (s.includes('özkayna') || s.includes('öz kay')) return 'Özkaynak = Ödenmiş Sermaye + Yedekler + Geçmiş Kârlar + Dönem Net Kârı. '
     +'Büyüyen özkaynak sağlıklı bir işaret.';
-  if (s.includes('merhaba') || s.includes('selam') || s.includes('nasıl')) return 'Merhaba! &#x1F989; '
-    +'Ben Baykuş, kredi analiz asistanınızım. '
-    +'Finansal oranlar, rating sistemi veya sistem kullanımı hakkında sorabilirsiniz.';
+  if (s.includes('merhaba') || s.includes('selam') || s.includes('nasılsın') || s.includes('nasilsin')) return 'Merhaba. Ben Baykuş, kredi analiz asistanınızım. Kredi notu, finansal oranlar veya uygulamanın kullanımı hakkında sorabilirsiniz.';
+  if (s.includes('nasıl') && (s.includes('kullan') || s.includes('yapılır') || s.includes('yapilir'))) return 'Özet akış: mali verileri yükleyin veya girin, gerekirse ÜFE oranını ve firma tipini seçin, subjektif faktörleri doldurun, ardından <b>Analiz Et</b> ile notu görün. Ayrıntı için hızlı konu başlıklarına veya doğrudan soru yazabilirsiniz.';
   // Varsayılan
-  return 'Bu konuda elimden geleni yaparım! &#x1F989; '
-    +'Şu an yerel bilgi tabanımla yanıtlıyorum. '
-    +'Finansal oranlar, rating veya sistem kullanımı hakkında daha net sorular sormayı deneyin.';
+  return 'Bu soruyu şu an yerel bilgi tabanımdan yanıtlıyorum. Oranlar, kredi notu, senaryo veya uygulama adımlarıyla ilgili daha somut bir soruyla tekrar deneyebilirsiniz.';
 }
 
 function _avGetAnswer(q) {
-  // Firma & analiz bağlamı
-  const firma  = (document.getElementById('firmaAdi') || {}).value || '';
-  const prefix = firma ? `<b>${firma}</b> için — ` : '';
-  return prefix + _avMatchText(q);
+  return _avMatchText(q);
 }
 
 function _avEscapeHtml(s) {
@@ -9753,7 +9783,7 @@ async function _avFetchLlmAnswer(question) {
       if (data.error === 'no_key') return null;
       const errTxt = _avEscapeHtml(data.message || data.error || 'API hatası');
       const errHtml = '<span style="color:#f87171">' + errTxt + '</span>'
-        + '<br><br><span style="font-size:11px;color:#94a3b8">LLM yanıt veremedi. Aynı soru yerel bilgi tabanına düşebilir; konsolu kontrol edin.</span>';
+        + '<br><br><span style="font-size:11px;color:#94a3b8">Yapay zekâ yanıtı alınamadı; sorunuz yerel yanıtlarla ele alınacak. Tekrarlanırsa tarayıcı konsolunu kontrol edin.</span>';
       return { html: errHtml, requestId: '' };
     }
     if (!data.reply) return null;
