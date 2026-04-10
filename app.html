@@ -8875,11 +8875,66 @@ function hideAvatarChat() {
   avStopAudio();
 }
 
+/** Baykuş metninde KV/UV → açık Türkçe (KVKK vb. yanlış eşleşmez: tam sözcük KV). */
+function _avBaykusKvUvMetni(str) {
+  if (str == null || typeof str !== 'string') return str;
+  let o = str;
+  o = o.replace(/KV\s*→\s*UV\s*borç\s*taşıma/gi, 'kısa vadeli banka borcunun uzun vadeli banka borcuna taşınması');
+  o = o.replace(/KV\s*→\s*UV/gi, 'kısa vadeli banka borcundan uzun vadeli banka borcuna taşıma');
+  o = o.replace(/KV\s*&rarr;\s*UV/gi, 'kısa vadeli banka borcundan uzun vadeli banka borcuna taşıma');
+  o = o.replace(/KV\s*\/\s*UV/gi, 'kısa vadeli ve uzun vadeli banka borcu');
+  o = o.replace(/KV\/UV/gi, 'kısa vadeli ve uzun vadeli banka borcu');
+  o = o.replace(/\bKV\s*mali\s*borç/gi, 'kısa vadeli banka borcu');
+  o = o.replace(/\bKV\s*banka\s*borçlarını?\b/gi, 'kısa vadeli banka borçlarını');
+  o = o.replace(/\bKV\s*banka\s*borçları\b/gi, 'kısa vadeli banka borçları');
+  o = o.replace(/\bKV\s*banka\s*borcu\b/gi, 'kısa vadeli banka borcu');
+  o = o.replace(/\bKV\s*borçlarının\b/gi, 'kısa vadeli banka borçlarının');
+  o = o.replace(/\bKV\s*borçları\b/gi, 'kısa vadeli banka borçları');
+  o = o.replace(/\bKV\s*borçlarını\b/gi, 'kısa vadeli banka borçlarını');
+  o = o.replace(/\bKV\s*borcu\b/gi, 'kısa vadeli banka borcu');
+  o = o.replace(/\bKV\s*borç\s*\/\s*satış/gi, 'kısa vadeli banka borcu / satış');
+  o = o.replace(/\bKV\s*borç\b/gi, 'kısa vadeli banka borcu');
+  o = o.replace(/\bUV\s*kredi/gi, 'uzun vadeli banka kredi');
+  o = o.replace(/\bUV['']ye\b/gi, 'uzun vadeli banka borcuna');
+  o = o.replace(/\bUV['']de\b/gi, 'uzun vadeli banka borcunda');
+  o = o.replace(/\bUV\b/gi, 'uzun vadeli banka borcu');
+  o = o.replace(/\bKV\b/gi, 'kısa vadeli banka borcu');
+  return o;
+}
+
+/** TTS: unvan sonunu sözlü okuma (LTD ŞTİ → limited şirketi, A.Ş. → anonim şirketi). */
+function _avFirmaUnvanSesli(ad) {
+  if (ad == null || typeof ad !== 'string') return '';
+  let t = ad.replace(/\s+/g, ' ').trim();
+  if (!t) return '';
+  let tip = '';
+  if (/\b(a\.?\s*ş\.?|a\.s\.?|anonim\s*şirket[iİ]?)\s*$/i.test(t)) {
+    t = t.replace(/\s*(a\.?\s*ş\.?|a\.s\.?|anonim\s*şirket[iİ]?)\s*$/i, '').trim();
+    tip = ', anonim şirketi';
+  } else if (/\b(ltd\.?\s*şti\.?|ltd\.?\s*şti|l\.?\s*ltd\.?\s*şti\.?|limited\s*şirket[iİ]?|ltd\s*şti)\s*$/i.test(t)) {
+    t = t.replace(/\s*(ltd\.?\s*şti\.?|ltd\.?\s*şti|l\.?\s*ltd\.?\s*şti\.?|limited\s*şirket[iİ]?|ltd\s*şti)\s*$/i, '').trim();
+    tip = ', limited şirketi';
+  }
+  return (t + tip).trim();
+}
+
+function _avMetindeFirmaSesli(text, firmaRaw) {
+  if (!text || !firmaRaw) return text;
+  const ses = _avFirmaUnvanSesli(firmaRaw);
+  if (!ses) return text;
+  try {
+    const esc = firmaRaw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(esc, 'gi');
+    return text.replace(re, ses);
+  } catch (e) { return text; }
+}
+
 function _avAddMsg(role, text) {
   const box = document.getElementById('avatarMessages');
   if (!box) return;
   const div = document.createElement('div');
   div.className = role === 'bot' ? 'av-msg-bot' : 'av-msg-user';
+  if (role === 'bot') text = _avBaykusKvUvMetni(text);
   div.innerHTML = text;
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
@@ -8911,6 +8966,9 @@ function avSesOku(html) {
     .replace(/[→←↗↘]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+  text = _avBaykusKvUvMetni(text);
+  const _fr = (document.getElementById('firmaAdi') || {}).value || '';
+  if (_fr) text = _avMetindeFirmaSesli(text, _fr);
   if (!text) return;
   avStopAudio();
   window._avSesUtterChain = (window._avSesUtterChain || 0) + 1;
@@ -9647,6 +9705,81 @@ function _avMatchText(q) {
 
   if ((s.includes('105') || s.includes('toplam skor') || s.includes('toplam puan')) && (s.includes('nedir') || s.includes('nasıl') || s.includes('nasil') || s.includes('oluş') || s.includes('olusan') || s.includes('parça'))) {
     return 'Toplam skor en fazla <b>105</b>: finansal oranlar <b>100 üzerinden 70</b> puana kadar, subjektif faktörler <b>30</b> puana kadar katkı verir (yaklaşık ağırlık: finansal taraf <b>%75</b>, subjektif <b>%30</b>). Harf notu eşikleri özetle: <b>AAA</b> 93+, <b>AA/A</b> 76–93, <b>BBB</b> 60–76, <b>BB/B</b> 45–60, <b>CCC</b> altı çok yüksek risk bandıdır.';
+  }
+
+  // ── Sık sorulan (dar eşleşme) — geniş "borç" satırından önce ──
+  if (s.includes('findeks') || (s.includes('risk') && s.includes('merkezi') && (s.includes('rapor') || s.includes('pdf')))) {
+    return '📄 <b>Findeks (Risk Merkezi)</b> çıktısı bu uygulamada <b>yalnızca PDF</b> olarak yüklenir; Excel desteklenmez.<br><br>'
+      + 'Yükleme alanı <b>Findeks</b> sekmesindedir (ortamda açıksa). Rapor içeriğinden <b>nakdi</b> kalemler analizde kullanılır; <b>gayrinakdi</b> riskler bu özet analizde yer almaz. Kredi türü kırılımı satır satır yoksa, rapor tarihli özetten <b>oransal</b> uyarlama yapılabilir — ayrıntılar sekmedeki metodoloji notunda.<br><br>'
+      + '<span style="color:#94a3b8">Findeks ile KV/UV banka borcu hizalaması ürün yol haritasında; yüklü raporda analiz ekranı bu kurallara göre güncellenir.</span>';
+  }
+  if (s.includes('teminat') && (s.includes('nedir') || s.includes('ne demek') || s.includes('anlam') || s.includes('göster') || s.includes('goster') || s.includes('nasıl') || s.includes('nasil') || s.includes('okun'))) {
+    return '🏦 <b>Teminat / öngörülen teminat yapısı</b>, bankanın nihai kararı değildir; FinSkor’un harf notuna göre <b>özet, gösterge amaçlı</b> bir çerçevedir.<br><br>'
+      + 'Analiz sonrası raporda ve özet alanlarda not bandına uygun teminat türleri metin olarak sunulur; gerçek işlemde banka politikası, sektör ve dosya incelemesi belirleyicidir.<br><br>'
+      + '<span style="color:#94a3b8">“Teminat” derseniz: önce analizi tamamlayın; not ve açıklama satırı birlikte okunmalıdır.</span>';
+  }
+  if ((/\bkv\b/.test(s) && (s.includes('borç') || s.includes('borc') || s.includes('satış') || s.includes('satis') || s.includes('banka')))
+    || s.includes('kısa vadeli banka') || s.includes('kisa vadeli banka') || s.includes('kv borç') || s.includes('kv borc')) {
+    return '📊 <b>Kısa vadeli banka borcu</b> (eski kısaltma KV), bilançoda kısa vadeli yükümlülükler içindeki banka kredisi benzeri <b>nakdi</b> borçları ifade eder.<br><br>'
+      + 'FinSkor’da <b>kısa vadeli banka borcu / satışlar</b> ve <b>kısa vadeli borçlar / satışlar</b> gibi oranlar rating puanına girer; <b>Senaryo Analizi</b>nde vade taşıma ve satış büyümesi bu oranları anlık etkiler.<br><br>'
+      + '<span style="color:#94a3b8">Kredi kartı / iş kartı limit riski tipik olarak kısa vadeli banka borcu tarafında değerlendirilir.</span>';
+  }
+  if ((/\buv\b/.test(s) && (s.includes('borç') || s.includes('borc') || s.includes('banka') || s.includes('vade') || s.includes('taşı') || s.includes('tasi')))
+    || s.includes('uzun vadeli banka')) {
+    return '📊 <b>Uzun vadeli banka borcu</b> (eski kısaltma UV), vadesi bir yılın üzerine yayılan banka kredisi benzeri <b>nakdi</b> borçları ifade eder.<br><br>'
+      + 'Yapı olarak kısa vadeli yükü baskısını azaltmak için borcun uzun vadeye kaydırılması senaryoda <b>Senaryo Analizi</b> kaydırıcısıyla test edilir; gerçek hayatta banka onayı ve sözleşme şartları belirleyicidir.<br><br>'
+      + '<span style="color:#94a3b8">Findeks PDF yüklüyse uzun/kısa dağılımı rapor kurallarına göre hizalanır.</span>';
+  }
+  if (s.includes('banka') && s.includes('aktif') && (s.includes('borç') || s.includes('borc') || s.includes('oran') || s.includes('nedir'))) {
+    return '🏦 <b>Banka borcu / aktif</b>, toplam varlıklar içinde banka borcunun payını gösterir; ratingde ilgili puan kırılımına girer.<br><br>'
+      + '<span style="color:#94a3b8">Analiz sonrası oran tablolarında ve rapor özetinde güncel değeriniz yer alır.</span>';
+  }
+  if (s.includes('ihracat') && (s.includes('oran') || s.includes('puan') || s.includes('nedir') || s.includes('satış') || s.includes('satis') || s.includes('dış') || s.includes('dis'))) {
+    return '🌍 <b>İhracat / satış</b> oranı, yurt dışı satışların ciroya bölünmesiyle bulunur; rating formülünde ayrı bir puan dilimi olarak yer alır.<br><br>'
+      + '<span style="color:#94a3b8">Veri bilanço ve gelir tablosu satırlarından türetilir; eksikse ilgili puan etkilenir.</span>';
+  }
+  if (s.includes('otomatik') && s.includes('senaryo')) {
+    return '🤖 <b>FinSkor otomatik senaryo önerisi</b>, mevcut notunuzu <b>iki harf kademesi</b> iyileştirebilecek kombinasyonu arar; özet raporda da yer alır.<br><br>'
+      + 'Öneri, o anki oranlar ve firma tipi eşiklerine göre modeldir; operasyonel uygulama ve banka kararı ayrı değerlendirilir.<br><br>'
+      + '<span style="color:#94a3b8">Ayrıntılı “ne olursa” için <b>Senaryo Analizi</b> kaydırıcılarını kullanın.</span>';
+  }
+  if (s.includes('nakit') && s.includes('akış')) {
+    return '💧 <b>Nakit akışı</b> modülü ürün planında ayrı bir paket olarak düşünülmüştür; şu anki analiz paketinde bu ekran <b>otomatik açılmaz</b>.<br><br>'
+      + '<span style="color:#94a3b8">Mevcut sürümde odak bilanço/gelir tablosu oranları ve ratingdir.</span>';
+  }
+  if ((s.includes('rapor') || s.includes('çıktı') || s.includes('cikti') || s.includes('indir') || s.includes('yazdır') || s.includes('yazdir') || s.includes('pdf')) && (s.includes('analiz') || s.includes('sonuç') || s.includes('sonuc') || s.includes('nasıl') || s.includes('nasil') || s.includes('nerede') || s.includes('nerde'))) {
+    return '📑 Analiz tamamlandıktan sonra <b>rapor / çıktı</b> bölümünden özeti görüntüleyebilir, gerekiyorsa tarayıcıdan <b>yazdır</b> veya PDF’e aktarabilirsiniz (cihaza göre “Hedef: PDF” seçeneği).<br><br>'
+      + '<span style="color:#94a3b8">Rapor, o anki ekrandaki veri ve notla üretilir.</span>';
+  }
+  if (s.includes('veri') && (s.includes('güven') || s.includes('guven') || s.includes('sil') || s.includes('saklan') || s.includes('sunucu') || s.includes('kvkk'))) {
+    return '🔒 FinSkor analizi öncelikle <b>sizin tarayıcınızda</b> çalışır; mali tablolar varsayılan olarak <b>sizin oturumunuzda</b> işlenir. Hesap özellikleri veya bulut kaydı kullanıyorsanız sağlayıcı politikası geçerlidir.<br><br>'
+      + '<span style="color:#94a3b8">Ayrıntılı gizlilik metni sitedeki <b>KVKK / Gizlilik</b> bağlantısındadır.</span>';
+  }
+  if ((s.includes('okun') && (s.includes('mizan') || s.includes('excel') || s.includes('pdf') || s.includes('yükle') || s.includes('yukle'))) || (s.includes('hata') && (s.includes('yükle') || s.includes('yukle')))) {
+    return '⚠️ Dosya <b>okunmuyorsa</b> önce formatı kontrol edin: <b>Excel mizan</b> (.xlsx/.xls) veya desteklenen <b>PDF mizan / beyanname</b>. Çok sayfalı veya taranmış PDF’lerde tanıma oranı düşebilir.<br><br>'
+      + 'Hesap kodları ve bakiye sütunlarının standart mizan düzeninde olduğundan emin olun; gerekirse farklı dışa aktarım şablonu deneyin.<br><br>'
+      + '<span style="color:#94a3b8">Sorun sürerse aynı dosyayı PDF ve Excel olarak karşılaştırmak faydalıdır.</span>';
+  }
+  if (s.includes('net') && (s.includes('işletme') || s.includes('isletme')) && (s.includes('sermaye') || s.includes('nis'))) {
+    return '📐 <b>Net işletme sermayesi</b> yaklaşık olarak <b>dönen varlıklar − kısa vadeli yükümlülükler</b> ile özetlenir; işletmenin kısa vadeli operasyonu finanse etme payını gösterir.<br><br>'
+      + '<span style="color:#94a3b8">Analiz sonrası tablolarda ilgili tutarlar ve oranlarla birlikte izlenir.</span>';
+  }
+  if (s.includes('finansman') && s.includes('gider')) {
+    return '💹 <b>Finansman giderleri</b> (faiz ve benzeri), gelir tablosunda ayrı kalem olarak izlenir; <b>finansman gideri / ciro</b> gibi oranlar kredi analizinde maliyet yükünü gösterir.<br><br>'
+      + '<span style="color:#94a3b8">Analiz sonrası oran özeti ve raporda güncel değer yer alır.</span>';
+  }
+  if (s.includes('dönen') && s.includes('varlık') && (s.includes('nedir') || s.includes('ne demek') || s.includes('örnek') || s.includes('ornek'))) {
+    return '📦 <b>Dönen varlıklar</b>, normal işletme döngüsünde bir yıl içinde nakde veya satılabilir hale gelmesi beklenen varlıklardır (nakit, ticari alacaklar, stoklar vb.).<br><br>'
+      + '<span style="color:#94a3b8">Cari oran ve likidite hesaplarında doğrudan kullanılır.</span>';
+  }
+  if ((s.includes('stok') && (s.includes('oran') || s.includes('devir') || s.includes('nedir'))) || s.includes('stok devir')) {
+    return '📦 <b>Stok devir hızı</b>, satışların stoka bölünmesiyle ölçülür; sektöre göre “iyi” bandı değişir. Yüksek devir genelde stokun hızlı satıldığını, düşük devir ise stokta birikme riskini gösterebilir.<br><br>'
+      + '<span style="color:#94a3b8">FinSkor’da ilgili oranlar analiz çıktılarında yer alır.</span>';
+  }
+  if (s.includes('finskor') && (s.includes('nedir') || s.includes('ne iş') || s.includes('ne is'))) {
+    return '🦉 <b>FinSkor</b>, bilanço ve gelir tablosundan finansal oranları hesaplayıp <b>105 puanlık</b> ölçekte harf notu üreten bir <b>kredi analiz asistanı</b>dır.<br><br>'
+      + 'Senaryo analizi, subjektif faktörler ve (ortamda açıksa) Findeks PDF entegrasyonu ile desteklenir; banka kararı veya yatırım tavsiyesi vermez.<br><br>'
+      + '<span style="color:#94a3b8">Kullanım: veri yükle → subjektif → Analiz Et.</span>';
   }
 
   if (s.includes('enflasyon') || s.includes('üfe') || s.includes('reel') || s.includes('nominal')) return '📈 Ana ekrandaki <b>ÜFE / Enflasyon Girişi</b> bölümüne TÜİK Yurt İçi Üretici Fiyat Endeksi oranını girin.<br><br>'
