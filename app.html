@@ -1070,21 +1070,12 @@ function avatarAiLabEnabled() {
   } catch (e) { return false; }
 }
 
-/** Baykuş başlık altı: canlıda bilgilendirme; lokalde ek geliştirici satırı */
+/** Baykuş: alt ipucu satırı kullanılmıyor (alan ayrıldı, boş bırakılır). */
 function updateAvatarAiLabUi() {
   const el = document.getElementById('avatarAiLabHint');
   if (!el) return;
-  const en = typeof state !== 'undefined' && state && state.lang === 'en';
-  el.style.display = 'block';
-  if (avatarAiLabEnabled()) {
-    el.innerHTML = en
-      ? '<code style="font-size:8px;opacity:.9">OPENAI_API_KEY</code> on Netlify · <code style="font-size:8px;opacity:.9">netlify dev</code> locally · default: <b>LLM owl</b> on · local rules only: <span title="localStorage"><code style="font-size:8px">kas_avatar_ai_on=0</code></span>'
-      : 'Netlify’da <code style="font-size:8px;opacity:.9">OPENAI_API_KEY</code> · lokal: <code style="font-size:8px;opacity:.9">netlify dev</code> · Varsayılan: <b>öğrenen Baykuş</b> (LLM) açık. Yalnız yerel kural yanıtları: <span title="localStorage"><code style="font-size:8px">kas_avatar_ai_on=0</code></span>';
-  } else {
-    el.innerHTML = en
-      ? 'AI replies are informational only, not investment or lending advice. Default: <b>LLM owl</b> on. Local rules only: <span title="localStorage"><code style="font-size:8px">kas_avatar_ai_on=0</code></span>.'
-      : 'Yapay zeka yanıtları bilgilendirme amaçlıdır; yatırım veya kredi tavsiyesi değildir. Varsayılan: <b>öğrenen Baykuş</b> (yapay zeka) açıktır. Yalnız yerel kural yanıtları (LLM kapalı): <span title="localStorage"><code style="font-size:8px">kas_avatar_ai_on=0</code></span>.';
-  }
+  el.innerHTML = '';
+  el.style.display = 'none';
 }
 
 /** Sağ şerit: yalnız lokal / deneme parametreleri (findeksUiEnabled || avatarAiLabEnabled) */
@@ -9446,22 +9437,86 @@ function _avSenaryoSoruYanit(s) {
   const paz = state.firmType === 'pazarlama';
   const fmtTL = v => v >= 1e6 ? (v/1e6).toFixed(1)+'M ₺' : v >= 1e3 ? (v/1e3).toFixed(0)+'K ₺' : v.toFixed(0)+' ₺';
 
-  if (s.includes('sermaye') && (s.includes('işe') || s.includes('neden') || s.includes('ne'))) {
+  const _sermayeSoru = s.includes('sermaye') && (
+    s.includes('işe') || s.includes('neden') || s.includes('ne kadar') || s.includes('kadar') || s.includes('kadarlık')
+    || s.includes('miktar') || s.includes('tutar') || s.includes('gerek') || s.includes('yapmam') || s.includes('yapmalı') || s.includes('yapmaliyim')
+  );
+
+  if (_sermayeSoru) {
     const boz = r ? r.borcOzKay.toFixed(2) : '?';
+    const oz = r ? fmtTL(r.ozKaynak || 0) : '—';
     return `💰 <b>Sermaye artışı</b> iki kritik oranı birden iyileştirir:<br><br>`
       + `<b>① Borç/Özkaynak:</b> Mevcut ${boz}x. Özkaynak arttıkça bu oran düşer — max <b>+12 puan</b> potansiyeli var.<br>`
-      + `<b>② Dönen Varlıklar:</b> Eklenen sermayenin ~%80'i dönen varlıklara geçer, cari ve likidite oranlarını destekler.<br><br>`
-      + `<span style="color:#94a3b8">Slider'ı hareket ettirin, etkiyi anlık görün.</span>`;
+      + `<b>② Dönen Varlıklar:</b> Eklenen sermayenin ~%80'i dönen varlıklara geçer, cari ve likidite oranlarını destekler.<br>`
+      + (r ? `<b>③ Firmanız:</b> Özkaynak ~${oz} — aynı borçla +%10 özkaynak artışı B/ÖK’ü kabaca %9 civarı düşürür (yaklaşık; senaryo slider’ı kesin etkiyi hesaplar).<br><br>` : '<br>')
+      + `<span style="color:#94a3b8">Senaryo sekmesinde sermaye slider’ını oynatın; puan ve not değişimini anlık görün.</span>`;
   }
 
-  if (s.includes('kv') || s.includes('uv') || s.includes('taşıma') || s.includes('vade')) {
-    return `🔄 <b>KV → UV Borç Taşıma:</b><br><br>`
-      + `Kısa vadeli banka borçlarını uzun vadeli krediye çevirerek <b>cari oran</b> ve <b>KV borç/satış</b> oranını iyileştirir.<br><br>`
-      + `<b>Vade etkisi:</b><br>`
-      + `• 36 ay → borcun 1/3'ü KV kalır<br>`
-      + `• 48 ay → borcun 1/4'ü KV kalır<br>`
-      + `• 60 ay → borcun 1/5'i KV kalır<br><br>`
-      + `<span style="color:#f59e0b">Not: Banka onayı ve çoğunlukla teminat gerektirir.</span>`;
+  const _kvUvSoru = s.includes('kv') || s.includes('uv') || s.includes('taşıma') || s.includes('tasima')
+    || (s.includes('vade') && (s.includes('borç') || s.includes('borc') || s.includes('uzun') || s.includes('kısa') || s.includes('kisa')));
+
+  if (_kvUvSoru) {
+    if (!r) {
+      return `🔄 <b>KV → UV borç taşıma</b> (senaryo):<br><br>`
+        + `<b>①</b> Kısa vadeli banka borcunu uzun vadeye çekmek <b>cari oran</b> ve <b>KV borç/satış</b>ı iyileştirir.<br>`
+        + `<b>②</b> Vade: 36 ay → KV’de ~1/3; 48 ay → ~1/4; 60 ay → ~1/5 kalır.<br>`
+        + `<b>③</b> Analiz sonrası firmanıza özel rakamlar burada görünür.<br><br>`
+        + `<span style="color:#f59e0b">Banka onayı ve çoğunlukla teminat gerekir.</span><br>`
+        + `<span style="color:#94a3b8">Senaryo sekmesinde KV→UV slider’ını kullanın.</span>`;
+    }
+    const cari = r.cariOran.toFixed(2);
+    const kvSat = r.kvBorcSat.toFixed(1);
+    const kvBankaTl = r.netSatis > 0 && r.kvBankaB_Sat > 0 ? (r.kvBankaB_Sat / 100) * r.netSatis : 0;
+    const kvBankaStr = kvBankaTl > 0 ? fmtTL(kvBankaTl) : '—';
+    return `🔄 <b>KV → UV borç taşıma</b> (senaryo):<br><br>`
+      + `<b>① Mevcut yapı:</b> Cari oran ~<b>${cari}</b> · KV borç/satış ~<b>%${kvSat}</b> · Tahmini KV banka borcu ~<b>${kvBankaStr}</b>.<br>`
+      + `<b>② Etki:</b> Aynı tutar uzun vadeye çekilince KV yükü düşer; cari ve likidite güçlenir, <b>KV borç/satış</b> puanı yükselir.<br>`
+      + `<b>③ Vade kuralı:</b> 36 ay → borcun ~1/3’ü KV; 48 ay → ~1/4; 60 ay → ~1/5.<br><br>`
+      + `<span style="color:#f59e0b">Not: Banka onayı ve çoğunlukla teminat gerekir.</span><br>`
+      + `<span style="color:#94a3b8">Senaryo slider’ı ile taşınan tutarı seçip puan etkisini anlık görün.</span>`;
+  }
+
+  const _satisBuyumeSoru = (s.includes('satış') || s.includes('satis') || s.includes('ciro'))
+    && (s.includes('büyü') || s.includes('buyu') || s.includes('artış') || s.includes('artis') || s.includes('arttır') || s.includes('arttir'));
+
+  if (_satisBuyumeSoru) {
+    if (!r) {
+      return `📈 <b>Satış büyümesi</b> (senaryo):<br><br>`
+        + `<b>①</b> Nominal satış artışı, borçlar sabitken <b>KV borç/satış</b> oranını düşürür.<br>`
+        + `<b>②</b> Reel büyüme için ÜFE ile hizalı olup olmadığınızı ana ekrandan kontrol edin.<br>`
+        + `<b>③</b> Senaryo slider’ı reel satış büyümesi puanını (C11) ve KV/satış’ı birlikte günceller.<br><br>`
+        + `<span style="color:#94a3b8">Analiz yaptıktan sonra firma rakamları burada kişiselleşir.</span>`;
+    }
+    const ns = fmtTL(r.netSatis || 0);
+    const kvSat = r.kvBorcSat.toFixed(1);
+    const reel = (r.reelSatisBuy != null) ? r.reelSatisBuy.toFixed(1) : '—';
+    return `📈 <b>Satış büyümesi</b> (senaryo):<br><br>`
+      + `<b>① Mevcut:</b> Net satış ~<b>${ns}</b> · KV borç/satış ~<b>%${kvSat}</b> · Reel satış büyümesi (yaklaşık) ~<b>%${reel}</b>.<br>`
+      + `<b>② Etki:</b> Aynı KV borçla satış artınca <b>KV borç/satış</b> düşer; aşırı büyüme senaryosu reel büyüme puanında ters tepebilir — slider ile deneyin.<br>`
+      + `<b>③</b> ÜFE girişi reel büyümeyi belirler; nominal ciroyu tek başına büyütmek yanıltıcı olabilir.<br><br>`
+      + `<span style="color:#94a3b8">Senaryo sekmesinde satış büyümesi slider’ını hareket ettirin.</span>`;
+  }
+
+  const _karMarjSoru = (s.includes('kar marj') || s.includes('net kar') || (s.includes('marj') && (s.includes('net') || s.includes('vö') || s.includes('vo')))
+    || ((s.includes('karlılık') || s.includes('karlilik') || s.includes('kârlılık')) && !s.includes('faaliyet') && !s.includes('faal'))
+    || (s.includes('faaliyet') && s.includes('kar') && (s.includes('marj') || s.includes('iyileş') || s.includes('iyiles') || s.includes('artış') || s.includes('artis'))));
+
+  if (_karMarjSoru || ((s.includes('karlılık') || s.includes('karlilik') || s.includes('kârlılık') || s.includes('marj')) && (s.includes('iyileş') || s.includes('iyiles') || s.includes('artış') || s.includes('artis') || s.includes('senaryo')))) {
+    if (!r) {
+      return `📊 <b>Kar marjı / kârlılık</b> (senaryo):<br><br>`
+        + `<b>①</b> Net kar marjı slider’ı doğrudan karlılık puanını (C4) etkiler; faaliyet karı ve diğer kırılımlarla bağlantılıdır.<br>`
+        + `<b>②</b> Gerçek hayatta fiyat, maliyet ve ürün karması üzerinden gelir.<br>`
+        + `<b>③</b> Analiz sonrası mevcut marjınız burada gösterilir.<br><br>`
+        + `<span style="color:#94a3b8">Senaryo sekmesinde kar marjı slider’ını kullanın.</span>`;
+    }
+    const nkm = r.netKarMarj.toFixed(1);
+    const fkm = r.faalKarMarj != null ? r.faalKarMarj.toFixed(1) : '—';
+    const hedef = paz ? '%9–14' : '%14+';
+    return `📊 <b>Kar marjı / kârlılık</b> (senaryo):<br><br>`
+      + `<b>① Mevcut:</b> VÖ net kar marjı ~<b>%${nkm}</b> · Faaliyet kar marjı ~<b>%${fkm}</b> (firma tipine göre eşikler değişir; hedef bandı kabaca <b>${hedef}</b>).<br>`
+      + `<b>② Etki:</b> Senaryoda marj artışı <b>karlılık puanını</b> yükseltir; toplam nota katkısı slider ile anlık hesaplanır (tipik üst band birkaç puan).<br>`
+      + `<b>③</b> Fiyat, maliyet ve kırılım değişimi operasyoneldir — rakamı senaryoda “ne olursa” diye test edebilirsiniz.<br><br>`
+      + `<span style="color:#94a3b8">Senaryo sekmesinde kar marjı slider’ını oynatın.</span>`;
   }
 
   if (s.includes('kolay') || s.includes('hangisi') || s.includes('önce')) {
