@@ -58,14 +58,33 @@
 
 [[redirects]]
   from = "/ticari-kredi.html"
-  to = "/en-uygun-ticari-faiz.html"
+  to = "/index.html"
   status = 301
   force = true
 
-# Eski kredi notu analiz alt sayfası → çek yükleme
+# Gizli: çek yükleme ve ticari faiz araç sayfaları — ana sayfa
+[[redirects]]
+  from = "/cek-yukle.html"
+  to = "/index.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/en-uygun-ticari-faiz.html"
+  to = "/index.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/cek-yukle-basarili.html"
+  to = "/index.html"
+  status = 301
+  force = true
+
+# Eski kredi notu analiz alt sayfası → ana sayfa
 [[redirects]]
   from = "/platform.html"
-  to = "/cek-yukle.html"
+  to = "/index.html"
   status = 301
   force = true
 
