@@ -564,18 +564,23 @@ nav {
 
 /* ── KOSGEB: FinSkor promo ── */
 .kosgeb-finskor-promo-lead {
-  max-width: 720px;
+  max-width: 100%;
   margin: 24px 0 12px;
-  padding: 18px 22px 18px 24px;
+  padding: 11px 16px 11px 18px;
   border-left: 4px solid var(--gold);
-  border-radius: 0 12px 12px 0;
+  border-radius: 0 10px 10px 0;
   background: var(--gold-dim);
-  font-family: var(--serif);
-  font-size: clamp(18px, 2.6vw, 22px);
+  font-family: var(--sans);
+  font-size: 15px;
   font-weight: 600;
-  line-height: 1.45;
+  line-height: 1.35;
   color: var(--white);
-  letter-spacing: -0.2px;
+  letter-spacing: 0;
+}
+@media (min-width: 640px) {
+  .kosgeb-finskor-promo-lead {
+    white-space: nowrap;
+  }
 }
 .kosgeb-finskor-promo-lead strong {
   font-weight: 700;
