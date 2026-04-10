@@ -1078,12 +1078,12 @@ function updateAvatarAiLabUi() {
   el.style.display = 'block';
   if (avatarAiLabEnabled()) {
     el.innerHTML = en
-      ? '<code style="font-size:8px;opacity:.9">OPENAI_API_KEY</code> on Netlify · <code style="font-size:8px;opacity:.9">netlify dev</code> locally · classic only: <span title="localStorage">kas_avatar_ai_on=0</span>'
-      : 'Netlify’da <code style="font-size:8px;opacity:.9">OPENAI_API_KEY</code> · lokal: <code style="font-size:8px;opacity:.9">netlify dev</code> · Yalnız klasik Baykuş: <span title="localStorage">kas_avatar_ai_on=0</span>';
+      ? '<code style="font-size:8px;opacity:.9">OPENAI_API_KEY</code> on Netlify · <code style="font-size:8px;opacity:.9">netlify dev</code> locally · default: <b>LLM owl</b> on · local rules only: <span title="localStorage"><code style="font-size:8px">kas_avatar_ai_on=0</code></span>'
+      : 'Netlify’da <code style="font-size:8px;opacity:.9">OPENAI_API_KEY</code> · lokal: <code style="font-size:8px;opacity:.9">netlify dev</code> · Varsayılan: <b>öğrenen Baykuş</b> (LLM) açık. Yalnız yerel kural yanıtları: <span title="localStorage"><code style="font-size:8px">kas_avatar_ai_on=0</code></span>';
   } else {
     el.innerHTML = en
-      ? 'AI replies are informational only, not investment or lending advice. Classic owl only: <span title="localStorage">kas_avatar_ai_on=0</span>.'
-      : 'Yapay zeka yanıtları bilgilendirme amaçlıdır; yatırım veya kredi tavsiyesi değildir. Yalnız klasik Baykuş: <span title="localStorage">kas_avatar_ai_on=0</span>.';
+      ? 'AI replies are informational only, not investment or lending advice. Default: <b>LLM owl</b> on. Local rules only: <span title="localStorage"><code style="font-size:8px">kas_avatar_ai_on=0</code></span>.'
+      : 'Yapay zeka yanıtları bilgilendirme amaçlıdır; yatırım veya kredi tavsiyesi değildir. Varsayılan: <b>öğrenen Baykuş</b> (yapay zeka) açıktır. Yalnız yerel kural yanıtları (LLM kapalı): <span title="localStorage"><code style="font-size:8px">kas_avatar_ai_on=0</code></span>.';
   }
 }
 
