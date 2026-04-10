@@ -293,8 +293,17 @@ footer a { color: var(--gold); }
   border-color: var(--gold-line);
   background: var(--gold-dim);
 }
-.kgf-finskor-sayfa-plani .kosgeb-finskor-promo {
+.kgf-finskor-sayfa-plani .finskor-promo-lead {
   margin-top: 28px;
+  margin-bottom: 0;
+  max-width: 720px;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--white-dim);
+  font-weight: 500;
+}
+.kgf-finskor-sayfa-plani .kosgeb-finskor-promo {
+  margin-top: 14px;
   margin-bottom: 4px;
   padding: 24px 22px;
   border: 1px solid rgba(201, 168, 76, 0.38);
@@ -380,19 +389,6 @@ footer a { color: var(--gold); }
   color: var(--text);
   scroll-margin-top: 24px;
 }
-.live-strip {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px 18px;
-  margin-bottom: 24px;
-  font-size: 13px;
-  color: var(--muted);
-  border-left: 3px solid var(--gold);
-}
-.live-strip strong { color: var(--text); }
-.live-strip .live-meta { font-size: 11px; color: var(--dim); margin-top: 10px; line-height: 1.4; }
-.live-strip a { color: var(--gold); }
 </style>
 </head>
 <body>
@@ -403,12 +399,6 @@ footer a { color: var(--gold); }
       <a class="back" href="index.html">← Ana sayfa</a>
       <a class="back" href="app.html">Platforma dön</a>
     </div>
-  </div>
-
-  <div id="kgfLiveStrip" class="live-strip" aria-live="polite">
-    <strong>KGF — canlı site özeti</strong>
-    <div id="kgfLiveBody" style="margin-top:8px">Yükleniyor…</div>
-    <div id="kgfLiveMeta" class="live-meta"></div>
   </div>
 
   <div class="kgf-finskor-sayfa-plani" aria-labelledby="kgf-parity-h1">
@@ -429,6 +419,8 @@ footer a { color: var(--gold); }
       <a href="index.html" class="btn-hero-outline" style="text-decoration:none;display:inline-block">Ana sayfa</a>
     </div>
 
+    <p class="finskor-promo-lead">Destek başvurusu yapmadan önce finansal durumunuzu analiz edin.</p>
+
     <div class="kosgeb-finskor-promo" role="complementary" aria-label="FinSkor kredi analizi">
       <div class="kosgeb-finskor-promo-head">FinSkor — Kredi notu ve senaryo</div>
       <div class="kosgeb-finskor-promo-grid">
@@ -447,7 +439,7 @@ footer a { color: var(--gold); }
     </div>
 
     <p class="kgf-parity-foot">
-      Tanıtım sayfalarında canlı özet yoktur. <a href="app.html">Analiz uygulamasına giriş</a> yaptıktan sonra üst menüden <strong>KOSGEB · KGF</strong> ile bilgilendirme özetine ulaşabilirsiniz. Üstteki şerit <strong>kgf.com.tr</strong> için kısa özet gösterebilir. FinSkor hukuki danışmanlık vermez; teyit için <a href="https://www.kgf.com.tr/" target="_blank" rel="noopener noreferrer">kgf.com.tr</a> ve <a href="https://www.kosgeb.gov.tr" target="_blank" rel="noopener noreferrer">kosgeb.gov.tr</a>.
+      Tanıtım sayfalarında canlı özet yoktur. <a href="app.html">Analiz uygulamasına giriş</a> yaptıktan sonra üst menüden <strong>KOSGEB · KGF</strong> ile bilgilendirme özetine ulaşabilirsiniz. FinSkor hukuki danışmanlık vermez; teyit için <a href="https://www.kgf.com.tr/" target="_blank" rel="noopener noreferrer">kgf.com.tr</a> ve <a href="https://www.kosgeb.gov.tr" target="_blank" rel="noopener noreferrer">kosgeb.gov.tr</a>.
     </p>
     <p class="kgf-parity-jump"><a href="#rehber-baslik">Paket ve banka tablolarına geç ↓</a></p>
   </div>
@@ -670,38 +662,5 @@ footer a { color: var(--gold); }
     <a href="app.html">Platform</a>
   </footer>
 </div>
-<script>
-(function () {
-  var bodyEl = document.getElementById('kgfLiveBody');
-  var metaEl = document.getElementById('kgfLiveMeta');
-  if (!bodyEl) return;
-  function esc(s) {
-    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
-  var srcMap = { live: 'Canlı sayfa', cache: 'Önbellek (en fazla 24 saat)', base: 'Yerel özet' };
-  fetch('/.netlify/functions/destek-bilgi', { cache: 'no-store' })
-    .then(function (r) {
-      if (!r.ok) throw new Error('http');
-      return r.json();
-    })
-    .then(function (d) {
-      var g = d.kgf || {};
-      var parts = [];
-      if (g.title) parts.push('<div style="color:var(--text);font-weight:600;margin-bottom:6px">' + esc(g.title) + '</div>');
-      if (g.excerpt) parts.push('<p style="margin:0;line-height:1.55">' + esc(g.excerpt) + '</p>');
-      bodyEl.innerHTML = parts.length
-        ? parts.join('')
-        : '<p style="margin:0">Özet boş döndü. <a href="https://www.kgf.com.tr/" target="_blank" rel="noopener noreferrer">kgf.com.tr</a></p>';
-      var lbl = srcMap[g.source] || g.source || '';
-      var when = g.fetchedAt || d.generatedAt || '';
-      metaEl.textContent = (lbl && when ? lbl + ' · ' + when : lbl || when || '');
-    })
-    .catch(function () {
-      bodyEl.innerHTML =
-        '<p style="margin:0">Canlı özet alınamadı (yerel önizleme veya ağ). <a href="https://www.kgf.com.tr/" target="_blank" rel="noopener noreferrer">kgf.com.tr</a></p>';
-      if (metaEl) metaEl.textContent = '';
-    });
-})();
-</script>
 </body>
 </html>
