@@ -9548,6 +9548,41 @@ function _avMatchText(q) {
       +'• <b>Banka borcu azaltma</b> — Banka borç/aktif oranını düşürür<br>'
       +'<span style="color:#94a3b8">Senaryo sekmesinde bu değişikliklerin etkisini anlık görebilirsiniz.</span>';
   }
+  // "Finansal yapımı iyileştirmek için ne yapmalıyım" vb. — puan kelimesi olmasa da yakalar
+  const _avWantsFinImprove =
+    s.includes('iyileş') || s.includes('güçlen') || s.includes('guclen') || s.includes('düzel') || s.includes('duzel')
+    || s.includes('neler yapmam') || s.includes('ne yapmam') || s.includes('ne yapmalı') || s.includes('ne yapmaliyim')
+    || s.includes('nasıl güçlen') || s.includes('nasil guclen');
+  const _avFinImproveTopic =
+    s.includes('finansal') || s.includes('yapı') || s.includes('yapi') || s.includes('yapım') || s.includes('yapim')
+    || s.includes('borç') || s.includes('borc') || s.includes('likidite') || s.includes('oran') || s.includes('kaldıraç') || s.includes('kaldirac');
+  if (_avWantsFinImprove && _avFinImproveTopic) {
+    const r = window._lastR;
+    const paz = typeof state !== 'undefined' && state && state.firmType === 'pazarlama';
+    if (!r) {
+      return 'Önce bu firma için <b>analizi tamamlayın</b>; böylece oranlarınıza göre somut başlıklar önerebilirim.<br><br>'
+        + '<span style="color:#94a3b8">Genel olarak: özkaynak güçlendirme, KV borcun vade yapısı, kar marjı ve satış büyümesi — hepsinin etkisini <b>Senaryo Analizi</b> sekmesinde deneyebilirsiniz.</span>';
+    }
+    const lines = [];
+    lines.push('<b>Finansal yapıyı güçlendirme</b> — özet yönler (genel bilgi, yatırım/kredi tavsiyesi değil):<br><br>');
+    if (r.borcOzKay > (paz ? 2 : 1.5)) {
+      lines.push(`• <b>Borç / özkaynak</b> yüksek görünüyor (~<b>${r.borcOzKay.toFixed(2)}×</b>). Özkaynak artışı veya borcun daha uzun vadeye ötelenmesi yapıyı rahatlatır; senaryoda sermaye ve KV→UV taşımayı deneyin.<br>`);
+    }
+    if (r.cariOran < 1.25) {
+      lines.push(`• <b>Likidite (cari oran)</b> sıkışık olabilir (~<b>${r.cariOran.toFixed(2)}</b>). İşletme sermayesi ve kısa vadeli yükün yönetimi öne çıkar.<br>`);
+    }
+    if (r.netKarMarj < 5) {
+      lines.push(`• <b>Net kar marjı</b> düşük (~<b>%${r.netKarMarj.toFixed(1)}</b>). Maliyet, fiyat ve operasyonel verimlilik puanları doğrudan etkiler.<br>`);
+    }
+    if (r.kvBorcSat > 40) {
+      lines.push(`• <b>KV borç / satış</b> yüksek (~<b>%${r.kvBorcSat.toFixed(1)}</b>). Nakit döngüsü ve kısa vadeli borç yükü kritik alanlar.<br>`);
+    }
+    if (lines.length === 1) {
+      lines.push('• Mevcut oranlarınız görece dengeli görünüyor; yine de <b>Senaryo</b> ile sermaye, vade, marj ve satış senaryolarını denemek faydalıdır.<br>');
+    }
+    lines.push('<br><span style="color:#94a3b8">Ayrıntılı etki için <b>Senaryo Analizi</b> sekmesinde kaydırıcıları kullanın. Daha açıklayıcı sohbet için yapay zeka yanıtı açık olsun (<code style="font-size:10px">kas_avatar_ai_off</code> silin veya 0 yapın).</span>');
+    return lines.join('');
+  }
   if (s.includes('rating ne') || s.includes('not ne') || (s.includes('anlam') && (s.includes('rating') || s.includes('not')))) {
     return 'Kredi notu anlamları:<br>'
       +'<b style="color:#00c882">AAA/AA/A</b> (76+ puan) → Düşük risk, avantajlı teminat<br>'
