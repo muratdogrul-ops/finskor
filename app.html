@@ -4180,8 +4180,7 @@ function showSenaryoModal() {
   const modal = document.getElementById('senaryoModal');
   modal.style.display = 'block';
   _renderSenaryo();
-  // Baykuş senaryo yorumu — modal açılınca otomatik tetikle
-  setTimeout(() => _baykusSenaryoAc(), 400);
+  if (typeof avStopAudio === 'function') avStopAudio();
 }
 
 function _senaryoPuan(oz, totalBor, donenVar, kvBorclar, likit, netSatis, voKar, faalKar, toplamFinBor, aktif, ihracatSatis, prevFaalKar, kvBankaToplam, faalMarjDelta, satisDeltaParam, enflasyonParam) {
@@ -4454,7 +4453,7 @@ function _renderSenaryo() {
             <span id="lbl_sermaye" style="color:#22c55e;font-weight:700">${fmtTL(sermayeArtis)}</span>
           </label>
           <input type="range" id="sld_sermaye" min="0" max="${Math.round(baseOz * 3)}" step="${Math.max(10000,Math.round(baseOz*0.05))}"
-            value="${sermayeArtis}" oninput="window._senaryoState.sermaye=parseFloat(this.value);document.getElementById('lbl_sermaye').textContent=_fmtTLsen(this.value);_renderSenaryo();_baykusSenaryoDebounce()"
+            value="${sermayeArtis}" oninput="window._senaryoState.sermaye=parseFloat(this.value);document.getElementById('lbl_sermaye').textContent=_fmtTLsen(this.value);_renderSenaryo()"
             style="width:100%;margin-top:4px;accent-color:#22c55e">
           <div style="display:flex;justify-content:space-between;font-size:9px;color:#475569;margin-top:2px">
             <span>0</span><span>${fmtTL(baseOz * 1.5)}</span><span>${fmtTL(baseOz * 3)}</span>
@@ -4467,14 +4466,14 @@ function _renderSenaryo() {
             <span id="lbl_kvtasima" style="color:#f59e0b;font-weight:700">%${kvTasimaOran}</span>
           </label>
           <input type="range" id="sld_kvtasima" min="0" max="100" step="5"
-            value="${kvTasimaOran}" oninput="window._senaryoState.kvtasima=parseFloat(this.value);document.getElementById('lbl_kvtasima').textContent='%'+this.value;_renderSenaryo();_baykusSenaryoDebounce()"
+            value="${kvTasimaOran}" oninput="window._senaryoState.kvtasima=parseFloat(this.value);document.getElementById('lbl_kvtasima').textContent='%'+this.value;_renderSenaryo()"
             style="width:100%;margin-top:4px;accent-color:#f59e0b">
           <div style="display:flex;justify-content:space-between;font-size:9px;color:#475569;margin-top:2px">
             <span>%0</span><span>%50</span><span>%100</span>
           </div>
           <div style="margin-top:6px;display:flex;align-items:center;gap:6px">
             <span style="font-size:11px;color:#94a3b8">Vade:</span>
-            <select id="sel_vade" onchange="window._senaryoState.vade=parseInt(this.value);_renderSenaryo();_baykusSenaryoDebounce()"
+            <select id="sel_vade" onchange="window._senaryoState.vade=parseInt(this.value);_renderSenaryo()"
               style="background:#1e293b;border:1px solid #334155;color:#e2e8f0;border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer">
               <option value="36" ${vadeSec===36?'selected':''}>36 Ay</option>
               <option value="48" ${vadeSec===48?'selected':''}>48 Ay</option>
@@ -4490,7 +4489,7 @@ function _renderSenaryo() {
             <span id="lbl_karmarj" style="color:#818cf8;font-weight:700">${karMarjDelta >= 0 ? '+' : ''}${karMarjDelta.toFixed(1)}%</span>
           </label>
           <input type="range" id="sld_karmarj" min="-5" max="20" step="0.5"
-            value="${karMarjDelta}" oninput="window._senaryoState.karmarj=parseFloat(this.value);document.getElementById('lbl_karmarj').textContent=(this.value>=0?'+':'')+parseFloat(this.value).toFixed(1)+'%';_renderSenaryo();_baykusSenaryoDebounce()"
+            value="${karMarjDelta}" oninput="window._senaryoState.karmarj=parseFloat(this.value);document.getElementById('lbl_karmarj').textContent=(this.value>=0?'+':'')+parseFloat(this.value).toFixed(1)+'%';_renderSenaryo()"
             style="width:100%;margin-top:4px;accent-color:#818cf8">
           <div style="display:flex;justify-content:space-between;font-size:9px;color:#475569;margin-top:2px">
             <span>-5%</span><span>+${10}%</span><span>+20%</span>
@@ -4503,7 +4502,7 @@ function _renderSenaryo() {
             <span id="lbl_faalmarj" style="color:#fb923c;font-weight:700">${faalMarjDelta >= 0 ? '+' : ''}${faalMarjDelta.toFixed(1)}%</span>
           </label>
           <input type="range" id="sld_faalmarj" min="-5" max="50" step="0.5"
-            value="${faalMarjDelta}" oninput="window._senaryoState.faalmarj=parseFloat(this.value);document.getElementById('lbl_faalmarj').textContent=(this.value>=0?'+':'')+parseFloat(this.value).toFixed(1)+'%';_renderSenaryo();_baykusSenaryoDebounce()"
+            value="${faalMarjDelta}" oninput="window._senaryoState.faalmarj=parseFloat(this.value);document.getElementById('lbl_faalmarj').textContent=(this.value>=0?'+':'')+parseFloat(this.value).toFixed(1)+'%';_renderSenaryo()"
             style="width:100%;accent-color:#fb923c">
           <div style="display:flex;justify-content:space-between;font-size:10px;color:#64748b;margin-top:2px;margin-bottom:14px">
             <span>-5%</span><span>0%</span><span>+25%</span><span>+50%</span>
@@ -4513,7 +4512,7 @@ function _renderSenaryo() {
             <span id="lbl_satis" style="color:#f5a623;font-weight:700">${satisDelta >= 0 ? '+' : ''}${satisDelta.toFixed(0)}%</span>
           </label>
           <input type="range" id="sld_satis" min="-20" max="100" step="5"
-            value="${satisDelta}" oninput="window._senaryoState.satis=parseFloat(this.value);document.getElementById('lbl_satis').textContent=(this.value>=0?'+':'')+parseInt(this.value)+'%';_renderSenaryo();_baykusSenaryoDebounce()"
+            value="${satisDelta}" oninput="window._senaryoState.satis=parseFloat(this.value);document.getElementById('lbl_satis').textContent=(this.value>=0?'+':'')+parseInt(this.value)+'%';_renderSenaryo()"
             style="width:100%;margin-top:4px;accent-color:#f5a623">
           <div style="display:flex;justify-content:space-between;font-size:9px;color:#475569;margin-top:2px">
             <span>-20%</span><span>+40%</span><span>+100%</span>
@@ -8996,11 +8995,11 @@ function avAnalizOzetiMesaji(firma, rating, toplam) {
     ? `<b>${cleanFirma}</b> — credit grade for this run: <b style="color:${rating.color}">${rating.note}</b>.<br>`
       + `<span style="font-size:11px;color:#94a3b8">Total score: <b>${toplam.toFixed(1)}</b> out of 105.</span><br>`
       + `<span style="font-size:11px;color:#94a3b8">Indicative collateral structure: ${rating.teminat}</span>${riskEk}`
-      + `<br><span style="font-size:11px;color:#94a3b8;line-height:1.55">Ask me about ratios, the grade, scenarios, or how to use the app.</span>`
+      + `<br><span style="font-size:11px;color:#94a3b8;line-height:1.55">I’m here for questions on ratios, your grade, or how to use the app. Type below, or tap the microphone button to ask by voice.</span>`
     : `<b>${cleanFirma}</b> için bu analizde <b style="color:${rating.color}">kredi notu ${rating.note}</b> hesaplandı.<br>`
       + `<span style="font-size:11px;color:#94a3b8">Toplam skor: <b>${toplam.toFixed(1)}</b> / 105.</span><br>`
       + `<span style="font-size:11px;color:#94a3b8">Öngörülen teminat yapısı: ${rating.teminat}</span>${riskEk}`
-      + `<br><span style="font-size:11px;color:#94a3b8;line-height:1.55">Finansal analiz, oranlar, kredi notu veya uygulamanın kullanımı hakkında sorularınızı bekliyorum.</span>`;
+      + `<br><span style="font-size:11px;color:#94a3b8;line-height:1.55">Finansal analiz, oranlar ve kredi notunuz hakkındaki sorularınızı bekliyorum. Yazarak sorabilir veya <b>mikrofon</b> düğmesine basıp sesli sorabilirsiniz.</span>`;
   _avAddMsg('bot', msg);
 }
 
@@ -9112,6 +9111,7 @@ function avKonuAc(mesaj, elId) {
 
 // Senaryo modal açılınca Baykuş'u aç ve ilk yorumu yap
 function _baykusSenaryoAc() {
+  return; // Senaryo modülünde Baykuş otomatik konuşmaz / yorum yapmaz
   if (window._demoMod) return; // Demo modunda senaryo Baykuş konuşması yok
   const r = window._lastR;
   if (!r) return;
@@ -9301,12 +9301,11 @@ function _baykusSenaryoAc() {
 let _baykusDebTimer = null;
 let _baykusOncekiNot = null;
 function _baykusSenaryoDebounce() {
-  if (window._demoMod) return; // Demo modunda slider Baykuş konuşmasın
   clearTimeout(_baykusDebTimer);
-  _baykusDebTimer = setTimeout(() => _baykusSenaryoYorum(), 900);
 }
 
 function _baykusSenaryoYorum() {
+  return; // Senaryo slider’larında Baykuş yorumu kapalı
   const r = window._lastR;
   if (!r) return;
 
