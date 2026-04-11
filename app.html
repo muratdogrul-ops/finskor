@@ -9342,13 +9342,6 @@ function avBuildQuickBtns() {
   if (!qb) return;
   const analizSonrasi = !!(window._lastR);
   const _qList = [];
-  if (analizSonrasi) {
-    _qList.push({
-      l: '🤖 Uzman özeti (AI)',
-      m: 'Son analizi kısaca uzman gözüyle yorumla',
-      e: null,
-    });
-  }
   _qList.push(
     {l:'📅 Analiz Yılı',     m:'analiz yili',                 e:'refYear'},
     {l:'📆 Analiz Dönemi',   m:'analiz donemi',                e:'period'},
@@ -9887,6 +9880,21 @@ function _avSenaryoSoruYanit(s) {
   return null; // Bu fonksiyon için yanıt yok, _avMatchText devam etsin
 }
 
+/** Analiz sonrası: “finansal yapı” sorularına mevcut oranlarla yanıt (genel bilgilendirme). */
+function _avFinYapiOranYorumHtml() {
+  const r = window._lastR;
+  if (!r) return '';
+  let lik = r.likOran;
+  if (lik == null || (typeof lik === 'number' && isNaN(lik))) lik = 0;
+  return '<b>Finansal yapı</b> — <b>şu anki analizdeki</b> oranlarınıza göre özet yorum (genel bilgilendirme, yatırım/kredi tavsiyesi değil):<br><br>'
+    + '• <b>Kaynak dengesi:</b> <b>Borç / özkaynak</b> yaklaşık <b>' + r.borcOzKay.toFixed(2) + '×</b>.<br>'
+    + '• <b>Likidite:</b> <b>Cari oran</b> <b>' + r.cariOran.toFixed(2) + '</b>, <b>likidite oranı</b> <b>' + lik.toFixed(2) + '</b>.<br>'
+    + '• <b>Karlılık:</b> <b>Net kar marjı</b> yaklaşık <b>%' + r.netKarMarj.toFixed(1) + '</b>.<br>'
+    + '• <b>Borç yükü:</b> <b>Kısa vadeli banka borcu / satışlar</b> yaklaşık <b>%' + r.kvBorcSat.toFixed(1) + '</b>; <b>banka borcu / aktif</b> yaklaşık <b>%' + r.bnkBorcAkt.toFixed(1) + '</b>.<br><br>'
+    + 'FinSkor’da bu başlıklar <b>oran tabloları</b> ve <b>105 puanlık</b> skorda (finansal taraf <b>75</b>, subjektif <b>30</b> puan) birlikte değerlendirilir.<br><br>'
+    + '<span style="color:#94a3b8">“Ne olursa” etkisini <b>Senaryo Analizi</b> kaydırıcılarıyla deneyebilirsiniz.</span>';
+}
+
 function _avMatchTextCore(q) {
   const s = q.toLowerCase();
 
@@ -9946,20 +9954,25 @@ function _avMatchTextCore(q) {
   }
 
   const _avFinYapiKök = s.includes('yapı') || s.includes('yapi') || s.includes('yapım') || s.includes('yapim');
-  const _avFinYapiSadeceBilgi = s.includes('bilgi') || s.includes('hakkında') || s.includes('hakkinda') || s.includes('anlat')
+  const _avFinYapiSoru = s.includes('bilgi') || s.includes('hakkında') || s.includes('hakkinda') || s.includes('anlat')
     || s.includes('açıkla') || s.includes('acikla') || s.includes('nedir') || s.includes('ne demek')
     || s.includes('tanım') || s.includes('tanim') || s.includes('örnek') || s.includes('ornek') || s.includes('açıkl')
-    || s.includes('istiyorum') || s.includes('söyle') || s.includes('soyle') || s.includes('anlatsana');
+    || s.includes('istiyorum') || s.includes('söyle') || s.includes('soyle') || s.includes('anlatsana')
+    || s.includes('yorum') || s.includes('değerlendir') || s.includes('degerlendir') || s.includes('görüş') || s.includes('gorus')
+    || s.includes('nasıl görün') || s.includes('nasil gorun');
   const _avFinYapiIyilestirme = s.includes('iyileş') || s.includes('iyiles') || s.includes('güçlen') || s.includes('guclen')
     || s.includes('düzel') || s.includes('duzel') || s.includes('ne yapmam') || s.includes('ne yapmalı') || s.includes('ne yapmaliyim');
-  const _avQFinYapi = s.includes('finansal') && _avFinYapiKök && _avFinYapiSadeceBilgi && !_avFinYapiIyilestirme;
+  const _avQFinYapi = s.includes('finansal') && _avFinYapiKök && _avFinYapiSoru && !_avFinYapiIyilestirme;
   if (_avQFinYapi) {
+    if (window._lastR) {
+      return _avFinYapiOranYorumHtml();
+    }
     return '<b>Finansal yapı</b>, firmanızın kaynaklarının (öz kaynak ile kısa/uzun vadeli borçların) <b>dağılımını</b> ve bunların işletme ile uyumunu ifade eder. Kısaca dört başlıkta düşünülür:<br><br>'
       + '• <b>Kaynak dengesi</b> — Özkaynak gücü ile toplam borcun oranı (ör. borç/özkaynak).<br>'
       + '• <b>Likidite</b> — Kısa vadeli borçları karşılama gücü; cari oran ve likidite ölçüleri.<br>'
       + '• <b>Karlılık</b> — Satıştan kalan kar (brüt, faaliyet ve net kar marjı).<br>'
       + '• <b>Borç yükü</b> — Özellikle kısa vadeli banka borcunun satış ve varlıklara göre büyüklüğü.<br><br>'
-      + 'FinSkor’da bu başlıklar <b>oran tabloları</b> ve <b>105 puanlık</b> skorda (finansal taraf kabaca <b>75</b>, subjektif <b>30</b> puan) özetlenir; henüz analiz yapmadıysanız önce verileri yükleyip <b>Analiz Et</b> ile notunuzu oluşturun.<br><br>'
+      + 'FinSkor’da bu başlıklar <b>oran tabloları</b> ve <b>105 puanlık</b> skorda (finansal taraf <b>75</b>, subjektif <b>30</b> puan) özetlenir.<br><br>'
       + '<span style="color:#94a3b8">Ayrıntılı “ne olursa” senaryoları için <b>Senaryo Analizi</b> kaydırıcılarını kullanabilirsiniz.</span>';
   }
 
@@ -10303,6 +10316,7 @@ function toggleAvMic() {
     }
     return;
   }
+  avStopAudio();
   _avMicHeardStart = false;
   _avSR = new SR();
   _avSR.lang = 'tr-TR';
