@@ -1,3 +1,7 @@
+# LinkedIn reklam / dönüşüm: Site settings → Environment variables → LINKEDIN_PARTNER_ID
+#   (Campaign Manager → Analiz → Insight Tag; yalnızca rakam). Build dist/app.html'e etiketi enjekte eder.
+# Tanımlı değilse yer tutucu yorum kalır; kampanyayı siz oluşturursunuz — kod hesaba giriş yapmaz.
+
 # Vakıfbank kart: Netlify → Site settings → Environment variables
 #   VAKIF_INIT=test veya prod
 #   VAKIF_HOST_MERCHANT_ID, VAKIF_MERCHANT_PASSWORD, VAKIF_HOST_TERMINAL_ID
