@@ -112,6 +112,12 @@
   [headers.values]
     Cache-Control = "no-store, no-cache, must-revalidate, max-age=0"
 
+# Ana uygulama — Baykuş / yerel cevap güncellemeleri eski deploy metninde takılmasın
+[[headers]]
+  for = "/app.html"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate, max-age=0"
+
 # /admin.html doğrudan erişimi engelle — 404 döner
 [[redirects]]
   from = "/admin.html"

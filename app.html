@@ -10252,6 +10252,14 @@ function _avMatchTextCore(q) {
   if (s.includes('pdf beyanname')) return '<b>PDF Beyanname:</b> İlgili mali yılın kurumlar veya geçici vergi beyannamesini yükleyin. Bilanço ve gelir tablosu otomatik yüklenir, firma adı otomatik gelir. İlgili döneme ait kurumlar geçici vergi beyannamesini detay mizan ile aynı döneme peş peşe çoklu yükleyebilirsiniz.';
   if (s.includes('excel mizan yukle') || s.includes('excel mizan yükle')) return '<b>Excel Mizan:</b> Muhasebe programından ilgili mali dönem için alınan .xlsx veya .xls Excel dosyasını yükleyin. Hesap kodları, bakiyeler ve firma adı otomatik okunarak ilgili döneme yüklenir.';
   if (s.includes('pdf mizan yukle') || s.includes('pdf mizan yükle')) return '<b>PDF Mizan:</b> PDF mizan yükleyebilirsiniz. Aynı zamanda manuel mali veri girişi de yapabilirsiniz. <b style="color:#fbbf24">İpucu:</b> Detay mizan ile kurumlar beyannamesini aynı döneme peş peşe yükleyebilirsiniz!';
+  const _avFinKök = s.includes('finansal') || s.includes('finans');
+  const _avYapBirlikteSözü = s.includes('yapalım') || s.includes('yapalim') || s.includes('yapalımız') || s.includes('yapalimiz')
+    || s.includes('yapacağım') || s.includes('yapacagim') || s.includes('yapmak') || s.includes('yapmam')
+    || s.includes('yapabilir') || s.includes('yaparım') || s.includes('yaparim') || s.includes('yapayım') || s.includes('yapayim')
+    || s.includes('yapal');
+  if (_avFinKök && s.includes('birlikte') && _avYapBirlikteSözü) {
+    return _avFinansalAnalizAkisiHtml() + _avYardimEvetHayirBtns();
+  }
   const _avFinAnalizKonu = s.includes('analiz') && (s.includes('finansal') || s.includes('finans'));
   const _avFinAnalizNasilEarly = _avFinAnalizKonu && (
     s.includes('nasıl') || s.includes('nasil')
