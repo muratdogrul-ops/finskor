@@ -9462,12 +9462,12 @@ function avBuildQuickBtns() {
     {l:'🏛 PDF Beyanname',   m:'pdf beyanname',                e:'importPdfBtn'},
     {l:'📊 Excel Mizan',     m:'excel mizan yukle',            e:'importExcelBtn'},
     {l:'📄 PDF Mizan',       m:'pdf mizan yukle',              e:'importPdfMizanBtn'},
+    {l:'⚖️ Subjektif Kriterler', m:'subjektif',              e:'subjSecimEkrani'},
     {l:'▶️ Analiz Et',       m:'analiz et',                    e:'runAnalysisBtn'},
     {l:'📈 Senaryo Analizi', m:'senaryo analizi ne işe yarar', e:null},
   );
   if (analizSonrasi) {
     _qList.push({l:'🎯 Not Nasıl Artar?', m:'senaryo analizi ne işe yarar', e:null});
-    _qList.push({l:'⚖️ Subjektif Kriter', m:'subjektif',                    e:null});
     _qList.push({l:'🏆 Not Skalası',      m:'rating ne anlama gelir',        e:null});
   }
   qb.innerHTML = _qList.map(b=>`<button class="av-qbtn" onclick="avKonuAc('${b.m}','${b.e||''}')">${b.l}</button>`).join('');
@@ -9505,6 +9505,8 @@ function avKonuAc(mesaj, elId) {
             || document.querySelector('#year-2025 .upload-btn')
             || document.querySelector('.upload-btn');
       },
+      // Subjektif faktörler — alt bölüm
+      'subjSecimEkrani':   () => document.getElementById('subjSecimEkrani'),
       // Analiz Başlat — ilk aktif analyze-btn
       'runAnalysisBtn':    () => document.querySelector('button.analyze-btn'),
     };
