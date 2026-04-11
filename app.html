@@ -8987,6 +8987,27 @@ function _avSkorVeOranSesli(str) {
   return o;
 }
 
+/** Yüzde içi sayı: ondalık basamakları sözcük (beş) — TTS “beşinci” sıfatına düşmesin. */
+function _avTtsYuzdeSayiOkunus(nStr) {
+  const raw = String(nStr == null ? '' : nStr).replace(/,/g, '.').replace(/^\++|\s+/g, '').trim();
+  const dig = ['sıfır', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz'];
+  if (!/^-?\d+(\.\d+)?$/.test(raw)) {
+    const s = raw.replace(/\./, ' nokta ');
+    return s;
+  }
+  const neg = raw[0] === '-';
+  const abs = neg ? raw.slice(1) : raw;
+  const dot = abs.indexOf('.');
+  const intPart = dot >= 0 ? abs.slice(0, dot) : abs;
+  const fracPart = dot >= 0 ? abs.slice(dot + 1) : '';
+  if (!fracPart) return (neg ? 'eksi ' : '') + intPart;
+  const fracWords = fracPart.split('').map(function (ch) {
+    const d = parseInt(ch, 10);
+    return isNaN(d) ? ch : dig[d];
+  }).join(' ');
+  return (neg ? 'eksi ' : '') + intPart + ' nokta ' + fracWords;
+}
+
 /** TTS: yüzde, milyon/milyar/bin TL, max → azami (Türkçe seslerde net). */
 function _avBaykusTtsFinansal(str) {
   if (str == null || typeof str !== 'string') return str;
@@ -9001,12 +9022,12 @@ function _avBaykusTtsFinansal(str) {
     if (/\./.test(s)) return s.replace('.', ' virgül ');
     return s;
   }
-  /* Eksi yüzde: %-24,7 veya -24,7% (önce bunlar, sonra pozitif yüzde). */
-  o = o.replace(/%\s*-\s*(\d+(?:[.,]\d+)?)/g, function (_, n) { return 'yüzde eksi ' + decSpeech(n); });
-  o = o.replace(/-\s*(\d+(?:[.,]\d+)?)\s*%/g, function (_, n) { return 'yüzde eksi ' + decSpeech(n); });
-  o = o.replace(/%\s*(\d+(?:[.,]\d+)?)/g, function (_, n) { return 'yüzde ' + decSpeech(n); });
-  o = o.replace(/(\d+(?:[.,]\d+)?)\s*%/g, function (_, n) { return 'yüzde ' + decSpeech(n); });
-  o = o.replace(/(\d+(?:[.,]\d+)?)\s*(?:percent|pct\.?)\b/gi, function (_, n) { return 'yüzde ' + decSpeech(n); });
+  /* Eksi yüzde (önce), sonra düz % — pozitifte + kullanılmaz; %+ için ayrı kural yok (TTS gereksiz “artı” demesin). */
+  o = o.replace(/%\s*-\s*(\d+(?:[.,]\d+)?)/g, function (_, n) { return 'yüzde eksi ' + _avTtsYuzdeSayiOkunus(n); });
+  o = o.replace(/-\s*(\d+(?:[.,]\d+)?)\s*%/g, function (_, n) { return 'yüzde eksi ' + _avTtsYuzdeSayiOkunus(n); });
+  o = o.replace(/%\s*(\d+(?:[.,]\d+)?)/g, function (_, n) { return 'yüzde ' + _avTtsYuzdeSayiOkunus(n); });
+  o = o.replace(/(\d+(?:[.,]\d+)?)\s*%/g, function (_, n) { return 'yüzde ' + _avTtsYuzdeSayiOkunus(n); });
+  o = o.replace(/(\d+(?:[.,]\d+)?)\s*(?:percent|pct\.?)\b/gi, function (_, n) { return 'yüzde ' + _avTtsYuzdeSayiOkunus(n); });
   o = o.replace(/(\d+(?:[.,]\d+)?)\s*B\s*(?:TL|₺|TRY)\b/gi, function (_, n) { return decSpeech(n) + ' milyar Türk lirası'; });
   o = o.replace(/(\d+(?:[.,]\d+)?)\s*M\s*(?:TL|₺|TRY)\b/gi, function (_, n) { return decSpeech(n) + ' milyon Türk lirası'; });
   o = o.replace(/(\d+(?:[.,]\d+)?)\s*m\s*(?:TL|₺|TRY)\b/g, function (_, n) { return decSpeech(n) + ' milyon Türk lirası'; });
@@ -9837,11 +9858,16 @@ function _avSenaryoSoruYanit(s) {
       + `<span style="color:#94a3b8">Senaryo kaydırıcısı ile taşınan tutarı seçip puan etkisini anlık görün.</span>`;
   }
 
-  const _satisCiro = s.includes('satış') || s.includes('satis') || s.includes('ciro');
+  const _satisCiro = s.includes('satış') || s.includes('satis') || s.includes('ciro')
+    || s.includes('net satış') || s.includes('netsatis') || s.includes('net satis');
   const _buyumeKök = s.includes('büyü') || s.includes('buyu') || s.includes('büyüme') || s.includes('buyume')
-    || s.includes('artış') || s.includes('artis') || s.includes('arttır') || s.includes('arttir');
-  /* Ciro/satış büyümesi yorumu: STT bazen "büyü" kaçırır; "ciro … yorum" da aynı blokta netleşsin. */
-  const _satisBuyumeSoru = _satisCiro && (_buyumeKök || (s.includes('yorum') && s.includes('ciro')));
+    || s.includes('artış') || s.includes('artis') || s.includes('arttır') || s.includes('arttir')
+    || s.includes('genişle') || s.includes('genis') || s.includes('genişme') || s.includes('genisme');
+  /* Ciro/satış büyümesi: büyüme kökü veya (yorum + ciro/satış) — yalnızca "ciro yorum" dar kalıyordu. */
+  const _satisBuyumeSoru = _satisCiro && (
+    _buyumeKök
+    || (s.includes('yorum') && (s.includes('ciro') || s.includes('satış') || s.includes('satis')))
+  );
 
   if (_satisBuyumeSoru) {
     if (!r) {
@@ -9927,7 +9953,7 @@ function _avFinYapiOranYorumHtml() {
 }
 
 function _avMatchTextCore(q) {
-  const s = q.toLowerCase();
+  const s = (q == null ? '' : String(q)).toLocaleLowerCase('tr-TR');
 
   // Senaryo özel sorular — önce kontrol et
   const senaryoYanit = _avSenaryoSoruYanit(s);
