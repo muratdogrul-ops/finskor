@@ -9782,7 +9782,7 @@ function _baykusSenaryoYorum() {
 // _avMatchText'e senaryo özel sorularını ekle
 function _avSenaryoSoruYanit(s) {
   const r = window._lastR;
-  const paz = state.firmType === 'pazarlama';
+  const paz = typeof state !== 'undefined' && state && state.firmType === 'pazarlama';
   const fmtTL = v => v >= 1e6 ? (v/1e6).toFixed(1)+'M ₺' : v >= 1e3 ? (v/1e3).toFixed(0)+'K ₺' : v.toFixed(0)+' ₺';
 
   const _sermayeSoru = s.includes('sermaye') && (
@@ -9827,8 +9827,11 @@ function _avSenaryoSoruYanit(s) {
       + `<span style="color:#94a3b8">Senaryo kaydırıcısı ile taşınan tutarı seçip puan etkisini anlık görün.</span>`;
   }
 
-  const _satisBuyumeSoru = (s.includes('satış') || s.includes('satis') || s.includes('ciro'))
-    && (s.includes('büyü') || s.includes('buyu') || s.includes('artış') || s.includes('artis') || s.includes('arttır') || s.includes('arttir'));
+  const _satisCiro = s.includes('satış') || s.includes('satis') || s.includes('ciro');
+  const _buyumeKök = s.includes('büyü') || s.includes('buyu') || s.includes('büyüme') || s.includes('buyume')
+    || s.includes('artış') || s.includes('artis') || s.includes('arttır') || s.includes('arttir');
+  /* Ciro/satış büyümesi yorumu: STT bazen "büyü" kaçırır; "ciro … yorum" da aynı blokta netleşsin. */
+  const _satisBuyumeSoru = _satisCiro && (_buyumeKök || (s.includes('yorum') && s.includes('ciro')));
 
   if (_satisBuyumeSoru) {
     if (!r) {
@@ -9838,11 +9841,22 @@ function _avSenaryoSoruYanit(s) {
         + `<b>③</b> Senaryo kaydırıcısı reel satış büyümesi puanını ve kısa vadeli banka borcu / satışlar oranını birlikte günceller.<br><br>`
         + `<span style="color:#94a3b8">Analiz yaptıktan sonra firma rakamları burada kişiselleşir.</span>`;
     }
+    const isTaahhut = typeof state !== 'undefined' && state && state.firmType === 'taahhut';
     const ns = fmtTL(r.netSatis || 0);
     const kvSat = r.kvBorcSat.toFixed(1);
-    const reel = (r.reelSatisBuy != null) ? r.reelSatisBuy.toFixed(1) : '—';
-    return `📈 <b>Satış büyümesi</b> (senaryo):<br><br>`
-      + `<b>① Mevcut:</b> Net satış ~<b>${ns}</b> · kısa vadeli banka borcu / satışlar ~<b>%${kvSat}</b> · reel satış büyümesi (yaklaşık) ~<b>%${reel}</b>.<br>`
+    const reel = (r.reelSatisBuy != null && !isNaN(r.reelSatisBuy)) ? r.reelSatisBuy.toFixed(1) : '—';
+    let satir1;
+    if (isTaahhut) {
+      satir1 = `<b>① Mevcut:</b> Net satış ~<b>${ns}</b>. <b>Taahhüt</b> firmasında tabloda gösterilen <b>satış büyümesi %</b> klasik anlamda hesaplanmaz; ciro hakediş düzeltmesiyle izlenir. Kısa vadeli banka borcu / satışlar ~<b>%${kvSat}</b>.<br>`;
+    } else {
+      const nb = r.satisBuy;
+      const nom = (nb != null && !isNaN(nb))
+        ? ((nb >= 0 ? '+' : '') + nb.toFixed(1))
+        : '—';
+      satir1 = `<b>① Mevcut:</b> Net satış ~<b>${ns}</b> · <b>Önceki yıla göre nominal ciro büyümesi</b> ~<b>%${nom}</b> · <b>reel satış büyümesi</b> (ÜFE düzeltilmiş, yaklaşık) ~<b>%${reel}</b> · kısa vadeli banka borcu / satışlar ~<b>%${kvSat}</b>.<br>`;
+    }
+    return `📈 <b>Ciro ve satış büyümesi</b> (mevcut analiz + senaryo):<br><br>`
+      + satir1
       + `<b>② Etki:</b> Kısa vadeli banka borcu aynı kalıp satış artınca bu oran düşer; aşırı büyüme senaryosu reel büyüme puanında ters tepebilir — kaydırıcı ile deneyin.<br>`
       + `<b>③</b> ÜFE girişi reel büyümeyi belirler; nominal ciroyu tek başına büyütmek yanıltıcı olabilir.<br><br>`
       + `<span style="color:#94a3b8">Senaryo sekmesinde satış büyümesi slider’ını hareket ettirin.</span>`;
