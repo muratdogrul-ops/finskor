@@ -8863,12 +8863,12 @@ function showAvatarChat(skipAutoWelcome) {
   if (!skipAutoWelcome && !document.getElementById('avatarMessages').children.length && !window._demoMod) {
     const enUi = typeof state !== 'undefined' && state && state.lang === 'en';
     let body = enUi
-      ? 'Hello! &#x1F989;<br><br>Use the shortcuts below for a quick tour — start with <b>Analysis year</b> and go in order. You can type questions or use the <b>microphone</b>.'
-      : 'Merhaba! &#x1F989;<br><br>Sistem tanıtımı için aşağıdaki konu başlıklarına <b>Analiz Yılı</b>ndan başlayarak teker teker basıp ilerleyebilirsiniz. Sorularınızı yazabilir veya <b>mikrofon</b>la sorabilirsiniz.';
+      ? 'Hello! &#x1F989;<br><br>If you’d like, we can work through the <b>financial analysis together</b>. Use the shortcuts below in order, or type and use the <b>microphone</b>.'
+      : 'Merhaba! &#x1F989;<br><br>İsterseniz <b>finansal analizi birlikte</b> yapabiliriz. Aşağıdaki kısayollarla sırayla ilerleyebilir, yazabilir veya <b>mikrofon</b>la sorabilirsiniz.';
     if (typeof _avPaidUserGuideEligible === 'function' && _avPaidUserGuideEligible()) {
       body += enUi
-        ? '<br><br>If you want <b>step-by-step</b> guidance through the screen, tap the button or type <b>step by step help</b>.'
-        : '<br><br>Adım adım ekranda yönlendirme isterseniz düğmeye basın veya <b>adım adım yardım</b> yazın.';
+        ? '<br><br>For <b>step-by-step</b> on-screen help, use the button or type <b>step by step help</b>.'
+        : '<br><br>Ekranda adım adım yönlendirme isterseniz düğmeye basın veya <b>adım adım yardım</b> yazın.';
       body += '<br><br><button type="button" class="av-qbtn" onclick="_avBaslaAdimRehber()">' + (enUi ? '🦉 Step-by-step help' : '🦉 Adım adım yardım') + '</button>';
     }
     _avAddMsg('bot', body);
