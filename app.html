@@ -1036,6 +1036,9 @@ function showTab(tabId, btn) {
   if (el) el.style.display = 'block';
   // Subjektif tab açılınca seçim ekranını göster
   if (tabId === 'tab-subj') {
+    if (window._demoMod && !window._demoSubjHazir && typeof demoRandomizeSubjSec === 'function') {
+      demoRandomizeSubjSec();
+    }
     subjSecimGoster();
   }
   if (btn) btn.classList.add('active');
@@ -3327,6 +3330,11 @@ function _doRunAnalysis() {
 
   const r = calcRatios(refYear);
   enrichRatiosAfterCalc(r, refYear);
+
+  if (window._demoMod && typeof demoRandomizeSubjSec === 'function') {
+    const _subjTam = SUBJ_FACTORS.every(f => subjSec[f.id] !== null && subjSec[f.id] !== undefined);
+    if (!_subjTam) demoRandomizeSubjSec();
+  }
 
   // ── SKOR HESAPLA (Excel B127+B128 birebir)
   const _objHesaplanan = calcObjScore(r, state.firmType);  // maks 75
@@ -9220,8 +9228,8 @@ function avSesOku(html) {
   window._avSesUtterChain = (window._avSesUtterChain || 0) + 1;
   const chainId = window._avSesUtterChain;
   const voices = speechSynthesis.getVoices();
-  const trKadin = voices.find(function (v) { return v.lang.startsWith('tr') && /female|kadin|woman|girl/i.test(v.name); });
-  const trSes = voices.find(function (v) { return v.lang.startsWith('tr'); });
+  const trKadin = voices.find(function (v) { return v.lang && String(v.lang).toLowerCase().startsWith('tr') && /female|kadin|woman|girl/i.test(v.name); });
+  const trSes = voices.find(function (v) { return v.lang && String(v.lang).toLowerCase().startsWith('tr'); });
   const kadinSes = voices.find(function (v) { return /female|woman|girl/i.test(v.name); });
   const pickVoice = function () { return trKadin || trSes || kadinSes || null; };
   // Cümle sonlarında kısa duraklama (nefes) — tek parça yerine sıralı okuma
@@ -10910,7 +10918,7 @@ function demoBaslat() {
       speechSynthesis.cancel();
       const utt = new SpeechSynthesisUtterance('Ben Baykuş, merhaba! Önce firma ve mali veri alanlarını gezeceğiz; subjektif ve analiz adımlarını sırayla göstereceğim.');
       const voices = speechSynthesis.getVoices();
-      const trSes = voices.find(v => v.lang.startsWith('tr'));
+      const trSes = voices.find(v => v.lang && String(v.lang).toLowerCase().startsWith('tr'));
       if (trSes) utt.voice = trSes;
       utt.lang = 'tr-TR'; utt.rate = 1.05;
       speechSynthesis.speak(utt);
@@ -11033,7 +11041,7 @@ function demoBaslat() {
           if (!window._demoMod) return;
           const utt = new SpeechSynthesisUtterance(text);
           const voices = speechSynthesis.getVoices();
-          const trSes = voices.find(v => v.lang.startsWith('tr'));
+          const trSes = voices.find(v => v.lang && String(v.lang).toLowerCase().startsWith('tr'));
           if (trSes) utt.voice = trSes;
           utt.lang='tr-TR'; utt.rate=1.05;
           speechSynthesis.speak(utt);
@@ -11167,6 +11175,11 @@ function demoBaslat() {
 function _demoAnalizSunumu() {
   if (!window._demoMod) return;
 
+  const _senM0 = document.getElementById('senaryoModal');
+  if (_senM0) _senM0.style.display = 'none';
+  const _otomM0 = document.getElementById('otomSenaryoModal');
+  if (_otomM0) _otomM0.style.display = 'none';
+
   // Baykuş sembol modda — chat kapalı, sadece sesli anlatım
   const am = document.getElementById('avatarModal');
   if (am) am.style.display = 'none';
@@ -11184,22 +11197,37 @@ function _demoAnalizSunumu() {
 
   function _bsoy(metin) {
     if (!window._demoMod) return;
-    if (window.speechSynthesis) {
-      const text = _avTtsPipelinePlain(_avTtsMetinCikar(metin));
-      if (text) {
-        speechSynthesis.cancel();
-        // 300ms bekle: Chrome'da cancel()+speak() zincirlenmesi "echo" stutterına yol açar
-        setTimeout(() => {
-          if (!window._demoMod) return;
-          const utt = new SpeechSynthesisUtterance(text);
-          const voices = speechSynthesis.getVoices();
-          const trSes = voices.find(v => v.lang.startsWith('tr'));
-          if (trSes) utt.voice = trSes;
-          utt.lang='tr-TR'; utt.rate=1.05;
-          speechSynthesis.speak(utt);
-        }, 300);
-      }
+    if (!window.speechSynthesis) return;
+    const text = _avTtsPipelinePlain(_avTtsMetinCikar(metin));
+    if (!text) return;
+    speechSynthesis.cancel();
+    function _demoAnSunSpeak() {
+      if (!window._demoMod) return;
+      const utt = new SpeechSynthesisUtterance(text);
+      const voices = speechSynthesis.getVoices();
+      const trSes = voices.find(v => v.lang && String(v.lang).toLowerCase().startsWith('tr'));
+      if (trSes) utt.voice = trSes;
+      utt.lang = 'tr-TR';
+      utt.rate = 1.05;
+      speechSynthesis.speak(utt);
     }
+    function _demoAnSunRunSpeak() {
+      if (!window._demoMod) return;
+      if (speechSynthesis.getVoices().length) {
+        setTimeout(_demoAnSunSpeak, 90);
+        return;
+      }
+      const t0 = Date.now();
+      (function poll() {
+        if (!window._demoMod) return;
+        if (speechSynthesis.getVoices().length || Date.now() - t0 > 2200) {
+          setTimeout(_demoAnSunSpeak, 90);
+          return;
+        }
+        setTimeout(poll, 90);
+      })();
+    }
+    setTimeout(_demoAnSunRunSpeak, 120);
   }
 
   // ADIM 1 — Kredi notu açıklaması | 300ms (DOM hazır, hemen başla)
@@ -11270,74 +11298,57 @@ function _demoAnalizSunumu() {
       'Aktif pasif dengesi sağlıklı bir bilançonun temelidir.');
   }, 54000);
 
-  // ADIM 6 — Senaryo analizi | 66000ms (ADIM 5 ~9sn konuşma → 54+9+3 buffer)
+  // ADIM 6 — Senaryo (modal açmadan; sonuç sekmesinde düğmeyi göster) | 66000ms
   setTimeout(() => {
     if (!window._demoMod) return;
+    const senM = document.getElementById('senaryoModal');
+    if (senM) senM.style.display = 'none';
+    const otomM = document.getElementById('otomSenaryoModal');
+    if (otomM) otomM.style.display = 'none';
+    showTab('tab-sonuc', document.getElementById('tab-btn-sonuc'));
     window.scrollTo({top:0, behavior:'smooth'});
-    // Senaryo modalını aç, sermaye değerini set et (20.4M)
     setTimeout(() => {
-      if (typeof showSenaryoModal === 'function') showSenaryoModal();
-      setTimeout(() => {
-        // Sermaye slider'ını 20.4M TL yap
-        const sermayeInput = document.getElementById('sld_sermaye');
-        if (sermayeInput) {
-          const hedef = 20400000;
-          sermayeInput.value = hedef;
-          sermayeInput.dispatchEvent(new Event('input'));
-          const lbl = document.getElementById('lbl_sermaye');
-          if (lbl) lbl.textContent = '20.4M ₺';
-          if (window._senaryoState) window._senaryoState.sermaye = hedef;
-          if (typeof _renderSenaryo === 'function') _renderSenaryo();
-        }
-        const senModal = document.getElementById('senaryoModal');
-        if (senModal) _vurgula(senModal, 14000);
-      }, 800);
-    }, 500);
-    _bsoy('Kredi notu artırma senaryo analizi. Sermaye, borç vadesi, kâr marjı ve ciro ' +
-      'parametreleriyle simülasyon yapılır. ' +
-      'Bu ekranda gördüğünüz puan ve kredi notu, o anki senaryo değerlerine göre canlı hesaplanır.');
+      const senBtn = document.querySelector('button[onclick="showSenaryoModal()"]');
+      if (senBtn) {
+        senBtn.scrollIntoView({behavior:'smooth', block:'center'});
+        _vurgula(senBtn, 12000);
+      }
+    }, 400);
+    _bsoy('Kredi notu artırma senaryo analizi için sonuç sayfasındaki Kredi Notu Artırma Senaryo Analizi düğmesine tıklayarak simülasyonu açabilirsiniz. ' +
+      'Sermaye, borç vadesi, kâr marjı ve ciro parametreleriyle puan ve kredi notu canlı hesaplanır.');
   }, 66000);
 
-  // ADIM 7 — KV→UV taşıma ek senaryo ve simülasyon | 84000ms (ADIM 6 ~15sn konuşma → 66+15+3 buffer)
+  // ADIM 7 — KV→UV örneği (yalnız anlatım; modal yok) | 84000ms
   setTimeout(() => {
     if (!window._demoMod) return;
-    // KV taşıma oranını %75 yap, vade 48 ay
-    const kvInput = document.getElementById('sld_kvtasima');
-    const vadeSelect = document.getElementById('sel_vade');
-    if (kvInput) {
-      kvInput.value = 75;
-      kvInput.dispatchEvent(new Event('input'));
-      const lbl = document.getElementById('lbl_kvtasima');
-      if (lbl) lbl.textContent = '%75';
-      if (window._senaryoState) window._senaryoState.kvtasima = 75;
+    const senBtn = document.querySelector('button[onclick="showSenaryoModal()"]');
+    if (senBtn) {
+      senBtn.scrollIntoView({behavior:'smooth', block:'center'});
+      _vurgula(senBtn, 10000);
     }
-    if (vadeSelect) {
-      vadeSelect.value = '48';
-      vadeSelect.dispatchEvent(new Event('change'));
-      if (window._senaryoState) window._senaryoState.vade = 48;
-    }
-    if (typeof _renderSenaryo === 'function') _renderSenaryo();
-    const senModal = document.getElementById('senaryoModal');
-    if (senModal) _vurgula(senModal, 14000);
-    _bsoy('Kısa vadeli banka borcunun yüzde 75 i 48 ay vadeli taksitli kredi kullanılarak kapatıldığında, ' +
-      'senaryo puanı ve kredi notu anlık olarak güncellenir. Ekranda gördüğünüz değerler geçerlidir. ' +
-      'Bu şekilde birçok simülasyon yapılabilir.');
+    _bsoy('Simülasyonda kısa vadeli banka borcunun örneğin yüzde 75\'inin 48 ay vadeli taksitli kredi ile kapatılması gibi senaryolar deneyebilirsiniz. ' +
+      'Puan ve not anlık güncellenir.');
   }, 84000);
 
-  // ADIM 8 — FinSkor Otomatik Senaryo Önerisi | 106000ms (ADIM 7 ~19sn konuşma → 84+19+3 buffer)
+  // ADIM 8 — Otomatik senaryo düğmesi (modal açmadan) | 106000ms
   setTimeout(() => {
     if (!window._demoMod) return;
     const sen = document.getElementById('senaryoModal');
     if (sen) sen.style.display = 'none';
+    const otomM2 = document.getElementById('otomSenaryoModal');
+    if (otomM2) otomM2.style.display = 'none';
+    showTab('tab-sonuc', document.getElementById('tab-btn-sonuc'));
     window.scrollTo({top:0, behavior:'smooth'});
     setTimeout(() => {
-      if (typeof showOtomSenaryo === 'function') showOtomSenaryo();
       const otomBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('FinSkor Otomatik Senaryo'));
-      if (otomBtn) { otomBtn.scrollIntoView({behavior:'smooth', block:'center'}); _vurgula(otomBtn, 14000); }
-    }, 500);
+      if (otomBtn) {
+        otomBtn.scrollIntoView({behavior:'smooth', block:'center'});
+        _vurgula(otomBtn, 14000);
+      }
+    }, 400);
     _bsoy('FinSkor otomatik senaryo önerisi, notunuzu bir ve iki kademe artırmak için ' +
       'en uygun kombinasyonu hesaplar. Sermaye artışı, kısa vadeden uzun vadeye taşıma ve satış büyümesi ' +
-      'kombinasyonları denenir. Bu öneri PDF raporda da yer alır.');
+      'kombinasyonları denenir. Sonuç sayfasındaki FinSkor Otomatik Senaryo Önerisi düğmesiyle açabilirsiniz. Bu öneri PDF raporda da yer alır.');
   }, 106000);
 
   // ADIM 9 — Kapanış | 123000ms (ADIM 8 ~14sn konuşma → 106+14+3 buffer)
