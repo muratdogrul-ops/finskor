@@ -9206,13 +9206,6 @@ function avStopAudio() {
       var ss = window.speechSynthesis;
       try { ss.pause(); } catch (e1) {}
       try { ss.cancel(); } catch (e2) {}
-      try {
-        requestAnimationFrame(function () {
-          try { ss.cancel(); } catch (e3) {}
-        });
-      } catch (e4) {
-        try { ss.cancel(); } catch (e5) {}
-      }
     }
   } catch (e) {}
 }
