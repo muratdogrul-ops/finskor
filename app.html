@@ -8918,25 +8918,41 @@ function _avBaykusKvUvMetni(str) {
 /** Metin eşlemesi için hafif normalizasyon (PDF / input farkı). */
 function _avNormFirmaStr(s) {
   if (s == null || typeof s !== 'string') return '';
-  let t = s.replace(/\s+/g, ' ').trim();
+  let t = s.replace(/\u00AD/g, '').replace(/\u00A0|\u2009|\u202F|\u3000/g, ' ').replace(/\s+/g, ' ').trim();
   try { t = t.normalize('NFC'); } catch (e) {}
   return t;
 }
 
-/** TTS: unvan sonunu sözlü okuma (LTD ŞTİ → limited şirketi, A.Ş. → anonim şirketi). */
+/** TTS öncesi: dar/boşluk, yüzde işareti varyantları, kaçmış entity metinleri. */
+function _avTtsUnicodeNormalize(str) {
+  if (str == null || typeof str !== 'string') return str;
+  return str
+    .replace(/\u00A0|\u2009|\u202F|\u3000/g, ' ')
+    .replace(/\uFE6A|\uFF05/g, '%')
+    .replace(/&#(?:37|x25);/gi, '%')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** TTS: unvan sonu → limited / anonim; yalnızca ilk iki kelime okunur (uzun ticari unvanlar için). */
 function _avFirmaUnvanSesli(ad) {
   if (ad == null || typeof ad !== 'string') return '';
   let t = _avNormFirmaStr(ad);
   if (!t) return '';
   let tip = '';
-  if (/\b(a\.?\s*ş\.?|a\.s\.?|anonim\s*şirket[iİ]?)\s*$/i.test(t)) {
-    t = t.replace(/\s*(a\.?\s*ş\.?|a\.s\.?|anonim\s*şirket[iİ]?)\s*$/i, '').trim();
+  const asEnd = /\s+(?:a\.?\s*ş\.?|a\.s\.?|aş|anonim\s*şirket[iİ]?)\s*$/i;
+  const ltdEnd = /\s+(?:ltd\.?\s*şti\.?|ltd\.?\s*şti|l\.?\s*ltd\.?\s*şti\.?|limited\s*şirket[iİ]?|ltd\s*şti)\s*$/i;
+  if (asEnd.test(t)) {
+    t = t.replace(asEnd, '').trim();
     tip = ', anonim şirketi';
-  } else if (/\b(ltd\.?\s*şti\.?|ltd\.?\s*şti|l\.?\s*ltd\.?\s*şti\.?|limited\s*şirket[iİ]?|ltd\s*şti)\s*$/i.test(t)) {
-    t = t.replace(/\s*(ltd\.?\s*şti\.?|ltd\.?\s*şti|l\.?\s*ltd\.?\s*şti\.?|limited\s*şirket[iİ]?|ltd\s*şti)\s*$/i, '').trim();
+  } else if (ltdEnd.test(t)) {
+    t = t.replace(ltdEnd, '').trim();
     tip = ', limited şirketi';
   }
-  return (t + tip).trim();
+  const words = t.split(/\s+/).filter(Boolean);
+  const head = words.slice(0, 2).join(' ');
+  if (!head) return '';
+  return (head + tip).trim();
 }
 
 /** TTS: x/y puan ifadelerini doğal Türkçe söyleyişe çevir (örn. 46,6/105). */
@@ -8951,6 +8967,35 @@ function _avSkorVeOranSesli(str) {
   rep(105);
   rep(30);
   rep(75);
+  return o;
+}
+
+/** TTS: yüzde, milyon/milyar/bin TL, max → azami (Türkçe seslerde net). */
+function _avBaykusTtsFinansal(str) {
+  if (str == null || typeof str !== 'string') return str;
+  let o = _avTtsUnicodeNormalize(str);
+  o = o.replace(/\bmax\.\s*/gi, 'azami ')
+    .replace(/\bmax\b(?=\s|$|[.,;:!?])/gi, 'azami');
+  function decSpeech(n) {
+    const s = String(n).replace(/,/g, '.');
+    if (/\./.test(s)) return s.replace('.', ' virgül ');
+    return s;
+  }
+  o = o.replace(/%\s*(\d+(?:[.,]\d+)?)/g, function (_, n) { return 'yüzde ' + decSpeech(n); });
+  o = o.replace(/(\d+(?:[.,]\d+)?)\s*%/g, function (_, n) { return 'yüzde ' + decSpeech(n); });
+  o = o.replace(/(\d+(?:[.,]\d+)?)\s*(?:percent|pct\.?)\b/gi, function (_, n) { return 'yüzde ' + decSpeech(n); });
+  o = o.replace(/(\d+(?:[.,]\d+)?)\s*B\s*(?:TL|₺|TRY)\b/gi, function (_, n) { return decSpeech(n) + ' milyar Türk lirası'; });
+  o = o.replace(/(\d+(?:[.,]\d+)?)\s*M\s*(?:TL|₺|TRY)\b/gi, function (_, n) { return decSpeech(n) + ' milyon Türk lirası'; });
+  o = o.replace(/(\d+(?:[.,]\d+)?)\s*m\s*(?:TL|₺|TRY)\b/g, function (_, n) { return decSpeech(n) + ' milyon Türk lirası'; });
+  o = o.replace(/(\d+(?:[.,]\d+)?)M(?=\s*(?:TL|₺|TRY)\b)/gi, function (_, n) { return decSpeech(n) + ' milyon '; });
+  o = o.replace(/(\d+(?:[.,]\d+)?)B(?=\s*(?:TL|₺|TRY)\b)/gi, function (_, n) { return decSpeech(n) + ' milyar '; });
+  o = o.replace(/(\d+(?:[.,]\d+)?)\s*K\s*(?:TL|₺|TRY)\b/gi, function (_, n) { return decSpeech(n) + ' bin Türk lirası'; });
+  o = o.replace(/(\d+(?:[.,]\d+)?)\s*(?:milyon|mn)\b/gi, function (_, n) { return decSpeech(n) + ' milyon'; });
+  o = o.replace(/(\d+(?:[.,]\d+)?)\s*milyar\b/gi, function (_, n) { return decSpeech(n) + ' milyar'; });
+  o = o.replace(/(\d+(?:[.,]\d+)?)\s*million\b/gi, function (_, n) { return decSpeech(n) + ' milyon'; });
+  o = o.replace(/(\d+(?:[.,]\d+)?)\s*billion\b/gi, function (_, n) { return decSpeech(n) + ' milyar'; });
+  o = o.replace(/\bTL\b(?=\s|$|[.,;:!?])/g, 'Türk lirası');
+  o = o.replace(/₺/g, 'Türk lirası');
   return o;
 }
 
@@ -8970,18 +9015,78 @@ function _avTtsTurkceKolay(str) {
     .replace(/(\d+),(\d+)(?=\s+üzerinden\b)/g, '$1 nokta $2');
 }
 
+/** HTML veya düz metinden TTS öncesi görünür metin çıkarımı (emoji vb. temiz). */
+function _avTtsMetinCikar(html) {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  tmp.querySelectorAll('.av-no-speak').forEach(function (el) { el.remove(); });
+  let text = tmp.textContent || tmp.innerText || '';
+  text = _avTtsUnicodeNormalize(text);
+  return text
+    .replace(/[\u{1F300}-\u{1FAFF}]/gu, ' ')
+    .replace(/[✅⚠️🔶🚫🎯🎉📊📈💰🔄🏦💧📉🏆👇◈◆♦•●⭐①②③]/g, ' ')
+    .replace(/[→←↗↘]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Düz metin üzerinde Baykuş TTS zinciri (KV/UV, finansal, skor, Türkçe, firma). */
+function _avTtsPipelinePlain(text) {
+  if (!text) return '';
+  let t = _avTtsUnicodeNormalize(text);
+  t = _avBaykusKvUvMetni(t);
+  t = _avBaykusTtsFinansal(t);
+  t = _avSkorVeOranSesli(t);
+  t = _avTtsTurkceKolay(t);
+  t = _avMetindeFirmaSesli(t);
+  t = _avBaykusTtsFinansal(t);
+  return (t || '').replace(/\s+/g, ' ').trim();
+}
+
+/** Firma adı için TTS’te denenecek yazım varyantları (eşleşme oranını artırır). */
+function _avFirmaSesVaryantlari(ad) {
+  const base = _avNormFirmaStr(ad);
+  if (!base) return [];
+  const out = [];
+  const add = function (s) {
+    const t = _avNormFirmaStr(s);
+    if (t && out.indexOf(t) < 0) out.push(t);
+  };
+  add(base);
+  add(base.replace(/\./g, ''));
+  add(base.replace(/\s+a\.?\s*ş\.?\s*$/i, ' AŞ'));
+  add(base.replace(/\s+AŞ\s*$/i, ' A.Ş.'));
+  return out.sort(function (x, y) { return y.length - x.length; });
+}
+
 function _avMetindeFirmaSesli(text) {
   if (!text) return text;
   const a = _avNormFirmaStr((document.getElementById('firmaAdi') || {}).value || '');
   const b = _avNormFirmaStr(window._avLastAnalizFirma || '');
+  let c = '';
+  try {
+    if (typeof state !== 'undefined' && state && state.lastResult) {
+      c = _avNormFirmaStr(state.lastResult.firma || state.lastResult.firmaAdi || '');
+    }
+  } catch (e) {}
+  const seen = {};
   const cands = [];
-  if (a) cands.push(a);
-  if (b && b.toLowerCase() !== a.toLowerCase()) cands.push(b);
+  [a, b, c].forEach(function (raw) {
+    if (!raw) return;
+    _avFirmaSesVaryantlari(raw).forEach(function (v) {
+      if (!seen[v.toLowerCase()]) {
+        seen[v.toLowerCase()] = 1;
+        cands.push(v);
+      }
+    });
+  });
   cands.sort(function (x, y) { return y.length - x.length; });
   let out = text;
+  const _canon = [a, b, c].filter(Boolean).sort(function (x, y) { return y.length - x.length; })[0] || '';
+  const sesMaster = _canon ? _avFirmaUnvanSesli(_canon) : '';
   for (let i = 0; i < cands.length; i++) {
     const v = cands[i];
-    const ses = _avFirmaUnvanSesli(v);
+    const ses = sesMaster || _avFirmaUnvanSesli(v);
     if (!ses) continue;
     try {
       const esc = v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -9018,20 +9123,7 @@ function avSesDegistir() {
 
 function avSesOku(html) {
   if (!window.speechSynthesis) return;
-  const tmp = document.createElement('div');
-  tmp.innerHTML = html;
-  tmp.querySelectorAll('.av-no-speak').forEach(function (el) { el.remove(); });
-  let text = tmp.textContent || tmp.innerText || '';
-  text = text
-    .replace(/[\u{1F300}-\u{1FAFF}]/gu, ' ')
-    .replace(/[✅⚠️🔶🚫🎯🎉📊📈💰🔄🏦💧📉🏆👇◈◆♦•●⭐①②③]/g, ' ')
-    .replace(/[→←↗↘]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  text = _avBaykusKvUvMetni(text);
-  text = _avSkorVeOranSesli(text);
-  text = _avTtsTurkceKolay(text);
-  text = _avMetindeFirmaSesli(text);
+  let text = _avTtsPipelinePlain(_avTtsMetinCikar(html));
   if (!text) return;
   avStopAudio();
   window._avSesUtterChain = (window._avSesUtterChain || 0) + 1;
@@ -9046,10 +9138,10 @@ function avSesOku(html) {
   const parts = rawParts.length ? rawParts : [text];
   const pauseMs = 380;
   let idx = 0;
-  let _demoEndTimer = null;
   function scheduleDemoFallback(totalLen) {
-    if (_demoEndTimer) clearTimeout(_demoEndTimer);
-    _demoEndTimer = setTimeout(function () {
+    if (window._avSesDemoFallbackTimer) clearTimeout(window._avSesDemoFallbackTimer);
+    window._avSesDemoFallbackTimer = setTimeout(function () {
+      window._avSesDemoFallbackTimer = null;
       if (window._avSesUtterChain !== chainId) return;
       if (typeof window._demoOnEnd === 'function') window._demoOnEnd();
     }, Math.min(20000, Math.max(6000, totalLen * 400)));
@@ -9057,7 +9149,10 @@ function avSesOku(html) {
   function speakNext() {
     if (window._avSesUtterChain !== chainId) return;
     if (idx >= parts.length) {
-      if (_demoEndTimer) clearTimeout(_demoEndTimer);
+      if (window._avSesDemoFallbackTimer) {
+        clearTimeout(window._avSesDemoFallbackTimer);
+        window._avSesDemoFallbackTimer = null;
+      }
       if (typeof window._demoOnEnd === 'function') window._demoOnEnd();
       return;
     }
@@ -9070,7 +9165,10 @@ function avSesOku(html) {
     utt.onend = function () {
       if (window._avSesUtterChain !== chainId) return;
       if (idx >= parts.length) {
-        if (_demoEndTimer) clearTimeout(_demoEndTimer);
+        if (window._avSesDemoFallbackTimer) {
+          clearTimeout(window._avSesDemoFallbackTimer);
+          window._avSesDemoFallbackTimer = null;
+        }
         if (typeof window._demoOnEnd === 'function') window._demoOnEnd();
         return;
       }
@@ -9081,7 +9179,10 @@ function avSesOku(html) {
     };
     utt.onerror = function () {
       if (window._avSesUtterChain !== chainId) return;
-      if (_demoEndTimer) clearTimeout(_demoEndTimer);
+      if (window._avSesDemoFallbackTimer) {
+        clearTimeout(window._avSesDemoFallbackTimer);
+        window._avSesDemoFallbackTimer = null;
+      }
       if (typeof window._demoOnEnd === 'function') window._demoOnEnd();
     };
     speechSynthesis.speak(utt);
@@ -9097,7 +9198,22 @@ function avStopAudio() {
       clearTimeout(window._avSesPauseTimer);
       window._avSesPauseTimer = null;
     }
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    if (window._avSesDemoFallbackTimer) {
+      clearTimeout(window._avSesDemoFallbackTimer);
+      window._avSesDemoFallbackTimer = null;
+    }
+    if (window.speechSynthesis) {
+      var ss = window.speechSynthesis;
+      try { ss.pause(); } catch (e1) {}
+      try { ss.cancel(); } catch (e2) {}
+      try {
+        requestAnimationFrame(function () {
+          try { ss.cancel(); } catch (e3) {}
+        });
+      } catch (e4) {
+        try { ss.cancel(); } catch (e5) {}
+      }
+    }
   } catch (e) {}
 }
 
@@ -10060,7 +10176,27 @@ function _avSendFeedback(btn, requestId, rating) {
 
 // ── SESLİ KOMUT (Web Speech API) ────────────────────────────
 let _avSR = null;
+let _avMicSilenceTimer = null;
+let _avMicEndHandled = false;
+let _avMicHeardStart = false;
 window._avMicOn = false;
+
+function _avMicClearSilenceTimer() {
+  if (_avMicSilenceTimer) {
+    clearTimeout(_avMicSilenceTimer);
+    _avMicSilenceTimer = null;
+  }
+}
+
+function _avMicScheduleEndAfterSilence() {
+  _avMicClearSilenceTimer();
+  _avMicSilenceTimer = setTimeout(function () {
+    _avMicSilenceTimer = null;
+    if (_avSR && window._avMicOn) {
+      try { _avSR.stop(); } catch (e) {}
+    }
+  }, 3500);
+}
 
 function toggleAvMic() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -10069,38 +10205,79 @@ function toggleAvMic() {
     return;
   }
   if (window._avMicOn) {
-    if (_avSR) _avSR.stop();
+    _avMicClearSilenceTimer();
+    if (_avSR) {
+      try { _avSR.stop(); } catch (e) {}
+    }
     return;
   }
+  _avMicHeardStart = false;
   _avSR = new SR();
   _avSR.lang = 'tr-TR';
-  _avSR.continuous = false;
+  _avSR.continuous = true;
   _avSR.interimResults = true;
+  _avSR.maxAlternatives = 1;
 
   const btn = document.getElementById('avMicBtn');
   const inp = document.getElementById('avatarInput');
 
-  _avSR.onstart = () => {
+  _avSR.onstart = function () {
+    _avMicEndHandled = false;
+    _avMicHeardStart = true;
     window._avMicOn = true;
     if (btn) { btn.textContent = '🔴'; btn.style.background = 'rgba(239,68,68,.25)'; btn.style.color = '#f87171'; }
-    if (inp) inp.placeholder = 'Dinleniyor...';
+    if (inp) {
+      inp.placeholder = 'Dinleniyor… Bitince tekrar 🎤 veya 3 sn susun.';
+      inp.value = '';
+      inp.style.height = 'auto';
+      inp.style.height = Math.min(inp.scrollHeight, 80) + 'px';
+    }
+    _avMicClearSilenceTimer();
   };
-  _avSR.onresult = e => {
-    const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
-    if (inp) { inp.value = transcript; inp.style.height = 'auto'; inp.style.height = Math.min(inp.scrollHeight,80)+'px'; }
-    if (e.results[e.results.length-1].isFinal) {
-      _avSR.stop();
-      setTimeout(() => sendAvatarMsg(), 300);
+  _avSR.onresult = function (e) {
+    _avMicScheduleEndAfterSilence();
+    let line = '';
+    for (let i = 0; i < e.results.length; i++) {
+      line += e.results[i][0].transcript;
+    }
+    if (inp) {
+      inp.value = line.trim();
+      inp.style.height = 'auto';
+      inp.style.height = Math.min(inp.scrollHeight, 80) + 'px';
     }
   };
-  _avSR.onerror = e => {
+  _avSR.onerror = function (e) {
+    _avMicClearSilenceTimer();
+    if (e.error === 'aborted') {
+      _avMicReset();
+      return;
+    }
+    _avMicHeardStart = false;
+    if (e.error === 'no-speech') {
+      _avMicReset();
+      return;
+    }
     _avAddMsg('bot', e.error === 'not-allowed'
       ? '🎤 Mikrofon izni reddedildi. Tarayıcı ayarlarından izin verin.'
       : '🎤 Ses algılanamadı, tekrar deneyin.');
     _avMicReset();
   };
-  _avSR.onend = () => _avMicReset();
-  _avSR.start();
+  _avSR.onend = function () {
+    _avMicClearSilenceTimer();
+    if (_avMicEndHandled) return;
+    _avMicEndHandled = true;
+    const okSession = _avMicHeardStart;
+    const pending = (document.getElementById('avatarInput') || {}).value;
+    _avMicReset();
+    const t = (pending || '').trim();
+    if (okSession && t) setTimeout(function () { sendAvatarMsg(t); }, 200);
+  };
+  try {
+    _avSR.start();
+  } catch (e) {
+    _avMicReset();
+    _avAddMsg('bot', '🎤 Mikrofon başlatılamadı, tekrar deneyin.');
+  }
 }
 
 function _avMicReset() {
@@ -10716,8 +10893,7 @@ function demoBaslat() {
     _avAddMsg('bot', metin);
     window._avSesAcik = _prevSes;
     if (window.speechSynthesis) {
-      const tmp = document.createElement('div'); tmp.innerHTML = metin;
-      const text = tmp.textContent.trim();
+      const text = _avTtsPipelinePlain(_avTtsMetinCikar(metin));
       if (text) {
         speechSynthesis.cancel();
         setTimeout(() => {
@@ -10876,8 +11052,7 @@ function _demoAnalizSunumu() {
   function _bsoy(metin) {
     if (!window._demoMod) return;
     if (window.speechSynthesis) {
-      const tmp = document.createElement('div'); tmp.innerHTML = metin;
-      const text = tmp.textContent.trim();
+      const text = _avTtsPipelinePlain(_avTtsMetinCikar(metin));
       if (text) {
         speechSynthesis.cancel();
         // 300ms bekle: Chrome'da cancel()+speak() zincirlenmesi "echo" stutterına yol açar
