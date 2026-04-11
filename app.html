@@ -8688,6 +8688,26 @@ function _avUiEn() {
   return typeof state !== 'undefined' && state && state.lang === 'en';
 }
 
+/** "Yardımcı olayım mı?" için yazılı yanıt — tam evet/hayır dışı ifadeler (evet yapalım, hayır yapmayalım) */
+function _avYardimMesajiHayirMi(yNorm) {
+  if (/^(hayır|hayir|no)\s*$/i.test(yNorm)) return true;
+  if (/^(hayır|hayir)\b/.test(yNorm) && /yapmay|istem|gerek yok|olmaz|istemiyorum|istemem|teşekkür|tesekkur|sağol|sagol/i.test(yNorm)) return true;
+  if (/^(yapmayalım|yapmayalim|istemiyorum|istemem|gerek yok|olmaz)(\b|[\s!.]|$)/i.test(yNorm)) return true;
+  if (/^(no thanks|don't|dont|nope|let's not|lets not)\b/i.test(yNorm)) return true;
+  return false;
+}
+
+function _avYardimMesajiEvetMi(yNorm) {
+  if (_avYardimMesajiHayirMi(yNorm)) return false;
+  if (/^(evet|yes)\s*$/i.test(yNorm)) return true;
+  if (/^(evet|yes)\b/.test(yNorm) && /yapal|yapala|yapabilir|istiyorum|isterim|olsun|ederiz|edeceğiz|edecegiz|tamam|olur|başlayalım|baslayalim|geçelim|gecelim/i.test(yNorm)) return true;
+  if (/^(tamam|olur|tabii|elbette|tamamdır|tamamdir|peki)(\s*!?\s*)$/i.test(yNorm)) return true;
+  if (/^(tamam|peki|olur)\s+(evet|olur|yapalım|yapalim|başlayalım|baslayalim)/i.test(yNorm)) return true;
+  if (/^olur\s+(yapalım|yapalim|başlayalım|baslayalim)/i.test(yNorm)) return true;
+  if (/^(ok|sure|yeah|yep|yes please|let's do|lets do)\b/i.test(yNorm)) return true;
+  return false;
+}
+
 /** Evet → uygunsa adım adım rehber; Hayır → kısa onay + kısayollar */
 function _avYardimCevap(evet) {
   if (window._demoMod) return;
@@ -10573,13 +10593,18 @@ function sendAvatarMsg(presetText) {
   const qb = document.getElementById('avatarQuickBtns');
   if (qb) qb.innerHTML = '';
 
-  // "Yardımcı olayım mı?" — yazıyla Evet/Hayır (yalnızca son Baykuş mesajında bu soru varken)
+  // "Yardımcı olayım mı?" — yazıyla evet/hayır (kısa veya "evet yapalım" / "hayır yapmayalım" vb.)
   const yNorm = text.toLocaleLowerCase('tr-TR').replace(/\s+/g, ' ').trim();
-  const isYardimYesNo = /^(evet|yes|hayır|hayir|no)\s*$/i.test(yNorm);
-  if (!isYardimYesNo) window._avExpectYardimChoice = false;
-  if (!window._demoMod && !window._avGuideActive && isYardimYesNo && window._avExpectYardimChoice) {
-    _avYardimCevap(/^(evet|yes)\s*$/i.test(yNorm));
-    return;
+  if (!window._demoMod && !window._avGuideActive && window._avExpectYardimChoice) {
+    if (typeof _avYardimMesajiHayirMi === 'function' && _avYardimMesajiHayirMi(yNorm)) {
+      _avYardimCevap(false);
+      return;
+    }
+    if (typeof _avYardimMesajiEvetMi === 'function' && _avYardimMesajiEvetMi(yNorm)) {
+      _avYardimCevap(true);
+      return;
+    }
+    window._avExpectYardimChoice = false;
   }
 
   // Kullanıcı yazıyla adım adım yardım istedi (rehber kapalıyken)
