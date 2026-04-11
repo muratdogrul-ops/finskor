@@ -8672,6 +8672,18 @@ function _avGuideIsAdvanceIntent(t) {
   return false;
 }
 
+/** Kullanıcı adım adım rehberi yazıyla istedi mi? (rehber zaten açıkken değil) */
+function _avUserWantsStepHelp(t) {
+  const s = (t || '').toLocaleLowerCase('tr-TR').replace(/\s+/g, ' ').trim();
+  if (!s) return false;
+  if (/\b(adım\s+adım\s+yardım|adim\s+adim\s+yardim)\b/.test(s)) return true;
+  if (/\b(adım\s+adım\s+rehber|adim\s+adim\s+rehber)\b/.test(s)) return true;
+  if (/\b(yardım\s+adım|yardim\s+adim)\b/.test(s)) return true;
+  if (/^adım\s+adım\s*$/i.test(s) || /^adim\s+adim\s*$/i.test(s)) return true;
+  if (/\b(step\s+by\s+step)\b/i.test(s) && /\b(help|guide)\b/i.test(s)) return true;
+  return false;
+}
+
 function _avGuideComplete() {
   window._avGuideActive = false;
   window._avGuideStep = -1;
@@ -8711,7 +8723,7 @@ function _avGuideStepsArray() {
   const en = typeof state !== 'undefined' && state && state.lang === 'en';
   if (en) {
     return [
-      { html: 'Hello! &#x1F989;<br><br>You can ask me <b>in writing</b> here or tap the <b>microphone</b> button and ask <b>by voice</b>.<br><br><b>Let’s do it together.</b> I’ll guide you step by step. When you finish a step, type or say <b>ready</b>, <b>continue</b>, or <b>next</b> to move on.', openTab: null, elId: null },
+      { html: '<b>Step-by-step help</b> — after each step, type or say <b>ready</b>, <b>continue</b>, or <b>next</b>. Say <b>skip</b> to stop.', openTab: null, elId: null },
       { html: '<b>Step 1 — Analysis year</b><br><br>Pick the <b>analysis year</b> (top right) and make sure you also have the <b>previous year</b> filled in — horizontal comparison needs both.', openTab: 'tab-bilgi', elId: 'refYear' },
       { html: '<b>Step 2 — Period</b><br><br>Choose the <b>period</b> (e.g. full year / quarter). Interim statements are annualised automatically.', openTab: 'tab-bilgi', elId: 'period' },
       { html: '<b>Step 3 — Company type</b><br><br>Set <b>company type</b> (production, trading, contracting). Thresholds for ratios follow this choice.', openTab: 'tab-bilgi', elId: 'firmType' },
@@ -8722,7 +8734,7 @@ function _avGuideStepsArray() {
     ];
   }
   return [
-    { html: 'Merhaba! &#x1F989; Programa hoş geldiniz.<br><br>Sorularınızı <b>buraya yazarak</b> veya alttaki <b>mikrofon</b> düğmesine basıp <b>sesli</b> sorabilirsiniz.<br><br><b>Hadi birlikte yapalım.</b> Adım adım ilerleyeceğiz. Her adımda işleminiz bittiğinde <b>hazır</b>, <b>devam</b> veya <b>sonraki adım</b> yazın ya da söyleyin; bir sonraki adıma geçeriz.', openTab: null, elId: null },
+    { html: '<b>Adım adım yardım</b> — her adımı bitirince <b>hazır</b>, <b>devam</b> veya <b>sonraki adım</b> yazın ya da söyleyin. Vazgeçmek için <b>atla</b> deyin.', openTab: null, elId: null },
     { html: '<b>Adım 1 — Analiz yılı</b><br><br>Sağ üstten <b>analiz yılını</b> seçin. <b>Bir önceki yılın</b> verisinin de girilmiş olması gerekir; yatay analiz iki yılı birlikte kullanır.', openTab: 'tab-bilgi', elId: 'refYear' },
     { html: '<b>Adım 2 — Analiz dönemi</b><br><br>Mali tablonun kapsadığı <b>dönemi</b> seçin (ör. yıl sonu, çeyrek). Ara dönem gelir tablosu otomatik yıllıklaştırılır.', openTab: 'tab-bilgi', elId: 'period' },
     { html: '<b>Adım 3 — Firma tipi</b><br><br><b>Üretim, pazarlama veya taahhüt</b> tipini seçin; oran eşikleri buna göre ayarlanır.', openTab: 'tab-bilgi', elId: 'firmType' },
@@ -8798,9 +8810,13 @@ function obClose() {
   if (typeof unlockPageScroll === 'function') unlockPageScroll();
   window._obShown = true;
   localStorage.setItem('kas_ob_shown','1');
-  // Baykuş: kullanıcı isterse açar; tanıtım bitince zorla açılmaz
   const ab = document.getElementById('avatarBtn');
   if (ab) ab.style.display = 'flex';
+  // Tanıtım bitince Baykuş klasik karşılama ile açılır; adım adım sadece kullanıcı isterse (düğme / «adım adım yardım»)
+  setTimeout(function () {
+    if (window._demoMod) return;
+    showAvatarChat();
+  }, 400);
 }
 
 function obNav(dir) {
@@ -8846,24 +8862,17 @@ function showAvatarChat(skipAutoWelcome) {
   if (b) b.style.animation = 'none';
   if (!skipAutoWelcome && !document.getElementById('avatarMessages').children.length && !window._demoMod) {
     const enUi = typeof state !== 'undefined' && state && state.lang === 'en';
+    let body = enUi
+      ? 'Hello! &#x1F989;<br><br>Use the shortcuts below for a quick tour — start with <b>Analysis year</b> and go in order. You can type questions or use the <b>microphone</b>.'
+      : 'Merhaba! &#x1F989;<br><br>Sistem tanıtımı için aşağıdaki konu başlıklarına <b>Analiz Yılı</b>ndan başlayarak teker teker basıp ilerleyebilirsiniz. Sorularınızı yazabilir veya <b>mikrofon</b>la sorabilirsiniz.';
     if (typeof _avPaidUserGuideEligible === 'function' && _avPaidUserGuideEligible()) {
-      _avAddMsg('bot',
-        (enUi
-          ? 'Hello! &#x1F989;<br><br>I’m here <b>if you want</b> help — shortcuts below, type a question, or use the microphone.<br><br>'
-            + '<button type="button" class="av-qbtn" onclick="_avBaslaAdimRehber()">Step-by-step guide (optional)</button>'
-          : 'Merhaba. &#x1F989;<br><br>Yardıma <b>isterseniz</b> buradayım: kısayollar, yazarak soru veya mikrofon.<br><br>'
-            + '<button type="button" class="av-qbtn" onclick="_avBaslaAdimRehber()">🦉 Adım adım rehber (isteğe bağlı)</button>')
-      );
-      avBuildQuickBtns();
-    } else {
-      _avAddMsg('bot',
-        (enUi
-          ? 'Hello. &#x1F989;<br><br>Use the shortcuts for a quick tour, or start with <b>Analysis year</b>.'
-          : 'Merhaba. &#x1F989;<br><br>'
-            + 'Kısayol düğmeleriyle tanıtımı dinleyebilirsiniz. İsterseniz <b>Analiz Yılı</b> ile başlayıp sırayla ilerleyin.')
-      );
-      avBuildQuickBtns();
+      body += enUi
+        ? '<br><br>If you want <b>step-by-step</b> guidance through the screen, tap the button or type <b>step by step help</b>.'
+        : '<br><br>Adım adım ekranda yönlendirme isterseniz düğmeye basın veya <b>adım adım yardım</b> yazın.';
+      body += '<br><br><button type="button" class="av-qbtn" onclick="_avBaslaAdimRehber()">' + (enUi ? '🦉 Step-by-step help' : '🦉 Adım adım yardım') + '</button>';
     }
+    _avAddMsg('bot', body);
+    avBuildQuickBtns();
   }
 }
 
@@ -10486,6 +10495,13 @@ function sendAvatarMsg(presetText) {
   // Hızlı butonları temizle
   const qb = document.getElementById('avatarQuickBtns');
   if (qb) qb.innerHTML = '';
+
+  // Kullanıcı yazıyla adım adım yardım istedi (rehber kapalıyken)
+  if (!window._demoMod && !window._avGuideActive && typeof _avPaidUserGuideEligible === 'function' && _avPaidUserGuideEligible()
+    && typeof _avUserWantsStepHelp === 'function' && _avUserWantsStepHelp(text)) {
+    setTimeout(function () { _avBaslaAdimRehber(); }, 400);
+    return;
+  }
 
   // Adım adım rehber (demo dışı): hazır/devam → sonraki; atla → kapat; diğer → rehber biter, normal cevap
   if (window._avGuideActive && !window._demoMod) {
