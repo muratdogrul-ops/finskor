@@ -1949,10 +1949,13 @@ function loginSuccess(userData) {
     if (nb) nb.style.display = 'flex';
   }
 
-  // Her girişte onboarding sunumu açılsın
-  window._obShown = false;
-  localStorage.removeItem('kas_ob_shown');
-  setTimeout(obOpen, 600);
+  // Onboarding: yalnız daha önce bitirilmediyse (kas_ob_shown === '1'). Her girişte removeItem+obOpen kullanıcıyı sürekli başa döndürüyordu.
+  if (localStorage.getItem('kas_ob_shown') !== '1') {
+    window._obShown = false;
+    setTimeout(obOpen, 600);
+  } else {
+    window._obShown = true;
+  }
 }
 
 function showKontorBitti() {
