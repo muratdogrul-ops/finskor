@@ -11174,6 +11174,7 @@ function demoBaslat() {
 }
 function _demoAnalizSunumu() {
   if (!window._demoMod) return;
+  window._demoAnalizSunumuBitti = false;
 
   const _senM0 = document.getElementById('senaryoModal');
   if (_senM0) _senM0.style.display = 'none';
@@ -11193,6 +11194,33 @@ function _demoAnalizSunumu() {
     el.style.outline='3px solid #f5a623';
     el.style.boxShadow='0 0 0 8px rgba(245,166,35,.2)';
     setTimeout(() => { el.style.outline=os; el.style.boxShadow=obs; }, sure||3000);
+  }
+
+  function _demoAnSunElGit(el, cb) {
+    let elDiv = document.getElementById('_demoEl');
+    if (!elDiv) {
+      elDiv = document.createElement('div');
+      elDiv.id = '_demoEl';
+      elDiv.style.cssText = 'position:fixed;z-index:100000;pointer-events:none;font-size:28px;transition:all 0.4s cubic-bezier(.4,0,.2,1);display:none;filter:drop-shadow(0 2px 6px rgba(0,0,0,.5));';
+      elDiv.textContent = '\u{1F446}';
+      document.body.appendChild(elDiv);
+    }
+    if (!el) { if (cb) setTimeout(cb, 300); return; }
+    const r = el.getBoundingClientRect();
+    const x = r.left + r.width / 2 - 14;
+    const y = r.top + r.height / 2 - 28;
+    elDiv.style.display = 'block';
+    elDiv.style.left = (x + 30) + 'px';
+    elDiv.style.top = (y - 20) + 'px';
+    setTimeout(() => {
+      elDiv.style.left = x + 'px';
+      elDiv.style.top = y + 'px';
+      if (cb) setTimeout(cb, 500);
+    }, 50);
+  }
+  function _demoAnSunElGizle() {
+    const elDiv = document.getElementById('_demoEl');
+    if (elDiv) elDiv.style.display = 'none';
   }
 
   let _dasSpeakGen = 0;
@@ -11292,18 +11320,32 @@ function _demoAnalizSunumu() {
     }, 500);
     _bsoy('FinSkor otomatik senaryo önerisi, notunuzu bir ve iki kademe artırmak için ' +
       'en uygun kombinasyonu hesaplar. Sermaye artışı, kısa vadeden uzun vadeye taşıma ve satış büyümesi ' +
-      'kombinasyonları denenir. Bu öneri PDF raporda da yer alır.', _demoAnSunStep9);
+      'kombinasyonları denenir. Bu öneri PDF raporda da yer alır.', _demoAnSunStep8b);
   }
 
-  function _demoAnSunStep9() {
+  /** Otomatik senaryo popup kapanır → Satın Al + son anlatım → sunum biter */
+  function _demoAnSunStep8b() {
     if (!window._demoMod) return;
+    const otomModal = document.getElementById('otomSenaryoModal');
+    if (otomModal) otomModal.style.display = 'none';
+    showTab('tab-sonuc', document.getElementById('tab-btn-sonuc'));
     window.scrollTo({top:0, behavior:'smooth'});
-    _bsoy('Bankadan kredi kullanmak isteyen KOBİ ve ticari firmaların en büyük dezavantajı, ' +
-      'bankanın kendilerini nasıl değerlendirdiğini bilmemeleridir. ' +
-      'FinSkor bu bilgiyi firmanın eline verir. ' +
-      'Kredi başvurusundan önce notunuzu öğrenin, zayıf noktaları güçlendirin, ' +
-      'bankaya hazırlıklı gidin. Daha az teminat, daha iyi faiz, daha hızlı onay. ' +
-      'FinSkor, kredide güç dengesi artık sizin tarafınızda.');
+    setTimeout(() => {
+      if (!window._demoMod) return;
+      const satinBtn = document.querySelector('#demoBanner button[onclick="demoSatinAl()"]')
+        || Array.from(document.querySelectorAll('#demoBanner button')).find(b => /Satın\s*Al/i.test((b.textContent || '')));
+      if (satinBtn) {
+        _vurgula(satinBtn, 10000);
+        _demoAnSunElGit(satinBtn, null);
+      }
+      _bsoy('Bankadan kredi kullanmak isteyen KOBİ ve ticari firmaların en büyük dezavantajı, bankanın kendilerini nasıl değerlendirdiğini bilmemeleridir. ' +
+        'FinSkor bu bilgiyi firmanın eline verir. Üst bantta gördüğünüz Satın Al düğmesiyle tam sürüme geçebilirsiniz; ' +
+        'kredi başvurusundan önce notunuzu öğrenin, zayıf noktaları güçlendirin, bankaya hazırlıklı gidin. ' +
+        'Daha az teminat, daha iyi faiz, daha hızlı onay. FinSkor, kredide güç dengesi artık sizin tarafınızda. Demo sunumu burada sona erdi.', function () {
+          _demoAnSunElGizle();
+          window._demoAnalizSunumuBitti = true;
+        });
+    }, 450);
   }
 
   // ADIM 1 — Kredi notu açıklaması | 300ms (DOM hazır, hemen başla)
