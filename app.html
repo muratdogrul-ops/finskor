@@ -8941,8 +8941,10 @@ function _avFirmaUnvanSesli(ad) {
   if (!t) return '';
   t = t.replace(/[.,;:\s]+$/g, '').trim();
   if (!t) return '';
+  /* "Çuhadaroğlu top.ltd şti" / "top. ltd" → ltd öncesi gereksiz noktayı kaldır. */
+  t = t.replace(/\.(?=\s*ltd\b)/gi, ' ').replace(/\s+/g, ' ').trim();
   let tip = '';
-  const ltdEnd = /\s+(?:limited\s+şirket[iİ]?|ltd\.?\s*şti\.?|ltd\.?\s*şti|l\.?\s*ltd\.?\s*şti\.?|ltd\s*şti)\s*$/i;
+  const ltdEnd = /\s+(?:limited\s+şirket[iİ]?|ltd\.?\s*[şs]ti\.?|ltd\.?[şs]ti\.?|ltd\.?\s*[şs]ti|ltd\.?[şs]ti|l\.?\s*ltd\.?\s*[şs]ti\.?|ltd\s*[şs]ti)\s*$/i;
   const asEnd = /\s+(?:anonim\s+şirket[iİ]?|a\.?\s*ş\.?|a\.s\.?|aş)\s*$/i;
   if (ltdEnd.test(t)) {
     t = t.replace(ltdEnd, '').trim();
@@ -8952,7 +8954,9 @@ function _avFirmaUnvanSesli(ad) {
     tip = ' anonim şirketi';
   }
   t = t.replace(/[.,;:\s]+$/g, '').trim();
-  const words = t.split(/\s+/).filter(Boolean);
+  const words = t.split(/\s+/).filter(Boolean).map(function (w) {
+    return w.replace(/^[\.,;:]+|[\.,;:]+$/g, '').trim();
+  }).filter(Boolean);
   const head = words.slice(0, 2).join(' ');
   if (!head) return '';
   return (head + tip).trim();
@@ -9047,6 +9051,7 @@ function _avTtsPipelinePlain(text) {
   t = _avTtsTurkceKolay(t);
   t = _avMetindeFirmaSesli(t);
   t = _avBaykusTtsFinansal(t);
+  t = _avSesAnalizFirmasiOnEk(t);
   return (t || '').replace(/\s+/g, ' ').trim();
 }
 
@@ -9063,11 +9068,13 @@ function _avFirmaSesVaryantlari(ad) {
   add(base.replace(/\./g, ''));
   add(base.replace(/\s+a\.?\s*ş\.?\s*$/i, ' AŞ'));
   add(base.replace(/\s+AŞ\s*$/i, ' A.Ş.'));
+  add(base.replace(/\s+Ltd\.?\s*Şti\.?/gi, ' Ltd. Şti.'));
+  add(base.replace(/\s+Limited\s+Şirketi/gi, ' Limited Şirketi'));
   return out.sort(function (x, y) { return y.length - x.length; });
 }
 
-function _avMetindeFirmaSesli(text) {
-  if (!text) return text;
+/** firmaAdi / son analiz / lastResult — en uzun unvan kanon kabul edilir. */
+function _avFirmaKaynaklari() {
   const a = _avNormFirmaStr((document.getElementById('firmaAdi') || {}).value || '');
   const b = _avNormFirmaStr(window._avLastAnalizFirma || '');
   let c = '';
@@ -9076,31 +9083,60 @@ function _avMetindeFirmaSesli(text) {
       c = _avNormFirmaStr(state.lastResult.firma || state.lastResult.firmaAdi || '');
     }
   } catch (e) {}
+  const canon = [a, b, c].filter(Boolean).sort(function (x, y) { return y.length - x.length; })[0] || '';
+  return { a: a, b: b, c: c, canon: canon };
+}
+
+function _avMetindeFirmaSesli(text) {
+  if (!text) return text;
+  const kk = _avFirmaKaynaklari();
   const seen = {};
   const cands = [];
-  [a, b, c].forEach(function (raw) {
+  [kk.a, kk.b, kk.c].forEach(function (raw) {
     if (!raw) return;
     _avFirmaSesVaryantlari(raw).forEach(function (v) {
-      if (!seen[v.toLowerCase()]) {
-        seen[v.toLowerCase()] = 1;
+      const k = v.toLocaleLowerCase('tr-TR');
+      if (!seen[k]) {
+        seen[k] = 1;
         cands.push(v);
       }
     });
   });
   cands.sort(function (x, y) { return y.length - x.length; });
   let out = text;
-  const _canon = [a, b, c].filter(Boolean).sort(function (x, y) { return y.length - x.length; })[0] || '';
-  const sesMaster = _canon ? _avFirmaUnvanSesli(_canon) : '';
+  const sesMaster = kk.canon ? _avFirmaUnvanSesli(kk.canon) : '';
   for (let i = 0; i < cands.length; i++) {
     const v = cands[i];
     const ses = sesMaster || _avFirmaUnvanSesli(v);
     if (!ses) continue;
     try {
       const esc = v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      out = out.replace(new RegExp(esc, 'gi'), ses);
-    } catch (e) {}
+      out = out.replace(new RegExp(esc, 'giu'), ses);
+    } catch (e) {
+      try {
+        out = out.replace(new RegExp(esc, 'gi'), ses);
+      } catch (e2) {}
+    }
   }
   return out;
+}
+
+/** TTS: metinde kısa okunuş yoksa başa analiz firması + ilk iki kelime + limited/anonim ekler. */
+function _avSesAnalizFirmasiOnEk(text) {
+  if (!text) return text;
+  const canon = _avFirmaKaynaklari().canon;
+  const spoken = _avFirmaUnvanSesli(canon);
+  if (!spoken) return text;
+  const low = text.toLocaleLowerCase('tr-TR');
+  const sp = spoken.toLocaleLowerCase('tr-TR');
+  if (low.indexOf(sp) !== -1) return text;
+  const parts = spoken.split(/\s+/).filter(Boolean);
+  const hw = parts.slice(0, Math.min(2, parts.length)).join(' ');
+  if (hw && low.indexOf(hw.toLocaleLowerCase('tr-TR')) !== -1
+    && (low.indexOf('limited şirketi') !== -1 || low.indexOf('anonim şirketi') !== -1)) {
+    return text;
+  }
+  return 'Analiz firması ' + spoken + '. ' + text;
 }
 
 function _avAddMsg(role, text) {
@@ -9864,22 +9900,28 @@ function _avMatchTextCore(q) {
     && ((s.includes('kredi') && s.includes('not')) || s.includes('puan') || s.includes('rating') || s.includes('skor'));
   if (_avQGradeUp) {
     return '<b>Kredi notunuzu veya toplam puanınızı iyileştirmek</b> için özet yol haritası:<br><br>'
-      + '• <b>Finansal oranlar</b> — Borç/özkaynak, cari ve likidite, kısa vadeli banka borcu/satışlar, kar marjı, banka borcu/aktif gibi göstergeler <b>100 üzerinden 70</b> puana kadar olan finansal bölümü belirler. <b>Senaryo Analizi</b>nde kaydırıcılarla hangi hamlenin kaç puan getirdiğini anında görebilirsiniz.<br>'
+      + '• <b>Finansal oranlar</b> — Borç/özkaynak, cari ve likidite, kısa vadeli banka borcu/satışlar, kar marjı, banka borcu/aktif gibi göstergeler <b>100 üzerinden 75</b> puana kadar olan finansal bölümü belirler. <b>Senaryo Analizi</b>nde kaydırıcılarla hangi hamlenin kaç puan getirdiğini anında görebilirsiniz.<br>'
       + '• <b>Subjektif faktörler</b> — En alttaki <b>Subjektif Faktörler</b> en fazla <b>30 puan</b> taşır; doldurulmazsa otomatik <b>20,60 puan (30 üzerinden)</b> kullanılır. Notu yükseltmek için burayı gerçekçi doldurmak önemlidir.<br>'
       + '• <b>Veri ve ayarlar</b> — Doğru bilanço/gelir tablosu, analiz yılı ve önceki yıl, firma tipi ve ÜFE girişi; eksik veya hatalı veri notu aşağı çeker.<br><br>'
       + '<span style="color:#94a3b8">Genel bilgilendirme; banka kararı veya yatırım tavsiyesi değildir.</span>';
   }
 
-  const _avQFinYapi = (s.includes('finansal') && (s.includes('yapı') || s.includes('yapi')))
-    && (s.includes('anlat') || s.includes('açıkla') || s.includes('acikla') || s.includes('nedir') || s.includes('ne demek')
-      || s.includes('tanım') || s.includes('tanim') || s.includes('örnek') || s.includes('ornek') || s.includes('açıkl'));
+  const _avFinYapiKök = s.includes('yapı') || s.includes('yapi') || s.includes('yapım') || s.includes('yapim');
+  const _avFinYapiSadeceBilgi = s.includes('bilgi') || s.includes('hakkında') || s.includes('hakkinda') || s.includes('anlat')
+    || s.includes('açıkla') || s.includes('acikla') || s.includes('nedir') || s.includes('ne demek')
+    || s.includes('tanım') || s.includes('tanim') || s.includes('örnek') || s.includes('ornek') || s.includes('açıkl')
+    || s.includes('istiyorum') || s.includes('söyle') || s.includes('soyle') || s.includes('anlatsana');
+  const _avFinYapiIyilestirme = s.includes('iyileş') || s.includes('iyiles') || s.includes('güçlen') || s.includes('guclen')
+    || s.includes('düzel') || s.includes('duzel') || s.includes('ne yapmam') || s.includes('ne yapmalı') || s.includes('ne yapmaliyim');
+  const _avQFinYapi = s.includes('finansal') && _avFinYapiKök && _avFinYapiSadeceBilgi && !_avFinYapiIyilestirme;
   if (_avQFinYapi) {
     return '<b>Finansal yapı</b>, firmanızın kaynaklarının (öz kaynak ile kısa/uzun vadeli borçların) <b>dağılımını</b> ve bunların işletme ile uyumunu ifade eder. Kısaca dört başlıkta düşünülür:<br><br>'
       + '• <b>Kaynak dengesi</b> — Özkaynak gücü ile toplam borcun oranı (ör. borç/özkaynak).<br>'
       + '• <b>Likidite</b> — Kısa vadeli borçları karşılama gücü; cari oran ve likidite ölçüleri.<br>'
       + '• <b>Karlılık</b> — Satıştan kalan kar (brüt, faaliyet ve net kar marjı).<br>'
       + '• <b>Borç yükü</b> — Özellikle kısa vadeli banka borcunun satış ve varlıklara göre büyüklüğü.<br><br>'
-      + '<span style="color:#94a3b8">Bu uygulamadaki oranlar ve kredi notu bu yapının özetidir; ayrıntı tablolarda, “ne olursa” senaryoları için <b>Senaryo Analizi</b>nde denenebilir.</span>';
+      + 'FinSkor’da bu başlıklar <b>oran tabloları</b> ve <b>105 puanlık</b> skorda (finansal taraf kabaca <b>75</b>, subjektif <b>30</b> puan) özetlenir; henüz analiz yapmadıysanız önce verileri yükleyip <b>Analiz Et</b> ile notunuzu oluşturun.<br><br>'
+      + '<span style="color:#94a3b8">Ayrıntılı “ne olursa” senaryoları için <b>Senaryo Analizi</b> kaydırıcılarını kullanabilirsiniz.</span>';
   }
 
   if ((s.includes('banka') && s.includes('kredi') && (s.includes('al') || s.includes('onay') || s.includes('verir'))) || s.includes('kredi alabilir') || s.includes('kredi çıkar')) {
@@ -9887,7 +9929,7 @@ function _avMatchTextCore(q) {
   }
 
   if ((s.includes('105') || s.includes('toplam skor') || s.includes('toplam puan')) && (s.includes('nedir') || s.includes('nasıl') || s.includes('nasil') || s.includes('oluş') || s.includes('olusan') || s.includes('parça'))) {
-    return 'Toplam skor en fazla <b>105</b>: finansal oranlar <b>100 üzerinden 70</b> puana kadar, subjektif faktörler <b>30</b> puana kadar katkı verir (yaklaşık ağırlık: finansal taraf <b>%75</b>, subjektif <b>%30</b>). Harf notu eşikleri özetle: <b>AAA</b> 93+, <b>AA/A</b> 76–93, <b>BBB</b> 60–76, <b>BB/B</b> 45–60, <b>CCC</b> altı çok yüksek risk bandıdır.';
+    return 'Toplam skor en fazla <b>105</b>: finansal oranlar <b>100 üzerinden 75</b> puana kadar, subjektif faktörler <b>30</b> puana kadar katkı verir (yaklaşık ağırlık: finansal taraf <b>%75</b>, subjektif <b>%30</b>). Harf notu eşikleri özetle: <b>AAA</b> 93+, <b>AA/A</b> 76–93, <b>BBB</b> 60–76, <b>BB/B</b> 45–60, <b>CCC</b> altı çok yüksek risk bandıdır.';
   }
 
   // ── Sık sorulan (dar eşleşme) — geniş "borç" satırından önce ──
@@ -9984,7 +10026,7 @@ function _avMatchTextCore(q) {
   if (s.includes('borç') || s.includes('kaldiraç') || s.includes('leverage')) return 'Borç/Özkaynak oranı finansal kaldıracı gösterir. '
     +'2 altı genellikle tercih edilir; sektöre göre değerlendirin.';
   if ((s.includes('kredi') && s.includes('not') || s.includes('rating')) && (s.includes('hesaplan') || s.includes('ağırlık') || s.includes('agirlik') || s.includes('formül') || s.includes('formul') || (s.includes('nedir') && !s.includes('anlat')))) {
-    return 'Skor <b>105</b> üzerinden hesaplanır: finansal oranlar <b>100 üzerinden 70</b> puana kadar, subjektif faktörler <b>30</b> puana kadar (yaklaşık ağırlık: finansal <b>%75</b>, subjektif <b>%30</b>). Harf notu özet eşikleri: <b>AAA</b> 93+, <b>AA/A</b> 76–93, <b>BBB</b> 60–76, <b>BB/B</b> 45–60, <b>CCC</b> altı çok yüksek risk bandıdır.';
+    return 'Skor <b>105</b> üzerinden hesaplanır: finansal oranlar <b>100 üzerinden 75</b> puana kadar, subjektif faktörler <b>30</b> puana kadar (yaklaşık ağırlık: finansal <b>%75</b>, subjektif <b>%30</b>). Harf notu özet eşikleri: <b>AAA</b> 93+, <b>AA/A</b> 76–93, <b>BBB</b> 60–76, <b>BB/B</b> 45–60, <b>CCC</b> altı çok yüksek risk bandıdır.';
   }
   const _avNotGradeUpIntent = !s.includes('yükselt') && !s.includes('yukselt') && !s.includes('yüksel') && !s.includes('yuksel')
     && !s.includes('artır') && !s.includes('artir') && !s.includes('iyileş') && !s.includes('iyiles')
