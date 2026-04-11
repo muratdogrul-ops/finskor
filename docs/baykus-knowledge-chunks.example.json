@@ -1,0 +1,12 @@
+{
+  "version": "1.0.1",
+  "description": "Örnek yapı — üretimde metinler hukuk/ürün onayından geçmeli. Şimdilik: demo ile ilgili chunk yok; L2 (Findeks nakdi/gayrinakdi, 131) yok.",
+  "chunks": [
+    {
+      "id": "l1-urun-genel",
+      "layer": "L1",
+      "topics": ["finskor", "analiz", "senaryo"],
+      "text_tr": "FinSkor, mali tablolara dayalı finansal skor ve kredi notu bandı tahmini sunar. Analiz sonrası Senaryo bölümünde sermaye artışı, borç vadesi yapısı, satış büyümesi ve kar marjı gibi parametrelerle nota etkisi simüle edilebilir. Sonuçlar genel bilgilendirme amaçlıdır; banka veya resmi kurum kararı yerine geçmez."
+    }
+  ]
+}

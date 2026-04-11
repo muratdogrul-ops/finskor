@@ -50,6 +50,10 @@
 [functions."avatar-feedback"]
   timeout = 15
 
+# Baykuş bilgi bankası — FINSKOR_AVATAR_KB=1 + baykus_faq_entries (Supabase)
+[functions."avatar-kb"]
+  timeout = 12
+
 [[headers]]
   for = "/*"
   [headers.values]

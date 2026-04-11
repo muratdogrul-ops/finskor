@@ -270,14 +270,6 @@ tbody td { padding:8px 13px; color:var(--text); }
 .tab-bar{display:flex;gap:4px;background:var(--surface2);border-radius:10px;padding:4px;margin-bottom:20px;}
 .tab{padding:8px 18px;border-radius:7px;border:none;background:transparent;color:var(--text-muted);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;cursor:pointer;transition:all 0.2s;}
 .tab.active{background:var(--surface);color:var(--gold);box-shadow:0 1px 4px rgba(0,0,0,0.3);}
-/* Findeks — en sonda; yeşil + nabız (CSS filter/brightness kullanılmaz; opacity + gölge) */
-.tab-findeks-pulse{color:#4ade80 !important;font-weight:700;border:1px solid rgba(34,197,94,0.4);background:rgba(22,163,74,0.14);animation:findeksPulseTab 2s ease-in-out infinite;will-change:box-shadow;transform:translateZ(0);}
-.tab-findeks-pulse:hover{color:#86efac !important;background:rgba(22,163,74,0.22);}
-.tab-findeks-pulse.active{color:#ecfdf5 !important;background:linear-gradient(135deg,rgba(22,163,74,0.6),rgba(21,128,61,0.45)) !important;border-color:rgba(34,197,94,0.65);animation:findeksPulseTab 2s ease-in-out infinite;}
-@keyframes findeksPulseTab{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,197,94,0.15);}50%{opacity:0.9;box-shadow:0 0 12px rgba(34,197,94,0.4);}}
-@media (prefers-reduced-motion: reduce){
-  .tab-findeks-pulse{animation:none !important;}
-}
 /* ── SUBJEKTİF */
 .subj-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 .subj-section{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;}
@@ -456,7 +448,7 @@ tbody td { padding:8px 13px; color:var(--text); }
   </div>
 </header>
 
-<!-- Lokal önizleme (sağ): yalnız localhost / file / ?findeks=1 / ?avatar_ai=1 — canlıda gizli -->
+<!-- Lokal önizleme (sağ): yalnız localhost / file / ?avatar_ai=1 — canlıda gizli -->
 <div id="localDevStrip" style="display:none;position:fixed;right:10px;top:50%;transform:translateY(-50%);z-index:9996;max-width:min(248px,calc(100vw - 20px));padding:10px 12px;background:rgba(15,23,42,.96);border:1px solid rgba(99,102,241,.45);border-radius:12px;font-size:10px;color:#94a3b8;line-height:1.45;box-shadow:0 10px 40px rgba(0,0,0,.45)">
   <div style="font-weight:700;color:#a5b4fc;margin-bottom:6px;font-size:11px">Lokal program adresi</div>
   <div id="localDevStripUrl" style="word-break:break-all;font-family:'DM Mono',monospace;font-size:9px;color:#e2e8f0;margin-bottom:8px"></div>
@@ -472,7 +464,6 @@ tbody td { padding:8px 13px; color:var(--text); }
     <button class="tab active" id="tab-btn-bilgi"  onclick="showTab('tab-bilgi',this)">📋 Firma & Mali Veriler</button>
     <button class="tab"        id="tab-btn-subj"   onclick="showTab('tab-subj',this)">🎯 Subjektif Faktörler</button>
     <button class="tab"        id="tab-btn-sonuc"  onclick="showTab('tab-sonuc',this)">📈 Analiz Sonucu</button>
-    <button class="tab tab-findeks-pulse" id="tab-btn-findeks" style="display:none" onclick="showTab('tab-findeks',this)">📄 Findeks</button>
   </div>
 
   <!-- TAB 1: MALİ VERİLER -->
@@ -625,36 +616,6 @@ tbody td { padding:8px 13px; color:var(--text); }
   <div style="display:flex;justify-content:flex-end;margin-top:16px">
     <button class="analyze-btn" style="padding:12px 28px;font-size:15px;letter-spacing:2px" onclick="showTab('tab-subj',document.getElementById('tab-btn-subj'))">Subjektif Faktörlere Geç →</button>
   </div>
-  </div>
-
-  <!-- TAB: FİNDEKS (yerel / ?findeks=1 — KV·UV bağlantısı sonraki adım) -->
-  <div id="tab-findeks" style="display:none">
-    <div class="card" style="margin-bottom:14px">
-      <div class="card-title" id="findeksCardTitle">📄 Findeks risk raporu</div>
-      <p id="findeksCardDesc" style="font-size:13px;color:var(--text-muted);line-height:1.7;margin:0 0 14px">
-        Risk Merkezi Findeks çıktısı <strong style="color:var(--gold)">yalnızca PDF</strong> formatında yüklenir; Excel desteklenmez.
-        KV / UV banka borcu projeksiyonu bu akışa bağlanacaktır.
-      </p>
-      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:4px">
-        <label class="upload-btn" for="findeksPdfInput" style="display:inline-block;cursor:pointer;margin:0">📎 Findeks PDF seç</label>
-        <button type="button" id="findeksRemoveBtn" onclick="clearFindeksPdf()" disabled title="Önce PDF seçin"
-          style="padding:8px 14px;border-radius:8px;border:1px solid rgba(240,62,62,0.45);background:rgba(240,62,62,0.12);color:#f87171;font-size:12px;font-weight:600;cursor:not-allowed;font-family:inherit;opacity:0.45">🗑 Raporu kaldır</button>
-      </div>
-      <input type="file" id="findeksPdfInput" accept=".pdf,application/pdf" style="display:none" onchange="handleFindeksPdfInput(event)">
-      <div id="findeksFileInfo" class="file-info" style="margin-top:10px"></div>
-    </div>
-    <div class="card" style="margin-bottom:14px;border:1px solid rgba(245,166,35,0.22);background:rgba(245,166,35,0.05)">
-      <div class="card-title" id="findeksMethodologyTitle">Findeks → analiz uyumluluğu</div>
-      <div id="findeksMethodologyBody" style="font-size:12px;color:var(--text-muted);line-height:1.75;margin:0">
-        <ul style="margin:0;padding-left:1.15rem;list-style-type:disc">
-          <li style="margin-bottom:8px"><strong style="color:var(--text-dim)">Nakdi referans:</strong> Toplam nakdi tutarlar için rapordaki <strong style="color:var(--gold)">vade bazlı</strong> tabloda, elinizdeki bilançonun dönem ayı ile hizalı satır (ör. 31.12.2025 analizi → <strong>12/2025</strong>) referans alınır.</li>
-          <li style="margin-bottom:8px"><strong style="color:var(--text-dim)">Kredi türü kırılımı:</strong> PDF’te her vade satırında tür ayrımı bulunmayabilir. Bu durumda rapor tarihli <strong>«Kredi Türü Bazında»</strong> özetindeki paylar, KV/UV dağıtımında <strong>oransal</strong> uyarlama için kullanılabilir. Kesin sınıflandırma için orijinal raporu kontrol edin.</li>
-          <li style="margin-bottom:8px"><strong style="color:var(--text-dim)">Gayrinakdi:</strong> Gayrinakdi kalemler analizde ve KV/UV mali borç düzeltmesinde <strong>yok sayılır</strong>; içe aktarımda yalnızca <strong>nakdi</strong> tutarlar kullanılır.</li>
-          <li><strong style="color:var(--text-dim)">Kart riski:</strong> Kredi kartı / iş kartı limit riski <strong>mali borç</strong> kapsamında değerlendirilir (tipik sınıflandırma <strong>KV</strong>).</li>
-        </ul>
-        <p style="margin:12px 0 0;font-size:11px;color:var(--text-dim);font-style:italic">Bu metin metodoloji özetidir; FinSkor hesapları resmi Findeks çıktısı ve mizanınızla birlikte yorumlanmalıdır.</p>
-      </div>
-    </div>
   </div>
 
   <!-- TAB 2: SUBJEKTİF FAKTÖRLER -->
@@ -1027,7 +988,7 @@ tbody td { padding:8px 13px; color:var(--text); }
 // TAB YÖNETİMİ
 // ══════════════════════════════════════════
 function showTab(tabId, btn) {
-  ['tab-bilgi','tab-findeks','tab-subj','tab-sonuc'].forEach(id => {
+  ['tab-bilgi','tab-subj','tab-sonuc'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
@@ -1043,22 +1004,11 @@ function showTab(tabId, btn) {
   }
   if (btn) btn.classList.add('active');
   else {
-    const map = {'tab-bilgi':'tab-btn-bilgi','tab-findeks':'tab-btn-findeks','tab-subj':'tab-btn-subj','tab-sonuc':'tab-btn-sonuc'};
+    const map = {'tab-bilgi':'tab-btn-bilgi','tab-subj':'tab-btn-subj','tab-sonuc':'tab-btn-sonuc'};
     const b = document.getElementById(map[tabId]);
     if (b) b.classList.add('active');
   }
   if (typeof unlockPageScroll === 'function') unlockPageScroll();
-}
-
-/** Findeks sekmesi: localhost / 127.0.0.1 / file: veya ?findeks=1 (canlıda gizli test) */
-function findeksUiEnabled() {
-  try {
-    if (new URLSearchParams(location.search).get('findeks') === '1') return true;
-    const h = (location.hostname || '').toLowerCase();
-    if (h === 'localhost' || h === '127.0.0.1' || h === '[::1]') return true;
-    if (!h && location.protocol === 'file:') return true;
-    return false;
-  } catch (e) { return false; }
 }
 
 /** Baykuş: geliştirme ortamı (modalda ek ipucu) — lokal / file / ?avatar_ai=1 */
@@ -1081,10 +1031,10 @@ function updateAvatarAiLabUi() {
   el.style.display = 'none';
 }
 
-/** Sağ şerit: yalnız lokal / deneme parametreleri (findeksUiEnabled || avatarAiLabEnabled) */
+/** Sağ şerit: yalnız lokal / deneme parametreleri (?avatar_ai=1 veya localhost/file) */
 function localDevStripEnabled() {
   try {
-    return findeksUiEnabled() || avatarAiLabEnabled();
+    return avatarAiLabEnabled();
   } catch (e) {
     return false;
   }
@@ -1094,15 +1044,15 @@ function localDevSuggestAppUrl() {
   try {
     if (location.protocol === 'file:') {
       const base = (location.href || '').split('#')[0].split('?')[0];
-      return base + (base.indexOf('?') >= 0 ? '&' : '?') + 'findeks=1&avatar_ai=1';
+      return base + (base.indexOf('?') >= 0 ? '&' : '?') + 'avatar_ai=1';
     }
     const o = location.origin || '';
     const p = location.pathname || '';
     const withoutFile = p.replace(/\/[^/]+\.html?$/i, '');
     const basePath = withoutFile === '/' || withoutFile === '' ? '' : withoutFile.replace(/\/$/, '');
-    return o + basePath + '/app.html?findeks=1&avatar_ai=1';
+    return o + basePath + '/app.html?avatar_ai=1';
   } catch (e) {
-    return (location.origin || '') + '/app.html?findeks=1&avatar_ai=1';
+    return (location.origin || '') + '/app.html?avatar_ai=1';
   }
 }
 
@@ -1145,18 +1095,6 @@ function localDevCopyUrl() {
   }
 }
 
-function initFindeksTabVisibility() {
-  const on = findeksUiEnabled();
-  const btn = document.getElementById('tab-btn-findeks');
-  if (btn) btn.style.display = on ? '' : 'none';
-  if (!on) {
-    const panel = document.getElementById('tab-findeks');
-    if (panel && panel.style.display === 'block') {
-      showTab('tab-bilgi', document.getElementById('tab-btn-bilgi'));
-    }
-  }
-}
-
 /** Modal / body overflow kilitleri — removeProperty ile tam sıfırla; giriş ekranı app’i örtmeye devam etmesin */
 function unlockPageScroll() {
   try {
@@ -1193,58 +1131,6 @@ function closeOpenOverlaysForScroll() {
       closeKayitliModal();
     }
   } catch (e) {}
-}
-
-function findeksUpdateRemoveButton() {
-  const btn = document.getElementById('findeksRemoveBtn');
-  if (!btn) return;
-  const has = !!state.findeksPdf;
-  const en = typeof state !== 'undefined' && state && state.lang === 'en';
-  btn.disabled = !has;
-  btn.style.opacity = has ? '1' : '0.45';
-  btn.style.cursor = has ? 'pointer' : 'not-allowed';
-  btn.title = has
-    ? (en ? 'Remove uploaded Findeks PDF' : 'Yüklenen Findeks PDF’ini kaldır')
-    : (en ? 'Select a PDF first' : 'Önce PDF seçin');
-}
-
-function clearFindeksPdf() {
-  state.findeksPdf = null;
-  const inp = document.getElementById('findeksPdfInput');
-  if (inp) inp.value = '';
-  const info = document.getElementById('findeksFileInfo');
-  if (info) { info.textContent = ''; info.className = 'file-info'; }
-  findeksUpdateRemoveButton();
-  closeOpenOverlaysForScroll();
-  unlockPageScroll();
-  if (typeof showToast === 'function') showToast('Findeks raporu kaldırıldı.', false);
-}
-
-function handleFindeksPdfInput(ev) {
-  const inp = ev && ev.target;
-  const f = inp && inp.files && inp.files[0];
-  if (!f) return;
-  const ok = f.type === 'application/pdf' || /\.pdf$/i.test(f.name || '');
-  if (!ok) {
-    if (typeof showToast === 'function') showToast('Findeks raporu yalnızca PDF olabilir (Excel desteklenmez).', true);
-    inp.value = '';
-    state.findeksPdf = null;
-    const info = document.getElementById('findeksFileInfo');
-    if (info) { info.textContent = ''; info.className = 'file-info'; }
-    findeksUpdateRemoveButton();
-    return;
-  }
-  // Dosya seçim diyaloğu kapandıktan sonra UI güncelle (bazı tarayıcılarda ana iş parçacığı nefes alır)
-  requestAnimationFrame(function () {
-    state.findeksPdf = { name: f.name, file: f };
-    const info = document.getElementById('findeksFileInfo');
-    if (info) {
-      info.textContent = '✓ ' + f.name;
-      info.className = 'file-info visible';
-    }
-    findeksUpdateRemoveButton();
-    unlockPageScroll();
-  });
 }
 
 // ══════════════════════════════════════════
@@ -2044,10 +1930,8 @@ function loginSuccess(userData) {
   }
 
   init(); // Önce sync init — kendi default yıllarıyla tabloyu kur
-  initFindeksTabVisibility();
   updateAvatarAiLabUi();
   updateLocalDevStrip();
-  if (typeof findeksUpdateRemoveButton === 'function') findeksUpdateRemoveButton();
 
   // init() bittikten SONRA admin ayarlarını uygula (race condition önlenir)
   loadUfeFromSupabase();
@@ -2339,34 +2223,11 @@ function applyLang() {
   if (tbSubj) tbSubj.innerHTML = en ? '🎯 Subjective Factors' : '🎯 Subjektif Faktörler';
   const tbSonuc = document.getElementById('tab-btn-sonuc');
   if (tbSonuc) tbSonuc.innerHTML = en ? '📈 Analysis Result' : '📈 Analiz Sonucu';
-  const tbFindeks = document.getElementById('tab-btn-findeks');
-  if (tbFindeks) tbFindeks.innerHTML = en ? '📄 Findeks' : '📄 Findeks';
 
   // ── Config kartları ──
   const setTitle = (sel, tr, en2) => { const e=document.querySelector(sel); if(e) e.textContent=en?en2:tr; };
   const setHTML  = (sel, tr, en2) => { const e=document.querySelector(sel); if(e) e.innerHTML=en?en2:tr; };
   const setInner = (id, tr, en2)  => { const e=document.getElementById(id); if(e) e.innerHTML=en?en2:tr; };
-
-  setInner('findeksCardTitle', '📄 Findeks risk raporu', '📄 Findeks risk report');
-  setInner('findeksCardDesc', 'Risk Merkezi Findeks çıktısı <strong style="color:var(--gold)">yalnızca PDF</strong> formatında yüklenir; Excel desteklenmez. KV / UV banka borcu projeksiyonu bu akışa bağlanacaktır.',
-    'Findeks output is <strong style="color:var(--gold)">PDF only</strong> (Excel is not supported). KV / UV bank debt projection will plug in here.');
-  setInner('findeksMethodologyTitle', 'Findeks → analiz uyumluluğu', 'Findeks → analysis alignment');
-  setInner('findeksMethodologyBody',
-    '<ul style="margin:0;padding-left:1.15rem;list-style-type:disc">' +
-    '<li style="margin-bottom:8px"><strong style="color:var(--text-dim)">Nakdi referans:</strong> Toplam nakdi tutarlar için rapordaki <strong style="color:var(--gold)">vade bazlı</strong> tabloda, elinizdeki bilançonun dönem ayı ile hizalı satır (ör. 31.12.2025 analizi → <strong>12/2025</strong>) referans alınır.</li>' +
-    '<li style="margin-bottom:8px"><strong style="color:var(--text-dim)">Kredi türü kırılımı:</strong> PDF’te her vade satırında tür ayrımı bulunmayabilir. Bu durumda rapor tarihli <strong>«Kredi Türü Bazında»</strong> özetindeki paylar, KV/UV dağıtımında <strong>oransal</strong> uyarlama için kullanılabilir. Kesin sınıflandırma için orijinal raporu kontrol edin.</li>' +
-    '<li style="margin-bottom:8px"><strong style="color:var(--text-dim)">Gayrinakdi:</strong> Gayrinakdi kalemler analizde ve KV/UV mali borç düzeltmesinde <strong>yok sayılır</strong>; içe aktarımda yalnızca <strong>nakdi</strong> tutarlar kullanılır.</li>' +
-    '<li><strong style="color:var(--text-dim)">Kart riski:</strong> Kredi kartı / iş kartı limit riski <strong>mali borç</strong> kapsamında değerlendirilir (tipik sınıflandırma <strong>KV</strong>).</li></ul>' +
-    '<p style="margin:12px 0 0;font-size:11px;color:var(--text-dim);font-style:italic">Bu metin metodoloji özetidir; FinSkor hesapları resmi Findeks çıktısı ve mizanınızla birlikte yorumlanmalıdır.</p>',
-    '<ul style="margin:0;padding-left:1.15rem;list-style-type:disc">' +
-    '<li style="margin-bottom:8px"><strong style="color:var(--text-dim)">Cash reference:</strong> For <strong style="color:var(--gold)">total cash (nakdi)</strong> amounts, the row in the maturity-based table that matches your balance-sheet period month is used (e.g. analysis as of 31 Dec 2025 → <strong>12/2025</strong>).</li>' +
-    '<li style="margin-bottom:8px"><strong style="color:var(--text-dim)">Credit-type split:</strong> The PDF may not show a type breakdown on every maturity row. The report-dated <strong>“By credit type”</strong> summary shares may then be applied <strong>proportionally</strong> for KV/UV mapping. Confirm final classification against the original report.</li>' +
-    '<li style="margin-bottom:8px"><strong style="color:var(--text-dim)">Non-cash:</strong> Non-cash lines are <strong>excluded</strong> from analysis and KV/UV debt adjustment; imports use <strong>cash</strong> lines only.</li>' +
-    '<li><strong style="color:var(--text-dim)">Card exposure:</strong> Credit- and business-card limit risk is treated as <strong>financial debt</strong> (typically <strong>short-term / KV</strong>).</li></ul>' +
-    '<p style="margin:12px 0 0;font-size:11px;color:var(--text-dim);font-style:italic">This is a methodology summary; interpret FinSkor together with the official Findeks output and your trial balance.</p>');
-  const frb = document.getElementById('findeksRemoveBtn');
-  if (frb) frb.textContent = en ? '🗑 Remove report' : '🗑 Raporu kaldır';
-  if (typeof findeksUpdateRemoveButton === 'function') findeksUpdateRemoveButton();
 
   // Bilanço dönemi kartı
   setTitle('.card-title:nth-of-type(1)', '📅 BİLANÇO DÖNEMİ', '📅 BALANCE SHEET PERIOD');
@@ -2570,8 +2431,7 @@ const state = {
   yearData: { 2022:{}, 2023:{}, 2024:{}, 2025:{}, 2026:{} },
   activeYears: [2022,2023,2024,2025,2026],
   lang: 'tr',
-  lastResult: null,
-  findeksPdf: null
+  lastResult: null
 };
 
 const HESAPLAR = [
@@ -10019,7 +9879,11 @@ function _avMatchTextCore(q) {
     || s.includes('nasıl görün') || s.includes('nasil gorun');
   const _avFinYapiIyilestirme = s.includes('iyileş') || s.includes('iyiles') || s.includes('güçlen') || s.includes('guclen')
     || s.includes('düzel') || s.includes('duzel') || s.includes('ne yapmam') || s.includes('ne yapmalı') || s.includes('ne yapmaliyim');
-  const _avQFinYapi = s.includes('finansal') && _avFinYapiKök && _avFinYapiSoru && !_avFinYapiIyilestirme;
+  // "yapı" olmadan "finansal yorum / değerlendir / görüş" (örn. "yapar mısın") — önceden yalnız LLM dolduruyordu
+  const _avFinYapiYorumTetik = s.includes('yorum') || s.includes('değerlendir') || s.includes('degerlendir')
+    || s.includes('görüş') || s.includes('gorus');
+  const _avQFinYapi = s.includes('finansal') && _avFinYapiSoru && !_avFinYapiIyilestirme
+    && (_avFinYapiKök || _avFinYapiYorumTetik);
   if (_avQFinYapi) {
     if (window._lastR) {
       return _avFinYapiOranYorumHtml();
@@ -10042,11 +9906,6 @@ function _avMatchTextCore(q) {
   }
 
   // ── Sık sorulan (dar eşleşme) — geniş "borç" satırından önce ──
-  if (s.includes('findeks') || (s.includes('risk') && s.includes('merkezi') && (s.includes('rapor') || s.includes('pdf')))) {
-    return '📄 <b>Findeks (Risk Merkezi)</b> çıktısı bu uygulamada <b>yalnızca PDF</b> olarak yüklenir; Excel desteklenmez.<br><br>'
-      + 'Yükleme alanı <b>Findeks</b> sekmesindedir (ortamda açıksa). Rapor içeriğinden <b>nakdi</b> kalemler analizde kullanılır; <b>gayrinakdi</b> riskler bu özet analizde yer almaz. Kredi türü kırılımı satır satır yoksa, rapor tarihli özetten <b>oransal</b> uyarlama yapılabilir — ayrıntılar sekmedeki metodoloji notunda.<br><br>'
-      + '<span style="color:#94a3b8">Findeks ile kısa ve uzun vadeli banka borcunun hizalanması ürün yol haritasında; yüklü raporda analiz ekranı bu kurallara göre güncellenir.</span>';
-  }
   if (s.includes('teminat') && (s.includes('nedir') || s.includes('ne demek') || s.includes('anlam') || s.includes('göster') || s.includes('goster') || s.includes('nasıl') || s.includes('nasil') || s.includes('okun'))) {
     return '🏦 <b>Teminat / öngörülen teminat yapısı</b>, bankanın nihai kararı değildir; FinSkor’un harf notuna göre <b>özet, gösterge amaçlı</b> bir çerçevedir.<br><br>'
       + 'Analiz sonrası raporda ve özet alanlarda not bandına uygun teminat türleri metin olarak sunulur; gerçek işlemde banka politikası, sektör ve dosya incelemesi belirleyicidir.<br><br>'
@@ -10062,7 +9921,7 @@ function _avMatchTextCore(q) {
     || s.includes('uzun vadeli banka')) {
     return '📊 <b>Uzun vadeli banka borcu</b> (eski kısaltma UV), vadesi bir yılın üzerine yayılan banka kredisi benzeri <b>nakdi</b> borçları ifade eder.<br><br>'
       + 'Yapı olarak kısa vadeli yükü baskısını azaltmak için borcun uzun vadeye kaydırılması senaryoda <b>Senaryo Analizi</b> kaydırıcısıyla test edilir; gerçek hayatta banka onayı ve sözleşme şartları belirleyicidir.<br><br>'
-      + '<span style="color:#94a3b8">Findeks PDF yüklüyse uzun/kısa dağılımı rapor kurallarına göre hizalanır.</span>';
+      + '<span style="color:#94a3b8">Uzun vadeli banka borcu bilanço ve gelir tablosu satırlarınızdan türetilir.</span>';
   }
   if (s.includes('banka') && s.includes('aktif') && (s.includes('borç') || s.includes('borc') || s.includes('oran') || s.includes('nedir'))) {
     return '🏦 <b>Banka borcu / aktif</b>, toplam varlıklar içinde banka borcunun payını gösterir; ratingde ilgili puan kırılımına girer.<br><br>'
@@ -10112,7 +9971,7 @@ function _avMatchTextCore(q) {
   }
   if (s.includes('finskor') && (s.includes('nedir') || s.includes('ne iş') || s.includes('ne is'))) {
     return '🦉 <b>FinSkor</b>, bilanço ve gelir tablosundan finansal oranları hesaplayıp <b>105 puanlık</b> ölçekte harf notu üreten bir <b>kredi analiz asistanı</b>dır.<br><br>'
-      + 'Senaryo analizi, subjektif faktörler ve (ortamda açıksa) Findeks PDF entegrasyonu ile desteklenir; banka kararı veya yatırım tavsiyesi vermez.<br><br>'
+      + 'Senaryo analizi ve subjektif faktörlerle desteklenir; banka kararı veya yatırım tavsiyesi vermez.<br><br>'
       + '<span style="color:#94a3b8">Kullanım: veri yükle → subjektif → Analiz Et.</span>';
   }
 
@@ -10308,6 +10167,24 @@ async function _avFetchLlmAnswer(question) {
   }
 }
 
+/** Supabase bilgi bankası (OpenAI olmadan) — avatar-kb */
+async function _avFetchKbAnswer(question) {
+  try {
+    const res = await fetch('/.netlify/functions/avatar-kb', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: question }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.hit || !data.reply) return null;
+    let html = _avEscapeHtml(String(data.reply)).replace(/\n/g, '<br>');
+    html += '<div style="margin-top:6px;font-size:8px;color:#475569;opacity:.85">· Bilgi bankası ·</div>';
+    return { html: html };
+  } catch (e) {
+    return null;
+  }
+}
+
 function _avFeedbackRowHtml(requestId) {
   const rid = String(requestId).replace(/[^a-f0-9-]/gi, '');
   if (!rid) return '';
@@ -10479,11 +10356,16 @@ function sendAvatarMsg(presetText) {
       if (localCore != null) {
         const firma = ((document.getElementById('firmaAdi') || {}).value || '').trim();
         ans = (firma ? '<b>' + _avEscapeHtml(firma) + '</b> için — ' : '') + localCore;
-      } else if (tryLlm) {
-        const llm = await _avFetchLlmAnswer(text);
-        if (llm && llm.html) {
-          ans = llm.html;
-          reqId = llm.requestId || '';
+      } else {
+        const kb = await _avFetchKbAnswer(text);
+        if (kb && kb.html) {
+          ans = kb.html;
+        } else if (tryLlm) {
+          const llm = await _avFetchLlmAnswer(text);
+          if (llm && llm.html) {
+            ans = llm.html;
+            reqId = llm.requestId || '';
+          }
         }
       }
       if (ans == null) {
@@ -10889,7 +10771,6 @@ function demoBaslat() {
 
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
-  if (typeof initFindeksTabVisibility === 'function') initFindeksTabVisibility();
   if (typeof updateAvatarAiLabUi === 'function') updateAvatarAiLabUi();
   if (typeof updateLocalDevStrip === 'function') updateLocalDevStrip();
 

@@ -4,11 +4,17 @@
  * Opsiyonel: FINSKOR_AVATAR_MODEL (varsayılan gpt-4o-mini)
  * Supabase: baykus_events (avatar_llm_turn) — SUPABASE_SERVICE_KEY veya ANON + tablo migrasyonu
  *
+ * Opsiyonel few-shot (kod yolu kapalıyken davranış eskisi gibi):
+ *   FINSKOR_AVATAR_FEW_SHOT=1|true — baykus_few_shot_examples tablosundan aktif satırları çeker
+ *   FINSKOR_AVATAR_FEW_SHOT_MAX=6 — en fazla kaç çift (1–12)
+ *
  * Not: Geçmiş mali veriler “eğitim” olarak modele yüklenmez; yalnızca istekte gönderilen özet JSON kullanılır.
+ * Few-shot satırları yalnız üslup rehberi; rakamlar kullanıcı JSON özetinden gelmelidir.
  */
 
 const { randomUUID, createHash } = require('crypto');
 const { insertBaykusEvent } = require('./baykus-events-sb');
+const { fetchFewShotExamples, fewShotFeatureEnabled } = require('./baykus-few-shot-sb');
 
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
 
@@ -21,8 +27,15 @@ function cors() {
   };
 }
 
-function systemPromptTr() {
-  return [
+function systemPromptTrFewShotSuffix() {
+  return (
+    ' Aşağıda “onaylı örnek” kullanıcı–asistan çiftleri olabilir: bunları yalnızca üslup, uzunluk ve yapı için rehber al. ' +
+    'Örneklerdeki rakamlar veya firmaya özel iddialar geneldir; yanıtında yalnızca bu istekte verilen Analiz özeti (JSON) içindeki sayıları ve bağlamı kullan; örnekten rakam veya uydurma oran aktarma.'
+  );
+}
+
+function systemPromptTr(withFewShotHint) {
+  const core = [
     'Sen FinSkor uygulamasındaki Baykuş adlı kredi ve finansal analiz asistanısın.',
     'Yanıtı her zaman Türkçe ver: kullanıcı soruyu İngilizce veya başka dilde yazsa bile yanıt tamamen Türkçe olmalı; İngilizce kelime veya cümle kullanma.',
     'Kullanıcıya profesyonel, akıcı ve doğal Türkçe ile yanıt ver; cümleleri tam bitir, yazım ve noktalama kurallarına uy.',
@@ -35,6 +48,7 @@ function systemPromptTr() {
     'Belirsizlikte tahmin yerine hangi ek bilgi gerektiğini söyle.',
     'Yanıtı kısa tut (tercihen 5–12 cümle); gerekirse maddeler halinde.',
   ].join(' ');
+  return withFewShotHint ? core + systemPromptTrFewShotSuffix() : core;
 }
 
 exports.handler = async function (event) {
@@ -81,6 +95,30 @@ exports.handler = async function (event) {
 
   const model = process.env.FINSKOR_AVATAR_MODEL || 'gpt-4o-mini';
 
+  let fewShotRows = [];
+  if (fewShotFeatureEnabled()) {
+    const maxFew = parseInt(process.env.FINSKOR_AVATAR_FEW_SHOT_MAX || '6', 10);
+    fewShotRows = await fetchFewShotExamples(maxFew, 2500);
+  }
+  const maxChars = 1800;
+  const fewShotPairs = [];
+  for (const row of fewShotRows) {
+    const u = String(row.user_message || '').trim();
+    const a = String(row.assistant_message || '').trim();
+    if (!u || !a) continue;
+    fewShotPairs.push({
+      u,
+      a: a.length > maxChars ? a.slice(0, maxChars) + '…' : a,
+    });
+  }
+  const useFewShot = fewShotPairs.length > 0;
+  const messages = [{ role: 'system', content: systemPromptTr(useFewShot) }];
+  for (const p of fewShotPairs) {
+    messages.push({ role: 'user', content: p.u });
+    messages.push({ role: 'assistant', content: p.a });
+  }
+  messages.push({ role: 'user', content: userContent });
+
   try {
     const resp = await fetch(OPENAI_URL, {
       method: 'POST',
@@ -92,10 +130,7 @@ exports.handler = async function (event) {
         model,
         temperature: 0.35,
         max_tokens: 900,
-        messages: [
-          { role: 'system', content: systemPromptTr() },
-          { role: 'user', content: userContent },
-        ],
+        messages,
       }),
     });
 
