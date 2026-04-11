@@ -10196,6 +10196,17 @@ function _avMatchTextCore(q) {
   if (s.includes('özkayna') || s.includes('öz kay')) return 'Özkaynak = Ödenmiş Sermaye + Yedekler + Geçmiş Karlar + Dönem Net Karı. '
     +'Büyüyen özkaynak sağlıklı bir işaret.';
   if (s.includes('merhaba') || s.includes('selam') || s.includes('nasılsın') || s.includes('nasilsin')) return 'Merhaba. Ben Baykuş, kredi analiz asistanınızım. Kredi notu, finansal oranlar veya uygulamanın kullanımı hakkında sorabilirsiniz.';
+  const _avBaslangicSoru = s.includes('nasıl başlay') || s.includes('nasil baslay') || s.includes('nereden başla') || s.includes('nereden basla')
+    || s.includes('başlamalıyım') || s.includes('baslamaliyim') || s.includes('nasıl başlarım') || s.includes('nasil baslarim')
+    || s.includes('nasıl giriş yap') || s.includes('nasil giris yap') || s.includes('ilk ne yap');
+  if (_avBaslangicSoru) {
+    return '🚀 <b>Başlangıç sırası</b> şöyle ilerler:<br><br>'
+      + '<b>1) Analiz yılı</b> — Sağ üstten hedef yılı seçin; <b>bir önceki yılın</b> verisi de girilmiş olmalı (yatay analiz için).<br><br>'
+      + '<b>2) Analiz dönemi</b> — Dönem butonlarından mali tablonun kapsadığı ay sayısını seçin (ör. yıl sonu). Ara dönem gelir tablosu otomatik yıllıklaştırılır.<br><br>'
+      + '<b>3) Firma tipi</b> — Pazarlama, üretim veya taahhüt; oran eşikleri buna göre ayarlanır.<br><br>'
+      + '<b>4) Mali veri yükleme</b> — İlgili yıl kartında <b>Excel / PDF yükle</b> ile mizan Excel, PDF mizan veya PDF beyanname kullanın; gerekirse manuel giriş de mümkündür.<br><br>'
+      + '<span style="color:#94a3b8">Ardından <b>Subjektif Faktörler</b> ve <b>Analiz Et</b> gelir. İsterseniz alttaki hızlı konu düğmelerinden tek tek de açabilirsiniz.</span>';
+  }
   if (s.includes('nasıl') && (s.includes('kullan') || s.includes('yapılır') || s.includes('yapilir'))) return 'Özet akış: mali verileri yükleyin veya girin, gerekirse ÜFE oranını ve firma tipini seçin, subjektif faktörleri doldurun, ardından <b>Analiz Et</b> ile notu görün. Ayrıntı için hızlı konu başlıklarına veya doğrudan soru yazabilirsiniz.';
   return null;
 }
