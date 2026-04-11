@@ -9859,9 +9859,13 @@ function _avSenaryoSoruYanit(s) {
   }
 
   const _satisCiro = s.includes('satış') || s.includes('satis') || s.includes('ciro')
-    || s.includes('net satış') || s.includes('netsatis') || s.includes('net satis');
+    || s.includes('net satış') || s.includes('netsatis') || s.includes('net satis')
+    || s.includes('satışım') || s.includes('satisim') || s.includes('cirom');
   const _buyumeKök = s.includes('büyü') || s.includes('buyu') || s.includes('büyüme') || s.includes('buyume')
     || s.includes('artış') || s.includes('artis') || s.includes('arttır') || s.includes('arttir')
+    || s.includes('artır') || s.includes('artir')
+    || s.includes('artınca') || s.includes('artinca') || s.includes('artarsa') || s.includes('artsa')
+    || s.includes('çoğal') || s.includes('cogal') || s.includes('yükselt') || s.includes('yukselt')
     || s.includes('genişle') || s.includes('genis') || s.includes('genişme') || s.includes('genisme');
   /* Ciro/satış büyümesi: büyüme kökü veya (yorum + ciro/satış) — yalnızca "ciro yorum" dar kalıyordu. */
   const _satisBuyumeSoru = _satisCiro && (
@@ -9898,9 +9902,17 @@ function _avSenaryoSoruYanit(s) {
       + `<span style="color:#94a3b8">Senaryo sekmesinde satış büyümesi slider’ını hareket ettirin.</span>`;
   }
 
+  const _faalKarSenaryo = s.includes('faaliyet') && (s.includes('kar') || s.includes('kâr')) && (
+    s.includes('marj') || s.includes('iyileş') || s.includes('iyiles')
+    || s.includes('artış') || s.includes('artis') || s.includes('arttır') || s.includes('arttir')
+    || s.includes('artır') || s.includes('artir') || s.includes('artınca') || s.includes('artinca')
+    || s.includes('artarsa') || s.includes('artsa') || s.includes('yüksel') || s.includes('yuksel')
+    || s.includes('düş') || s.includes('dus') || s.includes('kredi not') || s.includes('notum')
+    || s.includes('puanım') || s.includes('puanim') || s.includes('rating') || s.includes('senaryo')
+  );
   const _karMarjSoru = (s.includes('kar marj') || s.includes('net kar') || (s.includes('marj') && (s.includes('net') || s.includes('vö') || s.includes('vo')))
     || ((s.includes('karlılık') || s.includes('karlilik') || s.includes('kârlılık')) && !s.includes('faaliyet') && !s.includes('faal'))
-    || (s.includes('faaliyet') && s.includes('kar') && (s.includes('marj') || s.includes('iyileş') || s.includes('iyiles') || s.includes('artış') || s.includes('artis'))));
+    || _faalKarSenaryo;
 
   if (_karMarjSoru || ((s.includes('karlılık') || s.includes('karlilik') || s.includes('kârlılık') || s.includes('marj')) && (s.includes('iyileş') || s.includes('iyiles') || s.includes('artış') || s.includes('artis') || s.includes('senaryo')))) {
     if (!r) {
@@ -9913,8 +9925,13 @@ function _avSenaryoSoruYanit(s) {
     const nkm = r.netKarMarj.toFixed(1);
     const fkm = r.faalKarMarj != null ? r.faalKarMarj.toFixed(1) : '—';
     const hedef = paz ? '%9–14' : '%14+';
+    const reelFaal = (r.reelFaalKarBuy != null && !isNaN(r.reelFaalKarBuy)) ? r.reelFaalKarBuy.toFixed(1) : '—';
+    const faalEkSatir = (s.includes('faaliyet') || s.includes('faal'))
+      ? `<b>Reel faaliyet karı büyümesi</b> (önceki yıla göre, yaklaşık) ~<b>%${reelFaal}</b> — skorda ayrı kırılım; senaryo <b>faaliyet kar marjı</b> kaydırıcısı nota buradan da yansır.<br>`
+      : '';
     return `📊 <b>Kar marjı ve karlılık</b> (senaryo):<br><br>`
       + `<b>① Mevcut:</b> VÖ net kar marjı ~<b>%${nkm}</b> · faaliyet kar marjı ~<b>%${fkm}</b> (firma tipine göre eşikler değişir; hedef bandı kabaca <b>${hedef}</b>).<br>`
+      + faalEkSatir
       + `<b>② Etki:</b> Senaryoda marj artışı <b>karlılık puanını</b> yükseltir; toplam nota katkısı kaydırıcı ile anlık hesaplanır (tipik üst band birkaç puan).<br>`
       + `<b>③</b> Fiyat, maliyet ve kırılım değişimi operasyoneldir — rakamı senaryoda “ne olursa” diye test edebilirsiniz.<br><br>`
       + `<span style="color:#94a3b8">Senaryo sekmesinde kar marjı slider’ını oynatın.</span>`;
