@@ -8803,7 +8803,8 @@ function obClose() {
   if (ab) ab.style.display = 'flex';
   setTimeout(() => {
     // Onboarding sonrası Baykuş otomatik açılır; kullanıcı X ile kapatabilir
-    showAvatarChat();
+    // ÖNEMLİ: showAvatarChat(true) — varsayılan "Merhaba kısayol..." mesajı eklenmesin; yoksa kutu dolu kalır ve rehber/obClose metni hiç çalışmaz
+    showAvatarChat(true);
     const box = document.getElementById('avatarMessages');
     if (box && !box.children.length) {
       if (typeof _avPaidUserGuideEligible === 'function' && _avPaidUserGuideEligible()) {
@@ -8848,7 +8849,8 @@ function obRender() {
 }
 
 // ── Avatar Chat ───────────────────────────────────────────────
-function showAvatarChat() {
+/** @param {boolean} [skipAutoWelcome] true: ilk boş açılışta varsayılan Baykuş metnini ekleme (obClose sonrası rehber için) */
+function showAvatarChat(skipAutoWelcome) {
   updateAvatarAiLabUi();
   updateLocalDevStrip();
   const m = document.getElementById('avatarModal');
@@ -8856,7 +8858,7 @@ function showAvatarChat() {
   if (!m) return;
   m.style.display = 'block';
   if (b) b.style.animation = 'none';
-  if (!document.getElementById('avatarMessages').children.length && !window._demoMod) {
+  if (!skipAutoWelcome && !document.getElementById('avatarMessages').children.length && !window._demoMod) {
     _avAddMsg('bot',
       'Merhaba. &#x1F989;<br><br>'
       + 'Kısayol düğmeleriyle tanıtımı dinleyebilirsiniz. İsterseniz <b>Analiz Yılı</b> ile başlayıp sırayla ilerleyin.'
