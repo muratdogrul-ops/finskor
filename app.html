@@ -8983,6 +8983,9 @@ function _avSkorVeOranSesli(str) {
 function _avBaykusTtsFinansal(str) {
   if (str == null || typeof str !== 'string') return str;
   let o = _avTtsUnicodeNormalize(str);
+  o = o.replace(/\u2212/g, '-');
+  /* Oran yazımı: "banka borcu / satışlar" → sesli bölü (URL’de boşluksuz / kullanılmaz). */
+  o = o.replace(/\s+\/\s+/g, ' bölü ');
   o = o.replace(/\bmax\.\s*/gi, 'azami ')
     .replace(/\bmax\b(?=\s|$|[.,;:!?])/gi, 'azami');
   function decSpeech(n) {
@@ -8990,6 +8993,9 @@ function _avBaykusTtsFinansal(str) {
     if (/\./.test(s)) return s.replace('.', ' virgül ');
     return s;
   }
+  /* Eksi yüzde: %-24,7 veya -24,7% (önce bunlar, sonra pozitif yüzde). */
+  o = o.replace(/%\s*-\s*(\d+(?:[.,]\d+)?)/g, function (_, n) { return 'yüzde eksi ' + decSpeech(n); });
+  o = o.replace(/-\s*(\d+(?:[.,]\d+)?)\s*%/g, function (_, n) { return 'yüzde eksi ' + decSpeech(n); });
   o = o.replace(/%\s*(\d+(?:[.,]\d+)?)/g, function (_, n) { return 'yüzde ' + decSpeech(n); });
   o = o.replace(/(\d+(?:[.,]\d+)?)\s*%/g, function (_, n) { return 'yüzde ' + decSpeech(n); });
   o = o.replace(/(\d+(?:[.,]\d+)?)\s*(?:percent|pct\.?)\b/gi, function (_, n) { return 'yüzde ' + decSpeech(n); });
@@ -9016,6 +9022,7 @@ function _avBaykusTtsFinansal(str) {
 function _avTtsTurkceKolay(str) {
   if (str == null || typeof str !== 'string') return str;
   return str
+    .replace(/\breel\b/gi, 'reyel')
     .replace(/\bkârlılık\b/gi, 'karlılık')
     .replace(/\bkârlı\b/gi, 'karlı')
     .replace(/\bKâr\b/g, 'Kar')
