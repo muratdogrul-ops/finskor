@@ -1949,13 +1949,10 @@ function loginSuccess(userData) {
     if (nb) nb.style.display = 'flex';
   }
 
-  // Onboarding: yalnız daha önce bitirilmediyse (kas_ob_shown === '1'). Her girişte removeItem+obOpen kullanıcıyı sürekli başa döndürüyordu.
-  if (localStorage.getItem('kas_ob_shown') !== '1') {
-    window._obShown = false;
-    setTimeout(obOpen, 600);
-  } else {
-    window._obShown = true;
-  }
+  // Tanıtım slaytları (her giriş). Baykuş ayrı: kullanıcı sol alttaki düğmeye basarak isterse açar — zorla açılmaz.
+  window._obShown = false;
+  localStorage.removeItem('kas_ob_shown');
+  setTimeout(obOpen, 600);
 }
 
 function showKontorBitti() {
@@ -8801,23 +8798,9 @@ function obClose() {
   if (typeof unlockPageScroll === 'function') unlockPageScroll();
   window._obShown = true;
   localStorage.setItem('kas_ob_shown','1');
-  // Baykuş butonu görünür olsun ve kullanıcı isterse kapatabilsin
+  // Baykuş: kullanıcı isterse açar; tanıtım bitince zorla açılmaz
   const ab = document.getElementById('avatarBtn');
   if (ab) ab.style.display = 'flex';
-  setTimeout(() => {
-    // Onboarding sonrası Baykuş otomatik açılır; kullanıcı X ile kapatabilir
-    // ÖNEMLİ: showAvatarChat(true) — varsayılan "Merhaba kısayol..." mesajı eklenmesin; yoksa kutu dolu kalır ve rehber/obClose metni hiç çalışmaz
-    showAvatarChat(true);
-    const box = document.getElementById('avatarMessages');
-    if (box && !box.children.length) {
-      if (typeof _avPaidUserGuideEligible === 'function' && _avPaidUserGuideEligible()) {
-        _avBaslaAdimRehber();
-      } else {
-        _avAddMsg('bot', 'Merhaba! &#x1F989;<br><br>Sistem tanıtımı için aşağıdaki konu başlıklarına Analiz Yılından başlayarak teker teker basıp dinleyin lütfen.');
-        avBuildQuickBtns();
-      }
-    }
-  }, 400);
 }
 
 function obNav(dir) {
@@ -8852,7 +8835,7 @@ function obRender() {
 }
 
 // ── Avatar Chat ───────────────────────────────────────────────
-/** @param {boolean} [skipAutoWelcome] true: ilk boş açılışta varsayılan Baykuş metnini ekleme (obClose sonrası rehber için) */
+/** @param {boolean} [skipAutoWelcome] true: ilk mesajı ekleme (özel akışlar için) */
 function showAvatarChat(skipAutoWelcome) {
   updateAvatarAiLabUi();
   updateLocalDevStrip();
@@ -8862,11 +8845,25 @@ function showAvatarChat(skipAutoWelcome) {
   m.style.display = 'block';
   if (b) b.style.animation = 'none';
   if (!skipAutoWelcome && !document.getElementById('avatarMessages').children.length && !window._demoMod) {
-    _avAddMsg('bot',
-      'Merhaba. &#x1F989;<br><br>'
-      + 'Kısayol düğmeleriyle tanıtımı dinleyebilirsiniz. İsterseniz <b>Analiz Yılı</b> ile başlayıp sırayla ilerleyin.'
-    );
-    avBuildQuickBtns();
+    const enUi = typeof state !== 'undefined' && state && state.lang === 'en';
+    if (typeof _avPaidUserGuideEligible === 'function' && _avPaidUserGuideEligible()) {
+      _avAddMsg('bot',
+        (enUi
+          ? 'Hello! &#x1F989;<br><br>I’m here <b>if you want</b> help — shortcuts below, type a question, or use the microphone.<br><br>'
+            + '<button type="button" class="av-qbtn" onclick="_avBaslaAdimRehber()">Step-by-step guide (optional)</button>'
+          : 'Merhaba. &#x1F989;<br><br>Yardıma <b>isterseniz</b> buradayım: kısayollar, yazarak soru veya mikrofon.<br><br>'
+            + '<button type="button" class="av-qbtn" onclick="_avBaslaAdimRehber()">🦉 Adım adım rehber (isteğe bağlı)</button>')
+      );
+      avBuildQuickBtns();
+    } else {
+      _avAddMsg('bot',
+        (enUi
+          ? 'Hello. &#x1F989;<br><br>Use the shortcuts for a quick tour, or start with <b>Analysis year</b>.'
+          : 'Merhaba. &#x1F989;<br><br>'
+            + 'Kısayol düğmeleriyle tanıtımı dinleyebilirsiniz. İsterseniz <b>Analiz Yılı</b> ile başlayıp sırayla ilerleyin.')
+      );
+      avBuildQuickBtns();
+    }
   }
 }
 
