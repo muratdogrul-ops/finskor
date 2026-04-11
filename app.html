@@ -9912,7 +9912,7 @@ function _avSenaryoSoruYanit(s) {
   );
   const _karMarjSoru = (s.includes('kar marj') || s.includes('net kar') || (s.includes('marj') && (s.includes('net') || s.includes('vö') || s.includes('vo')))
     || ((s.includes('karlılık') || s.includes('karlilik') || s.includes('kârlılık')) && !s.includes('faaliyet') && !s.includes('faal'))
-    || _faalKarSenaryo);
+    || _faalKarSenaryo;
 
   if (_karMarjSoru || ((s.includes('karlılık') || s.includes('karlilik') || s.includes('kârlılık') || s.includes('marj')) && (s.includes('iyileş') || s.includes('iyiles') || s.includes('artış') || s.includes('artis') || s.includes('senaryo')))) {
     if (!r) {
