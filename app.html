@@ -8934,21 +8934,24 @@ function _avTtsUnicodeNormalize(str) {
     .trim();
 }
 
-/** TTS: unvan sonu → limited / anonim; yalnızca ilk iki kelime okunur (uzun ticari unvanlar için). */
+/** TTS: unvan sonu → limited / anonim; ilk iki kelime + şirket tipi (sondaki nokta virgül temizlenir). */
 function _avFirmaUnvanSesli(ad) {
   if (ad == null || typeof ad !== 'string') return '';
   let t = _avNormFirmaStr(ad);
   if (!t) return '';
+  t = t.replace(/[.,;:\s]+$/g, '').trim();
+  if (!t) return '';
   let tip = '';
-  const asEnd = /\s+(?:a\.?\s*ş\.?|a\.s\.?|aş|anonim\s*şirket[iİ]?)\s*$/i;
-  const ltdEnd = /\s+(?:ltd\.?\s*şti\.?|ltd\.?\s*şti|l\.?\s*ltd\.?\s*şti\.?|limited\s*şirket[iİ]?|ltd\s*şti)\s*$/i;
-  if (asEnd.test(t)) {
-    t = t.replace(asEnd, '').trim();
-    tip = ', anonim şirketi';
-  } else if (ltdEnd.test(t)) {
+  const ltdEnd = /\s+(?:limited\s+şirket[iİ]?|ltd\.?\s*şti\.?|ltd\.?\s*şti|l\.?\s*ltd\.?\s*şti\.?|ltd\s*şti)\s*$/i;
+  const asEnd = /\s+(?:anonim\s+şirket[iİ]?|a\.?\s*ş\.?|a\.s\.?|aş)\s*$/i;
+  if (ltdEnd.test(t)) {
     t = t.replace(ltdEnd, '').trim();
-    tip = ', limited şirketi';
+    tip = ' limited şirketi';
+  } else if (asEnd.test(t)) {
+    t = t.replace(asEnd, '').trim();
+    tip = ' anonim şirketi';
   }
+  t = t.replace(/[.,;:\s]+$/g, '').trim();
   const words = t.split(/\s+/).filter(Boolean);
   const head = words.slice(0, 2).join(' ');
   if (!head) return '';
@@ -8994,6 +8997,10 @@ function _avBaykusTtsFinansal(str) {
   o = o.replace(/(\d+(?:[.,]\d+)?)\s*milyar\b/gi, function (_, n) { return decSpeech(n) + ' milyar'; });
   o = o.replace(/(\d+(?:[.,]\d+)?)\s*million\b/gi, function (_, n) { return decSpeech(n) + ' milyon'; });
   o = o.replace(/(\d+(?:[.,]\d+)?)\s*billion\b/gi, function (_, n) { return decSpeech(n) + ' milyar'; });
+  o = o.replace(/(\d+(?:[.,]\d+)?)\s+([Mm])\b(?!\s*(?:TL|₺|TRY)\b)/gi, function (_, n) { return decSpeech(n) + ' milyon'; });
+  o = o.replace(/(\d+(?:[.,]\d+)?)([Mm])\b(?!\s*(?:TL|₺|TRY)\b)/gi, function (_, n) { return decSpeech(n) + ' milyon'; });
+  o = o.replace(/(\d+(?:[.,]\d+)?)\s+([Bb])\b(?!\s*(?:TL|₺|TRY)\b)/gi, function (_, n) { return decSpeech(n) + ' milyar'; });
+  o = o.replace(/(\d+(?:[.,]\d+)?)([Bb])\b(?!\s*(?:TL|₺|TRY)\b)/gi, function (_, n) { return decSpeech(n) + ' milyar'; });
   o = o.replace(/\bTL\b(?=\s|$|[.,;:!?])/g, 'Türk lirası');
   o = o.replace(/₺/g, 'Türk lirası');
   return o;
@@ -9706,6 +9713,8 @@ function _avSenaryoSoruYanit(s) {
   const _sermayeSoru = s.includes('sermaye') && (
     s.includes('işe') || s.includes('neden') || s.includes('ne kadar') || s.includes('kadar') || s.includes('kadarlık')
     || s.includes('miktar') || s.includes('tutar') || s.includes('gerek') || s.includes('yapmam') || s.includes('yapmalı') || s.includes('yapmaliyim')
+    || s.includes('artır') || s.includes('artir') || s.includes('arttır') || s.includes('arttir') || s.includes('artış') || s.includes('artis')
+    || s.includes('olur') || s.includes('etki') || s.includes('ne olur') || s.includes('ekle') || s.includes('eklen')
   );
 
   if (_sermayeSoru) {
@@ -9803,7 +9812,7 @@ function _avSenaryoSoruYanit(s) {
   return null; // Bu fonksiyon için yanıt yok, _avMatchText devam etsin
 }
 
-function _avMatchText(q) {
+function _avMatchTextCore(q) {
   const s = q.toLowerCase();
 
   // Senaryo özel sorular — önce kontrol et
@@ -9962,9 +9971,15 @@ function _avMatchText(q) {
     +'Örnek: Ciro %40 artmış, ÜFE %44 ise reel büyüme <b>negatif</b> — firma gerçekte küçülmüş demektir.<br>'
     +'<span style="color:#94a3b8">Ondalık girin: 0.4393 = %43.93 ÜFE</span>';
   // Oranlar
+  if (s.includes('likidite') && !s.includes('asit')) {
+    return '📊 <b>Likidite</b>, işletmenin <b>kısa vadeli borçlarını ödeme gücünü</b> gösterir.<br><br>'
+      + '<b>Cari oran</b> = Dönen Varlıklar ÷ Kısa vadeli yükümlülükler (kabaca <b>1,5 üzeri</b> sağlıklı kabul edilir; sektöre göre değişir).<br>'
+      + '<b>Asit-test (likidite oranı)</b> = (Dönen Varlıklar − Stoklar) ÷ KVY — stoku dışarıda bırakan daha katı ölçü.<br><br>'
+      + '<span style="color:#94a3b8">Analiz sonrası değerleriniz oran tablosunda; <b>Senaryo</b>da sermaye ve vade taşıma likiditeyi anlık etkiler.</span>';
+  }
   if (s.includes('cari')) return 'Cari oran = Dönen Varlıklar / Kısa Vadeli Yükümlülükler. '
     +'Genel kural: 1.5 üzeri sağlıklı. Sektöre göre değişir.';
-  if (s.includes('asit') || s.includes('likidite')) return 'Asit-test oranı = (Dönen Varlıklar - Stoklar) / KVY. '
+  if (s.includes('asit') || s.includes('asit-test') || s.includes('quick ratio')) return 'Asit-test oranı = (Dönen Varlıklar - Stoklar) / KVY. '
     +'Stokları dışarıda bırakarak daha katı bir likidite ölçümü yapar.';
   if (s.includes('borç') || s.includes('kaldiraç') || s.includes('leverage')) return 'Borç/Özkaynak oranı finansal kaldıracı gösterir. '
     +'2 altı genellikle tercih edilir; sektöre göre değerlendirin.';
@@ -10038,12 +10053,19 @@ function _avMatchText(q) {
     +'Büyüyen özkaynak sağlıklı bir işaret.';
   if (s.includes('merhaba') || s.includes('selam') || s.includes('nasılsın') || s.includes('nasilsin')) return 'Merhaba. Ben Baykuş, kredi analiz asistanınızım. Kredi notu, finansal oranlar veya uygulamanın kullanımı hakkında sorabilirsiniz.';
   if (s.includes('nasıl') && (s.includes('kullan') || s.includes('yapılır') || s.includes('yapilir'))) return 'Özet akış: mali verileri yükleyin veya girin, gerekirse ÜFE oranını ve firma tipini seçin, subjektif faktörleri doldurun, ardından <b>Analiz Et</b> ile notu görün. Ayrıntı için hızlı konu başlıklarına veya doğrudan soru yazabilirsiniz.';
-  // Varsayılan
-  return 'Bu soruyu şu an hazır cevaplarımda bulamadım. Şunları deneyebilirsiniz: <b>kredi notumu nasıl yükseltirim</b>, <b>finansal yapı nedir</b>, <b>cari oran</b>, <b>senaryo analizi</b>, <b>subjektif faktörler</b>. İsterseniz aynı konuyu farklı kelimelerle sorun.';
+  return null;
+}
+
+function _avMatchText(q) {
+  const c = _avMatchTextCore(q);
+  if (c != null) return c;
+  return 'Bu soruyu şu an hazır cevaplarımda bulamadım. Şunları deneyebilirsiniz: <b>kredi notumu nasıl yükseltirim</b>, <b>finansal yapı nedir</b>, <b>cari oran</b>, <b>likidite oranı</b>, <b>senaryo analizi</b>, <b>subjektif faktörler</b>. İsterseniz aynı konuyu farklı kelimelerle sorun.';
 }
 
 function _avGetAnswer(q) {
-  return _avMatchText(q);
+  const firma = ((document.getElementById('firmaAdi') || {}).value || '').trim();
+  const prefix = firma ? '<b>' + _avEscapeHtml(firma) + '</b> için — ' : '';
+  return prefix + _avMatchText(q);
 }
 
 function _avEscapeHtml(s) {
@@ -10120,11 +10142,7 @@ async function _avFetchLlmAnswer(question) {
     });
     const data = await res.json();
     if (!res.ok) {
-      if (data.error === 'no_key') return null;
-      const errTxt = _avEscapeHtml(data.message || data.error || 'API hatası');
-      const errHtml = '<span style="color:#f87171">' + errTxt + '</span>'
-        + '<br><br><span style="font-size:11px;color:#94a3b8">Yapay zekâ yanıtı alınamadı; sorunuz yerel yanıtlarla ele alınacak. Tekrarlanırsa tarayıcı konsolunu kontrol edin.</span>';
-      return { html: errHtml, requestId: '' };
+      return null;
     }
     if (!data.reply) return null;
     let html = _avEscapeHtml(data.reply).replace(/\n/g, '<br>');
@@ -10188,7 +10206,7 @@ function _avMicScheduleEndAfterSilence() {
     if (_avSR && window._avMicOn) {
       try { _avSR.stop(); } catch (e) {}
     }
-  }, 3500);
+  }, 1500);
 }
 
 function toggleAvMic() {
@@ -10220,7 +10238,7 @@ function toggleAvMic() {
     window._avMicOn = true;
     if (btn) { btn.textContent = '🔴'; btn.style.background = 'rgba(239,68,68,.25)'; btn.style.color = '#f87171'; }
     if (inp) {
-      inp.placeholder = 'Dinleniyor… Bitince tekrar 🎤 veya 3 sn susun.';
+      inp.placeholder = 'Dinleniyor… Bitince tekrar 🎤 veya ~1,5 sn susun.';
       inp.value = '';
       inp.style.height = 'auto';
       inp.style.height = Math.min(inp.scrollHeight, 80) + 'px';
@@ -10305,7 +10323,11 @@ function sendAvatarMsg(presetText) {
       if (typDiv) typDiv.remove();
       let ans = null;
       let reqId = '';
-      if (tryLlm) {
+      const localCore = _avMatchTextCore(text);
+      if (localCore != null) {
+        const firma = ((document.getElementById('firmaAdi') || {}).value || '').trim();
+        ans = (firma ? '<b>' + _avEscapeHtml(firma) + '</b> için — ' : '') + localCore;
+      } else if (tryLlm) {
         const llm = await _avFetchLlmAnswer(text);
         if (llm && llm.html) {
           ans = llm.html;
