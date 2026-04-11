@@ -8684,6 +8684,64 @@ function _avUserWantsStepHelp(t) {
   return false;
 }
 
+function _avUiEn() {
+  return typeof state !== 'undefined' && state && state.lang === 'en';
+}
+
+/** Evet → uygunsa adım adım rehber; Hayır → kısa onay + kısayollar */
+function _avYardimCevap(evet) {
+  if (window._demoMod) return;
+  window._avExpectYardimChoice = false;
+  const en = _avUiEn();
+  if (evet) {
+    if (typeof _avPaidUserGuideEligible === 'function' && _avPaidUserGuideEligible()) {
+      _avBaslaAdimRehber();
+    } else {
+      _avAddMsg('bot', en
+        ? 'OK — follow the shortcuts below in order, or ask a specific question.'
+        : 'Tamam. Aşağıdaki kısayollarla sırayla ilerleyebilir veya doğrudan sorunuzu yazabilirsiniz.');
+      avBuildQuickBtns();
+    }
+  } else {
+    _avAddMsg('bot', en
+      ? 'Understood. Use the shortcuts whenever you need them, or type your question.'
+      : 'Tamam. Kısayolları veya doğrudan sorunuzu kullanabilirsiniz.');
+    avBuildQuickBtns();
+  }
+}
+
+function _avYardimEvetHayirBtns() {
+  const en = _avUiEn();
+  if (en) {
+    return '<br><br><b>Should I help you step by step on screen?</b><br><br>'
+      + '<button type="button" class="av-qbtn" onclick="_avYardimCevap(true)">Yes</button> '
+      + '<button type="button" class="av-qbtn" onclick="_avYardimCevap(false)">No</button>';
+  }
+  return '<br><br><b>Yardımcı olayım mı?</b> (ekranda adım adım)<br><br>'
+    + '<button type="button" class="av-qbtn" onclick="_avYardimCevap(true)">Evet</button> '
+    + '<button type="button" class="av-qbtn" onclick="_avYardimCevap(false)">Hayır</button>';
+}
+
+function _avFinansalAnalizAkisiHtml() {
+  const en = _avUiEn();
+  if (en) {
+    return '📋 <b>How financial analysis runs here</b><br><br>'
+      + '<b>1)</b> Analysis year — and the <b>previous year</b> must be filled (horizontal analysis).<br><br>'
+      + '<b>2)</b> Period — quarter / year-end; interim P&amp;L is annualised.<br><br>'
+      + '<b>3)</b> Company type — production, trading, or contracting.<br><br>'
+      + '<b>4)</b> Upload data — Excel trial balance, PDF trial balance, or PDF tax return on the year card (or enter manually).<br><br>'
+      + '<b>5)</b> <b>Subjective factors</b> — then <b>Analyse</b> for the score and report.<br><br>'
+      + '<span style="color:#94a3b8">You can also tap the topic shortcuts below for each item.</span>';
+  }
+  return '📋 <b>Finansal analiz akışı</b><br><br>'
+    + '<b>1) Analiz yılı</b> — <b>Bir önceki yıl</b> da dolu olmalı (yatay analiz).<br><br>'
+    + '<b>2) Analiz dönemi</b> — çeyrek / yıl sonu; ara dönem gelir tablosu yıllıklaştırılır.<br><br>'
+    + '<b>3) Firma tipi</b> — üretim, pazarlama veya taahhüt.<br><br>'
+    + '<b>4) Mali veri</b> — yıl kartında <b>Excel / PDF yükle</b> (mizan, beyanname) veya manuel giriş.<br><br>'
+    + '<b>5) Subjektif faktörler</b> — ardından <b>Analiz Et</b> ile not ve rapor.<br><br>'
+    + '<span style="color:#94a3b8">Her başlık için alttaki kısayol düğmelerini de kullanabilirsiniz.</span>';
+}
+
 function _avGuideComplete() {
   window._avGuideActive = false;
   window._avGuideStep = -1;
@@ -8861,17 +8919,13 @@ function showAvatarChat(skipAutoWelcome) {
   m.style.display = 'block';
   if (b) b.style.animation = 'none';
   if (!skipAutoWelcome && !document.getElementById('avatarMessages').children.length && !window._demoMod) {
-    const enUi = typeof state !== 'undefined' && state && state.lang === 'en';
-    let body = enUi
-      ? 'Hello! &#x1F989;<br><br>If you’d like, we can work through the <b>financial analysis together</b>. Use the shortcuts below in order, or type and use the <b>microphone</b>.'
-      : 'Merhaba! &#x1F989;<br><br>İsterseniz <b>finansal analizi birlikte</b> yapabiliriz. Aşağıdaki kısayollarla sırayla ilerleyebilir, yazabilir veya <b>mikrofon</b>la sorabilirsiniz.';
-    if (typeof _avPaidUserGuideEligible === 'function' && _avPaidUserGuideEligible()) {
-      body += enUi
-        ? '<br><br>For <b>step-by-step</b> on-screen help, use the button or type <b>step by step help</b>.'
-        : '<br><br>Ekranda adım adım yönlendirme isterseniz düğmeye basın veya <b>adım adım yardım</b> yazın.';
-      body += '<br><br><button type="button" class="av-qbtn" onclick="_avBaslaAdimRehber()">' + (enUi ? '🦉 Step-by-step help' : '🦉 Adım adım yardım') + '</button>';
-    }
+    const enUi = _avUiEn();
+    const body = (enUi
+      ? 'Hello! &#x1F989;<br><br>Use the shortcuts below in order, or type and use the <b>microphone</b>.'
+      : 'Merhaba! &#x1F989;<br><br>Aşağıdaki kısayollarla sırayla gidebilir, yazabilir veya <b>mikrofon</b>la sorabilirsiniz.')
+      + (typeof _avYardimEvetHayirBtns === 'function' ? _avYardimEvetHayirBtns() : '');
     _avAddMsg('bot', body);
+    window._avExpectYardimChoice = body.indexOf('_avYardimCevap') !== -1;
     avBuildQuickBtns();
   }
 }
@@ -10198,6 +10252,12 @@ function _avMatchTextCore(q) {
   if (s.includes('pdf beyanname')) return '<b>PDF Beyanname:</b> İlgili mali yılın kurumlar veya geçici vergi beyannamesini yükleyin. Bilanço ve gelir tablosu otomatik yüklenir, firma adı otomatik gelir. İlgili döneme ait kurumlar geçici vergi beyannamesini detay mizan ile aynı döneme peş peşe çoklu yükleyebilirsiniz.';
   if (s.includes('excel mizan yukle') || s.includes('excel mizan yükle')) return '<b>Excel Mizan:</b> Muhasebe programından ilgili mali dönem için alınan .xlsx veya .xls Excel dosyasını yükleyin. Hesap kodları, bakiyeler ve firma adı otomatik okunarak ilgili döneme yüklenir.';
   if (s.includes('pdf mizan yukle') || s.includes('pdf mizan yükle')) return '<b>PDF Mizan:</b> PDF mizan yükleyebilirsiniz. Aynı zamanda manuel mali veri girişi de yapabilirsiniz. <b style="color:#fbbf24">İpucu:</b> Detay mizan ile kurumlar beyannamesini aynı döneme peş peşe yükleyebilirsiniz!';
+  const _avFinAnalizNasilEarly = s.includes('analiz') && (s.includes('finansal') || s.includes('finans'))
+    && (s.includes('nasıl') || s.includes('nasil') || s.includes('yapacağım') || s.includes('yapacagim') || s.includes('yaparım') || s.includes('yaparim')
+      || s.includes('yapmam') || s.includes('yapmak') || s.includes('yapılır') || s.includes('yapilir') || s.includes('yapıyorum') || s.includes('yapiyorum'));
+  if (_avFinAnalizNasilEarly) {
+    return _avFinansalAnalizAkisiHtml() + _avYardimEvetHayirBtns();
+  }
   if (s.includes('analiz et')) return '<b>Analiz Et:</b> Önce en altta sağda bulunan <b>Subjektif Faktörler</b> sekmesini doldurun. Doldurmadan geçerseniz sistem <b>20,60 puan (30 üzerinden)</b> otomatik verir. Ardından <b style="color:#f5a623">Analiz Et</b> butonu aktif olur.';
   if (s.includes('pdf') || s.includes('yükle') || s.includes('import') || s.includes('excel') || s.includes('mizan')) return 'Yıl kartındaki 📎 <b>Excel / PDF Yükle</b> butonuna tıklayın. Excel mizan, PDF mizan ve PDF beyanname desteklenir.';
   if (s.includes('yıllıklaştır') || s.includes('ara dönem')) return 'Ara dönem veri yüklendiğinde sistem otomatik yıllıklaştırır. '
@@ -10214,7 +10274,8 @@ function _avMatchTextCore(q) {
       + '<b>2) Analiz dönemi</b> — Dönem butonlarından mali tablonun kapsadığı ay sayısını seçin (ör. yıl sonu). Ara dönem gelir tablosu otomatik yıllıklaştırılır.<br><br>'
       + '<b>3) Firma tipi</b> — Pazarlama, üretim veya taahhüt; oran eşikleri buna göre ayarlanır.<br><br>'
       + '<b>4) Mali veri yükleme</b> — İlgili yıl kartında <b>Excel / PDF yükle</b> ile mizan Excel, PDF mizan veya PDF beyanname kullanın; gerekirse manuel giriş de mümkündür.<br><br>'
-      + '<span style="color:#94a3b8">Ardından <b>Subjektif Faktörler</b> ve <b>Analiz Et</b> gelir. İsterseniz alttaki hızlı konu düğmelerinden tek tek de açabilirsiniz.</span>';
+      + '<span style="color:#94a3b8">Ardından <b>Subjektif Faktörler</b> ve <b>Analiz Et</b> gelir. Hızlı konu düğmeleriyle de tek tek açabilirsiniz.</span>'
+      + _avYardimEvetHayirBtns();
   }
   if (s.includes('nasıl') && (s.includes('kullan') || s.includes('yapılır') || s.includes('yapilir'))) return 'Özet akış: mali verileri yükleyin veya girin, gerekirse ÜFE oranını ve firma tipini seçin, subjektif faktörleri doldurun, ardından <b>Analiz Et</b> ile notu görün. Ayrıntı için hızlı konu başlıklarına veya doğrudan soru yazabilirsiniz.';
   return null;
@@ -10223,7 +10284,7 @@ function _avMatchTextCore(q) {
 function _avMatchText(q) {
   const c = _avMatchTextCore(q);
   if (c != null) return c;
-  return 'Bu soruyu şu an hazır cevaplarımda bulamadım. Şunları deneyebilirsiniz: <b>kredi notumu nasıl yükseltirim</b>, <b>finansal yapı nedir</b>, <b>cari oran</b>, <b>likidite oranı</b>, <b>senaryo analizi</b>, <b>subjektif faktörler</b>. İsterseniz aynı konuyu farklı kelimelerle sorun.';
+  return 'Bu soruyu şu an hazır cevaplarımda bulamadım. Şunları deneyebilirsiniz: <b>finansal analizi nasıl yapacağım</b>, <b>kredi notumu nasıl yükseltirim</b>, <b>finansal yapı nedir</b>, <b>cari oran</b>, <b>likidite oranı</b>, <b>senaryo analizi</b>, <b>subjektif faktörler</b>. Aynı konuyu farklı kelimelerle de sorabilirsiniz.';
 }
 
 function _avGetAnswer(q) {
@@ -10496,6 +10557,15 @@ function sendAvatarMsg(presetText) {
   const qb = document.getElementById('avatarQuickBtns');
   if (qb) qb.innerHTML = '';
 
+  // "Yardımcı olayım mı?" — yazıyla Evet/Hayır (yalnızca son Baykuş mesajında bu soru varken)
+  const yNorm = text.toLocaleLowerCase('tr-TR').replace(/\s+/g, ' ').trim();
+  const isYardimYesNo = /^(evet|yes|hayır|hayir|no)\s*$/i.test(yNorm);
+  if (!isYardimYesNo) window._avExpectYardimChoice = false;
+  if (!window._demoMod && !window._avGuideActive && isYardimYesNo && window._avExpectYardimChoice) {
+    _avYardimCevap(/^(evet|yes)\s*$/i.test(yNorm));
+    return;
+  }
+
   // Kullanıcı yazıyla adım adım yardım istedi (rehber kapalıyken)
   if (!window._demoMod && !window._avGuideActive && typeof _avPaidUserGuideEligible === 'function' && _avPaidUserGuideEligible()
     && typeof _avUserWantsStepHelp === 'function' && _avUserWantsStepHelp(text)) {
@@ -10553,10 +10623,13 @@ function sendAvatarMsg(presetText) {
       if (ans == null) {
         ans = _avGetAnswer(text);
         _avAddMsg('bot', ans);
+        window._avExpectYardimChoice = String(ans).indexOf('_avYardimCevap') !== -1;
       } else if (reqId) {
         _avAddMsg('bot', ans + _avFeedbackRowHtml(reqId));
+        window._avExpectYardimChoice = String(ans).indexOf('_avYardimCevap') !== -1;
       } else {
         _avAddMsg('bot', ans);
+        window._avExpectYardimChoice = String(ans).indexOf('_avYardimCevap') !== -1;
       }
       avBuildQuickBtns();
     })();
