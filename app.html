@@ -9170,6 +9170,8 @@ function _avMetindeFirmaSesli(text) {
 /** TTS: metinde kısa okunuş yoksa başa analiz firması + ilk iki kelime + limited/anonim ekler. */
 function _avSesAnalizFirmasiOnEk(text) {
   if (!text) return text;
+  /* Demo turu: mesajlar genelde firmayı içermez; ön ek her adımda tekrarlanırdı. */
+  if (window._demoMod) return text;
   const canon = _avFirmaKaynaklari().canon;
   const spoken = _avFirmaUnvanSesli(canon);
   if (!spoken) return text;
