@@ -1,0 +1,21 @@
+---
+description: Canlı Baykuş (TTS/avatar) düzenlenirken demo analiz sunumunun bozulmaması
+alwaysApply: true
+---
+
+# Baykuş — canlı vs demo ayrımı
+
+## Önemli
+
+- **Canlı Baykuş** ve **demo sunumu** çoğunlukla aynı dosyada (`app.html`) ve bazı yardımcıları paylaşıyor. Canlı Baykuşta yapılan her değişiklik **demo analiz sunumunu** (`_demoAnalizSunumu`, `demoBaslat` akışı) **bozmamalı**.
+- Demo kodu **`window._demoMod`**, **`_demoAnalizSunumu`**, **`_bsoy`**, **`_demoAnSunStep*`**, **`_demoAnSunElGit` / `_demoAnSunElGizle`**, **`_dasSpeakGen`** zinciri ve **`_demoAnalizSunumuBitti`** ile işaretlenir; canlı taraf **`avSesOku`**, **`_avTts*`**, **`_avAddMsg`**, avatar modal vb.
+
+## Yapılacaklar
+
+- Paylaşılan fonksiyonlarda davranışı **ayırmak** için `if (window._demoMod) { ... }` veya **demo‑özel** yerel fonksiyonlar kullan; demo dalını **silme / sadeleştirirken** canlı yolu tekilleştirme.
+- **`speechSynthesis.cancel`**, ses listesi / `getVoices`, zincir kimlikleri değişirken hem **canlı** hem **demo TTS** sonunu kontrol et.
+- Değişiklikten sonra mümkünse: **demo tam akış** (analiz sonrası sunum, senaryo → otomatik senaryo → Satın Al kapanışı) ve **canlı giriş** ile kısa Baykuş kontrolü.
+
+## İstisna
+
+- Kullanıcı aynı istekte hem canlı hem demo için net değişiklik isterse ikisini birlikte güncelle; aksi halde **önce demo regresyonunu önle**.

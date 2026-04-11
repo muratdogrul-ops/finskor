@@ -2,6 +2,10 @@
 
 Bu dosya **çalışan uygulama davranışını tek başına değiştirmez**; ekip ve AI için ürün kuralları ve yerleşim önerilerini özetler. Gerçek etki için `app.html` ve ilgili kodda implementasyon gerekir.
 
+## Baykuş (canlı) vs demo analiz sunumu
+
+- Canlı Baykuş / TTS düzenlenirken **demo analiz sunumunu bozma** (`_demoAnalizSunumu`, `window._demoMod`, demo TTS zinciri). Ayrıntı ve kontrol listesi: `.cursor/rules/finskor-baykus-demo-isolation.mdc`.
+
 ## Findeks raporu → analiz sayfasında KV / UV tenzili
 
 - **Findeks dosyası yüklüyse**, analiz sayfasında **KV ve UV mali borç** Findeks’ten türetilen kurallara göre **düzeltilmiş** olmalı (parse + recalc ile).
