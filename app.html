@@ -8656,6 +8656,132 @@ const OB_SLIDES = [
   }
 ]
 
+// ── Baykuş adım adım rehber (satın almış / kodlu kullanıcı; demo ve admin hariç) ──
+function _avPaidUserGuideEligible() {
+  if (window._demoMod) return false;
+  if (localStorage.getItem('kas_role') !== 'user') return false;
+  if (localStorage.getItem('kas_baykus_rehber_tamam') === '1') return false;
+  return true;
+}
+
+function _avGuideIsAdvanceIntent(t) {
+  const s = (t || '').toLocaleLowerCase('tr-TR').replace(/\s+/g, ' ').trim();
+  if (!s) return false;
+  if (/^(hazır|hazir|devam|tamam|ok|geç|gec|sonraki|bitti|yaptım|yaptim|ileri|evet|ready|continue|next|done)\s*$/i.test(s)) return true;
+  if (/\b(sonraki adım|sonraki adim|diğer adım|diger adim|devam edelim|hazırım|hazirim|next step)\b/i.test(s)) return true;
+  return false;
+}
+
+function _avGuideComplete() {
+  window._avGuideActive = false;
+  window._avGuideStep = -1;
+  localStorage.setItem('kas_baykus_rehber_tamam', '1');
+}
+
+function _avGuideFocusField(elId) {
+  const seciciler = {
+    refYear: () => document.getElementById('refYear'),
+    period: () => document.querySelector('.btn-period.active') || document.querySelector('.btn-period[data-val="12"]'),
+    firmType: () => document.getElementById('firmTypeDesc') || document.querySelector('[id*="firmType"]'),
+    importExcelBtn: () => {
+      const refYearVal = (document.getElementById('refYear') || {}).value || '2025';
+      return document.querySelector('#year-' + refYearVal + ' .upload-btn')
+        || document.querySelector('#year-2025 .upload-btn')
+        || document.querySelector('.upload-btn');
+    },
+    subjSecimEkrani: () => document.getElementById('subjSecimEkrani'),
+    runAnalysisBtn: () => document.querySelector('button.analyze-btn'),
+  };
+  const getter = seciciler[elId];
+  const el = getter ? getter() : null;
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const origBoxShadow = el.style.boxShadow;
+  const origOutline = el.style.outline;
+  el.style.outline = '3px solid #f5a623';
+  el.style.boxShadow = '0 0 0 6px rgba(245,166,35,0.25)';
+  el.style.transition = 'all 0.3s';
+  setTimeout(function () {
+    el.style.outline = origOutline;
+    el.style.boxShadow = origBoxShadow;
+  }, 2200);
+}
+
+function _avGuideStepsArray() {
+  const en = typeof state !== 'undefined' && state && state.lang === 'en';
+  if (en) {
+    return [
+      { html: 'Hello! &#x1F989;<br><br>You can ask me <b>in writing</b> here or tap the <b>microphone</b> button and ask <b>by voice</b>.<br><br><b>Let’s do it together.</b> I’ll guide you step by step. When you finish a step, type or say <b>ready</b>, <b>continue</b>, or <b>next</b> to move on.', openTab: null, elId: null },
+      { html: '<b>Step 1 — Analysis year</b><br><br>Pick the <b>analysis year</b> (top right) and make sure you also have the <b>previous year</b> filled in — horizontal comparison needs both.', openTab: 'tab-bilgi', elId: 'refYear' },
+      { html: '<b>Step 2 — Period</b><br><br>Choose the <b>period</b> (e.g. full year / quarter). Interim statements are annualised automatically.', openTab: 'tab-bilgi', elId: 'period' },
+      { html: '<b>Step 3 — Company type</b><br><br>Set <b>company type</b> (production, trading, contracting). Thresholds for ratios follow this choice.', openTab: 'tab-bilgi', elId: 'firmType' },
+      { html: '<b>Step 4 — Upload financials</b><br><br>On the year card use <b>Excel / PDF upload</b>: trial balance Excel, PDF trial balance, or PDF tax return as supported.', openTab: 'tab-bilgi', elId: 'importExcelBtn' },
+      { html: '<b>Step 5 — Subjective factors (where)</b><br><br>Open the <b>Subjective factors</b> tab at the bottom. We’ll explain the screen in the next step.', openTab: 'tab-subj', elId: 'subjSecimEkrani' },
+      { html: '<b>Step 6 — Subjective: automatic vs manual</b><br><br><b>Automatic</b> assigns <b>20.60 / 30</b> without answering questions.<br><b>Manual</b> asks four short questions (credit history, limit utilisation, years in business, accounting/audit) and scores up to 30.<br><br>Pick what fits you, complete the questions if manual, then continue.', openTab: 'tab-subj', elId: 'subjSecimEkrani' },
+      { html: '<b>Step 7 — Run analysis</b><br><br>Return to the <b>Financial data</b> tab and press <b>Analyse</b> when subjective part is ready. Then you’ll see your rating and report.', openTab: 'tab-bilgi', elId: 'runAnalysisBtn' },
+    ];
+  }
+  return [
+    { html: 'Merhaba! &#x1F989; Programa hoş geldiniz.<br><br>Sorularınızı <b>buraya yazarak</b> veya alttaki <b>mikrofon</b> düğmesine basıp <b>sesli</b> sorabilirsiniz.<br><br><b>Hadi birlikte yapalım.</b> Adım adım ilerleyeceğiz. Her adımda işleminiz bittiğinde <b>hazır</b>, <b>devam</b> veya <b>sonraki adım</b> yazın ya da söyleyin; bir sonraki adıma geçeriz.', openTab: null, elId: null },
+    { html: '<b>Adım 1 — Analiz yılı</b><br><br>Sağ üstten <b>analiz yılını</b> seçin. <b>Bir önceki yılın</b> verisinin de girilmiş olması gerekir; yatay analiz iki yılı birlikte kullanır.', openTab: 'tab-bilgi', elId: 'refYear' },
+    { html: '<b>Adım 2 — Analiz dönemi</b><br><br>Mali tablonun kapsadığı <b>dönemi</b> seçin (ör. yıl sonu, çeyrek). Ara dönem gelir tablosu otomatik yıllıklaştırılır.', openTab: 'tab-bilgi', elId: 'period' },
+    { html: '<b>Adım 3 — Firma tipi</b><br><br><b>Üretim, pazarlama veya taahhüt</b> tipini seçin; oran eşikleri buna göre ayarlanır.', openTab: 'tab-bilgi', elId: 'firmType' },
+    { html: '<b>Adım 4 — Mali veri yükleme</b><br><br>İlgili yıl kartında <b>Excel / PDF yükle</b> ile mizan Excel, PDF mizan veya PDF beyanname kullanabilirsiniz.', openTab: 'tab-bilgi', elId: 'importExcelBtn' },
+    { html: '<b>Adım 5 — Subjektif faktörler (nerede)</b><br><br>Alttaki <b>Subjektif Faktörler</b> sekmesine geçin. Ekranın nasıl çalıştığını bir sonraki adımda anlatıyorum.', openTab: 'tab-subj', elId: 'subjSecimEkrani' },
+    { html: '<b>Adım 6 — Subjektif: otomatik veya manuel</b><br><br><b>Otomatik</b> seçerseniz sorulara girmeden <b>20,60 / 30</b> puan atanır.<br><b>Manuel</b>de dört kısa soru vardır: kredi geçmişi, limit doluluk, faaliyet süresi, muhasebe/denetim — toplamda 30 puana kadar.<br><br>Size uygun olanı seçip manuelde soruları tamamlayın; bitince <b>hazır</b> veya <b>devam</b> deyin.', openTab: 'tab-subj', elId: 'subjSecimEkrani' },
+    { html: '<b>Adım 7 — Analiz</b><br><br><b>Mali Veriler</b> sekmesine dönün. Subjektif kısım hazırsa <b>Analiz Et</b> ile notu ve raporu üretin.', openTab: 'tab-bilgi', elId: 'runAnalysisBtn' },
+  ];
+}
+
+function avBuildQuickBtnsGuide() {
+  const qb = document.getElementById('avatarQuickBtns');
+  if (!qb) return;
+  const en = typeof state !== 'undefined' && state && state.lang === 'en';
+  qb.innerHTML = '<button type="button" class="av-qbtn" onclick="_avGuideOnAck()">' + (en ? '✅ Ready — next step' : '✅ Hazır — sonraki adım') + '</button>';
+}
+
+function _avGuideShowStep(i) {
+  const steps = _avGuideStepsArray();
+  if (i < 0 || i >= steps.length) return;
+  const st = steps[i];
+  _avAddMsg('bot', st.html);
+  avBuildQuickBtnsGuide();
+  setTimeout(function () {
+    if (st.openTab && typeof showTab === 'function') {
+      const bid = st.openTab === 'tab-subj' ? 'tab-btn-subj' : (st.openTab === 'tab-bilgi' ? 'tab-btn-bilgi' : null);
+      if (bid) {
+        const b = document.getElementById(bid);
+        if (b) showTab(st.openTab, b);
+      }
+    }
+    if (st.elId) _avGuideFocusField(st.elId);
+  }, 550);
+}
+
+function _avGuideOnAck() {
+  if (!window._avGuideActive || window._demoMod) return;
+  const steps = _avGuideStepsArray();
+  const next = (window._avGuideStep || 0) + 1;
+  if (next >= steps.length) {
+    _avGuideComplete();
+    const en = typeof state !== 'undefined' && state && state.lang === 'en';
+    _avAddMsg('bot', en
+      ? 'All set! &#x1F989; You’ve finished the guided steps. Use <b>Analyse</b> when ready, or the topic buttons below. You can keep typing or using the microphone.'
+      : 'Harika! &#x1F989; Adımları tamamladınız. Hazır olduğunuzda <b>Analiz Et</b> ile devam edin; aşağıdaki konu kısayollarını da kullanabilirsiniz. Yazmaya veya mikrofonla sormaya devam edebilirsiniz.');
+    avBuildQuickBtns();
+    return;
+  }
+  window._avGuideStep = next;
+  _avGuideShowStep(next);
+}
+
+function _avBaslaAdimRehber() {
+  if (window._demoMod) return;
+  window._avGuideActive = true;
+  window._avGuideStep = 0;
+  _avGuideShowStep(0);
+}
+
 let _obIdx = 0;
 
 function obOpen() {
@@ -8680,8 +8806,12 @@ function obClose() {
     showAvatarChat();
     const box = document.getElementById('avatarMessages');
     if (box && !box.children.length) {
-      _avAddMsg('bot', 'Merhaba! &#x1F989;<br><br>Sistem tanıtımı için aşağıdaki konu başlıklarına Analiz Yılından başlayarak teker teker basıp dinleyin lütfen.');
-      avBuildQuickBtns();
+      if (typeof _avPaidUserGuideEligible === 'function' && _avPaidUserGuideEligible()) {
+        _avBaslaAdimRehber();
+      } else {
+        _avAddMsg('bot', 'Merhaba! &#x1F989;<br><br>Sistem tanıtımı için aşağıdaki konu başlıklarına Analiz Yılından başlayarak teker teker basıp dinleyin lütfen.');
+        avBuildQuickBtns();
+      }
     }
   }, 400);
 }
@@ -10343,6 +10473,27 @@ function sendAvatarMsg(presetText) {
   // Hızlı butonları temizle
   const qb = document.getElementById('avatarQuickBtns');
   if (qb) qb.innerHTML = '';
+
+  // Adım adım rehber (demo dışı): hazır/devam → sonraki; atla → kapat; diğer → rehber biter, normal cevap
+  if (window._avGuideActive && !window._demoMod) {
+    const low = text.trim().toLocaleLowerCase('tr-TR');
+    if (_avGuideIsAdvanceIntent(text)) {
+      setTimeout(function () { _avGuideOnAck(); }, 400);
+      return;
+    }
+    if (/^(atla|skip|iptal|cancel)\b/i.test(low)) {
+      _avGuideComplete();
+      setTimeout(function () {
+        const en = typeof state !== 'undefined' && state && state.lang === 'en';
+        _avAddMsg('bot', en
+          ? 'OK, I’ve closed the step-by-step guide. Ask anything in text or with the microphone.'
+          : 'Tamam, adım adım rehberi kapattım. İstediğiniz soruyu yazabilir veya mikrofonla sorabilirsiniz.');
+        avBuildQuickBtns();
+      }, 350);
+      return;
+    }
+    _avGuideComplete();
+  }
 
   // Yazıyor göstergesi
   const typDiv = _avTyping();
