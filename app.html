@@ -11195,31 +11195,52 @@ function _demoAnalizSunumu() {
     setTimeout(() => { el.style.outline=os; el.style.boxShadow=obs; }, sure||3000);
   }
 
-  function _bsoy(metin) {
+  let _dasSpeakGen = 0;
+  let _dasFallTimer = null;
+  /** onEnd: önceki cümle bitince (demo senaryo zinciri için). Canlı Baykuştan bağımsız, yalnız bu fonksiyon içi. */
+  function _bsoy(metin, onEnd) {
     if (!window._demoMod) return;
     if (!window.speechSynthesis) return;
     const text = _avTtsPipelinePlain(_avTtsMetinCikar(metin));
-    if (!text) return;
+    if (!text) {
+      if (typeof onEnd === 'function') setTimeout(onEnd, 0);
+      return;
+    }
+    if (_dasFallTimer) { clearTimeout(_dasFallTimer); _dasFallTimer = null; }
+    const myGen = ++_dasSpeakGen;
     speechSynthesis.cancel();
+    const endOnce = (function () {
+      let done = false;
+      return function () {
+        if (done || !window._demoMod || myGen !== _dasSpeakGen) return;
+        done = true;
+        if (_dasFallTimer) { clearTimeout(_dasFallTimer); _dasFallTimer = null; }
+        if (typeof onEnd === 'function') onEnd();
+      };
+    })();
     function _demoAnSunSpeak() {
-      if (!window._demoMod) return;
+      if (!window._demoMod || myGen !== _dasSpeakGen) return;
       const utt = new SpeechSynthesisUtterance(text);
       const voices = speechSynthesis.getVoices();
       const trSes = voices.find(v => v.lang && String(v.lang).toLowerCase().startsWith('tr'));
       if (trSes) utt.voice = trSes;
       utt.lang = 'tr-TR';
       utt.rate = 1.05;
+      utt.onend = endOnce;
+      utt.onerror = endOnce;
       speechSynthesis.speak(utt);
+      const fbMs = Math.min(120000, Math.max(12000, text.length * 95));
+      _dasFallTimer = setTimeout(endOnce, fbMs);
     }
     function _demoAnSunRunSpeak() {
-      if (!window._demoMod) return;
+      if (!window._demoMod || myGen !== _dasSpeakGen) return;
       if (speechSynthesis.getVoices().length) {
         setTimeout(_demoAnSunSpeak, 90);
         return;
       }
       const t0 = Date.now();
       (function poll() {
-        if (!window._demoMod) return;
+        if (!window._demoMod || myGen !== _dasSpeakGen) return;
         if (speechSynthesis.getVoices().length || Date.now() - t0 > 2200) {
           setTimeout(_demoAnSunSpeak, 90);
           return;
@@ -11228,6 +11249,61 @@ function _demoAnalizSunumu() {
       })();
     }
     setTimeout(_demoAnSunRunSpeak, 120);
+  }
+
+  function _demoAnSunStep7() {
+    if (!window._demoMod) return;
+    const kvInput = document.getElementById('sld_kvtasima');
+    const vadeSelect = document.getElementById('sel_vade');
+    if (kvInput) {
+      kvInput.value = 75;
+      kvInput.dispatchEvent(new Event('input'));
+      const lbl = document.getElementById('lbl_kvtasima');
+      if (lbl) lbl.textContent = '%75';
+      if (window._senaryoState) window._senaryoState.kvtasima = 75;
+    }
+    if (vadeSelect) {
+      vadeSelect.value = '48';
+      vadeSelect.dispatchEvent(new Event('change'));
+      if (window._senaryoState) window._senaryoState.vade = 48;
+    }
+    if (typeof _renderSenaryo === 'function') _renderSenaryo();
+    const senModal = document.getElementById('senaryoModal');
+    if (senModal) _vurgula(senModal, 14000);
+    _bsoy('Kısa vadeli banka borcunun yüzde 75 i 48 ay vadeli taksitli kredi kullanılarak kapatıldığında, ' +
+      'senaryo puanı ve kredi notu anlık olarak güncellenir. Ekranda gördüğünüz değerler geçerlidir. ' +
+      'Bu şekilde birçok simülasyon yapılabilir.', _demoAnSunStep8);
+  }
+
+  function _demoAnSunStep8() {
+    if (!window._demoMod) return;
+    const sen = document.getElementById('senaryoModal');
+    if (sen) sen.style.display = 'none';
+    showTab('tab-sonuc', document.getElementById('tab-btn-sonuc'));
+    window.scrollTo({top:0, behavior:'smooth'});
+    setTimeout(() => {
+      if (!window._demoMod) return;
+      if (typeof showOtomSenaryo === 'function') showOtomSenaryo();
+      const otomBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('FinSkor Otomatik Senaryo'));
+      if (otomBtn) {
+        otomBtn.scrollIntoView({behavior:'smooth', block:'center'});
+        _vurgula(otomBtn, 14000);
+      }
+    }, 500);
+    _bsoy('FinSkor otomatik senaryo önerisi, notunuzu bir ve iki kademe artırmak için ' +
+      'en uygun kombinasyonu hesaplar. Sermaye artışı, kısa vadeden uzun vadeye taşıma ve satış büyümesi ' +
+      'kombinasyonları denenir. Bu öneri PDF raporda da yer alır.', _demoAnSunStep9);
+  }
+
+  function _demoAnSunStep9() {
+    if (!window._demoMod) return;
+    window.scrollTo({top:0, behavior:'smooth'});
+    _bsoy('Bankadan kredi kullanmak isteyen KOBİ ve ticari firmaların en büyük dezavantajı, ' +
+      'bankanın kendilerini nasıl değerlendirdiğini bilmemeleridir. ' +
+      'FinSkor bu bilgiyi firmanın eline verir. ' +
+      'Kredi başvurusundan önce notunuzu öğrenin, zayıf noktaları güçlendirin, ' +
+      'bankaya hazırlıklı gidin. Daha az teminat, daha iyi faiz, daha hızlı onay. ' +
+      'FinSkor, kredide güç dengesi artık sizin tarafınızda.');
   }
 
   // ADIM 1 — Kredi notu açıklaması | 300ms (DOM hazır, hemen başla)
@@ -11298,70 +11374,38 @@ function _demoAnalizSunumu() {
       'Aktif pasif dengesi sağlıklı bir bilançonun temelidir.');
   }, 54000);
 
-  // ADIM 6 — Senaryo (modal açmadan; sonuç sekmesinde düğmeyi göster) | 66000ms
+  // ADIM 6–9 — Senaryo modalı + KV örneği + otomatik öneri modalı; ADIM 7–9 önceki TTS bitince zincirlenir
   setTimeout(() => {
     if (!window._demoMod) return;
-    const senM = document.getElementById('senaryoModal');
-    if (senM) senM.style.display = 'none';
     const otomM = document.getElementById('otomSenaryoModal');
     if (otomM) otomM.style.display = 'none';
     showTab('tab-sonuc', document.getElementById('tab-btn-sonuc'));
     window.scrollTo({top:0, behavior:'smooth'});
     setTimeout(() => {
-      const senBtn = document.querySelector('button[onclick="showSenaryoModal()"]');
-      if (senBtn) {
-        senBtn.scrollIntoView({behavior:'smooth', block:'center'});
-        _vurgula(senBtn, 12000);
-      }
-    }, 400);
-    _bsoy('Kredi notu artırma senaryo analizi için sonuç sayfasındaki Kredi Notu Artırma Senaryo Analizi düğmesine tıklayarak simülasyonu açabilirsiniz. ' +
-      'Sermaye, borç vadesi, kâr marjı ve ciro parametreleriyle puan ve kredi notu canlı hesaplanır.');
+      if (!window._demoMod) return;
+      if (typeof showSenaryoModal === 'function') showSenaryoModal();
+      setTimeout(() => {
+        if (!window._demoMod) return;
+        const sermayeInput = document.getElementById('sld_sermaye');
+        if (sermayeInput) {
+          const hedef = 20400000;
+          sermayeInput.value = hedef;
+          sermayeInput.dispatchEvent(new Event('input'));
+          const lbl = document.getElementById('lbl_sermaye');
+          if (lbl) lbl.textContent = '20.4M ₺';
+          if (window._senaryoState) window._senaryoState.sermaye = hedef;
+          if (typeof _renderSenaryo === 'function') _renderSenaryo();
+        }
+        const senModal = document.getElementById('senaryoModal');
+        if (senModal) _vurgula(senModal, 14000);
+      }, 800);
+    }, 500);
+    _bsoy('Kredi notu artırma senaryo analizi. Sermaye, borç vadesi, kâr marjı ve ciro ' +
+      'parametreleriyle simülasyon yapılır. ' +
+      'Bu ekranda gördüğünüz puan ve kredi notu, o anki senaryo değerlerine göre canlı hesaplanır.', function () {
+        setTimeout(_demoAnSunStep7, 700);
+      });
   }, 66000);
-
-  // ADIM 7 — KV→UV örneği (yalnız anlatım; modal yok) | 84000ms
-  setTimeout(() => {
-    if (!window._demoMod) return;
-    const senBtn = document.querySelector('button[onclick="showSenaryoModal()"]');
-    if (senBtn) {
-      senBtn.scrollIntoView({behavior:'smooth', block:'center'});
-      _vurgula(senBtn, 10000);
-    }
-    _bsoy('Simülasyonda kısa vadeli banka borcunun örneğin yüzde 75\'inin 48 ay vadeli taksitli kredi ile kapatılması gibi senaryolar deneyebilirsiniz. ' +
-      'Puan ve not anlık güncellenir.');
-  }, 84000);
-
-  // ADIM 8 — Otomatik senaryo düğmesi (modal açmadan) | 106000ms
-  setTimeout(() => {
-    if (!window._demoMod) return;
-    const sen = document.getElementById('senaryoModal');
-    if (sen) sen.style.display = 'none';
-    const otomM2 = document.getElementById('otomSenaryoModal');
-    if (otomM2) otomM2.style.display = 'none';
-    showTab('tab-sonuc', document.getElementById('tab-btn-sonuc'));
-    window.scrollTo({top:0, behavior:'smooth'});
-    setTimeout(() => {
-      const otomBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('FinSkor Otomatik Senaryo'));
-      if (otomBtn) {
-        otomBtn.scrollIntoView({behavior:'smooth', block:'center'});
-        _vurgula(otomBtn, 14000);
-      }
-    }, 400);
-    _bsoy('FinSkor otomatik senaryo önerisi, notunuzu bir ve iki kademe artırmak için ' +
-      'en uygun kombinasyonu hesaplar. Sermaye artışı, kısa vadeden uzun vadeye taşıma ve satış büyümesi ' +
-      'kombinasyonları denenir. Sonuç sayfasındaki FinSkor Otomatik Senaryo Önerisi düğmesiyle açabilirsiniz. Bu öneri PDF raporda da yer alır.');
-  }, 106000);
-
-  // ADIM 9 — Kapanış | 123000ms (ADIM 8 ~14sn konuşma → 106+14+3 buffer)
-  setTimeout(() => {
-    if (!window._demoMod) return;
-    window.scrollTo({top:0, behavior:'smooth'});
-    _bsoy('Bankadan kredi kullanmak isteyen KOBİ ve ticari firmaların en büyük dezavantajı, ' +
-      'bankanın kendilerini nasıl değerlendirdiğini bilmemeleridir. ' +
-      'FinSkor bu bilgiyi firmanın eline verir. ' +
-      'Kredi başvurusundan önce notunuzu öğrenin, zayıf noktaları güçlendirin, ' +
-      'bankaya hazırlıklı gidin. Daha az teminat, daha iyi faiz, daha hızlı onay. ' +
-      'FinSkor, kredide güç dengesi artık sizin tarafınızda.');
-  }, 123000);
 }
 
 
