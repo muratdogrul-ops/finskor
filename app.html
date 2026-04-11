@@ -9861,7 +9861,9 @@ function _avMatchTextCore(q) {
     || (s.includes('neler') && (s.includes('yap') || s.includes('yapm'))) || s.includes('ne yap') || s.includes('ne yapm')
     || ((s.includes('nasıl') || s.includes('nasil')) && !s.includes('hesaplan') && !s.includes('nedir') && !s.includes('anlam')
       && !s.includes('tanım') && !s.includes('tanim') && !s.includes('çalış') && !s.includes('calis') && !s.includes('kullan')))
-    && ((s.includes('kredi') && s.includes('not')) || s.includes('puan') || s.includes('rating') || s.includes('skor'));
+    && ((s.includes('kredi') && s.includes('not')) || s.includes('puan') || s.includes('rating') || s.includes('skor')
+      || s.includes('notum') || s.includes('notumu') || s.includes('notunuz') || s.includes('notunu')
+      || s.includes('harf not'));
   if (_avQGradeUp) {
     return '<b>Kredi notunuzu veya toplam puanınızı iyileştirmek</b> için özet yol haritası:<br><br>'
       + '• <b>Finansal oranlar</b> — Borç/özkaynak, cari ve likidite, kısa vadeli banka borcu/satışlar, kar marjı, banka borcu/aktif gibi göstergeler <b>100 üzerinden 75</b> puana kadar olan finansal bölümü belirler. <b>Senaryo Analizi</b>nde kaydırıcılarla hangi hamlenin kaç puan getirdiğini anında görebilirsiniz.<br>'
