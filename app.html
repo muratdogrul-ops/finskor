@@ -615,7 +615,7 @@ tbody td { padding:8px 13px; color:var(--text); }
   </div>
 
   <div style="display:flex;justify-content:flex-end;margin-top:16px">
-    <button class="analyze-btn" style="padding:12px 28px;font-size:15px;letter-spacing:2px" onclick="showTab('tab-subj',document.getElementById('tab-btn-subj'))">Subjektif Faktörlere Geç →</button>
+    <button type="button" id="subjKriterGecBtn" class="analyze-btn" style="padding:12px 28px;font-size:15px;letter-spacing:2px" onclick="showTab('tab-subj',document.getElementById('tab-btn-subj'))">Subjektif Faktörlere Geç →</button>
   </div>
   </div>
 
@@ -8781,6 +8781,7 @@ function _avGuideFocusField(elId) {
         || document.querySelector('.upload-btn');
     },
     subjSecimEkrani: () => document.getElementById('subjSecimEkrani'),
+    subjKriterGecBtn: () => document.getElementById('subjKriterGecBtn'),
     runAnalysisBtn: () => document.querySelector('button.analyze-btn'),
   };
   const getter = seciciler[elId];
@@ -8807,7 +8808,7 @@ function _avGuideStepsArray() {
       { html: '<b>Step 2 — Period</b><br><br>Choose the <b>period</b> (e.g. full year / quarter). Interim statements are annualised automatically.', openTab: 'tab-bilgi', elId: 'period' },
       { html: '<b>Step 3 — Company type</b><br><br>Set <b>company type</b> (production, trading, contracting). Thresholds for ratios follow this choice.', openTab: 'tab-bilgi', elId: 'firmType' },
       { html: '<b>Step 4 — Upload financials</b><br><br>On the year card use <b>Excel / PDF upload</b>: trial balance Excel, PDF trial balance, or PDF tax return as supported.', openTab: 'tab-bilgi', elId: 'importExcelBtn' },
-      { html: '<b>Step 5 — Subjective factors (where)</b><br><br>Open the <b>Subjective factors</b> tab at the bottom. We’ll explain the screen in the next step.', openTab: 'tab-subj', elId: 'subjSecimEkrani' },
+      { html: '<b>Step 5 — Subjective factors (where)</b><br><br>On the <b>Financial data</b> tab, scroll to the bottom and tap <b>Go to subjective factors</b> on the <b>right</b>. Next step explains the screen.', openTab: 'tab-bilgi', elId: 'subjKriterGecBtn' },
       { html: '<b>Step 6 — Subjective: automatic vs manual</b><br><br><b>Automatic</b> assigns <b>20.60 / 30</b> without answering questions.<br><b>Manual</b> asks four short questions (credit history, limit utilisation, years in business, accounting/audit) and scores up to 30.<br><br>Pick what fits you, complete the questions if manual, then continue.', openTab: 'tab-subj', elId: 'subjSecimEkrani' },
       { html: '<b>Step 7 — Run analysis</b><br><br>Return to the <b>Financial data</b> tab and press <b>Analyse</b> when subjective part is ready. Then you’ll see your rating and report.', openTab: 'tab-bilgi', elId: 'runAnalysisBtn' },
     ];
@@ -8818,7 +8819,7 @@ function _avGuideStepsArray() {
     { html: '<b>Adım 2 — Analiz dönemi</b><br><br>Mali tablonun kapsadığı <b>dönemi</b> seçin (ör. yıl sonu, çeyrek). Ara dönem gelir tablosu otomatik yıllıklaştırılır.', openTab: 'tab-bilgi', elId: 'period' },
     { html: '<b>Adım 3 — Firma tipi</b><br><br><b>Üretim, pazarlama veya taahhüt</b> tipini seçin; oran eşikleri buna göre ayarlanır.', openTab: 'tab-bilgi', elId: 'firmType' },
     { html: '<b>Adım 4 — Mali veri yükleme</b><br><br>İlgili yıl kartında <b>Excel / PDF yükle</b> ile mizan Excel, PDF mizan veya PDF beyanname kullanabilirsiniz.', openTab: 'tab-bilgi', elId: 'importExcelBtn' },
-    { html: '<b>Adım 5 — Subjektif faktörler (nerede)</b><br><br>Üstteki sekme çubuğunda ortadaki <b>Subjektif Faktörler</b> sekmesine geçin. Ekranın nasıl çalıştığını bir sonraki adımda anlatıyorum.', openTab: 'tab-subj', elId: 'subjSecimEkrani' },
+    { html: '<b>Adım 5 — Subjektif kriterler (nerede)</b><br><br><b>Firma ve Mali Veriler</b> ekranında aşağı inin; listenin altında, <b>sağda</b> duran <b>Subjektif faktörlere geç</b> düğmesine basın. Bir sonraki adımda ekranın işleyişini anlatıyorum.', openTab: 'tab-bilgi', elId: 'subjKriterGecBtn' },
     { html: '<b>Adım 6 — Subjektif: otomatik veya manuel</b><br><br><b>Otomatik</b> seçerseniz sorulara girmeden <b>20,60 / 30</b> puan atanır.<br><b>Manuel</b>de dört kısa soru vardır: kredi geçmişi, limit doluluk, faaliyet süresi, muhasebe/denetim — toplamda 30 puana kadar.<br><br>Size uygun olanı seçip manuelde soruları tamamlayın; bitince <b>hazır</b> veya <b>devam</b> deyin.', openTab: 'tab-subj', elId: 'subjSecimEkrani' },
     { html: '<b>Adım 7 — Analiz</b><br><br><b>Mali Veriler</b> sekmesine dönün. Subjektif kısım hazırsa <b>Analiz Et</b> ile notu ve raporu üretin.', openTab: 'tab-bilgi', elId: 'runAnalysisBtn' },
   ];
@@ -9464,7 +9465,7 @@ function avBuildQuickBtns() {
     {l:'🏛 PDF Beyanname',   m:'pdf beyanname',                e:'importPdfBtn'},
     {l:'📊 Excel Mizan',     m:'excel mizan yukle',            e:'importExcelBtn'},
     {l:'📄 PDF Mizan',       m:'pdf mizan yukle',              e:'importPdfMizanBtn'},
-    {l:'🎯 Subjektif Faktörler', m:'subjektif',              e:'subjSecimEkrani'},
+    {l:'🎯 Subj. kriterler', m:'subjektif',                   e:'subjKriterGecBtn'},
     {l:'▶️ Analiz Et',       m:'analiz et',                    e:'runAnalysisBtn'},
     {l:'📈 Senaryo Analizi', m:'senaryo analizi ne işe yarar', e:null},
   );
@@ -9480,6 +9481,10 @@ function avKonuAc(mesaj, elId) {
   sendAvatarMsg(mesaj);
   if (!elId || elId === 'null' || elId === '') return;
   setTimeout(() => {
+    if (elId === 'subjKriterGecBtn' && typeof showTab === 'function') {
+      const tbBilgi = document.getElementById('tab-btn-bilgi');
+      if (tbBilgi) showTab('tab-bilgi', tbBilgi);
+    }
     // Gerçek element seçiciler — canlıdan alındı
     const seciciler = {
       // Analiz Yılı — refYear select
@@ -9509,6 +9514,7 @@ function avKonuAc(mesaj, elId) {
       },
       // Subjektif faktörler — alt bölüm
       'subjSecimEkrani':   () => document.getElementById('subjSecimEkrani'),
+      'subjKriterGecBtn':  () => document.getElementById('subjKriterGecBtn'),
       // Analiz Başlat — ilk aktif analyze-btn
       'runAnalysisBtn':    () => document.querySelector('button.analyze-btn'),
     };
@@ -10069,10 +10075,10 @@ function _avMatchTextCore(q) {
     return '<b>Senaryo Analizi</b> sekmesinde <b>sermaye artışı</b>, <b>kısa vadeli banka borcunu uzun vadeye taşıma</b>, <b>satış büyümesi</b> ve <b>net kar marjı</b> kaydırıcılarını oynatarak etkiyi anında görebilirsiniz.<br><br>'
       + '<b>FinSkor otomatik senaryo önerisi</b>, mevcut notunuzu iki kademe iyileştirebilecek senaryoyu hesaplar; özeti raporda da bulunur.';
   }
-  if (s.includes('subjektif') || /subjektif\s+(faktör|faktor|kriter)/i.test(s)) return '<b>Subjektif Faktörler</b> sekmesi, analiz ekranının <b>üstündeki sekme çubuğunda ortadadır</b> — <b>Firma ve Mali Veriler</b> ile <b>Analiz Sonucu</b> sekmeleri arasında. Baykuş sohbetindeki hızlı düğme de aynı bölüme kaydırır.<br><br>'
-    +'<b>Otomatik:</b> Kriterleri doldurmadan devam ederseniz sistem <b>20,60 puan (30 üzerinden)</b> atar.<br>'
-    +'<b>Manuel:</b> Dört soruyu yanıtlarsınız — <b>kredi geçmişi</b>, <b>limit doluluk</b>, <b>faaliyet süresi</b>, <b>muhasebe ve denetim</b>; yanıtlarınıza göre toplam <b>30</b> puana kadar hesaplanır.<br><br>'
-    +'<span style="color:#94a3b8">Sekmeye geçtikten sonra <b>Otomatik puan al</b> veya <b>Kriterleri kendim doldurayım</b> seçeneklerinden birini seçin.</span>';
+  if (s.includes('subjektif') || /subjektif\s+(faktör|faktor|kriter)/i.test(s)) return 'Subjektif kriterlere <b>Firma ve Mali Veriler</b> ekranından girilir: sayfayı aşağı kaydırıp listenin altındaki <b>sağ</b> köşedeki <b>Subjektif faktörlere geç</b> düğmesine basın.<br><br>'
+    +'<b>Otomatik:</b> Soruları atlayıp devam ederseniz sistem <b>20,60 puan (30 üzerinden)</b> yazar.<br>'
+    +'<b>Manuel:</b> Dört soruyu cevaplarsınız — <b>kredi geçmişi</b>, <b>limit doluluk</b>, <b>faaliyet süresi</b>, <b>muhasebe ve denetim</b>; toplam en fazla <b>30</b> puan.<br><br>'
+    +'<span style="color:#94a3b8">Açılan ekranda <b>Otomatik puan al</b> veya <b>Kriterleri kendim doldurayım</b> seçeneklerinden birini işaretleyin.</span>';
 
   // Sık sorulan: kredi notunu / puanı yükseltmek, ne yapmalıyım (genel "kredi notu" satırına düşmesin)
   const _avQGradeUp = (s.includes('yükselt') || s.includes('yukselt') || s.includes('yüksel') || s.includes('yuksel')
