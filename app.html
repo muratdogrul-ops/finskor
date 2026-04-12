@@ -8818,7 +8818,7 @@ function _avGuideStepsArray() {
     { html: '<b>Adım 2 — Analiz dönemi</b><br><br>Mali tablonun kapsadığı <b>dönemi</b> seçin (ör. yıl sonu, çeyrek). Ara dönem gelir tablosu otomatik yıllıklaştırılır.', openTab: 'tab-bilgi', elId: 'period' },
     { html: '<b>Adım 3 — Firma tipi</b><br><br><b>Üretim, pazarlama veya taahhüt</b> tipini seçin; oran eşikleri buna göre ayarlanır.', openTab: 'tab-bilgi', elId: 'firmType' },
     { html: '<b>Adım 4 — Mali veri yükleme</b><br><br>İlgili yıl kartında <b>Excel / PDF yükle</b> ile mizan Excel, PDF mizan veya PDF beyanname kullanabilirsiniz.', openTab: 'tab-bilgi', elId: 'importExcelBtn' },
-    { html: '<b>Adım 5 — Subjektif faktörler (nerede)</b><br><br>Alttaki <b>Subjektif Faktörler</b> sekmesine geçin. Ekranın nasıl çalıştığını bir sonraki adımda anlatıyorum.', openTab: 'tab-subj', elId: 'subjSecimEkrani' },
+    { html: '<b>Adım 5 — Subjektif faktörler (nerede)</b><br><br>Üstteki sekme çubuğunda ortadaki <b>Subjektif Faktörler</b> sekmesine geçin. Ekranın nasıl çalıştığını bir sonraki adımda anlatıyorum.', openTab: 'tab-subj', elId: 'subjSecimEkrani' },
     { html: '<b>Adım 6 — Subjektif: otomatik veya manuel</b><br><br><b>Otomatik</b> seçerseniz sorulara girmeden <b>20,60 / 30</b> puan atanır.<br><b>Manuel</b>de dört kısa soru vardır: kredi geçmişi, limit doluluk, faaliyet süresi, muhasebe/denetim — toplamda 30 puana kadar.<br><br>Size uygun olanı seçip manuelde soruları tamamlayın; bitince <b>hazır</b> veya <b>devam</b> deyin.', openTab: 'tab-subj', elId: 'subjSecimEkrani' },
     { html: '<b>Adım 7 — Analiz</b><br><br><b>Mali Veriler</b> sekmesine dönün. Subjektif kısım hazırsa <b>Analiz Et</b> ile notu ve raporu üretin.', openTab: 'tab-bilgi', elId: 'runAnalysisBtn' },
   ];
@@ -9149,6 +9149,7 @@ function _avTtsMetinCikar(html) {
   text = _avTtsUnicodeNormalize(text);
   let out = text
     .replace(/[\u{1F300}-\u{1FAFF}]/gu, ' ')
+    .replace(/\u2696\uFE0F?/g, ' ')
     .replace(/[✅⚠️🔶🚫🎯🎉📊📈💰🔄🏦💧📉🏆👇◈◆♦•●⭐①②③]/g, ' ')
     .replace(/[→←↗↘]/g, ' ')
     .replace(/\s+/g, ' ')
@@ -9463,7 +9464,7 @@ function avBuildQuickBtns() {
     {l:'🏛 PDF Beyanname',   m:'pdf beyanname',                e:'importPdfBtn'},
     {l:'📊 Excel Mizan',     m:'excel mizan yukle',            e:'importExcelBtn'},
     {l:'📄 PDF Mizan',       m:'pdf mizan yukle',              e:'importPdfMizanBtn'},
-    {l:'⚖️ Subjektif Kriterler', m:'subjektif',              e:'subjSecimEkrani'},
+    {l:'🎯 Subjektif Faktörler', m:'subjektif',              e:'subjSecimEkrani'},
     {l:'▶️ Analiz Et',       m:'analiz et',                    e:'runAnalysisBtn'},
     {l:'📈 Senaryo Analizi', m:'senaryo analizi ne işe yarar', e:null},
   );
@@ -10068,10 +10069,10 @@ function _avMatchTextCore(q) {
     return '<b>Senaryo Analizi</b> sekmesinde <b>sermaye artışı</b>, <b>kısa vadeli banka borcunu uzun vadeye taşıma</b>, <b>satış büyümesi</b> ve <b>net kar marjı</b> kaydırıcılarını oynatarak etkiyi anında görebilirsiniz.<br><br>'
       + '<b>FinSkor otomatik senaryo önerisi</b>, mevcut notunuzu iki kademe iyileştirebilecek senaryoyu hesaplar; özeti raporda da bulunur.';
   }
-  if (s.includes('subjektif') || s.includes('kriter')) return '⚖ <b>Subjektif Kriterler</b> butonu sayfanın <b>en altında sağ köşede</b> bulunur.<br><br>'
-    +'Doldurmazsanız sistem otomatik <b>20,60 puan (30 üzerinden)</b> verir. '
-    +'Ortakların geçmişi, banka ilişkileri, alacak kalitesi gibi 19 kriter içerir.<br>'
-    +'<span style="color:#94a3b8">Her kriter için seçenekler sunulur — en uygununu seçmeniz yeterli.</span>';
+  if (s.includes('subjektif') || /subjektif\s+(faktör|faktor|kriter)/i.test(s)) return '<b>Subjektif Faktörler</b> sekmesi, analiz ekranının <b>üstündeki sekme çubuğunda ortadadır</b> — <b>Firma ve Mali Veriler</b> ile <b>Analiz Sonucu</b> sekmeleri arasında. Baykuş sohbetindeki hızlı düğme de aynı bölüme kaydırır.<br><br>'
+    +'<b>Otomatik:</b> Kriterleri doldurmadan devam ederseniz sistem <b>20,60 puan (30 üzerinden)</b> atar.<br>'
+    +'<b>Manuel:</b> Dört soruyu yanıtlarsınız — <b>kredi geçmişi</b>, <b>limit doluluk</b>, <b>faaliyet süresi</b>, <b>muhasebe ve denetim</b>; yanıtlarınıza göre toplam <b>30</b> puana kadar hesaplanır.<br><br>'
+    +'<span style="color:#94a3b8">Sekmeye geçtikten sonra <b>Otomatik puan al</b> veya <b>Kriterleri kendim doldurayım</b> seçeneklerinden birini seçin.</span>';
 
   // Sık sorulan: kredi notunu / puanı yükseltmek, ne yapmalıyım (genel "kredi notu" satırına düşmesin)
   const _avQGradeUp = (s.includes('yükselt') || s.includes('yukselt') || s.includes('yüksel') || s.includes('yuksel')
@@ -10085,7 +10086,7 @@ function _avMatchTextCore(q) {
   if (_avQGradeUp) {
     return '<b>Kredi notunuzu veya toplam puanınızı iyileştirmek</b> için özet yol haritası:<br><br>'
       + '• <b>Finansal oranlar</b> — Borç/özkaynak, cari ve likidite, kısa vadeli banka borcu/satışlar, kar marjı, banka borcu/aktif gibi göstergeler <b>100 üzerinden 75</b> puana kadar olan finansal bölümü belirler. <b>Senaryo Analizi</b>nde kaydırıcılarla hangi hamlenin kaç puan getirdiğini anında görebilirsiniz.<br>'
-      + '• <b>Subjektif faktörler</b> — En alttaki <b>Subjektif Faktörler</b> en fazla <b>30 puan</b> taşır; doldurulmazsa otomatik <b>20,60 puan (30 üzerinden)</b> kullanılır. Notu yükseltmek için burayı gerçekçi doldurmak önemlidir.<br>'
+      + '• <b>Subjektif faktörler</b> — Üstteki sekme çubuğundaki <b>Subjektif Faktörler</b> en fazla <b>30 puan</b> taşır; doldurulmazsa otomatik <b>20,60 puan (30 üzerinden)</b> kullanılır; manuelde dört soru yanıtlanır. Notu yükseltmek için burayı gerçekçi doldurmak önemlidir.<br>'
       + '• <b>Veri ve ayarlar</b> — Doğru bilanço/gelir tablosu, analiz yılı ve önceki yıl, firma tipi ve ÜFE girişi; eksik veya hatalı veri notu aşağı çeker.<br><br>'
       + '<span style="color:#94a3b8">Genel bilgilendirme; banka kararı veya yatırım tavsiyesi değildir.</span>';
   }
@@ -10297,7 +10298,7 @@ function _avMatchTextCore(q) {
   if (_avFinAnalizNasilEarly) {
     return _avFinansalAnalizAkisiHtml() + _avYardimEvetHayirBtns();
   }
-  if (s.includes('analiz et')) return '<b>Analiz Et:</b> Önce en altta sağda bulunan <b>Subjektif Faktörler</b> sekmesini doldurun. Doldurmadan geçerseniz sistem <b>20,60 puan (30 üzerinden)</b> otomatik verir. Ardından <b style="color:#f5a623">Analiz Et</b> butonu aktif olur.';
+  if (s.includes('analiz et')) return '<b>Analiz Et:</b> Önce üstteki sekme çubuğunda <b>Subjektif Faktörler</b> sekmesini açıp otomatik veya manuel değerlendirmeyi tamamlayın. Doldurmadan geçerseniz sistem <b>20,60 puan (30 üzerinden)</b> otomatik verir. Ardından <b style="color:#f5a623">Analiz Et</b> ile notu üretin.';
   if (s.includes('pdf') || s.includes('yükle') || s.includes('import') || s.includes('excel') || s.includes('mizan')) return 'Yıl kartındaki 📎 <b>Excel / PDF Yükle</b> butonuna tıklayın. Excel mizan, PDF mizan ve PDF beyanname desteklenir.';
   if (s.includes('yıllıklaştır') || s.includes('ara dönem')) return 'Ara dönem veri yüklendiğinde sistem otomatik yıllıklaştırır. '
     +'Örneğin 9 aylık gelir tablosu 12 aya çevrilir.';
@@ -11328,7 +11329,7 @@ function demoBaslat() {
         showTab('tab-subj', document.getElementById('tab-btn-subj'));
       }
     }, 400);
-    _bsoy('Şimdi <b>Subjektif Faktörler</b> sekmesine geçiyoruz. Bu bölüm toplam 105 puanın 30 puanını oluşturur.');
+    _bsoy('Şimdi üstteki sekme çubuğunda <b>Subjektif Faktörler</b> sekmesine geçiyoruz. Bu bölüm toplam 105 puanın 30 puanını oluşturur.');
   }, 64000);
 
   // ADIM 7 — Subjektif bilgilendirme (tek sesli metin; çift anlatım önlenir)
@@ -11337,7 +11338,7 @@ function demoBaslat() {
     const otom=document.querySelector('button[onclick="subjOtomatikSec()"]');
     const manuel=document.querySelector('button[onclick="subjManuelSec()"]');
     setTimeout(()=>_elDolas([otom,manuel].filter(Boolean),1200), 300);
-    _bsoy('Subjektif bölümde iki yöntem var: <b>Otomatik</b> seçimde sorulara girmeden 20.60 puan atanır. <b>Manuel</b>de dört soru yanıtlanır ve puan cevaplara göre hesaplanır. Bu demoda manuel seçenek örnek olarak önceden işaretlenmiştir.');
+    _bsoy('Subjektif bölümde iki yöntem var: <b>Otomatik</b> seçimde sorulara girmeden <b>20,60 puan (30 üzerinden)</b> atanır. <b>Manuel</b>de dört soru yanıtlanır — kredi geçmişi, limit doluluk, faaliyet süresi, muhasebe ve denetim; puan yanıtlarınıza göre hesaplanır. Bu demoda manuel seçenek örnek olarak önceden işaretlenmiştir.');
     setTimeout(() => {
       if (!window._demoMod) return;
       const grid = document.getElementById('subjGridWrap');
