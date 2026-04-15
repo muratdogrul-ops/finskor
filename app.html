@@ -32,6 +32,7 @@
   --text: #edf0f7; --text-muted: #556080; --text-dim: #8896b3;
   --danger: #f03e3e; --success: #20c875; --warning: #f5a623;
   --gold: #f5a623; --gold2: #e8c56b;
+  --demo-banner-offset: 0px;
 }
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:'Plus Jakarta Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
@@ -82,7 +83,7 @@ body::before {
 
 /* ── HEADER ── */
 header {
-  position:sticky; top:0; z-index:100;
+  position:sticky; top:var(--demo-banner-offset); z-index:100;
   background:rgba(7,8,15,0.96); backdrop-filter:blur(20px);
   border-bottom:1px solid var(--border);
   padding:0 28px; display:flex; align-items:center; justify-content:space-between; height:62px;
@@ -310,6 +311,57 @@ tbody td { padding:8px 13px; color:var(--text); }
 .skala-table tr:last-child td{border-bottom:none;}
 .note-badge{display:inline-block;padding:3px 12px;border-radius:5px;font-family:'Syne',sans-serif;font-size:15px;letter-spacing:2px;min-width:48px;text-align:center;}
 @media(max-width:900px){.subj-grid{grid-template-columns:1fr;}.rating-hero{grid-template-columns:1fr;}}
+@media(max-width:700px){
+  header{
+    top:0 !important;
+    height:auto;
+    min-height:52px;
+    padding:8px 10px;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .logo{
+    font-size:18px;
+  }
+  .header-right{
+    width:100%;
+    justify-content:flex-end;
+    gap:6px;
+  }
+  .nav-btn{
+    padding:6px 10px;
+    font-size:11px;
+  }
+  .page{
+    padding-top:14px;
+  }
+  #demoBanner{
+    position:sticky !important;
+    top:0 !important;
+    z-index:1000 !important;
+  }
+  #demoBanner{
+    padding:8px 10px !important;
+    gap:8px !important;
+    align-items:flex-start !important;
+    flex-wrap:wrap;
+  }
+  #demoBanner .demo-main{
+    min-width:0;
+  }
+  #demoBanner .demo-title{
+    font-size:12px !important;
+    line-height:1.3;
+  }
+  #demoBanner .demo-desc{
+    display:none;
+  }
+  #demoBanner .demo-actions{
+    width:100%;
+    justify-content:flex-end;
+  }
+}
 
   /* ══ BAYKUŞ AVATAR ══ */
   @keyframes avSlideUp {
@@ -426,14 +478,14 @@ tbody td { padding:8px 13px; color:var(--text); }
 <div id="demoBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9998;
   background:linear-gradient(90deg,#f5a623,#f97316);padding:10px 20px;
   display:none;align-items:center;justify-content:space-between;gap:12px">
-  <div style="display:flex;align-items:center;gap:10px">
+  <div class="demo-main" style="display:flex;align-items:center;gap:10px">
     <span style="font-size:18px">🎯</span>
     <div>
-      <div style="font-size:13px;font-weight:700;color:#000">DEMO MODU — ABC Metal A.Ş.</div>
-      <div style="font-size:11px;color:rgba(0,0,0,0.7)">Gerçek firma verisiyle örnek analiz · Kaydetme ve PDF devre dışı &nbsp;|&nbsp; <span class="demo-sure">Demo süresi: 15:00 kaldı</span></div>
+      <div class="demo-title" style="font-size:13px;font-weight:700;color:#000">DEMO MODU — ABC Metal A.Ş.</div>
+      <div class="demo-desc" style="font-size:11px;color:rgba(0,0,0,0.7)">Gerçek firma verisiyle örnek analiz · Kaydetme ve PDF devre dışı &nbsp;|&nbsp; <span class="demo-sure">Demo süresi: 15:00 kaldı</span></div>
     </div>
   </div>
-  <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+  <div class="demo-actions" style="display:flex;align-items:center;gap:10px;flex-shrink:0">
     <button onclick="demoSatinAl()" style="padding:8px 18px;background:#000;color:#f5a623;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">
       🚀 Satın Al
     </button>
@@ -1010,6 +1062,7 @@ function showTab(tabId, btn) {
     if (b) b.classList.add('active');
   }
   if (typeof unlockPageScroll === 'function') unlockPageScroll();
+  if (typeof syncDemoBannerOffsetSoon === 'function') syncDemoBannerOffsetSoon();
 }
 
 /** Baykuş: geliştirme ortamı (modalda ek ipucu) — lokal / file / ?avatar_ai=1 */
@@ -1035,6 +1088,7 @@ function updateAvatarAiLabUi() {
 /** Sağ şerit: yalnız lokal / deneme parametreleri (?avatar_ai=1 veya localhost/file) */
 function localDevStripEnabled() {
   try {
+    if (window._demoMod) return false;
     return avatarAiLabEnabled();
   } catch (e) {
     return false;
@@ -4332,10 +4386,10 @@ function _renderSenaryo() {
         <div>
           <label style="font-size:11px;color:#94a3b8;display:flex;justify-content:space-between">
             <span>🔄 KV Banka Borcu → UV Taşıma</span>
-            <span id="lbl_kvtasima" style="color:#f59e0b;font-weight:700">%${kvTasimaOran}</span>
+            <span id="lbl_kvtasima" style="color:#f59e0b;font-weight:700">%${(Math.round(Number(kvTasimaOran) * 10) / 10).toFixed(1)}</span>
           </label>
           <input type="range" id="sld_kvtasima" min="0" max="100" step="5"
-            value="${kvTasimaOran}" oninput="window._senaryoState.kvtasima=parseFloat(this.value);document.getElementById('lbl_kvtasima').textContent='%'+this.value;_renderSenaryo()"
+            value="${kvTasimaOran}" oninput="window._senaryoState.kvtasima=parseFloat(this.value);document.getElementById('lbl_kvtasima').textContent='%'+(Math.round(parseFloat(this.value)*10)/10).toFixed(1);_renderSenaryo()"
             style="width:100%;margin-top:4px;accent-color:#f59e0b">
           <div style="display:flex;justify-content:space-between;font-size:9px;color:#475569;margin-top:2px">
             <span>%0</span><span>%50</span><span>%100</span>
@@ -11070,6 +11124,28 @@ const DEMO_FIRMA = {
 let _demoTimer = null;
 let _demoSure  = 15 * 60; // 15 dakika saniye cinsinden
 
+function syncDemoBannerOffset() {
+  try {
+    const root = document.documentElement;
+    const banner = document.getElementById('demoBanner');
+    const visible = !!(banner && window.getComputedStyle(banner).display !== 'none');
+    const h = visible ? Math.ceil(banner.getBoundingClientRect().height || 0) : 0;
+    root.style.setProperty('--demo-banner-offset', h + 'px');
+  } catch (e) {}
+}
+
+function syncDemoBannerOffsetSoon() {
+  syncDemoBannerOffset();
+  try {
+    requestAnimationFrame(() => {
+      syncDemoBannerOffset();
+      requestAnimationFrame(syncDemoBannerOffset);
+    });
+  } catch (e) {}
+  setTimeout(syncDemoBannerOffset, 80);
+  setTimeout(syncDemoBannerOffset, 180);
+}
+
 function demoBaslat() {
   window._demoMod = true;
   window._demoKalan = _demoSure;
@@ -11082,6 +11158,7 @@ function demoBaslat() {
 
   const banner = document.getElementById('demoBanner');
   if (banner) banner.style.display = 'flex';
+  syncDemoBannerOffsetSoon();
 
   const logo = document.querySelector('.logo');
   if (logo) logo.innerHTML = 'FinSkor <span style="font-size:10px;background:#f5a623;color:#000;padding:2px 7px;border-radius:20px;font-weight:700;vertical-align:middle;margin-left:6px">DEMO</span>';
@@ -11129,7 +11206,8 @@ function demoBaslat() {
     // Demo akışına uygun kısa bilgilendirme
     if (window.speechSynthesis) {
       speechSynthesis.cancel();
-      const utt = new SpeechSynthesisUtterance('Ben Baykuş, merhaba! Önce firma ve mali veri alanlarını gezeceğiz; subjektif ve analiz adımlarını sırayla göstereceğim.');
+      // Kısa tutulur: adım anlatımına geçerken sesin yarıda kesilmesini engeller.
+      const utt = new SpeechSynthesisUtterance('Ben Baykuş, merhaba!');
       const voices = speechSynthesis.getVoices();
       const trSes = voices.find(v => v.lang && String(v.lang).toLowerCase().startsWith('tr'));
       if (trSes) utt.voice = trSes;
@@ -11237,30 +11315,52 @@ function demoBaslat() {
     });
   }
 
-  function _bsoy(metin) {
+  /** Demo turu TTS: isteğe bağlı onEnd ile zincirleme (subjektif adımlarında sabit süre kesmesin). */
+  let _demoTourSpeakGen = 0;
+  let _demoTourSpeakTimer = null;
+  function _bsoy(metin, onEnd) {
     if (!window._demoMod) return;
     const am = document.getElementById('avatarModal');
     if (am) am.style.display = 'none';
-    // avSesOku çift konuşmayı önlemek için geçici olarak sustur
     const _prevSes = window._avSesAcik;
     window._avSesAcik = false;
     _avAddMsg('bot', metin);
     window._avSesAcik = _prevSes;
-    if (window.speechSynthesis) {
-      const text = _avTtsPipelinePlain(_avTtsMetinCikar(metin));
-      if (text) {
-        speechSynthesis.cancel();
-        setTimeout(() => {
-          if (!window._demoMod) return;
-          const utt = new SpeechSynthesisUtterance(text);
-          const voices = speechSynthesis.getVoices();
-          const trSes = voices.find(v => v.lang && String(v.lang).toLowerCase().startsWith('tr'));
-          if (trSes) utt.voice = trSes;
-          utt.lang='tr-TR'; utt.rate=1.05;
-          speechSynthesis.speak(utt);
-        }, 300);
-      }
+    if (!window.speechSynthesis) {
+      if (typeof onEnd === 'function') setTimeout(onEnd, 0);
+      return;
     }
+    const text = _avTtsPipelinePlain(_avTtsMetinCikar(metin));
+    if (!text) {
+      if (typeof onEnd === 'function') setTimeout(onEnd, 0);
+      return;
+    }
+    if (_demoTourSpeakTimer) { clearTimeout(_demoTourSpeakTimer); _demoTourSpeakTimer = null; }
+    const myGen = ++_demoTourSpeakGen;
+    speechSynthesis.cancel();
+    const endOnce = (function () {
+      let done = false;
+      return function () {
+        if (done || !window._demoMod || myGen !== _demoTourSpeakGen) return;
+        done = true;
+        if (_demoTourSpeakTimer) { clearTimeout(_demoTourSpeakTimer); _demoTourSpeakTimer = null; }
+        if (typeof onEnd === 'function') onEnd();
+      };
+    })();
+    setTimeout(() => {
+      if (!window._demoMod || myGen !== _demoTourSpeakGen) return;
+      const utt = new SpeechSynthesisUtterance(text);
+      const voices = speechSynthesis.getVoices();
+      const trSes = voices.find(v => v.lang && String(v.lang).toLowerCase().startsWith('tr'));
+      if (trSes) utt.voice = trSes;
+      utt.lang = 'tr-TR';
+      utt.rate = 1.05;
+      utt.onend = endOnce;
+      utt.onerror = endOnce;
+      speechSynthesis.speak(utt);
+      const fbMs = Math.min(120000, Math.max(10000, text.length * 95));
+      _demoTourSpeakTimer = setTimeout(endOnce, fbMs);
+    }, 300);
   }
 
   // ── ADIMLAR (Hesaplanmış sürelerle) ───────────────────────
@@ -11318,13 +11418,12 @@ function demoBaslat() {
     _bsoy('Üç yükleme yöntemi var: <b>Excel mizan</b>, <b>PDF beyanname</b>, <b>PDF mizan</b>. Aynı yıl kartına hem mizan hem geçici vergi beyannamesi yüklenebilir. Kartı açmak için <b>çift tıklayın</b>.');
   }, 50000);
 
-  // ADIM 6 — Subjektif sekme | başlangıç: 49200+12000=61200ms | süre: 7000ms
+  // ADIM 6–8 — Subjektif: TTS bitimine zincirlenir (sabit süre bir sonraki _bsoy ile önceki konuşmayı kesmesin; Analiz tıklaması anlatım ortasında olmasın)
   setTimeout(() => {
     if (!window._demoMod) return;
     window.scrollTo({top:0, behavior:'smooth'});
     setTimeout(() => {
       const st = document.getElementById('tab-btn-subj');
-      // Demo için: subjektif grid yoksa yeniden oluştur
       if (window._demoSubjHazir && typeof buildSubjGrid === 'function') buildSubjGrid();
       if (st) {
         _elCiftTik(st, () => {
@@ -11335,52 +11434,60 @@ function demoBaslat() {
         showTab('tab-subj', document.getElementById('tab-btn-subj'));
       }
     }, 400);
-    _bsoy('Şimdi üstteki sekme çubuğunda <b>Subjektif Faktörler</b> sekmesine geçiyoruz. Bu bölüm toplam 105 puanın 30 puanını oluşturur.');
-  }, 64000);
-
-  // ADIM 7 — Subjektif bilgilendirme (tek sesli metin; çift anlatım önlenir)
-  setTimeout(() => {
-    if (!window._demoMod) return;
-    const otom=document.querySelector('button[onclick="subjOtomatikSec()"]');
-    const manuel=document.querySelector('button[onclick="subjManuelSec()"]');
-    setTimeout(()=>_elDolas([otom,manuel].filter(Boolean),1200), 300);
-    _bsoy('Subjektif bölümde iki yöntem var: <b>Otomatik</b> seçimde sorulara girmeden <b>20,60 puan (30 üzerinden)</b> atanır. <b>Manuel</b>de dört soru yanıtlanır — kredi geçmişi, limit doluluk, faaliyet süresi, muhasebe ve denetim; puan yanıtlarınıza göre hesaplanır. Bu demoda manuel seçenek örnek olarak önceden işaretlenmiştir.');
-    setTimeout(() => {
-      if (!window._demoMod) return;
-      const grid = document.getElementById('subjGridWrap');
-      if (grid && grid.offsetParent !== null) { grid.scrollIntoView({behavior:'smooth', block:'center'}); _vurgula(grid, 3500); }
-    }, 5200);
-  }, 71000);
-
-  // ADIM 8 — Analiz Et (yalnızca subjektif sekmesindeki Analizi Başlat; ilk analyze-btn yanlışlıkla "Subjektif Faktörlere Geç" olmasın)
-  setTimeout(() => {
-    if (!window._demoMod) return;
-    showTab('tab-subj', document.getElementById('tab-btn-subj'));
-    setTimeout(() => {
-      if (!window._demoMod) return;
-      let analizBtn = null;
-      document.querySelectorAll('#tab-subj button.analyze-btn[onclick="runAnalysis()"]').forEach(b => {
-        if (!analizBtn && b.offsetParent !== null) analizBtn = b;
-      });
-      if (!analizBtn) analizBtn = document.querySelector('button.analyze-btn[onclick="runAnalysis()"]');
-      if (analizBtn) {
-        analizBtn.scrollIntoView({behavior:'smooth', block:'center'});
-        _elCiftTik(analizBtn, () => {
-          _vurgula(analizBtn, 2400);
-          setTimeout(() => {
-            _elGizle();
-            if (window._demoMod && typeof runAnalysis === 'function') {
-              runAnalysis();
-              setTimeout(() => {
-                if (!window._demoMod) return;
-                showTab('tab-sonuc', document.getElementById('tab-btn-sonuc'));
-              }, 1400);
-            }
-          }, 1000);
-        });
+    _bsoy(
+      'Şimdi üstteki sekme çubuğunda <b>Subjektif Faktörler</b> sekmesine geçiyoruz. '
+      + 'Toplam skor en fazla yüz beş puan; bunun <b>otuz puanlık</b> kısmı bu sekmede, subjektif faktörlerden gelir.',
+      function _demoAdim7SubjBilgi() {
+        if (!window._demoMod) return;
+        const otom = document.querySelector('button[onclick="subjOtomatikSec()"]');
+        const manuel = document.querySelector('button[onclick="subjManuelSec()"]');
+        setTimeout(() => _elDolas([otom, manuel].filter(Boolean), 1200), 300);
+        let gridT = null;
+        gridT = setTimeout(() => {
+          if (!window._demoMod) return;
+          const grid = document.getElementById('subjGridWrap');
+          if (grid && grid.offsetParent !== null) {
+            grid.scrollIntoView({behavior:'smooth', block:'center'});
+            _vurgula(grid, 3500);
+          }
+        }, 5500);
+        _bsoy(
+          'Subjektif bölümde iki yöntem var: <b>Otomatik</b> seçimde sorulara girmeden <b>20,60 puan (30 üzerinden)</b> atanır. '
+          + '<b>Manuel</b>de dört soru yanıtlanır — kredi geçmişi, limit doluluk, faaliyet süresi, muhasebe ve denetim; '
+          + 'puan yanıtlarınıza göre hesaplanır. Bu demoda manuel seçenek örnek olarak önceden işaretlenmiştir.',
+          function _demoAdim8AnalizEt() {
+            if (gridT) { clearTimeout(gridT); gridT = null; }
+            if (!window._demoMod) return;
+            showTab('tab-subj', document.getElementById('tab-btn-subj'));
+            setTimeout(() => {
+              if (!window._demoMod) return;
+              let analizBtn = null;
+              document.querySelectorAll('#tab-subj button.analyze-btn[onclick="runAnalysis()"]').forEach(b => {
+                if (!analizBtn && b.offsetParent !== null) analizBtn = b;
+              });
+              if (!analizBtn) analizBtn = document.querySelector('button.analyze-btn[onclick="runAnalysis()"]');
+              if (analizBtn) {
+                analizBtn.scrollIntoView({behavior:'smooth', block:'center'});
+                _elCiftTik(analizBtn, () => {
+                  _vurgula(analizBtn, 2400);
+                  setTimeout(() => {
+                    _elGizle();
+                    if (window._demoMod && typeof runAnalysis === 'function') {
+                      runAnalysis();
+                      setTimeout(() => {
+                        if (!window._demoMod) return;
+                        showTab('tab-sonuc', document.getElementById('tab-btn-sonuc'));
+                      }, 1400);
+                    }
+                  }, 1000);
+                });
+              }
+            }, 500);
+          }
+        );
       }
-    }, 500);
-  }, 84000);
+    );
+  }, 64000);
 
   void fetchDestekBilgiPrefetch();
   _demoGeriSayimBaslat();
@@ -11706,6 +11813,7 @@ function demoCik(sureBitti = false) {
   // Banner'ı gizle
   const banner = document.getElementById('demoBanner');
   if (banner) banner.style.display = 'none';
+  syncDemoBannerOffsetSoon();
 
   // Logo'yu sıfırla
   const logo = document.querySelector('.logo');
@@ -11758,7 +11866,12 @@ window.onload = () => {
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
   document.getElementById('loginUser').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('loginPass').focus(); });
+  syncDemoBannerOffset();
 };
+
+window.addEventListener('resize', () => {
+  syncDemoBannerOffset();
+});
 
 </script>
 
