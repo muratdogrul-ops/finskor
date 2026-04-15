@@ -420,8 +420,10 @@ tbody td { padding:8px 13px; color:var(--text); }
         🎯 Ücretsiz Demo Yap
       </button>
       <div style="font-size:11px;color:#64748b;margin-top:8px;line-height:1.5">Kayıt gerekmez · Kendi verilerinizi yükleyip arayüzü deneyin · <strong style="color:#94a3b8">Analiz Et tam notu göstermez; paketlere yönlendirir</strong></div>
-      <p style="text-align:center;margin-top:16px;font-size:11px"><a href="kgf.html" style="color:#64748b;text-decoration:none;border-bottom:1px solid rgba(100,116,139,0.35)">KGF paket rehberi</a> <span style="color:#475569">· bilgilendirme</span></p>
-      <p style="text-align:center;margin-top:8px;font-size:11px"><a href="#" onclick="event.preventDefault();openDestekModal();" style="color:#64748b;text-decoration:none;border-bottom:1px solid rgba(100,116,139,0.35)">KOSGEB · KGF canlı özet</a> <span style="color:#475569">· her açılışta güncellenir</span></p>
+      <div role="note" style="margin-top:14px;padding:12px 14px;border-radius:10px;border:1px solid rgba(245,166,35,0.45);background:rgba(245,166,35,0.08);text-align:left">
+        <div style="font-size:11px;font-weight:800;color:#f5a623;margin-bottom:6px;letter-spacing:0.03em">GÜVENLİK — Veriler cihazınızda</div>
+        <div style="font-size:11px;color:#cbd5e1;line-height:1.55">Girdiğiniz mali tablolar ve firma bilgileri <strong style="color:#e2e8f0">bu tarayıcıda işlenir</strong>; otomatik kayıt ve giriş sonrası veriler <strong style="color:#e2e8f0">cihazınızdaki tarayıcı deposunda</strong> (ör. yerel depolama) tutulabilir. Paylaşımlı veya güvenilmeyen bilgisayarlarda kullanmayın. İşiniz bitince <strong style="color:#e2e8f0">Çıkış</strong> yapın veya uygulama içinden <strong style="color:#e2e8f0">Tüm Verileri Sıfırla</strong> ile yerel kaydı silin.</div>
+      </div>
     </div>
     <div style="margin:22px 0 10px;text-align:center;font-size:11px;color:#475569;letter-spacing:0.5px">— Erişim kodu ile giriş —</div>
     <!-- Onay kutusu (yalnızca erişim kodu / admin girişi) -->
@@ -455,23 +457,6 @@ tbody td { padding:8px 13px; color:var(--text); }
     <div style="padding:16px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center">
       <span style="font-size:12px;color:#94a3b8">Devam etmek için giriş ekranındaki kutucuğu işaretleyin.</span>
       <button onclick="belgeModalKapat()" style="padding:10px 24px;background:#f5a623;color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px">Anladım, Kapat</button>
-    </div>
-  </div>
-</div>
-
-<!-- ══════════════ KOSGEB · KGF CANLI ÖZET ══════════════ -->
-<div id="destekModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99998;overflow-y:auto;padding:20px">
-  <div style="max-width:800px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
-    <div style="background:#1e293b;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-      <div style="font-size:15px;font-weight:700;color:#f5a623;font-family:'Plus Jakarta Sans',sans-serif">KOSGEB · KGF canlı özet</div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <button type="button" onclick="destekModalYenile()" style="padding:8px 14px;background:rgba(245,166,35,0.2);border:1px solid rgba(245,166,35,0.5);color:#f5a623;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer">Yenile</button>
-        <button type="button" onclick="destekModalKapat()" style="background:none;border:none;color:#94a3b8;font-size:24px;cursor:pointer;line-height:1">✕</button>
-      </div>
-    </div>
-    <div id="destekModalIcerik" style="padding:28px 24px;font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:13.5px;line-height:1.65;color:#1e293b;max-height:70vh;overflow-y:auto"></div>
-    <div style="padding:14px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:11px;color:#64748b">
-      Bilgilendirme amaçlıdır; teyit için resmi siteleri kullanın. KGF özeti sunucuda en fazla 24 saatte bir yenilenir.
     </div>
   </div>
 </div>
@@ -526,6 +511,11 @@ tbody td { padding:8px 13px; color:var(--text); }
 
   <!-- TAB 1: MALİ VERİLER -->
   <div id="tab-bilgi">
+
+  <div role="status" aria-live="polite" style="margin:0 0 12px;padding:12px 14px;border-radius:10px;border:1px solid rgba(245,166,35,0.5);background:rgba(245,166,35,0.09)">
+    <div style="font-size:12px;font-weight:800;color:#f5a623;margin-bottom:6px">Önemli: Mali verileriniz ve bu oturumdaki analiz özeti tarayıcınızda tutulur</div>
+    <div style="font-size:11.5px;color:var(--text-muted);line-height:1.6">Yüklediğiniz tablolar ve girdiğiniz rakamlar <strong style="color:var(--text)">cihazınızda işlenir</strong>; kayıtlı çalışmalar çoğunlukla <strong style="color:var(--text)">aynı tarayıcının yerel deposunda</strong> saklanır. Ortak PC, kütüphane veya başkasının cihazında <strong style="color:var(--text)">kullanmayın</strong>. İşiniz bitince <strong style="color:var(--text)">Çıkış</strong> yapın veya <strong style="color:var(--text)">Tüm Verileri Sıfırla</strong> ile bu cihazdaki veriyi silin.</div>
+  </div>
 
   <!-- Kayıtlı Analizler butonu — ilk sayfada erişim -->
   <div style="display:flex;justify-content:flex-end;padding:8px 0 4px">
@@ -2030,8 +2020,6 @@ function loginSuccess(userData) {
   // init() bittikten SONRA admin ayarlarını uygula (race condition önlenir)
   loadUfeFromSupabase();
   loadSettingsFromSupabase();
-
-  void fetchDestekBilgiPrefetch();
 
   // Baykuş butonu her zaman görünür
   const ab = document.getElementById('avatarBtn');
@@ -10984,112 +10972,6 @@ function belgeModalKapat() {
   document.documentElement.style.overflow = '';
 }
 
-function escDestekHtml(s) {
-  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-function renderDestekModalPayload(d) {
-  const el = document.getElementById('destekModalIcerik');
-  if (!el || !d) return;
-  const b = d.base || {};
-  const k = d.kosgeb || {};
-  const g = d.kgf || {};
-  const srcLabel = { live: 'Canlı sayfa', cache: 'Önbellek (son başarılı)', base: 'Özet (yerel)' };
-  let html = '';
-  html += '<p style="font-size:12px;color:#64748b;margin-bottom:16px">Yanıt zamanı: ' + escDestekHtml(d.generatedAt || '') + '</p>';
-  html += '<div style="border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:14px;background:#f8fafc">';
-  html += '<div style="font-size:11px;font-weight:700;color:#0f172a;margin-bottom:6px">KOSGEB</div>';
-  html += '<div style="font-size:11px;color:#94a3b8;margin-bottom:8px">' + escDestekHtml(srcLabel[k.source] || k.source || '') + (k.fetchedAt ? ' · ' + escDestekHtml(k.fetchedAt) : '') + '</div>';
-  if (k.title) html += '<div style="font-weight:600;color:#1e293b;margin-bottom:6px">' + escDestekHtml(k.title) + '</div>';
-  html += '<p style="font-size:13px;color:#334155;line-height:1.6">' + escDestekHtml(k.excerpt) + '</p>';
-  if (b.kosgeb) {
-    html += '<div style="margin-top:12px;font-size:12px">';
-    const du = b.kosgeb.desteklerUrl || b.kosgeb.officialUrl || '';
-    if (du) html += '<a href="' + escDestekHtml(du) + '" target="_blank" rel="noopener noreferrer" style="color:#f5a623;font-weight:600">Destekler (KOSGEB) →</a>';
-    if (b.kosgeb.edevletUrl) html += ' &nbsp;|&nbsp; <a href="' + escDestekHtml(b.kosgeb.edevletUrl) + '" target="_blank" rel="noopener noreferrer" style="color:#64748b">e-Devlet</a>';
-    html += '</div>';
-  }
-  if (b.kosgeb && b.kosgeb.programs && b.kosgeb.programs.length) {
-    html += '<ul style="margin:12px 0 0;padding-left:18px;font-size:12px;color:#475569">';
-    b.kosgeb.programs.slice(0, 8).forEach((p) => {
-      html += '<li><strong>' + escDestekHtml(p.title) + '</strong> (' + escDestekHtml(p.type) + ') — ' + escDestekHtml(p.note) + '</li>';
-    });
-    html += '</ul>';
-  }
-  html += '</div>';
-  html += '<div style="border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:14px;background:#fff">';
-  html += '<div style="font-size:11px;font-weight:700;color:#0f172a;margin-bottom:6px">KGF (Kredi Garanti Fonu)</div>';
-  html += '<div style="font-size:11px;color:#94a3b8;margin-bottom:8px">' + escDestekHtml(srcLabel[g.source] || g.source || '') + (g.fetchedAt ? ' · ' + escDestekHtml(g.fetchedAt) : '') + '</div>';
-  if (g.title) html += '<div style="font-weight:600;color:#1e293b;margin-bottom:6px">' + escDestekHtml(g.title) + '</div>';
-  html += '<p style="font-size:13px;color:#334155;line-height:1.6">' + escDestekHtml(g.excerpt) + '</p>';
-  if (b.kgf && b.kgf.officialUrl) {
-    html += '<div style="margin-top:12px;font-size:12px"><a href="' + escDestekHtml(b.kgf.officialUrl) + '" target="_blank" rel="noopener noreferrer" style="color:#f5a623;font-weight:600">kgf.com.tr →</a></div>';
-  }
-  html += '</div>';
-  if (d.notes && d.notes.length) {
-    html += '<div style="font-size:11px;color:#94a3b8;line-height:1.5">';
-    d.notes.forEach((n) => { html += '<p style="margin:0 0 6px">' + escDestekHtml(n) + '</p>'; });
-    html += '</div>';
-  }
-  el.innerHTML = html;
-}
-
-async function fetchDestekBilgiPrefetch() {
-  try {
-    const r = await fetch('/.netlify/functions/destek-bilgi', { cache: 'no-store' });
-    if (!r.ok) return;
-    window._destekBilgiLast = await r.json();
-  } catch (e) { /* yerel dosya / ağ yok */ }
-}
-
-function openDestekModal() {
-  const overlay = document.getElementById('destekModalOverlay');
-  const el = document.getElementById('destekModalIcerik');
-  if (!overlay) return;
-  overlay.style.display = 'block';
-  document.body.style.overflow = 'hidden';
-  if (window._destekBilgiLast) renderDestekModalPayload(window._destekBilgiLast);
-  else if (el) el.innerHTML = '<p style="color:#64748b">Yükleniyor...</p>';
-  fetch('/.netlify/functions/destek-bilgi', { cache: 'no-store' })
-    .then((r) => {
-      if (!r.ok) throw new Error('http');
-      return r.json();
-    })
-    .then((j) => {
-      window._destekBilgiLast = j;
-      renderDestekModalPayload(j);
-    })
-    .catch(() => {
-      if (el && !window._destekBilgiLast) {
-        el.innerHTML = '<p style="color:#dc2626">Canlı özet alınamadı. Netlify üzerinden açın veya bağlantınızı kontrol edin.</p>';
-      }
-    });
-}
-
-function destekModalKapat() {
-  const o = document.getElementById('destekModalOverlay');
-  if (o) o.style.display = 'none';
-  document.body.style.overflow = '';
-}
-
-function destekModalYenile() {
-  window._destekBilgiLast = null;
-  const el = document.getElementById('destekModalIcerik');
-  if (el) el.innerHTML = '<p style="color:#64748b">Yenileniyor...</p>';
-  fetch('/.netlify/functions/destek-bilgi', { cache: 'no-store' })
-    .then((r) => {
-      if (!r.ok) throw new Error('http');
-      return r.json();
-    })
-    .then((j) => {
-      window._destekBilgiLast = j;
-      renderDestekModalPayload(j);
-    })
-    .catch(() => {
-      if (el) el.innerHTML = '<p style="color:#dc2626">Yenileme başarısız.</p>';
-    });
-}
-
 // Admin girişinde onay kutusu gerekmez — login butonunu aktif et
 function adminLoginKontrol(code) {
   const cred = getCredentials();
@@ -11511,7 +11393,6 @@ function demoBaslat() {
     );
   }, 64000);
 
-  void fetchDestekBilgiPrefetch();
   _demoGeriSayimBaslat();
 }
 function _demoAnalizSunumu() {
