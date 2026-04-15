@@ -11606,13 +11606,13 @@ function demoBaslat() {
     _bsoy('Sağ üstte <b>Analiz Yılı</b> seçilir. Varsayılan yıl <b>iki bin yirmi dört</b>. İki yıl birlikte yükleyin; yatay analiz için gerekli.');
   }, 3000);
 
-  // ADIM 2 — Bilanço Dönemi
+  // ADIM 2 — Bilanço Dönemi (adım 1 bitişi → adım 2 başlangıcı arası −3 sn: 15s → 12s)
   setTimeout(() => {
     if (!window._demoMod) return;
     const donemBtnler = Array.from(document.querySelectorAll('.btn-period'));
     if (donemBtnler.length) { donemBtnler[0].scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elDolas(donemBtnler,600), 600); }
     _bsoy('<b>Bilanço Dönemi</b>: Mali tablonun kapsadığı süre. Mart, Haziran, Eylül veya Yıl Sonu Aralık. Ara dönem seçilirse sistem gelir tablosunu otomatik yıllıklaştırır.');
-  }, 15000);
+  }, 12000);
 
   // ADIM 3 — Firma Tipi
   setTimeout(() => {

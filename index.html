@@ -684,6 +684,18 @@ section { position: relative; z-index: 1; }
   max-width: 560px;
   line-height: 1.7;
 }
+/* Baykuş bölümü: dar ekranda tek sütun (mockup ezilmesin) */
+.baykus-section-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(32px, 5vw, 80px);
+  align-items: center;
+}
+.baykus-section-grid > * { min-width: 0; }
+@media (max-width: 900px) {
+  .baykus-section-grid { grid-template-columns: 1fr; }
+}
+
 .section-desc.kosgeb-kblock-intro {
   max-width: 720px;
   margin-top: 28px;
@@ -1840,7 +1852,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- BAYKUŞ SECTION -->
 <section style="padding:100px 0;background:var(--navy2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);" id="baykus">
   <div class="section-inner">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;">
+    <div class="baykus-section-grid">
       <div>
         <div class="section-tag">Baykuş AI Asistan</div>
         <h2 class="section-title">Finansal Analizinizi<br>Sesli Dinleyin</h2>
@@ -2351,7 +2363,8 @@ const observer = new IntersectionObserver((entries) => {
 }, { threshold: 0.1 });
 
 /* Fiyat kartları: opacity 0 + observer bazen tetiklenmez → NakitFlow görünmez kalıyordu; vitrin her zaman görünür */
-document.querySelectorAll('.feature-card, .how-step, .scenario-card, .rating-row, .flow-step, .banka-karari-card, .landing-kimler-item, .landing-cozum-card, .hero-tier-card, .landing-problem-card').forEach(el => {
+/* hero-tier-card çıkarıldı: hero üstte; IO bazen tetiklenmeyince “Kredi Notu Gelişimi” vitrini görünmez kalıyordu */
+document.querySelectorAll('.feature-card, .how-step, .scenario-card, .rating-row, .flow-step, .banka-karari-card, .landing-kimler-item, .landing-cozum-card, .landing-problem-card').forEach(el => {
   el.style.opacity = '0';
   el.style.transform = 'translateY(16px)';
   el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
