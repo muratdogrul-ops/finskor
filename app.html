@@ -419,7 +419,7 @@ tbody td { padding:8px 13px; color:var(--text); }
         onmouseover="this.style.background='rgba(46,204,154,0.2)'" onmouseout="this.style.background='rgba(46,204,154,0.1)'">
         🎯 Ücretsiz Demo Yap
       </button>
-      <div style="font-size:11px;color:#64748b;margin-top:8px;line-height:1.5">Kayıt gerekmez · Gerçek firma verisiyle ücretsiz deneyin · <strong style="color:#94a3b8">Demo için sözleşme işareti gerekmez</strong></div>
+      <div style="font-size:11px;color:#64748b;margin-top:8px;line-height:1.5">Kayıt gerekmez · Kendi verilerinizi yükleyip arayüzü deneyin · <strong style="color:#94a3b8">Analiz Et tam notu göstermez; paketlere yönlendirir</strong></div>
       <p style="text-align:center;margin-top:16px;font-size:11px"><a href="kgf.html" style="color:#64748b;text-decoration:none;border-bottom:1px solid rgba(100,116,139,0.35)">KGF paket rehberi</a> <span style="color:#475569">· bilgilendirme</span></p>
       <p style="text-align:center;margin-top:8px;font-size:11px"><a href="#" onclick="event.preventDefault();openDestekModal();" style="color:#64748b;text-decoration:none;border-bottom:1px solid rgba(100,116,139,0.35)">KOSGEB · KGF canlı özet</a> <span style="color:#475569">· her açılışta güncellenir</span></p>
     </div>
@@ -486,8 +486,8 @@ tbody td { padding:8px 13px; color:var(--text); }
   <div class="demo-main" style="display:flex;align-items:center;gap:10px">
     <span style="font-size:18px">🎯</span>
     <div>
-      <div class="demo-title" style="font-size:13px;font-weight:700;color:#000">DEMO MODU — ABC Metal A.Ş.</div>
-      <div class="demo-desc" style="font-size:11px;color:rgba(0,0,0,0.7)">Gerçek firma verisiyle örnek analiz · Kaydetme ve PDF devre dışı &nbsp;|&nbsp; <span class="demo-sure">Demo süresi: 15:00 kaldı</span></div>
+      <div class="demo-title" style="font-size:13px;font-weight:700;color:#000">DEMO MODU</div>
+      <div class="demo-desc" style="font-size:11px;color:rgba(0,0,0,0.7)">Kendi mali verinizi yükleyin · Analiz Et sonrası tam sonuç yerine paket sayfasına yönlendirilirsiniz · Kayıt/PDF demo kısıtlı &nbsp;|&nbsp; <span class="demo-sure">Demo süresi: 15:00 kaldı</span></div>
     </div>
   </div>
   <div class="demo-actions" style="display:flex;align-items:center;gap:10px;flex-shrink:0">
@@ -1055,9 +1055,6 @@ function showTab(tabId, btn) {
   if (el) el.style.display = 'block';
   // Subjektif tab açılınca seçim ekranını göster
   if (tabId === 'tab-subj') {
-    if (window._demoMod && !window._demoSubjHazir && typeof demoRandomizeSubjSec === 'function') {
-      demoRandomizeSubjSec();
-    }
     subjSecimGoster();
   }
   if (btn) btn.classList.add('active');
@@ -1269,6 +1266,43 @@ function demoRandomizeSubjSec() {
     subjSec[f.id] = rnd;
   });
   window._demoSubjHazir = true;
+}
+
+/** Demo: subjektif — otomatik wrap açık veya tüm manuel sorular yanıtlanmış. */
+function _demoSubjKatilimTamam() {
+  const otom = document.getElementById('subjOtomatikWrap');
+  if (otom && otom.offsetParent !== null && window.getComputedStyle(otom).display !== 'none') return true;
+  return SUBJ_FACTORS.every(f => subjSec[f.id] !== null && subjSec[f.id] !== undefined);
+}
+
+/** Demo girişinde subjektif ekranını sıfırla (örnek ABC otomatik doldurma yok). */
+function _demoResetSubjektifUi() {
+  window._demoSubjHazir = false;
+  SUBJ_FACTORS.forEach(f => { subjSec[f.id] = null; });
+  const secim = document.getElementById('subjSecimEkrani');
+  const manuel = document.getElementById('subjGridWrap');
+  const otom = document.getElementById('subjOtomatikWrap');
+  if (secim) secim.style.display = 'block';
+  if (manuel) manuel.style.display = 'none';
+  if (otom) otom.style.display = 'none';
+}
+
+/** Demo: analiz sonucu göstermeden landing fiyat/paket bölümüne git (canlı Baykuştan ayrı). */
+function _demoYonlendirPaketlere() {
+  try {
+    if (window.speechSynthesis) speechSynthesis.cancel();
+  } catch (e) {}
+  if (typeof _demoTimer !== 'undefined' && _demoTimer) {
+    clearInterval(_demoTimer);
+    _demoTimer = null;
+  }
+  window._demoMod = false;
+  const banner = document.getElementById('demoBanner');
+  if (banner) banner.style.display = 'none';
+  if (typeof syncDemoBannerOffsetSoon === 'function') syncDemoBannerOffsetSoon();
+  const logo = document.querySelector('.logo');
+  if (logo) logo.innerHTML = 'FinSkor';
+  window.location.href = 'index.html#fiyat';
 }
 
 // ── Subjektif Seçim Ekranı Fonksiyonları ──────────────────
@@ -3248,17 +3282,30 @@ function _doRunAnalysis() {
     return;
   }
 
+  // ── DEMO: tam analiz sonucu gösterilmez; doğrulama sonrası landing paket/fiyat bölümüne yönlendir ──
+  if (window._demoMod) {
+    if (!state.yearData[prevYear] || !state.yearData[prevYear].aktifToplam) {
+      showToast('Yatay analiz için analiz yılı (' + refYear + ') ile birlikte bir önceki yıl (' + prevYear + ') mali verilerini de yükleyin veya girin.', true);
+      showTab('tab-bilgi', document.getElementById('tab-btn-bilgi'));
+      return;
+    }
+    if (!_demoSubjKatilimTamam()) {
+      showToast('Subjektif Faktörler sekmesinde «Otomatik puan al» seçin veya tüm soruları yanıtlayın.', true);
+      const st = document.getElementById('tab-btn-subj');
+      if (st) showTab('tab-subj', st);
+      else showTab('tab-subj', document.getElementById('tab-btn-subj'));
+      return;
+    }
+    _demoYonlendirPaketlere();
+    return;
+  }
+
   const r = calcRatios(refYear);
   enrichRatiosAfterCalc(r, refYear);
 
-  if (window._demoMod && typeof demoRandomizeSubjSec === 'function') {
-    const _subjTam = SUBJ_FACTORS.every(f => subjSec[f.id] !== null && subjSec[f.id] !== undefined);
-    if (!_subjTam) demoRandomizeSubjSec();
-  }
-
   // ── SKOR HESAPLA (Excel B127+B128 birebir)
   const _objHesaplanan = calcObjScore(r, state.firmType);  // maks 75
-  const objPuan  = window._demoMod ? 35.00 : _objHesaplanan;
+  const objPuan  = _objHesaplanan;
   // calcSubjPuan() artık 30 üzerinden direkt puan döndürüyor
   // (20.60 = otomatik, veya seçimlerden hesaplanan normalize puan)
   const subjRaw  = calcSubjPuan();
@@ -3390,12 +3437,6 @@ function _doRunAnalysis() {
   buildTrend(refYear);
   buildTrend(refYear);
   autoSave();  // Analiz sonucu otosave
-
-  // ── DEMO: ANALİZ SONUÇ SUNUMU ────────────────────────────
-  if (window._demoMod) {
-    setTimeout(_demoAnalizSunumu, 1800);
-  }
-
 
     // Download butonunu göster
   const dlBtn = document.getElementById('downloadBtn');
@@ -11160,7 +11201,6 @@ function syncDemoBannerOffsetSoon() {
 function demoBaslat() {
   window._demoMod = true;
   window._demoKalan = _demoSure;
-  demoRandomizeSubjSec();
 
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
@@ -11182,26 +11222,28 @@ function demoBaslat() {
     state.activeYears.forEach(y => { if (typeof refreshInputs === 'function') refreshInputs(y); });
   }
 
-  if (!state.yearData) state.yearData = {};
-  state.yearData[DEMO_FIRMA.refYear]       = {...DEMO_FIRMA.data};
-  state.yearData[DEMO_FIRMA.refYear - 1]   = {...DEMO_FIRMA.data2023};
-  state.firmType = DEMO_FIRMA.tip;
-  state.period   = DEMO_FIRMA.period;
-  state.refYear  = DEMO_FIRMA.refYear;
-  const firmaEl = document.getElementById('firmaAdi');
-  if (firmaEl) firmaEl.value = DEMO_FIRMA.ad;
-  const refYearEl = document.getElementById('refYear');
-  if (refYearEl) refYearEl.value = DEMO_FIRMA.refYear;
-  document.querySelectorAll('.btn-period').forEach(b =>
-    b.classList.toggle('active', b.dataset.val === DEMO_FIRMA.period));
-
-  // Demo yıl kartlarını "veri yüklenmiş" görünümüne getir
   const _ry = DEMO_FIRMA.refYear;
-  const _ky24 = document.getElementById('year-' + _ry);
-  const _ky23 = document.getElementById('year-' + (_ry - 1));
-  if (_ky24) { _ky24.classList.add('has-data'); const _i = document.getElementById('info' + _ry); if (_i) _i.textContent = 'ABC Metal Mak. ' + _ry + '.xlsx \u2713'; }
-  if (_ky23) { _ky23.classList.add('has-data'); const _i = document.getElementById('info' + (_ry-1)); if (_i) _i.textContent = 'ABC Metal Mak. ' + (_ry-1) + '.xlsx \u2713'; }
+  if (!state.yearData) state.yearData = {};
+  state.yearData[_ry] = {};
+  state.yearData[_ry - 1] = {};
+  state.refYear = _ry;
+  const firmaEl = document.getElementById('firmaAdi');
+  if (firmaEl) firmaEl.value = '';
+  const refYearEl = document.getElementById('refYear');
+  if (refYearEl) refYearEl.value = String(_ry);
+  document.querySelectorAll('.btn-period').forEach(b =>
+    b.classList.toggle('active', String(b.dataset.val) === String(state.period)));
+
+  const _kyCur = document.getElementById('year-' + _ry);
+  const _kyPrev = document.getElementById('year-' + (_ry - 1));
+  if (_kyCur) { _kyCur.classList.remove('has-data'); const _i = document.getElementById('info' + _ry); if (_i) _i.textContent = ''; }
+  if (_kyPrev) { _kyPrev.classList.remove('has-data'); const _i = document.getElementById('info' + (_ry - 1)); if (_i) _i.textContent = ''; }
+  if (typeof refreshInputs === 'function') {
+    refreshInputs(_ry);
+    refreshInputs(_ry - 1);
+  }
   if (typeof updateFirmTypeDisplay === 'function') updateFirmTypeDisplay();
+  _demoResetSubjektifUi();
 
   const _ab = document.getElementById('avatarBtn');
   if (_ab) _ab.style.display = 'flex';
@@ -11388,7 +11430,7 @@ function demoBaslat() {
         _elSelectAc(sel, null, true);
       }, 800);
     }
-    _bsoy('Sağ üstte <b>Analiz Yılı</b> seçilir. Cari yıl 2024 seçili. Sistem seçilen yıl ile bir önceki yılı karşılaştırarak hem dikey hem yatay analiz yapar.');
+    _bsoy('Sağ üstte <b>Analiz Yılı</b> seçilir; bu demoda varsayılan yıl <b>' + DEMO_FIRMA.refYear + '</b>. Seçilen yıl ile <b>bir önceki yıl</b> birlikte yüklenmelidir; yatay analiz için ikisi zorunludur.');
   }, 3000);
 
   // ADIM 2 — Bilanço Dönemi | başlangıç: 1200+12000=13200ms | süre: 11000ms
@@ -11405,7 +11447,7 @@ function demoBaslat() {
     const btnler = Array.from(document.querySelectorAll('button')).filter(b =>
       b.textContent.includes('Pazarlama') || b.textContent.includes('Üretim') || b.textContent.includes('Taahhüt'));
     if (btnler.length) { btnler[0].scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elDolas(btnler,700), 600); }
-    _bsoy('<b>Firma Tipi</b>: Pazarlama veya Hizmet, Üretim ya da Taahhüt. Her tip için finansal oran eşikleri farklı hesaplanır. ABC Metal için Üretim seçili.');
+    _bsoy('<b>Firma Tipi</b>: Pazarlama veya Hizmet, Üretim ya da Taahhüt. Her tip için finansal oran eşikleri farklı hesaplanır. Kendi firmanıza uygun olanı seçin.');
   }, 26000);
 
   // ADIM 4 — 2024/2023 zorunluluğu | başlangıç: 24200+12000=36200ms | süre: 13000ms
@@ -11413,29 +11455,29 @@ function demoBaslat() {
     if (!window._demoMod) return;
     window.scrollTo({top:400, behavior:'smooth'});
     setTimeout(() => {
-      const k24=document.getElementById('year-2024'), k23=document.getElementById('year-2023');
-      const kartlar=[k24,k23].filter(Boolean);
+      const yCur = document.getElementById('year-' + DEMO_FIRMA.refYear);
+      const yPrev = document.getElementById('year-' + (DEMO_FIRMA.refYear - 1));
+      const kartlar = [yCur, yPrev].filter(Boolean);
       if (kartlar.length) { kartlar[0].scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elDolas(kartlar,1500), 500); }
     }, 700);
-    _bsoy('<b>Mali veri yükleme</b>: Her yıl için ayrı kart var. Analiz yılı 2024 ile birlikte bir önceki yıl 2023 mutlaka yüklenmelidir. Yatay analiz için ikisi zorunludur.');
+    _bsoy('<b>Mali veri yükleme</b>: Her yıl için ayrı kart var. Analiz yılı <b>' + DEMO_FIRMA.refYear + '</b> ile birlikte bir önceki yıl <b>' + (DEMO_FIRMA.refYear - 1) + '</b> mutlaka yüklenmelidir. Yatay analiz için ikisi zorunludur.');
   }, 37000);
 
   // ADIM 5 — Yükleme yöntemleri | başlangıç: 36200+13000=49200ms | süre: 12000ms
   setTimeout(() => {
     if (!window._demoMod) return;
-    const up24=document.querySelector('#year-2024 .upload-btn')||document.querySelector('.upload-btn');
-    const up23=document.querySelector('#year-2023 .upload-btn');
-    if (up24) { up24.scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elCiftTik(up24,()=>{ if(up23) setTimeout(()=>_elCiftTik(up23,()=>_elGizle()),1000); }),500); }
+    const upCur=document.querySelector('#year-' + DEMO_FIRMA.refYear + ' .upload-btn')||document.querySelector('.upload-btn');
+    const upPrev=document.querySelector('#year-' + (DEMO_FIRMA.refYear - 1) + ' .upload-btn');
+    if (upCur) { upCur.scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elCiftTik(upCur,()=>{ if(upPrev) setTimeout(()=>_elCiftTik(upPrev,()=>_elGizle()),1000); }),500); }
     _bsoy('Üç yükleme yöntemi var: <b>Excel mizan</b>, <b>PDF beyanname</b>, <b>PDF mizan</b>. Aynı yıl kartına hem mizan hem geçici vergi beyannamesi yüklenebilir. Kartı açmak için <b>çift tıklayın</b>.');
   }, 50000);
 
-  // ADIM 6–8 — Subjektif: TTS bitimine zincirlenir (sabit süre bir sonraki _bsoy ile önceki konuşmayı kesmesin; Analiz tıklaması anlatım ortasında olmasın)
+  // ADIM 6–7 — Subjektif (otomatik Analiz Et yok; kullanıcı verisini yükleyip kendisi basar → paket sayfası)
   setTimeout(() => {
     if (!window._demoMod) return;
     window.scrollTo({top:0, behavior:'smooth'});
     setTimeout(() => {
       const st = document.getElementById('tab-btn-subj');
-      if (window._demoSubjHazir && typeof buildSubjGrid === 'function') buildSubjGrid();
       if (st) {
         _elCiftTik(st, () => {
           showTab('tab-subj', st);
@@ -11446,54 +11488,23 @@ function demoBaslat() {
       }
     }, 400);
     _bsoy(
-      'Şimdi üstteki sekme çubuğunda <b>Subjektif Faktörler</b> sekmesine geçiyoruz. '
-      + 'Toplam skor en fazla yüz beş puan; bunun <b>otuz puanlık</b> kısmı bu sekmede, subjektif faktörlerden gelir.',
+      'Üstteki <b>Subjektif Faktörler</b> sekmesine geçiyoruz. Toplam notun <b>otuz puanlık</b> kısmı buradan gelir.',
       function _demoAdim7SubjBilgi() {
         if (!window._demoMod) return;
         const otom = document.querySelector('button[onclick="subjOtomatikSec()"]');
         const manuel = document.querySelector('button[onclick="subjManuelSec()"]');
         setTimeout(() => _elDolas([otom, manuel].filter(Boolean), 1200), 300);
-        let gridT = null;
-        gridT = setTimeout(() => {
-          if (!window._demoMod) return;
-          const grid = document.getElementById('subjGridWrap');
-          if (grid && grid.offsetParent !== null) {
-            grid.scrollIntoView({behavior:'smooth', block:'center'});
-            _vurgula(grid, 3500);
-          }
-        }, 5500);
         _bsoy(
-          'Subjektif bölümde iki yöntem var: <b>Otomatik</b> seçimde sorulara girmeden <b>20,60 puan (30 üzerinden)</b> atanır. '
-          + '<b>Manuel</b>de dört soru yanıtlanır — kredi geçmişi, limit doluluk, faaliyet süresi, muhasebe ve denetim; '
-          + 'puan yanıtlarınıza göre hesaplanır. Bu demoda manuel seçenek örnek olarak önceden işaretlenmiştir.',
-          function _demoAdim8AnalizEt() {
-            if (gridT) { clearTimeout(gridT); gridT = null; }
+          'Burada <b>Otomatik puan</b> alabilir veya soruları <b>kendiniz yanıtlayabilirsiniz</b>. '
+          + 'Mali verilerinizi iki yıl için yükledikten sonra <b>Analiz Et</b> dediğinizde bu demoda <b>kredi notu ekranda gösterilmez</b>; '
+          + 'tam analiz ve rapor için sizi <b>web sitesindeki paket ve fiyatlandırma bölümüne</b> yönlendiriyoruz.',
+          function _demoAdim7Son() {
             if (!window._demoMod) return;
-            showTab('tab-subj', document.getElementById('tab-btn-subj'));
-            setTimeout(() => {
-              if (!window._demoMod) return;
-              let analizBtn = null;
-              document.querySelectorAll('#tab-subj button.analyze-btn[onclick="runAnalysis()"]').forEach(b => {
-                if (!analizBtn && b.offsetParent !== null) analizBtn = b;
-              });
-              if (!analizBtn) analizBtn = document.querySelector('button.analyze-btn[onclick="runAnalysis()"]');
-              if (analizBtn) {
-                analizBtn.scrollIntoView({behavior:'smooth', block:'center'});
-                _elCiftTik(analizBtn, () => {
-                  _vurgula(analizBtn, 2400);
-                  setTimeout(() => {
-                    _elGizle();
-                    if (window._demoMod && typeof runAnalysis === 'function') {
-                      runAnalysis();
-                      setTimeout(() => {
-                        if (!window._demoMod) return;
-                        showTab('tab-sonuc', document.getElementById('tab-btn-sonuc'));
-                      }, 1400);
-                    }
-                  }, 1000);
-                });
-              }
-            }, 500);
+            const grid = document.getElementById('subjGridWrap');
+            if (grid && grid.offsetParent !== null) {
+              grid.scrollIntoView({behavior:'smooth', block:'center'});
+              _vurgula(grid, 4000);
+            }
           }
         );
       }
