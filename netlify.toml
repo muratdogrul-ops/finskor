@@ -104,6 +104,13 @@
   status = 301
   force = true
 
+# Kisa yol: reklam / LinkedIn hedef URL (app.html + istege bagli ?utm_...)
+[[redirects]]
+  from = "/app"
+  to = "/app.html"
+  status = 302
+  force = true
+
 [[redirects]]
   from = "/favicon.ico"
   to = "/favicon.svg"

@@ -98,22 +98,43 @@ body::before {
   position: fixed;
   left: 0;
   right: 0;
-  width: 100%;
   top: var(--app-top-offset, 72px);
-  max-height: calc(100vh - var(--app-top-offset, 72px) - 12px);
-  bottom: auto;
+  bottom: 0;
+  width: 100%;
+  max-height: calc(100vh - var(--app-top-offset, 72px));
   z-index: 10050;
   flex-direction: row;
   align-items: flex-start;
-  justify-content: center;
-  padding: 10px 16px 20px;
-  background: rgba(7,8,15,0.5);
+  justify-content: flex-start;
+  padding: 8px 12px 20px 10px;
+  background: rgba(7,8,15,0.52);
   overflow-y: auto;
   box-sizing: border-box;
 }
 #demoPaketOverlay .demo-paket-card-inner {
   position: relative;
   z-index: 1;
+  text-align: left;
+}
+#demoTeklifPopup {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 10080;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: calc(var(--app-top-offset, 72px) + 8px) 10px 16px 10px;
+  background: rgba(7,8,15,0.55);
+  box-sizing: border-box;
+}
+#demoTeklifPopup .demo-teklif-inner {
+  max-width: 300px;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.55);
 }
 
 /* ── HEADER ── */
@@ -494,6 +515,17 @@ tbody td { padding:8px 13px; color:var(--text); }
   </div>
 </div>
 
+<!-- Demo: Kurumsal Teklif Al — iletişim mini popup -->
+<div id="demoTeklifPopup" onclick="if(event.target===this)demoTeklifPopupKapat()" aria-modal="true" role="dialog" aria-labelledby="demoTeklifPopupTitle">
+  <div class="demo-teklif-inner" onclick="event.stopPropagation()">
+    <div id="demoTeklifPopupTitle" style="font-size:14px;font-weight:800;color:var(--gold);margin-bottom:8px">Kurumsal teklif</div>
+    <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-bottom:12px">Teklif için bize şu kanallardan ulaşabilirsiniz:</p>
+    <a href="mailto:info@finskor.tr?subject=Kurumsal%20KOBİ%20teklif" style="display:block;font-size:13px;font-weight:600;color:#a5b4fc;margin-bottom:8px;text-decoration:none;border-bottom:1px dashed rgba(165,180,252,0.4)">info@finskor.tr</a>
+    <a href="tel:+905308943775" style="display:block;font-size:15px;font-weight:700;color:var(--text);letter-spacing:0.02em;margin-bottom:14px;text-decoration:none">0530&nbsp;894&nbsp;37&nbsp;75</a>
+    <button type="button" onclick="demoTeklifPopupKapat()" style="width:100%;padding:9px;border-radius:8px;border:none;background:linear-gradient(135deg,#f5a623,#f7c948);color:#0d0d0d;font-weight:800;cursor:pointer;font-size:13px">Tamam</button>
+  </div>
+</div>
+
 <!-- ══════════════ ANA UYGULAMA ══════════════ -->
 <div id="app">
 
@@ -867,9 +899,9 @@ tbody td { padding:8px 13px; color:var(--text); }
     </div>
 
     <div id="demoPaketOverlay" aria-modal="true" role="dialog" aria-labelledby="demoPaketOverlayTitle" style="display:none">
-      <div class="demo-paket-card-inner" style="max-width:480px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 18px 16px;box-shadow:0 24px 80px rgba(0,0,0,0.55)">
-        <div id="demoPaketOverlayTitle" style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:4px;text-align:center">Paketler</div>
-        <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-bottom:16px;line-height:1.45">Tam analiz, kayıt ve PDF için paket seçin. <strong style="color:var(--text)">Satın Al</strong> ödeme sayfasına gider.</div>
+      <div class="demo-paket-card-inner" style="max-width:480px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 14px 14px;box-shadow:0 24px 80px rgba(0,0,0,0.55)">
+        <div id="demoPaketOverlayTitle" style="font-size:15px;font-weight:800;color:var(--text);margin-bottom:4px;text-align:left">Paketler</div>
+        <div style="font-size:11px;color:var(--text-muted);text-align:left;margin-bottom:14px;line-height:1.45">Tam analiz, kayıt ve PDF için paket seçin. <strong style="color:var(--text)">Satın Al</strong> ödeme sayfasına gider.</div>
         <div style="display:flex;flex-direction:column;gap:10px">
           <div style="border:1px solid var(--border);border-radius:12px;padding:12px;background:var(--surface2)">
             <div style="font-weight:700;color:var(--text)">Profesyonel</div>
@@ -891,7 +923,7 @@ tbody td { padding:8px 13px; color:var(--text); }
           <div style="border:1px solid rgba(201,168,76,0.4);border-radius:12px;padding:12px;background:rgba(201,168,76,0.07)">
             <div style="font-weight:700;color:#f5e6c3">Kurumsal &amp; KOBİ</div>
             <div style="font-size:11px;color:var(--text-muted);margin:2px 0 8px;line-height:1.45">Çok kullanıcı · özel raporlama · danışmanlık — fiyat teklifiyle</div>
-            <button type="button" onclick="location.href='mailto:info@finskor.tr?subject=FinSkor%20Kurumsal%20KOBİ%20teklif%20talebi'" style="width:100%;padding:9px;border-radius:10px;border:1px solid rgba(201,168,76,0.55);background:rgba(201,168,76,0.12);color:#f5e6c3;font-weight:700;cursor:pointer;font-size:12px">Teklif Al</button>
+            <button type="button" onclick="demoTeklifPopupAc()" style="width:100%;padding:9px;border-radius:10px;border:1px solid rgba(201,168,76,0.55);background:rgba(201,168,76,0.12);color:#f5e6c3;font-weight:700;cursor:pointer;font-size:12px">Teklif Al</button>
           </div>
         </div>
         <button type="button" onclick="document.getElementById('demoPaketOverlay').style.display='none'" style="margin-top:12px;width:100%;padding:7px;background:transparent;border:none;color:var(--text-muted);font-size:11px;cursor:pointer">Kapat</button>
@@ -1348,6 +1380,17 @@ function _demoSonucKilidiKaldir() {
   if (ts) ts.classList.remove('is-demo-sonuc-kilit');
   const ov = document.getElementById('demoPaketOverlay');
   if (ov) ov.style.display = 'none';
+  demoTeklifPopupKapat();
+}
+
+function demoTeklifPopupAc() {
+  const p = document.getElementById('demoTeklifPopup');
+  if (p) p.style.display = 'flex';
+}
+
+function demoTeklifPopupKapat() {
+  const p = document.getElementById('demoTeklifPopup');
+  if (p) p.style.display = 'none';
 }
 
 /** Demo: Analiz Et sonrası sonuç bulanık + paket popup (yeniden göster). */
@@ -11405,7 +11448,7 @@ function demoBaslat() {
   // ── ADIMLAR (Hesaplanmış sürelerle) ───────────────────────
   // Her adım başlangıç: bir önceki adımın başlangıcı + konuşma süresi
 
-  // ADIM 1 — Analiz Yılı | başlangıç: 1200ms | süre: 12000ms
+  // ADIM 1 — Analiz Yılı (ilk gecikme −2 sn: “iki yıl…” sonrası bekleme kısalır)
   setTimeout(() => {
     if (!window._demoMod) return;
     const sel = document.getElementById('refYear');
@@ -11414,29 +11457,29 @@ function demoBaslat() {
       setTimeout(() => {
         // Select açılınca seçili option görünsün
         _elSelectAc(sel, null, true);
-      }, 800);
+      }, 400);
     }
     _bsoy('Sağ üstte <b>Analiz Yılı</b> seçilir. Varsayılan yıl <b>iki bin yirmi dört</b>. İki yıl birlikte yükleyin; yatay analiz için gerekli.');
-  }, 3000);
+  }, 1000);
 
-  // ADIM 2 — Bilanço Dönemi | başlangıç: 1200+12000=13200ms | süre: 11000ms
+  // ADIM 2 — Bilanço Dönemi (tüm adımlar −2 sn kaydırıldı)
   setTimeout(() => {
     if (!window._demoMod) return;
     const donemBtnler = Array.from(document.querySelectorAll('.btn-period'));
     if (donemBtnler.length) { donemBtnler[0].scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elDolas(donemBtnler,600), 600); }
     _bsoy('<b>Bilanço Dönemi</b>: Mali tablonun kapsadığı süre. Mart, Haziran, Eylül veya Yıl Sonu Aralık. Ara dönem seçilirse sistem gelir tablosunu otomatik yıllıklaştırır.');
-  }, 15000);
+  }, 13000);
 
-  // ADIM 3 — Firma Tipi | başlangıç: 13200+11000=24200ms | süre: 12000ms
+  // ADIM 3 — Firma Tipi
   setTimeout(() => {
     if (!window._demoMod) return;
     const btnler = Array.from(document.querySelectorAll('button')).filter(b =>
       b.textContent.includes('Pazarlama') || b.textContent.includes('Üretim') || b.textContent.includes('Taahhüt'));
     if (btnler.length) { btnler[0].scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elDolas(btnler,700), 600); }
     _bsoy('<b>Firma Tipi</b>: Pazarlama veya Hizmet, Üretim ya da Taahhüt. Her tip için finansal oran eşikleri farklı hesaplanır. Kendi firmanıza uygun olanı seçin.');
-  }, 26000);
+  }, 24000);
 
-  // ADIM 4 — 2024/2023 zorunluluğu | başlangıç: 24200+12000=36200ms | süre: 13000ms
+  // ADIM 4 — 2024/2023 zorunluluğu
   setTimeout(() => {
     if (!window._demoMod) return;
     window.scrollTo({top:400, behavior:'smooth'});
@@ -11447,16 +11490,16 @@ function demoBaslat() {
       if (kartlar.length) { kartlar[0].scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elDolas(kartlar,1500), 500); }
     }, 700);
     _bsoy('<b>Mali veri yükleme</b>: Her yıl için ayrı kart var. Analiz yılı <b>iki bin yirmi dört</b> ile birlikte bir önceki yıl <b>iki bin yirmi üç</b> mutlaka yüklenmelidir. Yatay analiz için ikisi zorunludur.');
-  }, 37000);
+  }, 35000);
 
-  // ADIM 5 — Yükleme yöntemleri | başlangıç: 36200+13000=49200ms | süre: 12000ms
+  // ADIM 5 — Yükleme yöntemleri
   setTimeout(() => {
     if (!window._demoMod) return;
     const upCur=document.querySelector('#year-' + DEMO_FIRMA.refYear + ' .upload-btn')||document.querySelector('.upload-btn');
     const upPrev=document.querySelector('#year-' + (DEMO_FIRMA.refYear - 1) + ' .upload-btn');
     if (upCur) { upCur.scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elCiftTik(upCur,()=>{ if(upPrev) setTimeout(()=>_elCiftTik(upPrev,()=>_elGizle()),1000); }),500); }
     _bsoy('Üç yükleme yöntemi var: <b>Excel mizan</b>, <b>PDF beyanname</b>, <b>PDF mizan</b>. Aynı yıl kartına hem mizan hem geçici vergi beyannamesi yüklenebilir. Kartı açmak için <b>çift tıklayın</b>.');
-  }, 50000);
+  }, 48000);
 
   // ADIM 6–7 — Subjektif (otomatik Analiz Et yok; kullanıcı verisini yükleyip kendisi basar → paket sayfası)
   setTimeout(() => {
@@ -11506,7 +11549,7 @@ function demoBaslat() {
         );
       }
     );
-  }, 64000);
+  }, 62000);
 
   _demoGeriSayimBaslat();
 }
