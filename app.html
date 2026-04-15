@@ -97,12 +97,16 @@ body::before {
   display: none;
   position: absolute;
   inset: 0;
-  z-index: 120;
+  z-index: 250;
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgba(7,8,15,0.5);
+  background: rgba(7,8,15,0.45);
   overflow-y: auto;
+}
+#demoPaketOverlay .demo-paket-card-inner {
+  position: relative;
+  z-index: 1;
 }
 
 /* ── HEADER ── */
@@ -855,24 +859,26 @@ tbody td { padding:8px 13px; color:var(--text); }
       <div>Henüz analiz yapılmadı</div>
     </div>
 
-    <div id="demoPaketOverlay" aria-modal="true" role="dialog" aria-labelledby="demoPaketOverlayTitle" style="display:none;position:absolute;inset:0;z-index:120;align-items:center;justify-content:center;padding:16px;background:rgba(7,8,15,0.5);overflow-y:auto">
-      <div style="max-width:480px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 18px 16px;box-shadow:0 24px 80px rgba(0,0,0,0.55)">
+    <div id="demoPaketOverlay" aria-modal="true" role="dialog" aria-labelledby="demoPaketOverlayTitle" style="display:none;position:absolute;inset:0;z-index:250;align-items:center;justify-content:center;padding:16px;background:rgba(7,8,15,0.45);overflow-y:auto">
+      <div class="demo-paket-card-inner" style="max-width:480px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 18px 16px;box-shadow:0 24px 80px rgba(0,0,0,0.55)">
         <div id="demoPaketOverlayTitle" style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:4px;text-align:center">Paketler</div>
         <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-bottom:16px;line-height:1.45">Tam analiz, kayıt ve PDF için paket seçin. <strong style="color:var(--text)">Satın Al</strong> ödeme sayfasına gider.</div>
         <div style="display:flex;flex-direction:column;gap:10px">
           <div style="border:1px solid var(--border);border-radius:12px;padding:12px;background:var(--surface2)">
             <div style="font-weight:700;color:var(--text)">Profesyonel</div>
-            <div style="font-size:12px;color:var(--gold);margin:2px 0 8px">₺2.490 · 4 analiz kontörü</div>
+            <div style="font-size:12px;color:var(--gold);margin:2px 0 8px">₺2.490 · 4 analiz kontörü · KDV dahil</div>
             <button type="button" onclick="location.href='odeme.html'" style="width:100%;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,#f5a623,#f7c948);color:#0d0d0d;font-weight:800;cursor:pointer;font-size:13px">Satın Al</button>
           </div>
           <div style="border:1px solid rgba(124,58,237,0.35);border-radius:12px;padding:12px;background:rgba(124,58,237,0.06)">
             <div style="font-weight:700;color:#c4b5fd">Mali Müşavir</div>
-            <div style="font-size:11px;color:var(--text-muted);margin:2px 0 8px">5 kod · 20 kontör</div>
+            <div style="font-size:12px;color:#c4b5fd;margin:2px 0 2px;font-weight:700">₺8.400</div>
+            <div style="font-size:11px;color:var(--text-muted);margin:0 0 8px">5 kod · 20 kontör · KDV dahil</div>
             <button type="button" onclick="location.href='odeme.html?paket=malimusavir'" style="width:100%;padding:9px;border-radius:10px;border:1px solid rgba(167,139,250,0.45);background:rgba(124,58,237,0.18);color:#ede9fe;font-weight:700;cursor:pointer;font-size:12px">Satın Al</button>
           </div>
           <div style="border:1px solid rgba(49,130,206,0.35);border-radius:12px;padding:12px;background:rgba(49,130,206,0.06)">
             <div style="font-weight:700;color:#90cdf4">Finansal Danışman</div>
-            <div style="font-size:11px;color:var(--text-muted);margin:2px 0 8px">100 analiz kontörü</div>
+            <div style="font-size:12px;color:#90cdf4;margin:2px 0 2px;font-weight:700">₺36.000</div>
+            <div style="font-size:11px;color:var(--text-muted);margin:0 0 8px">100 analiz kontörü · KDV dahil</div>
             <button type="button" onclick="location.href='odeme.html?paket=danisan'" style="width:100%;padding:9px;border-radius:10px;border:1px solid rgba(99,179,237,0.45);background:rgba(49,130,206,0.15);color:#e0f2fe;font-weight:700;cursor:pointer;font-size:12px">Satın Al</button>
           </div>
         </div>
@@ -1332,9 +1338,23 @@ function _demoSonucKilidiKaldir() {
   if (ov) ov.style.display = 'none';
 }
 
-/** Demo: sonuç bulanık + paket popup (landing’e gitme). */
+/** Demo: Analiz Et sonrası sonuç bulanık + paket popup (yeniden göster). */
 function _demoSonucKilitleVePaketPopup() {
   if (!window._demoMod) return;
+  const ts = document.getElementById('tab-sonuc');
+  if (ts) ts.classList.add('is-demo-sonuc-kilit');
+  const ov = document.getElementById('demoPaketOverlay');
+  if (ov) ov.style.display = 'flex';
+}
+
+/** Demo: doğrulama geçince hesaptan önce — sonuç sekmesi, anında bulanık + popup. */
+function _demoAnalizDemoInstantUi() {
+  const btnSon = document.getElementById('tab-btn-sonuc');
+  if (typeof showTab === 'function') showTab('tab-sonuc', btnSon);
+  const nr = document.getElementById('noResults');
+  const res = document.getElementById('results');
+  if (nr) nr.style.display = 'none';
+  if (res) res.style.display = 'block';
   const ts = document.getElementById('tab-sonuc');
   if (ts) ts.classList.add('is-demo-sonuc-kilit');
   const ov = document.getElementById('demoPaketOverlay');
@@ -3316,6 +3336,8 @@ function _doRunAnalysis() {
     return;
   }
 
+  if (typeof _demoSonucKilidiKaldir === 'function') _demoSonucKilidiKaldir();
+
   if (window._demoMod) {
     if (!state.yearData[prevYear] || !state.yearData[prevYear].aktifToplam) {
       showToast('Yatay analiz için analiz yılı (' + refYear + ') ile birlikte bir önceki yıl (' + prevYear + ') mali verilerini de yükleyin veya girin.', true);
@@ -3329,9 +3351,8 @@ function _doRunAnalysis() {
       else showTab('tab-subj', document.getElementById('tab-btn-subj'));
       return;
     }
+    if (typeof _demoAnalizDemoInstantUi === 'function') _demoAnalizDemoInstantUi();
   }
-
-  if (typeof _demoSonucKilidiKaldir === 'function') _demoSonucKilidiKaldir();
 
   const r = calcRatios(refYear);
   enrichRatiosAfterCalc(r, refYear);
@@ -3491,11 +3512,6 @@ function _doRunAnalysis() {
 
   // Dil: tüm render bittikten sonra uygula
   setTimeout(applyLang, 0);
-  if (window._demoMod) {
-    setTimeout(function() {
-      if (window._demoMod && typeof _demoSonucKilitleVePaketPopup === 'function') _demoSonucKilitleVePaketPopup();
-    }, 400);
-  }
   } catch(err) {
     console.error('runAnalysis HATA:', err);
     showToast('Analiz hatası: ' + err.message, true);
@@ -11363,7 +11379,7 @@ function demoBaslat() {
         _elSelectAc(sel, null, true);
       }, 800);
     }
-    _bsoy('Sağ üstte <b>Analiz Yılı</b> seçilir; bu demoda varsayılan yıl <b>' + DEMO_FIRMA.refYear + '</b>. Seçilen yıl ile <b>bir önceki yıl</b> birlikte yüklenmelidir; yatay analiz için ikisi zorunludur.');
+    _bsoy('Sağ üstte <b>Analiz Yılı</b> seçilir. Bu demoda varsayılan: <b>2024</b>. İki yıl birlikte yükleyin; yatay analiz için gerekli.');
   }, 3000);
 
   // ADIM 2 — Bilanço Dönemi | başlangıç: 1200+12000=13200ms | süre: 11000ms
@@ -11428,15 +11444,18 @@ function demoBaslat() {
         const manuel = document.querySelector('button[onclick="subjManuelSec()"]');
         setTimeout(() => _elDolas([otom, manuel].filter(Boolean), 1200), 300);
         _bsoy(
-          'Burada <b>Otomatik puan</b> alabilir veya soruları <b>kendiniz yanıtlayabilirsiniz</b>. '
-          + 'Mali verileri iki yıl için yükleyip <b>Analiz Et</b> dediğinizde sonuç ekranı açılır; demoda özet <b>bulanık önizleme</b> olarak kalır ve <b>paket penceresi</b> çıkar — tam kullanım için paket satın alınır.',
-          function _demoAdim7Son() {
+          'Burada <b>Otomatik puan</b> veya <b>manuel</b> seçebilirsiniz.',
+          function _demoAdim7SubjOzetSon() {
             if (!window._demoMod) return;
             const grid = document.getElementById('subjGridWrap');
             if (grid && grid.offsetParent !== null) {
               grid.scrollIntoView({behavior:'smooth', block:'center'});
-              _vurgula(grid, 4000);
+              _vurgula(grid, 2800);
             }
+            setTimeout(function() {
+              if (!window._demoMod) return;
+              _bsoy('Şimdi <b>Analiz Et</b> butonuna basın.', null);
+            }, 500);
           }
         );
       }
