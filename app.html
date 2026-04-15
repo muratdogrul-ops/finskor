@@ -932,7 +932,7 @@ tbody td { padding:8px 13px; color:var(--text); }
     <div id="demoPaketOverlay" aria-modal="true" role="dialog" aria-labelledby="demoPaketOverlayTitle" style="display:none">
       <div class="demo-paket-card-inner" style="max-width:480px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 14px 14px;box-shadow:0 24px 80px rgba(0,0,0,0.55)">
         <div id="demoPaketOverlayTitle" style="font-size:15px;font-weight:800;color:var(--text);margin-bottom:4px;text-align:left">Paketler</div>
-        <div style="font-size:11px;color:var(--text-muted);text-align:left;margin-bottom:14px;line-height:1.45">Tam analiz, kayıt ve PDF için paket seçin. <strong style="color:var(--text)">Satın Al</strong> ödeme sayfasına gider.</div>
+        <div style="font-size:11px;color:var(--text-muted);text-align:left;margin-bottom:14px;line-height:1.45">Sadece <strong style="color:var(--text)">tam analiz</strong> için paket alın. <strong style="color:var(--text)">Satın Al</strong> ödeme sayfasına gider.</div>
         <div style="display:flex;flex-direction:column;gap:10px">
           <div style="border:1px solid var(--border);border-radius:12px;padding:12px;background:var(--surface2)">
             <div style="font-weight:700;color:var(--text)">Profesyonel</div>
@@ -11626,16 +11626,24 @@ function demoBaslat() {
             }
             setTimeout(function() {
               if (!window._demoMod) return;
-              let analizBtn = null;
-              document.querySelectorAll('button.analyze-btn[onclick="runAnalysis()"]').forEach(function(b) {
-                if (!analizBtn && b.offsetParent !== null) analizBtn = b;
+              try {
+                if (window._demoMod) subjOtomatikSec();
+              } catch (e) {}
+              requestAnimationFrame(function() {
+                requestAnimationFrame(function() {
+                  if (!window._demoMod) return;
+                  let analizBtn = null;
+                  document.querySelectorAll('button.analyze-btn[onclick="runAnalysis()"]').forEach(function(b) {
+                    if (!analizBtn && b.offsetParent !== null) analizBtn = b;
+                  });
+                  if (!analizBtn) analizBtn = document.querySelector('button.analyze-btn[onclick="runAnalysis()"]');
+                  if (analizBtn) {
+                    analizBtn.scrollIntoView({behavior:'smooth', block:'center'});
+                    _vurgula(analizBtn, 16000);
+                  }
+                  _bsoy('Şimdi <b>Analiz Et</b> butonuna basın.', null);
+                });
               });
-              if (!analizBtn) analizBtn = document.querySelector('button.analyze-btn[onclick="runAnalysis()"]');
-              if (analizBtn) {
-                analizBtn.scrollIntoView({behavior:'smooth', block:'center'});
-                _vurgula(analizBtn, 14000);
-              }
-              _bsoy('Şimdi <b>Analiz Et</b> butonuna basın.', null);
             }, 500);
           }
         );
