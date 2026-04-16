@@ -112,22 +112,18 @@ body::before {
   top: var(--app-top-offset, 72px);
   bottom: 0;
   width: 100%;
-  max-height: calc(100vh - var(--app-top-offset, 72px));
   z-index: 10050;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: flex-start;
-  gap: 14px;
-  padding: 8px 12px 20px 10px;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
   background: rgba(7,8,15,0.52);
-  overflow-y: auto;
   box-sizing: border-box;
 }
 #demoPaketOverlay .demo-paket-card-inner {
   position: relative;
   z-index: 1;
-  text-align: left;
+  width: min(520px, 100%);
+  text-align: center;
   flex-shrink: 0;
 }
 /* Paket kartının sağında; üst üste binmez (aynı overlay içinde flex) */
@@ -941,36 +937,21 @@ tbody td { padding:8px 13px; color:var(--text); }
     </div>
 
     <div id="demoPaketOverlay" aria-modal="true" role="dialog" aria-labelledby="demoPaketOverlayTitle" style="display:none">
-      <div class="demo-paket-card-inner" style="max-width:480px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 14px 14px;box-shadow:0 24px 80px rgba(0,0,0,0.55)">
-        <div id="demoPaketOverlayTitle" style="font-size:15px;font-weight:800;color:var(--text);margin-bottom:4px;text-align:left">Paketler</div>
-        <div style="font-size:11px;color:var(--text-muted);text-align:left;margin-bottom:14px;line-height:1.45">Sadece <strong style="color:var(--text)">tam analiz</strong> için paket alın. <strong style="color:var(--text)">Satın Al</strong> ödeme sayfasına gider.</div>
-        <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="demo-paket-card-inner" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:22px 18px;box-shadow:0 24px 80px rgba(0,0,0,0.55)">
+        <div id="demoPaketOverlayTitle" style="font-size:18px;font-weight:800;color:var(--text);margin-bottom:16px">Analiz Sonucu</div>
+        <div style="display:grid;gap:10px;text-align:left;margin-bottom:14px">
           <div style="border:1px solid var(--border);border-radius:12px;padding:12px;background:var(--surface2)">
-            <div style="font-weight:700;color:var(--text)">Profesyonel</div>
-            <div style="font-size:12px;color:var(--gold);margin:2px 0 8px">₺2.490 · 4 analiz kontörü · KDV dahil</div>
-            <button type="button" onclick="location.href='odeme.html'" style="width:100%;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,#f5a623,#f7c948);color:#0d0d0d;font-weight:800;cursor:pointer;font-size:13px">Satın Al</button>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Kredi notu</div>
+            <div id="demoPopupKrediNotu" style="font-size:20px;font-weight:800;color:var(--gold)">-</div>
           </div>
-          <div style="border:1px solid rgba(124,58,237,0.35);border-radius:12px;padding:12px;background:rgba(124,58,237,0.06)">
-            <div style="font-weight:700;color:#c4b5fd">Mali Müşavir</div>
-            <div style="font-size:12px;color:#c4b5fd;margin:2px 0 2px;font-weight:700">₺8.400</div>
-            <div style="font-size:11px;color:var(--text-muted);margin:0 0 8px">5 kod · 20 kontör · KDV dahil</div>
-            <button type="button" onclick="location.href='odeme.html?paket=malimusavir'" style="width:100%;padding:9px;border-radius:10px;border:1px solid rgba(167,139,250,0.45);background:rgba(124,58,237,0.18);color:#ede9fe;font-weight:700;cursor:pointer;font-size:12px">Satın Al</button>
-          </div>
-          <div style="border:1px solid rgba(49,130,206,0.35);border-radius:12px;padding:12px;background:rgba(49,130,206,0.06)">
-            <div style="font-weight:700;color:#90cdf4">Finansal Danışman</div>
-            <div style="font-size:12px;color:#90cdf4;margin:2px 0 2px;font-weight:700">₺36.000</div>
-            <div style="font-size:11px;color:var(--text-muted);margin:0 0 8px">100 analiz kontörü · KDV dahil</div>
-            <button type="button" onclick="location.href='odeme.html?paket=danisan'" style="width:100%;padding:9px;border-radius:10px;border:1px solid rgba(99,179,237,0.45);background:rgba(49,130,206,0.15);color:#e0f2fe;font-weight:700;cursor:pointer;font-size:12px">Satın Al</button>
-          </div>
-          <div style="border:1px solid rgba(201,168,76,0.4);border-radius:12px;padding:12px;background:rgba(201,168,76,0.07)">
-            <div style="font-weight:700;color:#f5e6c3">Kurumsal &amp; KOBİ</div>
-            <div style="font-size:11px;color:var(--text-muted);margin:2px 0 8px;line-height:1.45">Çok kullanıcı · özel raporlama · danışmanlık — fiyat teklifiyle</div>
-            <button type="button" onclick="demoTeklifPopupAc()" style="width:100%;padding:9px;border-radius:10px;border:1px solid rgba(201,168,76,0.55);background:rgba(201,168,76,0.12);color:#f5e6c3;font-weight:700;cursor:pointer;font-size:12px">Teklif Al</button>
+          <div style="border:1px solid var(--border);border-radius:12px;padding:12px;background:var(--surface2)">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Teminat şartı</div>
+            <div id="demoPopupTeminat" style="font-size:13px;font-weight:700;color:var(--text);line-height:1.45">-</div>
           </div>
         </div>
-        <button type="button" onclick="document.getElementById('demoPaketOverlay').style.display='none';demoTeklifPopupKapat();" style="margin-top:12px;width:100%;padding:7px;background:transparent;border:none;color:var(--text-muted);font-size:11px;cursor:pointer">Kapat</button>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:14px">Kredi notunu artırmak için paket fiyatlarını incele.</div>
+        <button type="button" onclick="location.href='index.html#fiyat'" style="width:100%;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,#f5a623,#f7c948);color:#0d0d0d;font-weight:800;cursor:pointer;font-size:13px">Paketleri İncele</button>
       </div>
-      <!-- Teklif paneli: paket kartının sağında (üst üste değil) -->
       <div id="demoTeklifPopup" aria-modal="true" role="dialog" aria-labelledby="demoTeklifPopupTitle" style="display:none">
         <div class="demo-teklif-inner">
           <div id="demoTeklifPopupTitle" style="font-size:14px;font-weight:800;color:var(--gold);margin-bottom:8px">Kurumsal teklif</div>
@@ -1488,6 +1469,15 @@ function demoTeklifMailPopupKapat() {
   }
 }
 
+function demoAnalizPopupGuncelle() {
+  const hedefNot = document.getElementById('demoPopupKrediNotu');
+  const hedefTeminat = document.getElementById('demoPopupTeminat');
+  const notEl = document.getElementById('ratingNoteBig');
+  const teminatEl = document.getElementById('ratingDesc');
+  if (hedefNot) hedefNot.textContent = (notEl && notEl.textContent ? notEl.textContent.trim() : '-') || '-';
+  if (hedefTeminat) hedefTeminat.textContent = (teminatEl && teminatEl.textContent ? teminatEl.textContent.trim() : '-') || '-';
+}
+
 async function demoTeklifMailGonder() {
   const adEl = document.getElementById('demoTeklifAd');
   const cepEl = document.getElementById('demoTeklifCep');
@@ -1560,6 +1550,7 @@ function _demoSonucKilitleVePaketPopup() {
   } catch (e) {}
   const ts = document.getElementById('tab-sonuc');
   if (ts) ts.classList.add('is-demo-sonuc-kilit');
+  demoAnalizPopupGuncelle();
   const ov = document.getElementById('demoPaketOverlay');
   if (ov) {
     ov.style.display = 'flex';
@@ -1585,6 +1576,7 @@ function _demoAnalizDemoInstantUi() {
   if (res) res.style.display = 'block';
   const ts = document.getElementById('tab-sonuc');
   if (ts) ts.classList.add('is-demo-sonuc-kilit');
+  demoAnalizPopupGuncelle();
   const ov = document.getElementById('demoPaketOverlay');
   if (ov) ov.style.display = 'flex';
   if (typeof syncDemoBannerOffsetSoon === 'function') syncDemoBannerOffsetSoon();
