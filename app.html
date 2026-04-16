@@ -126,6 +126,18 @@ body::before {
   text-align: center;
   flex-shrink: 0;
 }
+@keyframes demoPopupPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.demo-popup-note {
+  font-size: 13px;
+  color: #f5a623;
+  font-weight: 700;
+  line-height: 1.5;
+  margin-bottom: 14px;
+  animation: demoPopupPulse 1.3s ease-in-out infinite;
+}
 /* Paket kartının sağında; üst üste binmez (aynı overlay içinde flex) */
 #demoTeklifPopup {
   display: none;
@@ -943,13 +955,14 @@ tbody td { padding:8px 13px; color:var(--text); }
           <div style="border:1px solid var(--border);border-radius:12px;padding:12px;background:var(--surface2)">
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Kredi notu</div>
             <div id="demoPopupKrediNotu" style="font-size:20px;font-weight:800;color:var(--gold)">-</div>
+            <div id="demoPopupToplamPuan" style="font-size:11px;color:var(--text-muted);margin-top:4px">Toplam puan: -</div>
           </div>
           <div style="border:1px solid var(--border);border-radius:12px;padding:12px;background:var(--surface2)">
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Teminat şartı</div>
             <div id="demoPopupTeminat" style="font-size:13px;font-weight:700;color:var(--text);line-height:1.45">-</div>
           </div>
         </div>
-        <div style="font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:14px">Kredi notunu artırmak için paket fiyatlarını incele.</div>
+        <div class="demo-popup-note">Kredi notunu artırmak için paket fiyatlarını incele.</div>
         <button type="button" onclick="location.href='index.html#fiyat'" style="width:100%;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,#f5a623,#f7c948);color:#0d0d0d;font-weight:800;cursor:pointer;font-size:13px">Paketleri İncele</button>
       </div>
       <div id="demoTeklifPopup" aria-modal="true" role="dialog" aria-labelledby="demoTeklifPopupTitle" style="display:none">
@@ -1472,9 +1485,13 @@ function demoTeklifMailPopupKapat() {
 function demoAnalizPopupGuncelle() {
   const hedefNot = document.getElementById('demoPopupKrediNotu');
   const hedefTeminat = document.getElementById('demoPopupTeminat');
+  const hedefToplam = document.getElementById('demoPopupToplamPuan');
   const lastRating = window._lastRating || null;
   const notVal = (lastRating && lastRating.note ? String(lastRating.note).trim() : '') || '';
   const teminatVal = (lastRating && lastRating.teminat ? String(lastRating.teminat).trim() : '') || '';
+  const toplamVal = (window._lastToplam != null && Number.isFinite(Number(window._lastToplam)))
+    ? Number(window._lastToplam).toFixed(1)
+    : '';
 
   const notEl = document.getElementById('ratingNoteBig');
   const teminatEl = document.getElementById('ratingDesc');
@@ -1483,6 +1500,7 @@ function demoAnalizPopupGuncelle() {
 
   if (hedefNot) hedefNot.textContent = notVal || notDom || '-';
   if (hedefTeminat) hedefTeminat.textContent = teminatVal || teminatDom || '-';
+  if (hedefToplam) hedefToplam.textContent = 'Toplam puan: ' + (toplamVal ? (toplamVal + ' / 105') : '-');
 }
 
 async function demoTeklifMailGonder() {
@@ -3508,6 +3526,7 @@ function _baykusAnalizdeSusmaliMi(refYear) {
 
 function _baykusAnalizdeSustur(refYear) {
   if (!_baykusAnalizdeSusmaliMi(refYear)) return;
+  window._demoNarrationMuted = true;
   if (typeof avStopAudio === 'function') avStopAudio();
 }
 
@@ -11403,6 +11422,7 @@ function syncDemoBannerOffsetSoon() {
 
 function demoBaslat() {
   window._demoMod = true;
+  window._demoNarrationMuted = false;
   window._demoKalan = _demoSure;
   if (typeof _demoSonucKilidiKaldir === 'function') _demoSonucKilidiKaldir();
 
@@ -11459,7 +11479,7 @@ function demoBaslat() {
 
   // Açılış merhaba mesajı
   setTimeout(() => {
-    if (!window._demoMod) return;
+    if (!window._demoMod || window._demoNarrationMuted) return;
     // Demo akışına uygun kısa bilgilendirme
     if (window.speechSynthesis) {
       speechSynthesis.cancel();
@@ -11576,7 +11596,7 @@ function demoBaslat() {
   let _demoTourSpeakGen = 0;
   let _demoTourSpeakTimer = null;
   function _bsoy(metin, onEnd) {
-    if (!window._demoMod) return;
+    if (!window._demoMod || window._demoNarrationMuted) return;
     const am = document.getElementById('avatarModal');
     if (am) am.style.display = 'none';
     const _prevSes = window._avSesAcik;
@@ -11791,7 +11811,7 @@ function _demoAnalizSunumu() {
   let _dasFallTimer = null;
   /** onEnd: önceki cümle bitince (demo senaryo zinciri için). Canlı Baykuştan bağımsız, yalnız bu fonksiyon içi. */
   function _bsoy(metin, onEnd) {
-    if (!window._demoMod) return;
+    if (!window._demoMod || window._demoNarrationMuted) return;
     if (!window.speechSynthesis) return;
     const text = _avTtsPipelinePlain(_avTtsMetinCikar(metin));
     if (!text) {
@@ -12057,6 +12077,7 @@ function demoSatinAl() {
 
 function demoCik(sureBitti = false) {
   window._demoMod = false;
+  window._demoNarrationMuted = false;
   if (typeof _demoSonucKilidiKaldir === 'function') _demoSonucKilidiKaldir();
   if (_demoTimer) { clearInterval(_demoTimer); _demoTimer = null; }
 
