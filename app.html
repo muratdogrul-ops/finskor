@@ -138,6 +138,22 @@ body::before {
   margin-bottom: 14px;
   animation: demoPopupPulse 1.3s ease-in-out infinite;
 }
+.demo-popup-kredi-main {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--gold);
+  text-align: center;
+  animation: demoPopupPulse 1.3s ease-in-out infinite;
+}
+.demo-popup-kredi-score {
+  font-size: 13px;
+  color: #e5e7eb;
+  font-weight: 700;
+  margin-top: 6px;
+  text-align: center;
+  animation: demoPopupPulse 1.3s ease-in-out infinite;
+  text-shadow: 0 0 10px rgba(245,166,35,0.22);
+}
 /* Paket kartının sağında; üst üste binmez (aynı overlay içinde flex) */
 #demoTeklifPopup {
   display: none;
@@ -954,8 +970,8 @@ tbody td { padding:8px 13px; color:var(--text); }
         <div style="display:grid;gap:10px;text-align:left;margin-bottom:14px">
           <div style="border:1px solid var(--border);border-radius:12px;padding:12px;background:var(--surface2)">
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Kredi notu</div>
-            <div id="demoPopupKrediNotu" style="font-size:20px;font-weight:800;color:var(--gold)">-</div>
-            <div id="demoPopupToplamPuan" style="font-size:11px;color:var(--text-muted);margin-top:4px">Toplam puan: -</div>
+            <div id="demoPopupKrediNotu" class="demo-popup-kredi-main">-</div>
+            <div id="demoPopupToplamPuan" class="demo-popup-kredi-score">Toplam puan: -</div>
           </div>
           <div style="border:1px solid var(--border);border-radius:12px;padding:12px;background:var(--surface2)">
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Teminat şartı</div>
@@ -1499,8 +1515,17 @@ function demoAnalizPopupGuncelle() {
   const teminatDom = (teminatEl && teminatEl.textContent ? teminatEl.textContent.trim() : '') || '';
 
   if (hedefNot) hedefNot.textContent = notVal || notDom || '-';
-  if (hedefTeminat) hedefTeminat.textContent = teminatVal || teminatDom || '-';
+  if (hedefTeminat) hedefTeminat.textContent = _demoTeminatMetniNorm(teminatVal || teminatDom || '-');
   if (hedefToplam) hedefToplam.textContent = 'Toplam puan: ' + (toplamVal ? (toplamVal + ' / 105') : '-');
+}
+
+function _demoTeminatMetniNorm(metin) {
+  const raw = (metin || '').toString().trim();
+  if (!raw || raw === '-') return '-';
+  const lower = raw.toLocaleLowerCase('tr-TR');
+  return lower.replace(/(^|\s)([a-zçğıöşü])/g, function(all, p1, p2) {
+    return p1 + p2.toLocaleUpperCase('tr-TR');
+  });
 }
 
 async function demoTeklifMailGonder() {
