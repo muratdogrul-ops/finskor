@@ -1472,10 +1472,17 @@ function demoTeklifMailPopupKapat() {
 function demoAnalizPopupGuncelle() {
   const hedefNot = document.getElementById('demoPopupKrediNotu');
   const hedefTeminat = document.getElementById('demoPopupTeminat');
+  const lastRating = window._lastRating || null;
+  const notVal = (lastRating && lastRating.note ? String(lastRating.note).trim() : '') || '';
+  const teminatVal = (lastRating && lastRating.teminat ? String(lastRating.teminat).trim() : '') || '';
+
   const notEl = document.getElementById('ratingNoteBig');
   const teminatEl = document.getElementById('ratingDesc');
-  if (hedefNot) hedefNot.textContent = (notEl && notEl.textContent ? notEl.textContent.trim() : '-') || '-';
-  if (hedefTeminat) hedefTeminat.textContent = (teminatEl && teminatEl.textContent ? teminatEl.textContent.trim() : '-') || '-';
+  const notDom = (notEl && notEl.textContent ? notEl.textContent.trim() : '') || '';
+  const teminatDom = (teminatEl && teminatEl.textContent ? teminatEl.textContent.trim() : '') || '';
+
+  if (hedefNot) hedefNot.textContent = notVal || notDom || '-';
+  if (hedefTeminat) hedefTeminat.textContent = teminatVal || teminatDom || '-';
 }
 
 async function demoTeklifMailGonder() {
@@ -3485,6 +3492,25 @@ function setVal(id, val, color) {
 
 // rRow fonksiyonu aşağıda tanımlı
 
+function _subjektifTamamlandiMi() {
+  const otom = document.getElementById('subjOtomatikWrap');
+  if (otom && otom.style.display === 'block') return true;
+  return SUBJ_FACTORS.every(function(f) {
+    return subjSec[f.id] !== null && subjSec[f.id] !== undefined;
+  });
+}
+
+function _baykusAnalizdeSusmaliMi(refYear) {
+  const maliVeriYuklu = !!(state.yearData[refYear] && state.yearData[refYear].aktifToplam);
+  if (!maliVeriYuklu) return false;
+  return _subjektifTamamlandiMi();
+}
+
+function _baykusAnalizdeSustur(refYear) {
+  if (!_baykusAnalizdeSusmaliMi(refYear)) return;
+  if (typeof avStopAudio === 'function') avStopAudio();
+}
+
 
 function runAnalysis() {
   // ── KONTÖR BLOĞU ── Supabase'den gerçek değeri kontrol et
@@ -3580,6 +3606,7 @@ function _doRunAnalysis() {
     }
     if (typeof _demoAnalizDemoInstantUi === 'function') _demoAnalizDemoInstantUi();
   }
+  _baykusAnalizdeSustur(refYear);
 
   const r = calcRatios(refYear);
   enrichRatiosAfterCalc(r, refYear);
@@ -3627,6 +3654,7 @@ function _doRunAnalysis() {
   if (el_rf) el_rf.textContent = firma + ' — ' + refYear + ' / ' + donemAd;
   const el_rd = document.getElementById('ratingDesc');
   if (el_rd) el_rd.textContent = rating.teminat;
+  if (window._demoMod && typeof demoAnalizPopupGuncelle === 'function') demoAnalizPopupGuncelle();
   const el_td = document.getElementById('ratingTeminat');
   if (el_td) {
     el_td.textContent = 'Teminat: ' + rating.teminat;
