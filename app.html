@@ -11874,17 +11874,17 @@ function demoBaslat() {
       const trSes = voices.find(v => v.lang && String(v.lang).toLowerCase().startsWith('tr'));
       if (trSes) utt.voice = trSes;
       utt.lang = 'tr-TR';
-      utt.rate = 1.05;
+      utt.rate = 1.12;
       utt.onend = endOnce;
       utt.onerror = endOnce;
       speechSynthesis.speak(utt);
-      const fbMs = Math.min(120000, Math.max(10000, text.length * 95));
+      const fbMs = Math.min(120000, Math.max(9000, text.length * 82));
       _demoTourSpeakTimer = setTimeout(endOnce, fbMs);
     }, 300);
   }
 
   // ── ADIMLAR (Hesaplanmış sürelerle) ───────────────────────
-  // Her adım başlangıç: bir önceki adımın başlangıcı + kısaltılmış anlatı süresi
+  // Adımlar kısa metinle bitince boşluk kalmasın diye aralıklar sıkı (konuşma ≈ bitince sonraki adım).
 
   // ADIM 1 — Analiz Yılı | başlangıç: 3000ms
   setTimeout(() => {
@@ -11906,7 +11906,7 @@ function demoBaslat() {
     const donemBtnler = Array.from(document.querySelectorAll('.btn-period'));
     if (donemBtnler.length) { donemBtnler[0].scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elDolas(donemBtnler,550), 550); }
     _bsoy('<b>Bilanço dönemi</b>: Mart, Haziran, Eylül veya yıl sonu Aralık. Ara dönemde gelir tablosu yıllıklaştırılır.');
-  }, 10900);
+  }, 10300);
 
   // ADIM 3 — Firma Tipi
   setTimeout(() => {
@@ -11915,7 +11915,7 @@ function demoBaslat() {
       b.textContent.includes('Pazarlama') || b.textContent.includes('Üretim') || b.textContent.includes('Taahhüt'));
     if (btnler.length) { btnler[0].scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elDolas(btnler,650), 550); }
     _bsoy('<b>Firma tipi</b>: Pazarlama, üretim veya taahhüt — oran eşikleri buna göre hesaplanır.');
-  }, 24300);
+  }, 21000);
 
   // ADIM 4 — 2024/2023 zorunluluğu
   setTimeout(() => {
@@ -11928,7 +11928,7 @@ function demoBaslat() {
       if (kartlar.length) { kartlar[0].scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elDolas(kartlar,1300), 450); }
     }, 650);
     _bsoy('<b>Mali veri</b>: Analiz yılı <b>iki bin yirmi dört</b> ile önceki yıl <b>iki bin yirmi üç</b> kartları dolu olmalı.');
-  }, 35200);
+  }, 28800);
 
   // ADIM 5 — Yükleme yöntemleri
   setTimeout(() => {
@@ -11937,7 +11937,7 @@ function demoBaslat() {
     const upPrev=document.querySelector('#year-' + (DEMO_FIRMA.refYear - 1) + ' .upload-btn');
     if (upCur) { upCur.scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elCiftTik(upCur,()=>{ if(upPrev) setTimeout(()=>_elCiftTik(upPrev,()=>_elGizle()),850); }),450); }
     _bsoy('<b>Excel mizan</b>, <b>PDF beyanname</b> veya <b>PDF mizan</b>. Kartı <b>çift tıklayarak</b> açın.');
-  }, 47400);
+  }, 39200);
 
   // ADIM 6–7 — Subjektif (otomatik Analiz Et yok; kullanıcı verisini yükleyip kendisi basar → paket sayfası)
   setTimeout(() => {
@@ -11995,7 +11995,7 @@ function demoBaslat() {
         );
       }
     );
-  }, 60400);
+  }, 47800);
 
   _demoGeriSayimBaslat();
 }
@@ -12080,11 +12080,11 @@ function _demoAnalizSunumu() {
       const trSes = voices.find(v => v.lang && String(v.lang).toLowerCase().startsWith('tr'));
       if (trSes) utt.voice = trSes;
       utt.lang = 'tr-TR';
-      utt.rate = 1.05;
+      utt.rate = 1.12;
       utt.onend = endOnce;
       utt.onerror = endOnce;
       speechSynthesis.speak(utt);
-      const fbMs = Math.min(120000, Math.max(12000, text.length * 95));
+      const fbMs = Math.min(120000, Math.max(10000, text.length * 82));
       _dasFallTimer = setTimeout(endOnce, fbMs);
     }
     function _demoAnSunRunSpeak() {
@@ -12188,7 +12188,7 @@ function _demoAnalizSunumu() {
       + 'Teminat: ' + teminatVal + '.');
   }, 300);
 
-  // ADIM 2 — Kredi not skalası | kısaltılmış anlatıya göre ~15sn
+  // ADIM 2 — Kredi not skalası (ADIM 1 kısa anlatı bittikten ~1 sn sonra)
   setTimeout(() => {
     if (!window._demoMod) return;
     const skala = document.getElementById('skalaBody');
@@ -12200,7 +12200,7 @@ function _demoAnalizSunumu() {
       if (aktifSatir) _vurgula(aktifSatir, 7800);
     }
     _bsoy('Skalada firmanın notu işaretli; AAA dan D ye on kademe. Teminat koşulları kademeye göre değişir.');
-  }, 15400);
+  }, 13800);
 
   // ADIM 3 — Finansal oranlar
   setTimeout(() => {
@@ -12208,7 +12208,7 @@ function _demoAnalizSunumu() {
     const oran = document.getElementById('liquidityRatios');
     if (oran) { oran.scrollIntoView({behavior:'smooth', block:'center'}); _vurgula(oran, 7800); }
     _bsoy('On sekiz finansal oran; yeşil iyi, sarı orta, kırmızı risk.');
-  }, 28600);
+  }, 21200);
 
   // ADIM 4 — Rating artırıcı öneriler
   setTimeout(() => {
@@ -12216,7 +12216,7 @@ function _demoAnalizSunumu() {
     const oneri = document.getElementById('i18nOneri');
     if (oneri) { oneri.scrollIntoView({behavior:'smooth', block:'center'}); _vurgula(oneri, 6800); }
     _bsoy('Zayıf alanlar ve iyileştirme önerileri; PDF raporda da yer alır.');
-  }, 39800);
+  }, 26800);
 
   // ADIM 5 — Özet bilanço
   setTimeout(() => {
@@ -12228,7 +12228,7 @@ function _demoAnalizSunumu() {
       _vurgula(ozet, 7800);
     }
     _bsoy('Özet tabloda aktif ile pasif toplamı dengelenir.');
-  }, 49800);
+  }, 32200);
 
   // ADIM 6–9 — Senaryo modalı + KV örneği + otomatik öneri modalı; ADIM 7–9 önceki TTS bitince zincirlenir
   setTimeout(() => {
@@ -12259,7 +12259,7 @@ function _demoAnalizSunumu() {
     _bsoy('Senaryoda sermaye, vade, kâr ve ciro ile simülasyon; puan ve not anlık hesaplanır.', function () {
         setTimeout(_demoAnSunStep7, 620);
       });
-  }, 60800);
+  }, 38200);
 }
 
 
