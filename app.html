@@ -1502,6 +1502,28 @@ function demoAnalizPopupGuncelle() {
   const hedefNot = document.getElementById('demoPopupKrediNotu');
   const hedefTeminat = document.getElementById('demoPopupTeminat');
   const hedefToplam = document.getElementById('demoPopupToplamPuan');
+  if (window._demoMaliVeriYok) {
+    const en = state.lang === 'en';
+    const msg = en
+      ? 'Your credit rating could not be calculated because no financial data was uploaded.'
+      : 'Mali veri yüklemediğiniz için kredi notunuz hesaplanamadı';
+    if (hedefNot) {
+      hedefNot.textContent = msg;
+      hedefNot.style.fontSize = '13px';
+      hedefNot.style.lineHeight = '1.4';
+      hedefNot.style.fontWeight = '700';
+      hedefNot.style.maxWidth = '280px';
+    }
+    if (hedefTeminat) hedefTeminat.textContent = '—';
+    if (hedefToplam) hedefToplam.textContent = en ? 'Total score: —' : 'Toplam puan: —';
+    return;
+  }
+  if (hedefNot) {
+    hedefNot.style.fontSize = '';
+    hedefNot.style.lineHeight = '';
+    hedefNot.style.fontWeight = '';
+    hedefNot.style.maxWidth = '';
+  }
   const lastRating = window._lastRating || null;
   const notVal = (lastRating && lastRating.note ? String(lastRating.note).trim() : '') || '';
   const teminatVal = (lastRating && lastRating.teminat ? String(lastRating.teminat).trim() : '') || '';
@@ -3698,20 +3720,104 @@ async function _checkAndRunAnalysis() {
   _doRunAnalysis();
 }
 
+/** Demo: mali veri girilmediğinde analiz sekmesi + popup (not hesaplanamaz); tam analiz çalıştırılmaz. */
+function _demoAnalizMaliVeriYokAnaEkran(firma, refYear) {
+  const donemAd = { 3: 'Mart', 6: 'Haziran', 9: 'Eylül', 12: 'Aralık' }[parseInt(state.period)] || 'Aralık';
+  const en = state.lang === 'en';
+  const nb = document.getElementById('ratingNoteBig');
+  if (nb) {
+    nb.textContent = '—';
+    nb.className = 'rating-note-big';
+  }
+  const el_rf = document.getElementById('ratingFirma');
+  if (el_rf) el_rf.textContent = firma + ' — ' + refYear + ' / ' + donemAd;
+  const el_rd = document.getElementById('ratingDesc');
+  if (el_rd) el_rd.textContent = '';
+  const el_td = document.getElementById('ratingTeminat');
+  if (el_td) {
+    el_td.textContent = '';
+    el_td.style.display = 'none';
+  }
+  const setBarFn = function (id, pct) {
+    const el = document.getElementById(id);
+    if (el) el.style.width = pct + '%';
+  };
+  const setValFn = function (id, txt, col) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.textContent = txt;
+      if (col) el.style.color = col;
+    }
+  };
+  setBarFn('barFinansal', 0);
+  setBarFn('barSubjektif', 0);
+  setBarFn('barToplam', 0);
+  setValFn('valFinansal', '—');
+  setValFn('valSubjektif', '—');
+  setValFn('valToplam', '—');
+  const mg = document.getElementById('metricsGrid');
+  if (mg) mg.innerHTML = '';
+  ['liquidityRatios', 'leverageRatios', 'activityRatios', 'profitRatios'].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '';
+  });
+  const am = document.getElementById('analizMetin');
+  if (am) {
+    am.innerHTML = '<p style="color:var(--text-muted);font-size:13px;line-height:1.55">' + (en
+      ? 'Upload financial statements or enter balances to calculate ratios and credit rating.'
+      : 'Oranlar ve kredi notu için bilanço / gelir tablosu yükleyin veya veri girin.') + '</p>';
+  }
+  const skalaBodyEl = document.getElementById('skalaBody');
+  if (skalaBodyEl) skalaBodyEl.innerHTML = '';
+  state.lastResult = {
+    firma, refYear, period: state.period, firmType: state.firmType,
+    rating: null, toplam: null, objPuan: null, subjPuan: null, subjRaw: null, r: null,
+    subjScores: JSON.parse(JSON.stringify(subjSec)),
+    date: new Date().toLocaleDateString('tr-TR'),
+    demoMaliVeriYok: true,
+  };
+  state._last = state.lastResult;
+  window._lastR = null;
+  window._lastRating = null;
+  window._lastToplam = null;
+  window._lastKirilim = null;
+  const _ab = document.getElementById('avatarBtn');
+  if (_ab) _ab.style.display = 'none';
+  try {
+    autoSave();
+  } catch (e) {}
+  setTimeout(function () {
+    try {
+      applyLang();
+    } catch (e2) {}
+  }, 0);
+}
+
 function _doRunAnalysis() {
   try {
+  window._demoMaliVeriYok = false;
   const firma    = (document.getElementById('firmaAdi')||{}).value || 'Firma';
   const refYear  = parseInt(document.getElementById('refYear').value);
   const allYears = [2022,2023,2024,2025,2026];
   const prevYear = allYears[allYears.indexOf(refYear)-1] || refYear;
 
-  if (!state.yearData[refYear] || !state.yearData[refYear].aktifToplam) {
+  const demoNoMali = !!(window._demoMod && (!state.yearData[refYear] || !state.yearData[refYear].aktifToplam));
+  if (!demoNoMali && (!state.yearData[refYear] || !state.yearData[refYear].aktifToplam)) {
     showToast('Lütfen ' + refYear + ' yılı verilerini giriniz!', true);
     showTab('tab-bilgi', document.getElementById('tab-btn-bilgi'));
     return;
   }
 
   if (typeof _demoSonucKilidiKaldir === 'function') _demoSonucKilidiKaldir();
+
+  if (demoNoMali) {
+    window._demoMaliVeriYok = true;
+    window._demoNarrationMuted = true;
+    if (typeof avStopAudio === 'function') avStopAudio();
+    _demoAnalizMaliVeriYokAnaEkran(firma, refYear);
+    if (typeof _demoAnalizDemoInstantUi === 'function') _demoAnalizDemoInstantUi();
+    return;
+  }
 
   if (window._demoMod) {
     if (!state.yearData[prevYear] || !state.yearData[prevYear].aktifToplam) {
