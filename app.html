@@ -603,7 +603,7 @@ tbody td { padding:8px 13px; color:var(--text); }
     <span style="font-size:18px">🎯</span>
     <div>
       <div class="demo-title" style="font-size:13px;font-weight:700;color:#000">DEMO MODU</div>
-      <div class="demo-desc" style="font-size:11px;color:rgba(0,0,0,0.7)">Kendi verinizle deneyin · Sonuç önizlemesi kilitli; paket penceresinden satın alın · Kayıt/PDF kapalı &nbsp;|&nbsp; <span class="demo-sure">Demo süresi: 15:00 kaldı</span></div>
+      <div class="demo-desc" style="font-size:11px;color:rgba(0,0,0,0.7)">Kendi verinizle deneyin · Sonuç önizlemesi kilitli; paket penceresinden satın alın · Kayıt/PDF kapalı &nbsp;|&nbsp; <span class="demo-sure">Demo süresi: 7:00 kaldı</span></div>
     </div>
   </div>
   <div class="demo-actions" style="display:flex;align-items:center;gap:10px;flex-shrink:0">
@@ -11633,7 +11633,7 @@ const DEMO_FIRMA = {
 };
 
 let _demoTimer = null;
-let _demoSure  = 15 * 60; // 15 dakika saniye cinsinden
+let _demoSure  = 7 * 60; // dakika süresini saniye olarak (yalnız demo geri sayımı)
 
 function syncDemoBannerOffset() {
   try {
