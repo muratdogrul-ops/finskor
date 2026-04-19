@@ -80,8 +80,15 @@ body::before {
 .login-btn:hover { opacity:0.9; transform:translateY(-1px); box-shadow:0 8px 24px rgba(245,166,35,0.3); }
 .login-error { color:var(--danger); font-size:12px; margin-top:8px; display:none; }
 
+@keyframes guvenlikSoftPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.66; }
+}
 .guvenlik-notice-pulse {
-  animation: none;
+  animation: guvenlikSoftPulse 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .guvenlik-notice-pulse { animation: none; opacity: 1; }
 }
 
 /* ── MAIN APP ── */
@@ -119,25 +126,33 @@ body::before {
   text-align: center;
   flex-shrink: 0;
 }
+@keyframes demoPopupPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
 .demo-popup-note {
-  font-size: 12px;
-  color: #94a3b8;
-  font-weight: 500;
+  font-size: 13px;
+  color: #f5a623;
+  font-weight: 700;
   line-height: 1.5;
   margin-bottom: 14px;
+  animation: demoPopupPulse 1.3s ease-in-out infinite;
 }
 .demo-popup-kredi-main {
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--gold);
   text-align: center;
+  animation: demoPopupPulse 1.3s ease-in-out infinite;
 }
 .demo-popup-kredi-score {
   font-size: 13px;
   color: #e5e7eb;
-  font-weight: 600;
+  font-weight: 700;
   margin-top: 6px;
   text-align: center;
+  animation: demoPopupPulse 1.3s ease-in-out infinite;
+  text-shadow: 0 0 10px rgba(245,166,35,0.22);
 }
 /* Paket kartının sağında; üst üste binmez (aynı overlay içinde flex) */
 #demoTeklifPopup {
@@ -513,6 +528,10 @@ tbody td { padding:8px 13px; color:var(--text); }
   0%, 100% { box-shadow: 0 0 0 0 rgba(245,166,35,0); }
   50%       { box-shadow: 0 0 20px 4px rgba(245,166,35,0.5), 0 0 40px 8px rgba(245,166,35,0.2); }
 }
+@keyframes demoGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(46,204,154,0); border-color: rgba(46,204,154,0.5); }
+  50%       { box-shadow: 0 0 20px 4px rgba(46,204,154,0.4), 0 0 40px 8px rgba(46,204,154,0.15); border-color: rgba(46,204,154,0.9); }
+}
 </style>
 </head>
 <body>
@@ -527,11 +546,11 @@ tbody td { padding:8px 13px; color:var(--text); }
     <div class="login-label" id="passLabel" style="display:none">Şifre</div>
     <input class="login-input" type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" style="display:none">
     <div style="margin-top:18px;text-align:center">
-      <button onclick="demoBaslat()" id="demoBtnLogin" type="button" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(46,204,154,0.45);background:rgba(46,204,154,0.08);color:#2ECC9A;font-size:14px;font-weight:600;cursor:pointer;transition:background 0.2s,border-color 0.2s;font-family:'Plus Jakarta Sans',sans-serif;"
-        onmouseover="this.style.background='rgba(46,204,154,0.14)';this.style.borderColor='rgba(46,204,154,0.65)'" onmouseout="this.style.background='rgba(46,204,154,0.08)';this.style.borderColor='rgba(46,204,154,0.45)'">
-        Demo ile dene
+      <button onclick="demoBaslat()" id="demoBtnLogin" type="button" style="width:100%;padding:12px;border-radius:10px;border:2px solid rgba(46,204,154,0.5);background:rgba(46,204,154,0.1);color:#2ECC9A;font-size:14px;font-weight:700;cursor:pointer;transition:all 0.2s;font-family:'Plus Jakarta Sans',sans-serif;animation:demoGlow 2s ease-in-out infinite;"
+        onmouseover="this.style.background='rgba(46,204,154,0.2)'" onmouseout="this.style.background='rgba(46,204,154,0.1)'">
+        🎯 Ücretsiz Demo Yap
       </button>
-      <div style="font-size:11px;color:#64748b;margin-top:8px;line-height:1.5">Kayıt gerektirmez. Veriler tarayıcınızda işlenir.</div>
+      <div style="font-size:11px;color:#64748b;margin-top:8px;line-height:1.5">Kayıt gerekmez · Kendi verilerinizle arayüzü deneyin</div>
       <div role="note" class="guvenlik-notice-pulse" style="margin-top:12px;padding:10px 12px;border-radius:10px;border:1px solid rgba(245,166,35,0.4);background:rgba(245,166,35,0.07);text-align:left">
         <div style="font-size:12px;font-weight:800;color:#f5a623;margin-bottom:4px">Güvenlik</div>
         <div style="font-size:12px;color:#94a3b8;line-height:1.45">Veriler bilgisayarınızda kalır.</div>
@@ -578,17 +597,18 @@ tbody td { padding:8px 13px; color:var(--text); }
 
 <!-- DEMO MODU BANNER -->
 <div id="demoBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9998;
-  background:linear-gradient(90deg,#e8920a,#ea580c);padding:10px 20px;
+  background:linear-gradient(90deg,#f5a623,#f97316);padding:10px 20px;
   display:none;align-items:center;justify-content:space-between;gap:12px">
   <div class="demo-main" style="display:flex;align-items:center;gap:10px">
+    <span style="font-size:18px">🎯</span>
     <div>
-      <div class="demo-title" style="font-size:13px;font-weight:700;color:#000">Demo</div>
-      <div class="demo-desc" style="font-size:11px;color:rgba(0,0,0,0.72)">Özet çıktılar kısıtlıdır; PDF ve kayıt kapalı.&nbsp;|&nbsp;<span class="demo-sure">Süre: 15:00</span></div>
+      <div class="demo-title" style="font-size:13px;font-weight:700;color:#000">DEMO MODU</div>
+      <div class="demo-desc" style="font-size:11px;color:rgba(0,0,0,0.7)">Kendi verinizle deneyin · Sonuç önizlemesi kilitli; paket penceresinden satın alın · Kayıt/PDF kapalı &nbsp;|&nbsp; <span class="demo-sure">Demo süresi: 15:00 kaldı</span></div>
     </div>
   </div>
   <div class="demo-actions" style="display:flex;align-items:center;gap:10px;flex-shrink:0">
-    <button onclick="demoSatinAl()" style="padding:8px 18px;background:#0f172a;color:#f5a623;border:none;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer">
-      Paketler
+    <button onclick="demoSatinAl()" style="padding:8px 18px;background:#000;color:#f5a623;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">
+      🚀 Satın Al
     </button>
     <button onclick="demoCik()" style="background:rgba(0,0,0,0.2);border:none;color:#000;font-size:18px;cursor:pointer;border-radius:6px;padding:4px 8px">✕</button>
   </div>
@@ -946,7 +966,7 @@ tbody td { padding:8px 13px; color:var(--text); }
 
     <div id="demoPaketOverlay" aria-modal="true" role="dialog" aria-labelledby="demoPaketOverlayTitle" style="display:none">
       <div class="demo-paket-card-inner" style="background:linear-gradient(145deg,#1b2a4a,#172033);border:1px solid rgba(148,163,184,0.35);border-radius:16px;padding:22px 18px;box-shadow:0 24px 80px rgba(0,0,0,0.55)">
-        <div id="demoPaketOverlayTitle" style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:16px">Kredi özeti</div>
+        <div id="demoPaketOverlayTitle" style="font-size:18px;font-weight:800;color:var(--text);margin-bottom:16px">Analiz Sonucu</div>
         <div style="display:grid;gap:10px;text-align:left;margin-bottom:14px">
           <div style="border:1px solid var(--border);border-radius:12px;padding:12px;background:var(--surface2)">
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Kredi notu</div>
@@ -958,8 +978,8 @@ tbody td { padding:8px 13px; color:var(--text); }
             <div id="demoPopupTeminat" style="font-size:13px;font-weight:700;color:var(--text);line-height:1.45">-</div>
           </div>
         </div>
-        <div class="demo-popup-note">Tam özellik ve rapor çıktısı için paket seçeneklerine bakın.</div>
-        <button type="button" onclick="location.href='index.html#fiyat'" style="width:100%;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,#f5a623,#f7c948);color:#0d0d0d;font-weight:700;cursor:pointer;font-size:13px">Paketleri incele</button>
+        <div class="demo-popup-note">Kredi notunu artırmak için paket fiyatlarını incele.</div>
+        <button type="button" onclick="location.href='index.html#fiyat'" style="width:100%;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,#f5a623,#f7c948);color:#0d0d0d;font-weight:800;cursor:pointer;font-size:13px">Paketleri İncele</button>
       </div>
       <div id="demoTeklifPopup" aria-modal="true" role="dialog" aria-labelledby="demoTeklifPopupTitle" style="display:none">
         <div class="demo-teklif-inner">
@@ -1490,10 +1510,9 @@ function demoAnalizPopupGuncelle() {
     if (hedefNot) {
       hedefNot.textContent = msg;
       hedefNot.style.fontSize = '13px';
-      hedefNot.style.lineHeight = '1.45';
-      hedefNot.style.fontWeight = '500';
-      hedefNot.style.maxWidth = 'min(340px, 92vw)';
-      hedefNot.style.color = '#cbd5e1';
+      hedefNot.style.lineHeight = '1.4';
+      hedefNot.style.fontWeight = '700';
+      hedefNot.style.maxWidth = '280px';
     }
     if (hedefTeminat) hedefTeminat.textContent = '—';
     if (hedefToplam) hedefToplam.textContent = en ? 'Total score: —' : 'Toplam puan: —';
@@ -1504,7 +1523,6 @@ function demoAnalizPopupGuncelle() {
     hedefNot.style.lineHeight = '';
     hedefNot.style.fontWeight = '';
     hedefNot.style.maxWidth = '';
-    hedefNot.style.color = '';
   }
   const lastRating = window._lastRating || null;
   const notVal = (lastRating && lastRating.note ? String(lastRating.note).trim() : '') || '';
@@ -9959,70 +9977,6 @@ function _avAddMsg(role, text) {
   }
 }
 
-/** Türkçe TTS için en uygun sistem sesi (kadın / neural-online önceliği — Edge’de daha doğal). */
-function _avPickTrTtsVoice() {
-  if (!window.speechSynthesis) return null;
-  var voices = speechSynthesis.getVoices();
-  if (!voices || !voices.length) return null;
-  function scoreVoice(v) {
-    var nm = (v.name || '').toLowerCase();
-    var lang = v.lang ? String(v.lang).toLowerCase() : '';
-    var tr = lang.indexOf('tr') === 0 || lang.indexOf('-tr') !== -1 || lang === 'tr';
-    if (!tr) return -1000;
-    var s = 0;
-    if (/female|kadın|kadin|woman|girl|bayan/.test(nm)) s += 120;
-    if (/neural|natural|premium|enhanced|online/.test(nm)) s += 80;
-    if (/microsoft/.test(nm)) s += 35;
-    if (/google/.test(nm)) s += 20;
-    if (/apple/.test(nm)) s += 15;
-    if (/offline|embedded/.test(nm)) s -= 40;
-    return s;
-  }
-  var best = null;
-  var bestSc = -1e9;
-  for (var i = 0; i < voices.length; i++) {
-    var sc = scoreVoice(voices[i]);
-    if (sc > bestSc) {
-      bestSc = sc;
-      best = voices[i];
-    }
-  }
-  if (best && bestSc > -500) return best;
-  var trSes = voices.find(function (v) {
-    var lang = v.lang && String(v.lang).toLowerCase();
-    return lang && lang.startsWith('tr');
-  });
-  return trSes || voices.find(function (v) {
-    return /female|kadın|kadin|woman|girl|bayan/i.test(v.name || '');
-  }) || null;
-}
-
-/** Chrome/Edge ses listesi geç geldiğinde bir kez bekler. */
-function _avWhenVoicesReady(fn) {
-  if (typeof fn !== 'function') return;
-  if (!window.speechSynthesis) {
-    fn();
-    return;
-  }
-  if (speechSynthesis.getVoices().length) {
-    fn();
-    return;
-  }
-  var done = false;
-  function run() {
-    if (done) return;
-    done = true;
-    try {
-      speechSynthesis.removeEventListener('voiceschanged', run);
-    } catch (e) {}
-    fn();
-  }
-  try {
-    speechSynthesis.addEventListener('voiceschanged', run);
-  } catch (e) {}
-  setTimeout(run, 900);
-}
-
 // Ses sistemi
 window._avSesAcik = true; // Varsayılan: açık
 
@@ -10040,9 +9994,11 @@ function avSesOku(html) {
   avStopAudio();
   window._avSesUtterChain = (window._avSesUtterChain || 0) + 1;
   const chainId = window._avSesUtterChain;
-  const pickVoice = function () {
-    return _avPickTrTtsVoice();
-  };
+  const voices = speechSynthesis.getVoices();
+  const trKadin = voices.find(function (v) { return v.lang && String(v.lang).toLowerCase().startsWith('tr') && /female|kadin|woman|girl/i.test(v.name); });
+  const trSes = voices.find(function (v) { return v.lang && String(v.lang).toLowerCase().startsWith('tr'); });
+  const kadinSes = voices.find(function (v) { return /female|woman|girl/i.test(v.name); });
+  const pickVoice = function () { return trKadin || trSes || kadinSes || null; };
   // Cümle sonlarında kısa duraklama (nefes) — tek parça yerine sıralı okuma
   const rawParts = text.split(/(?<=[.!?…])\s+/).map(function (p) { return p.trim(); }).filter(Boolean);
   const parts = rawParts.length ? rawParts : [text];
@@ -11723,7 +11679,7 @@ function demoBaslat() {
   syncDemoBannerOffsetSoon();
 
   const logo = document.querySelector('.logo');
-  if (logo) logo.innerHTML = 'FinSkor <span style="font-size:10px;background:rgba(245,166,35,0.85);color:#0f172a;padding:2px 7px;border-radius:20px;font-weight:600;vertical-align:middle;margin-left:6px">Demo</span>';
+  if (logo) logo.innerHTML = 'FinSkor <span style="font-size:10px;background:#f5a623;color:#000;padding:2px 7px;border-radius:20px;font-weight:700;vertical-align:middle;margin-left:6px">DEMO</span>';
 
   // Demo modunda init() çağrılmadan gelindi — yıl kartları ve tablo yoksa oluştur
   if (!document.getElementById('year-' + DEMO_FIRMA.refYear)) {
@@ -11767,17 +11723,17 @@ function demoBaslat() {
   // Açılış merhaba mesajı
   setTimeout(() => {
     if (!window._demoMod || window._demoNarrationMuted) return;
-    if (!window.speechSynthesis) return;
-    speechSynthesis.cancel();
-    _avWhenVoicesReady(() => {
-      if (!window._demoMod || window._demoNarrationMuted) return;
-      const utt = new SpeechSynthesisUtterance('Merhaba, ben Baykuş.');
-      utt.voice = _avPickTrTtsVoice();
-      utt.lang = 'tr-TR';
-      utt.rate = 0.96;
-      utt.pitch = 1;
+    // Demo akışına uygun kısa bilgilendirme
+    if (window.speechSynthesis) {
+      speechSynthesis.cancel();
+      // Kısa tutulur: adım anlatımına geçerken sesin yarıda kesilmesini engeller.
+      const utt = new SpeechSynthesisUtterance('Ben Baykuş, merhaba!');
+      const voices = speechSynthesis.getVoices();
+      const trSes = voices.find(v => v.lang && String(v.lang).toLowerCase().startsWith('tr'));
+      if (trSes) utt.voice = trSes;
+      utt.lang = 'tr-TR'; utt.rate = 1.05;
       speechSynthesis.speak(utt);
-    });
+    }
   }, 300);
 
 
@@ -11913,19 +11869,17 @@ function demoBaslat() {
     })();
     setTimeout(() => {
       if (!window._demoMod || myGen !== _demoTourSpeakGen) return;
-      _avWhenVoicesReady(() => {
-        if (!window._demoMod || myGen !== _demoTourSpeakGen) return;
-        const utt = new SpeechSynthesisUtterance(text);
-        utt.voice = _avPickTrTtsVoice();
-        utt.lang = 'tr-TR';
-        utt.rate = 0.96;
-        utt.pitch = 1;
-        utt.onend = endOnce;
-        utt.onerror = endOnce;
-        speechSynthesis.speak(utt);
-        const fbMs = Math.min(120000, Math.max(10000, text.length * 95));
-        _demoTourSpeakTimer = setTimeout(endOnce, fbMs);
-      });
+      const utt = new SpeechSynthesisUtterance(text);
+      const voices = speechSynthesis.getVoices();
+      const trSes = voices.find(v => v.lang && String(v.lang).toLowerCase().startsWith('tr'));
+      if (trSes) utt.voice = trSes;
+      utt.lang = 'tr-TR';
+      utt.rate = 1.05;
+      utt.onend = endOnce;
+      utt.onerror = endOnce;
+      speechSynthesis.speak(utt);
+      const fbMs = Math.min(120000, Math.max(10000, text.length * 95));
+      _demoTourSpeakTimer = setTimeout(endOnce, fbMs);
     }, 300);
   }
 
@@ -12122,10 +12076,11 @@ function _demoAnalizSunumu() {
     function _demoAnSunSpeak() {
       if (!window._demoMod || myGen !== _dasSpeakGen) return;
       const utt = new SpeechSynthesisUtterance(text);
-      utt.voice = _avPickTrTtsVoice();
+      const voices = speechSynthesis.getVoices();
+      const trSes = voices.find(v => v.lang && String(v.lang).toLowerCase().startsWith('tr'));
+      if (trSes) utt.voice = trSes;
       utt.lang = 'tr-TR';
-      utt.rate = 0.96;
-      utt.pitch = 1;
+      utt.rate = 1.05;
       utt.onend = endOnce;
       utt.onerror = endOnce;
       speechSynthesis.speak(utt);
@@ -12190,10 +12145,12 @@ function _demoAnalizSunumu() {
         _vurgula(otomBtn, 14000);
       }
     }, 500);
-    _bsoy('Otomatik senaryo önerisi, notu yükseltmeye yönelik kombinasyonları dener; sermaye, vade yapısı ve satış parametreleri birlikte incelenir. Tam raporda özetlenir.', _demoAnSunStep8b);
+    _bsoy('FinSkor otomatik senaryo önerisi, notunuzu bir ve iki kademe artırmak için ' +
+      'en uygun kombinasyonu hesaplar. Sermaye artışı, kısa vadeden uzun vadeye taşıma ve satış büyümesi ' +
+      'kombinasyonları denenir. Bu öneri PDF raporda da yer alır.', _demoAnSunStep8b);
   }
 
-  /** Otomatik senaryo popup kapanır → Paketler + son anlatım → sunum biter */
+  /** Otomatik senaryo popup kapanır → Satın Al + son anlatım → sunum biter */
   function _demoAnSunStep8b() {
     if (!window._demoMod) return;
     const otomModal = document.getElementById('otomSenaryoModal');
@@ -12203,13 +12160,15 @@ function _demoAnalizSunumu() {
     setTimeout(() => {
       if (!window._demoMod) return;
       const satinBtn = document.querySelector('#demoBanner button[onclick="demoSatinAl()"]')
-        || Array.from(document.querySelectorAll('#demoBanner button')).find(b => /(?:Paketler|Satın\s*Al)/i.test((b.textContent || '')));
+        || Array.from(document.querySelectorAll('#demoBanner button')).find(b => /Satın\s*Al/i.test((b.textContent || '')));
       if (satinBtn) {
         _vurgula(satinBtn, 10000);
         _demoAnSunElGit(satinBtn, null);
       }
-      _bsoy('Bankanın sizi nasıl gördüğünü önceden bilmek başvuru ve görüşmede önemlidir. FinSkor bu görünürlüğü sağlar. ' +
-        'Üst banttaki Paketler ile tam sürüme geçebilirsiniz. Demo sunumu burada sona erdi.', function () {
+      _bsoy('Bankadan kredi kullanmak isteyen KOBİ ve ticari firmaların en büyük dezavantajı, bankanın kendilerini nasıl değerlendirdiğini bilmemeleridir. ' +
+        'FinSkor bu bilgiyi firmanın eline verir. Üst bantta gördüğünüz Satın Al düğmesiyle tam sürüme geçebilirsiniz; ' +
+        'kredi başvurusundan önce notunuzu öğrenin, zayıf noktaları güçlendirin, bankaya hazırlıklı gidin. ' +
+        'Daha az teminat, daha iyi faiz, daha hızlı onay. FinSkor, kredide güç dengesi artık sizin tarafınızda. Demo sunumu burada sona erdi.', function () {
           _demoAnSunElGizle();
           window._demoAnalizSunumuBitti = true;
         });
@@ -12328,7 +12287,7 @@ function _demoGeriSayimBaslat() {
     if (alt) {
       const dk = Math.floor(window._demoKalan / 60);
       const sn = window._demoKalan % 60;
-      alt.textContent = `Süre: ${dk}:${sn.toString().padStart(2,'0')}`;
+      alt.textContent = `Demo süresi: ${dk}:${sn.toString().padStart(2,'0')} kaldı`;
     }
     // Süre bitti
     if (window._demoKalan <= 0) {
@@ -12337,14 +12296,14 @@ function _demoGeriSayimBaslat() {
     }
     // Son 1 dakikada uyarı
     if (window._demoKalan === 60) {
-      _demoUyari('Demo süresi yakında sona erecek.');
+      _demoUyari('Demo süreniz 1 dakika içinde dolacak. Satın alarak devam edin.');
     }
   }, 1000);
 }
 
 function _demoUyari(mesaj) {
   const u = document.createElement('div');
-  u.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:99999;background:#0f172a;border:1px solid rgba(245,166,35,0.45);border-radius:10px;padding:12px 20px;font-size:12px;font-weight:500;color:#e2e8f0;box-shadow:0 8px 24px rgba(0,0,0,0.35);text-align:center;max-width:min(420px,92vw);line-height:1.45';
+  u.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:99999;background:#1e293b;border:2px solid #f5a623;border-radius:12px;padding:14px 24px;font-size:13px;font-weight:700;color:#f5a623;box-shadow:0 8px 32px rgba(0,0,0,0.5);text-align:center';
   u.textContent = mesaj;
   document.body.appendChild(u);
   setTimeout(() => u.remove(), 5000);
@@ -12381,7 +12340,7 @@ function demoCik(sureBitti = false) {
   }
 
   if (sureBitti) {
-    _demoUyari('Demo süresi doldu. Tam erişim için paket satın alın.');
+    _demoUyari('Demo süreniz doldu. Satın alarak tüm özelliklere erişin.');
     setTimeout(() => location.reload(), 3000);
   } else {
     location.reload();
@@ -12393,7 +12352,7 @@ function _demoKisitKontrol(islem) {
   if (!window._demoMod) return true; // Demo değilse geç
   const kisitli = ['saveFirm', 'generatePDF', 'downloadReport', 'deductCredit'];
   if (kisitli.includes(islem)) {
-    _demoUyari('Bu işlem demoda kullanılamaz. Tam sürümde açılır.');
+    _demoUyari('Bu özellik demo modunda devre dışı. Satın alarak tüm özelliklere erişin.');
     return false;
   }
   return true;
