@@ -934,6 +934,11 @@ tbody td { padding:8px 13px; color:var(--text); }
       </div>
       <!-- Mevcut metrik grid ve oran tabloları korunuyor -->
       <div class="results-grid" id="metricsGrid"></div>
+      <!-- Taahhüt: normalize özet gelir (scripts/taahhut_adjusted_pl_finskor.py ile uyumlu; yalnızca taahhüt tipinde) -->
+      <div class="card" id="taahhutPlCard" style="display:none;margin-bottom:16px;border:1px solid rgba(248,113,113,0.35);background:rgba(248,113,113,0.06)">
+        <div class="card-title">🔨 <span id="taahhutPlTitle">Taahhüt — Özet gelir (TFRS net satış)</span></div>
+        <div id="taahhutPlInner"></div>
+      </div>
       <div class="ratio-grid">
         <div class="card"><div class="card-title">📐 LİKİDİTE ORANLARI</div><div id="liquidityRatios"></div></div>
         <div class="card"><div class="card-title">⚖️ BORÇLANMA ORANLARI</div><div id="leverageRatios"></div></div>
@@ -3122,7 +3127,7 @@ function selectType(btn) {
   const desc = {
     pazarlama: '<strong>Pazarlama / Hizmet:</strong> Ticaret ve hizmet firmaları. Likidite, Borç/ÖzKaynak ve KV Borç/Satış için <em>daha toleranslı</em> eşikler. Rating formülü: <strong>B127</strong>',
     uretim:    '<strong>Üretim:</strong> İmalat/sanayi firmaları. Daha sıkı Borç/ÖzKaynak eşiği (max 2.99). Rating formülü: <strong>E127</strong>',
-    taahhut:   '<strong>Taahhüt:</strong> İnşaat/müteahhit firmaları. Üretim formülü uygulanır (E127). Satış büyümesi hesaplanmaz — biten+devam eden işler geliri esas alınır.'
+    taahhut:   '<strong>Taahhüt:</strong> İnşaat/müteahhit firmaları. Üretim formülü uygulanır (E127). Gelir tablosu özeti TFRS net satış; KV/satış ve büyüme düzeltilmiş ciro (hakediş düzeltmeli) ile.'
   };
   const el = document.getElementById('firmTypeDesc');
   if (el) el.innerHTML = desc[state.firmType] || '';
@@ -3335,24 +3340,68 @@ function calcRatios(refYear) {
   const finansGid   = _a(D('finansmanGider'));
   const amortGid    = _a(D('amortismanGider') || 0);
 
-  // ── TAAHHÜT FİRMASI CİRO FORMÜLÜ
-  // Ciro = Net Satışlar + Cari Yıl Hakedişleri (35) - Önceki Yıl Hakedişleri (35)
+  // ── TAAHHÜT: TFRS net satış (nsResmi) vs düzeltilmiş ciro (nsAdj = + hakediş cari − önceki)
   const isTaahhutCalc = (state.firmType === 'taahhut');
-  const netSatis = isTaahhutCalc
+  const nsResmi = netSatis0;
+  const nsAdj = isTaahhutCalc
     ? netSatis0 + _a(D('yilHakediş')) - _a(Dp('yilHakediş'))
     : netSatis0;
 
-  // ── TAAHHÜT: Karlılık rakamları düzeltilmiş gelir tablosundan (özet bilanço ile tutarlı)
-  // Diğer firma tiplerinde ham gelir tablosu değerleri kullanılır (yıllıklaştırılmış)
-  const _brutKarDuz  = netSatis - satMaliyet;
-  const _faalKarDuz  = _brutKarDuz - _a(D('faalGider'));
-  const _olaganDuz   = _faalKarDuz + _a(D('digerFaalGelir')) - _a(D('digerFaalGider')) - finansGid;
-  const _donemKarDuz = _olaganDuz + _a(D('olagandisiGelir')) - _a(D('olagandisiGider'));
-  const _netKarDuz   = _donemKarDuz - _a(D('vergiKarsilik'));
+  let netSatis, netSatisDuzenlenmis, faalKar, voKar, netKar;
+  let brutMarj, faalMarj, netKarMarj, ebitda, ebitdaMarj;
+  let alacakTahsil, aktifDev, finGiderCiro, kvBankaB_Sat, kvBorcSat;
 
-  const faalKar  = isTaahhutCalc ? _faalKarDuz  : _a(D('faalKar'));
-  const voKar    = isTaahhutCalc ? _donemKarDuz : _a(D('donemKar') || D('olagan'));
-  const netKar   = isTaahhutCalc ? _netKarDuz   : _a(D('donemNetKarGelir') || D('donemNetKar'));
+  const kvBankaToplam = kvMaliBor + kvDigFin + uvCariTaks;
+
+  if (isTaahhutCalc) {
+    netSatis = nsResmi;
+    netSatisDuzenlenmis = nsAdj;
+    const _brutR = nsResmi - satMaliyet;
+    const _faalR = _brutR - _a(D('faalGider'));
+    const _olagR = _faalR + _a(D('digerFaalGelir')) - _a(D('digerFaalGider')) - finansGid;
+    const _donR  = _olagR + _a(D('olagandisiGelir')) - _a(D('olagandisiGider'));
+    const _netR  = _donR - _a(D('vergiKarsilik'));
+    faalKar = _faalR;
+    voKar   = _donR;
+    netKar  = _netR;
+
+    const pm = nsResmi;
+    netKarMarj = pm > 0 && voKar > 0 ? voKar / pm * 100 : 0;
+    brutMarj   = pm > 0 ? (nsResmi - satMaliyet) / pm * 100 : 0;
+    faalMarj   = pm > 0 ? faalKar / pm * 100 : 0;
+    ebitda     = faalKar + amortGid;
+    ebitdaMarj = pm > 0 && ebitda > 0 ? ebitda / pm * 100 : 0;
+
+    alacakTahsil = pm > 0 ? ticAlacak / pm * 360 : 0;
+    aktifDev     = aktif > 0 ? nsResmi / aktif : 0;
+    finGiderCiro = pm > 0 ? finansGid / pm * 100 : 0;
+
+    kvBankaB_Sat = nsAdj > 0 ? kvBankaToplam / nsAdj * 100 : 0;
+    kvBorcSat    = nsAdj > 0 ? kvBorclar / nsAdj * 100 : 0;
+  } else {
+    netSatis = netSatis0;
+    netSatisDuzenlenmis = netSatis0;
+    const _brutKarDuz  = netSatis - satMaliyet;
+    const _faalKarDuz  = _brutKarDuz - _a(D('faalGider'));
+    const _olaganDuz   = _faalKarDuz + _a(D('digerFaalGelir')) - _a(D('digerFaalGider')) - finansGid;
+    const _donemKarDuz = _olaganDuz + _a(D('olagandisiGelir')) - _a(D('olagandisiGider'));
+    const _netKarDuz   = _donemKarDuz - _a(D('vergiKarsilik'));
+    faalKar = _faalKarDuz;
+    voKar   = _donemKarDuz;
+    netKar  = _netKarDuz;
+
+    netKarMarj = netSatis > 0 && voKar > 0 ? voKar / netSatis * 100 : 0;
+    brutMarj   = netSatis > 0 ? (netSatis - satMaliyet) / netSatis * 100 : 0;
+    faalMarj   = netSatis > 0 ? faalKar / netSatis * 100 : 0;
+    ebitda     = faalKar + amortGid;
+    ebitdaMarj = netSatis > 0 && ebitda > 0 ? ebitda / netSatis * 100 : 0;
+
+    alacakTahsil = netSatis > 0 ? ticAlacak / netSatis * 360 : 0;
+    aktifDev = aktif > 0 ? netSatis / aktif : 0;
+    finGiderCiro = netSatis > 0 ? finansGid / netSatis * 100 : 0;
+    kvBankaB_Sat  = netSatis > 0 ? kvBankaToplam / netSatis * 100 : 0;
+    kvBorcSat = netSatis > 0 ? kvBorclar / netSatis * 100 : 0;
+  }
 
   // ── CARİ ORAN = DonenVar / KVBorç  (D47)
   const cariOran = kvBorclar > 0 ? donenVar / kvBorclar : 0;
@@ -3365,26 +3414,11 @@ function calcRatios(refYear) {
   // ── BORÇ/ÖZKAYNAK = ToplamBorç / ÖzKaynak  (D50)
   const borcOzKay = ozKaynak > 0 ? totalBor / ozKaynak : 0;
 
-  // ── VÖ NET KAR / SATIŞLAR = VÖKar / NetSatış * 100  (B116)
-  // Excel: GelirTab.E26 / GelirTab.E11 → VERGİ ÖNCESİ KAR / NET SATIŞ
-  const netKarMarj = netSatis > 0 && voKar > 0 ? voKar / netSatis * 100 : 0;
-
-  // ── BRÜT / FAALİYET KAR MARJLARI
-  const brutMarj   = netSatis > 0 ? (netSatis - satMaliyet) / netSatis * 100 : 0;
-  const faalMarj   = netSatis > 0 ? faalKar / netSatis * 100 : 0;
-  const ebitda     = faalKar + amortGid;
-  const ebitdaMarj = netSatis > 0 && ebitda > 0 ? ebitda / netSatis * 100 : 0;
-
   // ── ROE, ROA
   const roe = ozKaynak > 0 ? netKar / ozKaynak * 100 : 0;
   const roa = aktif    > 0 ? netKar / aktif    * 100 : 0;
 
-  // ── ALACAK TAHSİL SÜRESİ = (TicAlacak / NetSatış) * 360  (D72)
-  const alacakTahsil = netSatis > 0 ? ticAlacak / netSatis * 360 : 0;
-
   // ── STOK GÜN SAYISI = ((CariStok + OncekiStok) / SMM / 2) * 360  (D73)
-  // Excel: ((BİLANÇO.E9 + BİLANÇO.C9) / GelirTab.E13 / 2) * 360
-  // = OrtalamaStok / SMM * 360  (360 gün, ORTALAMA stok)
   const ortStok  = (stoklar + prevStoklar) / 2;
   const stokGun  = satMaliyet > 0 ? ortStok / satMaliyet * 360 : 0;
 
@@ -3392,28 +3426,11 @@ function calcRatios(refYear) {
   const borcOdeme = satMaliyet > 0 ? (kvTicBor + uvTicBor) / satMaliyet * 360 : 0;
 
   // ── NAKİT DÖNÜŞÜM SÜRESİ = BorçÖdeme - AlacakTahsil - StokGün  (D75)
-  // Excel: D74 - D72 - D73  → Negatif/düşük = iyi (borç ödemesi uzun)
   const nakitDonus = borcOdeme - alacakTahsil - stokGun;
 
-  // ── AKTİF DEVİR HIZI
-  const aktifDev = aktif > 0 ? netSatis / aktif : 0;
-
-  // ── KV BANKA BORCU / SATIŞLAR  (B118)
-  // Excel: D18 / D11 = (E29+E30+E31) / NetSatış = KV Toplam Banka Borcu / Satış
-  const kvBankaToplam = kvMaliBor + kvDigFin + uvCariTaks;
-  const kvBankaB_Sat  = netSatis > 0 ? kvBankaToplam / netSatis * 100 : 0;
-
-  // ── KV BORÇLAR / SATIŞLAR  (B119)
-  // Excel: D19 / D11 = BİLANÇO.E38 / NetSatış = ToplamKVBorç / Satış
-  const kvBorcSat = netSatis > 0 ? kvBorclar / netSatis * 100 : 0;
-
   // ── BANKA BORÇ / AKTİF  (B121)
-  // Excel: (E29+E30+E31+E40) / D16 = Toplam Finansal Borç / Aktif
   const toplamFinBor = kvMaliBor + kvDigFin + uvCariTaks + uvMaliBor;
   const bnkBorcAkt   = aktif > 0 ? toplamFinBor / aktif * 100 : 0;
-
-  // ── FİNANSMAN GİDERİ / SATIŞ
-  const finGiderCiro = netSatis > 0 ? finansGid / netSatis * 100 : 0;
 
   // ── FAİZ KARŞILAMA ORANI
   const faizKarsilama = finansGid > 0 ? (faalKar + finansGid) / finansGid : 0;
@@ -3433,7 +3450,7 @@ function calcRatios(refYear) {
     kvMaliBor, kvTicBor, uvMaliBor, stoklar, prevStoklar,
     hazirDeg, banka, ticAlacak, ortakAlac, digerDon,
     // Gelir tablosu kalemleri
-    netSatis, satMaliyet, faalKar, voKar, netKar, finansGid, amortGid, ebitda,
+    netSatis, netSatisDuzenlenmis, satMaliyet, faalKar, voKar, netKar, finansGid, amortGid, ebitda,
     // Likidite oranları
     cariOran, likOran, borcOzKay,
     // Kârlılık oranları
@@ -3473,35 +3490,136 @@ function enrichRatiosAfterCalc(r, refYear) {
   r.kvBorcAktif        = r.aktif > 0 ? r.kvBorclar / r.aktif * 100 : 0;
   r.gecmisZarar        = D('gecmisZarar') || 0;
 
+  const enflasyon = getUfe(refYear);
   const isTaahhutCalc2 = (state.firmType === 'taahhut');
   const prevNetSatis0 = Dp('netSatis');
-  const prevHakCari   = Dp('yilHakediş');
-  const prevHakPrev   = ((state.yearData[refYear - 2] || {})['yilHakediş'] || 0);
-  const prevCiro      = isTaahhutCalc2
-    ? prevNetSatis0 + prevHakCari - prevHakPrev
-    : prevNetSatis0;
-  const prevNetSatis  = prevCiro;
-  const _prevBrutKarDuz = prevCiro - Dp('satMaliyet');
-  const _prevFaalKarDuz = _prevBrutKarDuz - Dp('faalGider');
-  const prevFaalKar  = isTaahhutCalc2 ? _prevFaalKarDuz : Dp('faalKar');
-  r.satisBuy   = prevNetSatis > 0 ? (r.netSatis - prevNetSatis) / prevNetSatis * 100 : 0;
-  r.faalKarBuy = prevFaalKar  > 0 ? (r.faalKar  - prevFaalKar)  / prevFaalKar  * 100 : 0;
+
+  let prevFaalKar;
+  if (isTaahhutCalc2) {
+    // Düzeltilmiş ciro (calcRatios nsAdj ile aynı): cari net + cari hakediş − önceki yıl hakedişi; yıllıklaştırma _af her iki yılda
+    const _af = (typeof getAnnualizeFactor === 'function' ? getAnnualizeFactor() : 1) || 1;
+    const hakIkiYilOnce = ((state.yearData[refYear - 2] || {})['yilHakediş'] || 0);
+    const curAdj = _af * (D('netSatis') + D('yilHakediş') - Dp('yilHakediş'));
+    const prevAdj = _af * (Dp('netSatis') + Dp('yilHakediş') - hakIkiYilOnce);
+    r.satisBuy = prevAdj > 0 ? (curAdj - prevAdj) / prevAdj * 100 : 0;
+    r.reelSatisBuy = prevAdj > 0 ? ((curAdj / prevAdj) / (1 + enflasyon) - 1) * 100 : 0;
+    r.prevNetSatis = prevAdj;
+    prevFaalKar = (Dp('netSatis') - Dp('satMaliyet')) - Dp('faalGider');
+  } else {
+    const prevNetSatis = prevNetSatis0;
+    r.satisBuy = prevNetSatis > 0 ? (r.netSatis - prevNetSatis) / prevNetSatis * 100 : 0;
+    r.reelSatisBuy = prevNetSatis > 0 ? ((r.netSatis / prevNetSatis) / (1 + enflasyon) - 1) * 100 : 0;
+    r.prevNetSatis = prevNetSatis;
+    prevFaalKar = Dp('faalKar');
+  }
+  r.faalKarBuy = prevFaalKar > 0 ? (r.faalKar - prevFaalKar) / prevFaalKar * 100 : 0;
   r.ozKaynakBuy = Dp('ozKaynak') > 0 ? (r.ozKaynak - Dp('ozKaynak')) / Dp('ozKaynak') * 100 : 0;
 
-  const enflasyon = getUfe(refYear);
   r.reelFaalKarBuy = prevFaalKar > 0
     ? ((r.faalKar / prevFaalKar) / (1 + enflasyon) - 1) * 100
     : 0;
-  r.reelSatisBuy = prevNetSatis > 0
-    ? ((r.netSatis / prevNetSatis) / (1 + enflasyon) - 1) * 100
-    : 0;
   r.faalKarYillik = r.faalKar - prevFaalKar;
   r.prevFaalKar   = prevFaalKar;
-  r.prevNetSatis  = prevNetSatis;
   r.ihracatSatis  = r.netSatis > 0 ? (D('ihracat') || 0) / r.netSatis * 100 : 0;
   r.ihracatPuan = (state.firmType === 'pazarlama')
     ? (r.ihracatSatis > 49 ? 3 : r.ihracatSatis > 29 ? 2 : r.ihracatSatis > 9  ? 1 : 0)
     : (r.ihracatSatis > 39 ? 3 : r.ihracatSatis > 24 ? 2 : r.ihracatSatis > 4  ? 1 : 0);
+}
+
+/**
+ * Taahhüt: özet P&L kartı TFRS net satış (r.netSatis) üzerinden; düzeltilmiş ciro ayrı metrikte.
+ * scripts/taahhut_adjusted_pl_finskor.py — risk ayarlı ciro yok.
+ */
+function attachTaahhutNormalizedPl(r, refYear) {
+  r.taahhutPl = null;
+  const card = document.getElementById('taahhutPlCard');
+  const inner = document.getElementById('taahhutPlInner');
+  const titleEl = document.getElementById('taahhutPlTitle');
+  if (state.firmType !== 'taahhut') {
+    if (card) card.style.display = 'none';
+    return;
+  }
+  if (!inner) return;
+
+  const d = state.yearData[refYear] || {};
+  const D = k => (d[k] || 0);
+  const _af = (typeof getAnnualizeFactor === 'function' ? getAnnualizeFactor() : 1) || 1;
+  const _a = v => v * _af;
+
+  const ciro = r.netSatis;
+  const smm = r.satMaliyet;
+  const faalGiderA = _a(D('faalGider'));
+  const oneOffOpex = 0;
+  const oneOffFin = 0;
+  const opexNorm = Math.max(faalGiderA - oneOffOpex, 0);
+  const finNorm = Math.max((r.finansGid || 0) - oneOffFin, 0);
+  const amort = r.amortGid || 0;
+  const brutKar = ciro - smm;
+  const gm = ciro > 0 ? brutKar / ciro : 0;
+  const adjBrut = ciro * gm;
+  const adjCogs = ciro - adjBrut;
+  const ebitdaAdj = adjBrut - opexNorm + amort;
+  const ebitAdj = ebitdaAdj - amort;
+  const ebtAdj = ebitAdj - finNorm;
+  const taxRate = 0.25;
+  const taxAdj = Math.max(ebtAdj, 0) * taxRate;
+  const netAdj = ebtAdj - taxAdj;
+  const payda = ciro > 0 ? ciro : 0;
+
+  r.taahhutPl = {
+    ciroFinskor: ciro,
+    brutKar, grossMargin: gm,
+    adjustedCogs: adjCogs,
+    adjustedBrutKar: adjBrut,
+    faalGider: opexNorm,
+    finansNorm: finNorm,
+    amort,
+    ebitda: ebitdaAdj,
+    ebit: ebitAdj,
+    ebt: ebtAdj,
+    vergiTahmini: taxAdj,
+    netKarOzeti: netAdj,
+    opexCiroPct: payda ? (opexNorm / payda) * 100 : 0,
+    finGiderCiroPct: payda ? (finNorm / payda) * 100 : 0,
+    netMarginPct: payda ? (netAdj / payda) * 100 : 0,
+    ebitdaMarginPct: payda ? (ebitdaAdj / payda) * 100 : 0,
+  };
+
+  const en = state.lang === 'en';
+  if (titleEl) titleEl.textContent = en
+    ? 'Contractor — P&L summary (TFRS net sales)'
+    : 'Taahhüt — Özet gelir (TFRS net satış)';
+
+  const fmt = v => Number(v || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const pct = v => (Number(v) || 0).toFixed(2) + '%';
+  const row = (a, b) => '<tr><td style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--text-dim)">' + a + '</td><td style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:right;font-weight:600;white-space:nowrap">' + b + '</td></tr>';
+
+  const note = en
+    ? 'Summary uses TFRS net sales as revenue base (same as official income statement top line). Adjusted contractor revenue (for leverage/growth ratios) is shown separately in metrics. Tax 25% is illustrative.'
+    : 'Özet gelir tabanı TFRS net satıştır (resmi gelir tablosu ile uyumlu). KV/satış ve büyüme için kullanılan düzeltilmiş ciro üst metriklerde ayrı gösterilir. Vergi %25 örnektir.';
+
+  inner.innerHTML =
+    '<div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;line-height:1.55">' + note + '</div>' +
+    '<div class="table-wrapper"><table class="skala-table" style="font-size:13px;width:100%"><tbody>' +
+    row(en ? 'Net sales (TFRS)' : 'Net satış (TFRS)', fmt(ciro) + ' TL') +
+    row(en ? 'Cost of sales' : 'Satılan mal/hizmet maliyeti', fmt(smm) + ' TL') +
+    row(en ? 'Gross profit (ciro × margin)' : 'Brüt kâr (ciro × marj)', fmt(adjBrut) + ' TL') +
+    row(en ? 'Gross margin' : 'Brüt kar marjı', pct(gm * 100)) +
+    row(en ? 'Operating expenses (normalized)' : 'Faaliyet gideri (normalize)', fmt(opexNorm) + ' TL') +
+    row(en ? 'Amortization' : 'Amortisman', fmt(amort) + ' TL') +
+    row('EBITDA', fmt(ebitdaAdj) + ' TL') +
+    row('EBIT', fmt(ebitAdj) + ' TL') +
+    row(en ? 'Finance expense (normalized)' : 'Finansman gideri (normalize)', fmt(finNorm) + ' TL') +
+    row(en ? 'Pre-tax profit (summary)' : 'Vergi öncesi kâr (özet)', fmt(ebtAdj) + ' TL') +
+    row(en ? 'Tax (illustrative 25%)' : 'Vergi (örnek %25)', fmt(taxAdj) + ' TL') +
+    row(en ? 'Net profit (summary)' : 'Net kâr (özet)', fmt(netAdj) + ' TL') +
+    row(en ? 'Operating exp. / revenue' : 'Faaliyet gideri / ciro', pct(r.taahhutPl.opexCiroPct)) +
+    row(en ? 'Finance exp. / revenue' : 'Finansman gideri / ciro', pct(r.taahhutPl.finGiderCiroPct)) +
+    row(en ? 'EBITDA margin' : 'EBITDA marjı', pct(r.taahhutPl.ebitdaMarginPct)) +
+    row(en ? 'Net margin (summary)' : 'Net marj (özet)', pct(r.taahhutPl.netMarginPct)) +
+    '</tbody></table></div>';
+
+  if (card) card.style.display = 'block';
 }
 
 function XXXX_OLD_RUN(){}
@@ -3654,6 +3772,7 @@ function _doRunAnalysis() {
 
   const r = calcRatios(refYear);
   enrichRatiosAfterCalc(r, refYear);
+  attachTaahhutNormalizedPl(r, refYear);
 
   // ── SKOR HESAPLA (Excel B127+B128 birebir)
   const _objHesaplanan = calcObjScore(r, state.firmType);  // maks 75
@@ -3685,8 +3804,7 @@ function _doRunAnalysis() {
   // ── TAAHHÜT ÖZEL DAVRANIŞLAR (Excel V2=3 mantığı)
   const isTaahhut = (state.firmType === 'taahhut');
   if (isTaahhut) {
-    // Taahhüt firmalarında ciro = netSatis + hakediş(cari) - hakediş(önceki)
-    // satisBuy ve reelSatisBuy bu ciro üzerinden yukarıda hesaplandı — burada dokunma
+    // satisBuy / reelSatisBuy: düzeltilmiş ciro; marjlar ve tahsil süresi: TFRS net satış (calcRatios)
     // Borç ödeme ve nakit dönüşüm süreleri taahhütte gösterilmez (Excel V2=3)
   }
 
@@ -3716,16 +3834,25 @@ function _doRunAnalysis() {
   // ── METRİKLER
   const mg = document.getElementById('metricsGrid');
   const isEn = state.lang==='en';
-  if (mg) mg.innerHTML = [
-    {label:isEn?'Credit Rating':'Kredi Notu',      value:rating.note,                                          sub:'AAA → D',           color:toplam>=69?'green':toplam>=53?'yellow':'red'},
-    {label:isEn?'Total Score':'Toplam Puan',        value:toplam.toFixed(1)+'/105',                            sub:isEn?'Financial/75 + Subj./30':'Finansal/75 + Subj./30',color:toplam>=69?'green':toplam>=53?'yellow':'red'},
-    {label:isEn?'Net Sales':(isTaahhut?'Ciro (Hakediş)':'Net Satışlar'), value:shortN(r.netSatis), sub:refYear+' TL', color:'blue'},
-    {label:isEn?'Net Profit Margin':'Net Kar Marjı',value:r.netKarMarj.toFixed(1)+'%',                          sub:isEn?'Net Profit / Sales':'Net Kar / Satış',   color:r.netKarMarj>=5?'green':r.netKarMarj>=0?'yellow':'red'},
-    {label:isEn?'Current Ratio':'Cari Oran',        value:r.cariOran.toFixed(2),                                sub:isEn?'Current / ST Debt':'Dönen / KV Borç',  color:r.cariOran>=1.4?'green':r.cariOran>=1.05?'yellow':'red'},
-    {label:isEn?'Debt/Equity':'Borç/Öz Kay.',       value:r.borcOzKay.toFixed(2),                              sub:isEn?'Leverage':'Kaldıraç',          color:r.borcOzKay<=2?'green':r.borcOzKay<=5?'yellow':'red'},
-    {label:isEn?'Sales Growth':'Satış Büyüme',      value:(r.satisBuy>=0?'+':'')+r.satisBuy.toFixed(1)+'%',    sub:isEn?'vs Prior Year':'Önceki yıla göre',  color:r.satisBuy>=10?'green':r.satisBuy>=0?'yellow':'red'},
-    {label:isEn?'Subj. Score':'Subj. Puan',         value:subjPuan.toFixed(2),                                   sub:isEn?'Subjective / max 30':'Subjektif / maks 30',    color:'purple'},
-  ].map(m=>'<div class="metric-card '+m.color+'"><div class="metric-label">'+m.label+'</div><div class="metric-value">'+m.value+'</div><div class="metric-sub">'+m.sub+'</div></div>').join('');
+  if (mg) {
+    const met = [
+      ...(isTaahhut ? [{
+        label: isEn ? 'Adjusted revenue' : 'Düzeltilmiş ciro',
+        value: shortN(r.netSatisDuzenlenmis),
+        sub: (isEn ? 'Net sales + curr. hakediş − prior' : 'Net satış + cari hakediş − önceki') + ' · ' + refYear,
+        color: 'blue'
+      }] : []),
+      {label:isEn?'Credit Rating':'Kredi Notu',      value:rating.note,                                          sub:'AAA → D',           color:toplam>=69?'green':toplam>=53?'yellow':'red'},
+      {label:isEn?'Total Score':'Toplam Puan',        value:toplam.toFixed(1)+'/105',                            sub:isEn?'Financial/75 + Subj./30':'Finansal/75 + Subj./30',color:toplam>=69?'green':toplam>=53?'yellow':'red'},
+      {label:isTaahhut?(isEn?'Net Sales (TFRS)':'Net satışlar (TFRS)'):(isEn?'Net Sales':'Net Satışlar'), value:shortN(r.netSatis), sub:refYear+' TL', color:'blue'},
+      {label:isEn?'Net Profit Margin':'Net Kar Marjı',value:r.netKarMarj.toFixed(1)+'%',                          sub:isEn?'Net Profit / Sales':'Net Kar / Satış',   color:r.netKarMarj>=5?'green':r.netKarMarj>=0?'yellow':'red'},
+      {label:isEn?'Current Ratio':'Cari Oran',        value:r.cariOran.toFixed(2),                                sub:isEn?'Current / ST Debt':'Dönen / KV Borç',  color:r.cariOran>=1.4?'green':r.cariOran>=1.05?'yellow':'red'},
+      {label:isEn?'Debt/Equity':'Borç/Öz Kay.',       value:r.borcOzKay.toFixed(2),                              sub:isEn?'Leverage':'Kaldıraç',          color:r.borcOzKay<=2?'green':r.borcOzKay<=5?'yellow':'red'},
+      {label:isEn?'Sales Growth':'Satış Büyüme',      value:(r.satisBuy>=0?'+':'')+r.satisBuy.toFixed(1)+'%',    sub:isEn?(isTaahhut?'vs prior (adjusted revenue)':'vs Prior Year'):(isTaahhut?'Önceki yıla göre (düzeltilmiş ciro)':'Önceki yıla göre'),  color:r.satisBuy>=10?'green':r.satisBuy>=0?'yellow':'red'},
+      {label:isEn?'Subj. Score':'Subj. Puan',         value:subjPuan.toFixed(2),                                   sub:isEn?'Subjective / max 30':'Subjektif / maks 30',    color:'purple'},
+    ];
+    mg.innerHTML = met.map(m=>'<div class="metric-card '+m.color+'"><div class="metric-label">'+m.label+'</div><div class="metric-value">'+m.value+'</div><div class="metric-sub">'+m.sub+'</div></div>').join('');
+  }
 
   const enflasyon = getUfe(refYear);
 
@@ -3754,7 +3881,7 @@ function _doRunAnalysis() {
     rRow(isEn?'Days Sales Outstanding':'Alacak Tahsil',  r.alacakTahsilSuresi.toFixed(0)+gun, r.alacakTahsilSuresi<=60?'ok':r.alacakTahsilSuresi<=90?'warn':'bad',isEn?'Max:90 days':'Max:90 gün'),
     rRow(isEn?'Days Inventory':'Stok Gün',               r.stokGunSayisi.toFixed(0)+gun,      r.stokGunSayisi<=90?'ok':r.stokGunSayisi<=150?'warn':'bad',        isEn?'Max:150 days':'Max:150 gün'),
     rRow(isEn?'Sales/Assets':'Satış/Aktif',              r.satisAktif.toFixed(1)+'%',          r.satisAktif>=80?'ok':r.satisAktif>=50?'warn':'bad',               'Min:%50'),
-    rRow(isEn?'Sales Growth':'Satış Büyüme',             (r.satisBuy>=0?'+':'')+r.satisBuy.toFixed(1)+'%', r.satisBuy>=5?'ok':r.satisBuy>=0?'warn':'bad',isEn?'vs Prior Year':'Önceki yıl'),
+    rRow(isEn?'Sales Growth':'Satış Büyüme',             (r.satisBuy>=0?'+':'')+r.satisBuy.toFixed(1)+'%', r.satisBuy>=5?'ok':r.satisBuy>=0?'warn':'bad',isEn?(isTaahhut?'vs prior (adjusted revenue)':'vs Prior Year'):(isTaahhut?'Önceki yıl (düz. ciro)':'Önceki yıl')),
   ].join(''));
   setEl('profitRatios', [
     rRow(isEn?'Gross Profit Margin':'Brüt Kar Marjı',   r.brutKarMarj.toFixed(1)+'%',   r.brutKarMarj>=20?'ok':r.brutKarMarj>=10?'warn':'bad', 'Min:%10'),
@@ -3962,7 +4089,7 @@ function buildAnalizMetin(refYear, r, paz, prevYear, enflasyon, donemAd, isTaahh
       '<span style="font-size:11px;color:var(--text-muted)">'+formulLabel+(en?' formula applied':' formülü uygulandı')+'</span>' +
     '</div>' +
     '<p style="font-size:11px;color:var(--text-muted);margin-bottom:14px">'+(en?'Based on balance sheet and income statement dated '+refYear+' / '+donemAd+':':'TTK\u2019na göre hazırlanan '+refYear+' / '+donemAd+' tarihli bilanço ve gelir tablosu uyarınca;')+'</p>' +
-    (isTaahhut ? '<div style="background:var(--accent3)15;border:1px solid var(--accent3)40;border-radius:6px;padding:8px 12px;font-size:11px;color:var(--accent3);margin-bottom:8px">🔨 <strong>'+(en?'Contractor Firm':'Taahhüt Firması')+'</strong> — '+(en?'E127 (Manufacturing) formula applied. Sales growth is not calculated.':'E127 (Üretim) formülü uygulandı. Satış büyümesi hesaplanmaz.')+'</div>' : '') +
+    (isTaahhut ? '<div style="background:var(--accent3)15;border:1px solid var(--accent3)40;border-radius:6px;padding:8px 12px;font-size:11px;color:var(--accent3);margin-bottom:8px">🔨 <strong>'+(en?'Contractor Firm':'Taahhüt Firması')+'</strong> — '+(en?'E127 formula. Profitability uses TFRS net sales; KV/sales and growth use adjusted contractor revenue.':'E127 formülü. Karlılık TFRS net satışa; KV/satış ve büyüme düzeltilmiş ciroya göredir.')+'</div>' : '') +
     '<h3 id="i18nGenelDeg">📊 '+(en?'General Assessment':'Genel Değerlendirme')+'</h3>' +
     '<p>'+(en?'Revenue changed nominally by':'Ciro nominal olarak')+' <strong style="color:'+(r.satisBuy>=0?'var(--success)':'var(--danger)')+'">'+pct(r.satisBuy)+'</strong>' +
       (enflasyon>0?(en?', PPI-adjusted real growth ':',  ÜFE (%'+Number(enflasyon*100).toFixed(2)+') düzeltmeli reel ')+'<strong style="color:'+(r.reelSatisBuy>=0?'var(--success)':'var(--danger)')+'">'+pct(r.reelSatisBuy)+'</strong>':'')+
@@ -4048,27 +4175,19 @@ function buildAnalizMetin(refYear, r, paz, prevYear, enflasyon, donemAd, isTaahh
   buildOzetTablolar(refYear, prevYear, isTaahhut);
 }
 
-/** Bilanço: HESAPLAR kalemleri (PDF ile birebir); gelir tablosu özet satırları taahhüt ciro düzeltmesiyle. */
+/** Bilanço: HESAPLAR kalemleri (PDF ile birebir); gelir özeti TFRS net satış üzerinden (taahhüt dahil). */
 function computeOzetTabloData(refYear, prevYear, isTaahhut) {
   const D  = k => (state.yearData[refYear]  || {})[k] || 0;
   const Dp = k => (state.yearData[prevYear] || {})[k] || 0;
-  const Dp2= k => (state.yearData[prevYear-1] || {})[k] || 0;
   const en = state.lang === 'en';
 
-  // ── TAAHHÜT: hakediş — gelir tablosu ciro düzeltmesi
-  const hak35   = D('yilHakediş');
-  const pHak35   = Dp('yilHakediş');
-
-  // ── Gelir tablosu değerleri (cari yıl ara dönemse yıllıklaştır)
+  // ── Gelir tablosu: taahhütte de özet/PDF ilk satır TFRS net satış (hakediş düzeltmesi yok)
   const _af2 = getAnnualizeFactor ? getAnnualizeFactor() : 1;
   const _a2  = v => v * _af2;
 
   const netSatis0  = _a2(D('netSatis'));
-  const hakPrev    = Dp('yilHakediş');
-  const ciro       = isTaahhut ? netSatis0 + _a2(hak35) - hakPrev : netSatis0;
-  const pNetSatis0 = Dp('netSatis');
-  const pHakPrev2  = Dp2('yilHakediş');
-  const pCiro      = isTaahhut ? pNetSatis0 + pHak35 - pHakPrev2 : pNetSatis0;
+  const ciro       = netSatis0;
+  const pCiro      = Dp('netSatis');
   const satMal     = _a2(D('satMaliyet'));
   const pSatMal    = Dp('satMaliyet');
   const brutKar    = ciro - satMal;
@@ -4160,7 +4279,7 @@ function computeOzetTabloData(refYear, prevYear, isTaahhut) {
     pv: Dp('aktifToplam') - Dp('pasifToplam')
   });
 
-  const ciroLabel = isTaahhut ? (en?'Revenue (Adjusted)':'Net Satışlar + Hakediş Düzeltmesi') : (en?'Net Sales':'Net Satışlar');
+  const ciroLabel = isTaahhut ? (en ? 'Net Sales (TFRS)' : 'Net Satışlar (TFRS)') : (en ? 'Net Sales' : 'Net Satışlar');
   const gelirSatirlar = [
     {tip:'toplam', label: ciroLabel,                                         cv: ciro,      pv: pCiro},
     {label: en?'Cost of Sales (-)':'Satışların Maliyeti (-)',                cv: satMal,    pv: pSatMal},
@@ -6412,6 +6531,7 @@ function generatePDF() {
 
   const r = calcRatios(refYear);
   enrichRatiosAfterCalc(r, refYear);
+  attachTaahhutNormalizedPl(r, refYear);
   const tip = state.firmType==='uretim' ? 'Üretim' : state.firmType==='pazarlama' ? 'Pazarlama' : 'Taahhüt';
   // Prev değerlerini generatePDF başında set et — senaryo bölümü için
   const _rfcb = Number(r.reelFaalKarBuy) || 0;
@@ -10021,7 +10141,7 @@ function _baykusSenaryoAc() {
       r.netSatis || 0, r.voKar || 0, r.faalKar || 0,
       r.toplamFinBor || 0, r.aktif || 0,
       r.ihracatSatis || 0, r.prevFaalKar || 0,
-      r.kvBankaB_Sat > 0 ? r.kvBankaB_Sat / 100 * (r.netSatis || 0) : 0
+      r.kvBankaB_Sat > 0 ? r.kvBankaB_Sat / 100 * ((r.netSatisDuzenlenmis != null ? r.netSatisDuzenlenmis : r.netSatis) || 0) : 0
     , 0, 0, 0);
     const toplamBase = baseCalc.s + subjPuan;
     // _lastKirilimData'yı taze değerle güncelle
@@ -10386,7 +10506,8 @@ function _avSenaryoSoruYanit(s) {
     }
     const cari = r.cariOran.toFixed(2);
     const kvSat = r.kvBorcSat.toFixed(1);
-    const kvBankaTl = r.netSatis > 0 && r.kvBankaB_Sat > 0 ? (r.kvBankaB_Sat / 100) * r.netSatis : 0;
+    const _kvSatPay = (r.netSatisDuzenlenmis != null ? r.netSatisDuzenlenmis : r.netSatis) || 0;
+    const kvBankaTl = _kvSatPay > 0 && r.kvBankaB_Sat > 0 ? (r.kvBankaB_Sat / 100) * _kvSatPay : 0;
     const kvBankaStr = kvBankaTl > 0 ? fmtTL(kvBankaTl) : '—';
     return `🔄 <b>Kısa vadeli banka borcunu uzun vadeye taşıma</b> (senaryo):<br><br>`
       + `<b>① Mevcut yapı:</b> Cari oran ~<b>${cari}</b> · kısa vadeli banka borcu / satışlar ~<b>%${kvSat}</b> · tahmini kısa vadeli banka borcu ~<b>${kvBankaStr}</b>.<br>`
@@ -10421,7 +10542,9 @@ function _avSenaryoSoruYanit(s) {
     const reel = (r.reelSatisBuy != null && !isNaN(r.reelSatisBuy)) ? r.reelSatisBuy.toFixed(1) : '—';
     let satir1;
     if (isTaahhut) {
-      satir1 = `<b>① Mevcut:</b> Net satış ~<b>${ns}</b>. <b>Taahhüt</b> firmasında tabloda gösterilen <b>satış büyümesi %</b> klasik anlamda hesaplanmaz; ciro hakediş düzeltmesiyle izlenir. Kısa vadeli banka borcu / satışlar ~<b>%${kvSat}</b>.<br>`;
+      const nb = r.satisBuy;
+      const nom = (nb != null && !isNaN(nb)) ? ((nb >= 0 ? '+' : '') + nb.toFixed(1)) : '—';
+      satir1 = `<b>① Mevcut:</b> TFRS net satış ~<b>${ns}</b> · düzeltilmiş ciro üzerinden <b>nominal</b> büyüme ~<b>%${nom}</b> · <b>reel</b> büyüme ~<b>%${reel}</b> · KV banka borcu / satışlar (payda düzeltilmiş ciro) ~<b>%${kvSat}</b>.<br>`;
     } else {
       const nb = r.satisBuy;
       const nom = (nb != null && !isNaN(nb))
@@ -10512,7 +10635,7 @@ function _avMatchTextCore(q) {
         r.kvBorclar||0, r.likit||(r.donenVarlik*0.5),
         r.netSatis||0, r.voKar||0, r.faalKar||0,
         r.toplamFinBor||0, r.aktif||0, r.ihracatSatis||0, r.prevFaalKar||0,
-        r.kvBankaB_Sat > 0 ? r.kvBankaB_Sat / 100 * (r.netSatis||0) : 0
+        r.kvBankaB_Sat > 0 ? r.kvBankaB_Sat / 100 * ((r.netSatisDuzenlenmis != null ? r.netSatisDuzenlenmis : r.netSatis) || 0) : 0
       , 0, 0, 0);
       const totalBase = bc.s + subjPuan;
       const rating = getRating(totalBase);
