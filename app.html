@@ -11727,7 +11727,7 @@ function demoBaslat() {
     if (window.speechSynthesis) {
       speechSynthesis.cancel();
       // Kısa tutulur: adım anlatımına geçerken sesin yarıda kesilmesini engeller.
-      const utt = new SpeechSynthesisUtterance('Ben Baykuş, merhaba!');
+      const utt = new SpeechSynthesisUtterance('Merhaba, ben Baykuş.');
       const voices = speechSynthesis.getVoices();
       const trSes = voices.find(v => v.lang && String(v.lang).toLowerCase().startsWith('tr'));
       if (trSes) utt.voice = trSes;
@@ -11884,7 +11884,7 @@ function demoBaslat() {
   }
 
   // ── ADIMLAR (Hesaplanmış sürelerle) ───────────────────────
-  // Her adım başlangıç: bir önceki adımın başlangıcı + konuşma süresi
+  // Her adım başlangıç: bir önceki adımın başlangıcı + kısaltılmış anlatı süresi
 
   // ADIM 1 — Analiz Yılı | başlangıç: 3000ms
   setTimeout(() => {
@@ -11895,27 +11895,27 @@ function demoBaslat() {
       setTimeout(() => {
         // Select açılınca seçili option görünsün
         _elSelectAc(sel, null, true);
-      }, 800);
+      }, 700);
     }
-    _bsoy('Sağ üstte <b>Analiz Yılı</b> seçilir. Varsayılan yıl <b>iki bin yirmi dört</b>. İki yıl birlikte yükleyin; yatay analiz için gerekli.');
+    _bsoy('Sağ üstte <b>Analiz Yılı</b>; varsayılan <b>iki bin yirmi dört</b>. Karşılaştırma için iki yılı birlikte yükleyin.');
   }, 3000);
 
-  // ADIM 2 — Bilanço Dönemi (adım 1 bitişi → adım 2 başlangıcı arası −3 sn: 15s → 12s)
+  // ADIM 2 — Bilanço Dönemi
   setTimeout(() => {
     if (!window._demoMod) return;
     const donemBtnler = Array.from(document.querySelectorAll('.btn-period'));
-    if (donemBtnler.length) { donemBtnler[0].scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elDolas(donemBtnler,600), 600); }
-    _bsoy('<b>Bilanço Dönemi</b>: Mali tablonun kapsadığı süre. Mart, Haziran, Eylül veya Yıl Sonu Aralık. Ara dönem seçilirse sistem gelir tablosunu otomatik yıllıklaştırır.');
-  }, 12000);
+    if (donemBtnler.length) { donemBtnler[0].scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elDolas(donemBtnler,550), 550); }
+    _bsoy('<b>Bilanço dönemi</b>: Mart, Haziran, Eylül veya yıl sonu Aralık. Ara dönemde gelir tablosu yıllıklaştırılır.');
+  }, 10900);
 
   // ADIM 3 — Firma Tipi
   setTimeout(() => {
     if (!window._demoMod) return;
     const btnler = Array.from(document.querySelectorAll('button')).filter(b =>
       b.textContent.includes('Pazarlama') || b.textContent.includes('Üretim') || b.textContent.includes('Taahhüt'));
-    if (btnler.length) { btnler[0].scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elDolas(btnler,700), 600); }
-    _bsoy('<b>Firma Tipi</b>: Pazarlama veya Hizmet, Üretim ya da Taahhüt. Her tip için finansal oran eşikleri farklı hesaplanır. Kendi firmanıza uygun olanı seçin.');
-  }, 26000);
+    if (btnler.length) { btnler[0].scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elDolas(btnler,650), 550); }
+    _bsoy('<b>Firma tipi</b>: Pazarlama, üretim veya taahhüt — oran eşikleri buna göre hesaplanır.');
+  }, 24300);
 
   // ADIM 4 — 2024/2023 zorunluluğu
   setTimeout(() => {
@@ -11925,19 +11925,19 @@ function demoBaslat() {
       const yCur = document.getElementById('year-' + DEMO_FIRMA.refYear);
       const yPrev = document.getElementById('year-' + (DEMO_FIRMA.refYear - 1));
       const kartlar = [yCur, yPrev].filter(Boolean);
-      if (kartlar.length) { kartlar[0].scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elDolas(kartlar,1500), 500); }
-    }, 700);
-    _bsoy('<b>Mali veri yükleme</b>: Her yıl için ayrı kart var. Analiz yılı <b>iki bin yirmi dört</b> ile birlikte bir önceki yıl <b>iki bin yirmi üç</b> mutlaka yüklenmelidir. Yatay analiz için ikisi zorunludur.');
-  }, 37000);
+      if (kartlar.length) { kartlar[0].scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elDolas(kartlar,1300), 450); }
+    }, 650);
+    _bsoy('<b>Mali veri</b>: Analiz yılı <b>iki bin yirmi dört</b> ile önceki yıl <b>iki bin yirmi üç</b> kartları dolu olmalı.');
+  }, 35200);
 
   // ADIM 5 — Yükleme yöntemleri
   setTimeout(() => {
     if (!window._demoMod) return;
     const upCur=document.querySelector('#year-' + DEMO_FIRMA.refYear + ' .upload-btn')||document.querySelector('.upload-btn');
     const upPrev=document.querySelector('#year-' + (DEMO_FIRMA.refYear - 1) + ' .upload-btn');
-    if (upCur) { upCur.scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elCiftTik(upCur,()=>{ if(upPrev) setTimeout(()=>_elCiftTik(upPrev,()=>_elGizle()),1000); }),500); }
-    _bsoy('Üç yükleme yöntemi var: <b>Excel mizan</b>, <b>PDF beyanname</b>, <b>PDF mizan</b>. Aynı yıl kartına hem mizan hem geçici vergi beyannamesi yüklenebilir. Kartı açmak için <b>çift tıklayın</b>.');
-  }, 50000);
+    if (upCur) { upCur.scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elCiftTik(upCur,()=>{ if(upPrev) setTimeout(()=>_elCiftTik(upPrev,()=>_elGizle()),850); }),450); }
+    _bsoy('<b>Excel mizan</b>, <b>PDF beyanname</b> veya <b>PDF mizan</b>. Kartı <b>çift tıklayarak</b> açın.');
+  }, 47400);
 
   // ADIM 6–7 — Subjektif (otomatik Analiz Et yok; kullanıcı verisini yükleyip kendisi basar → paket sayfası)
   setTimeout(() => {
@@ -11948,27 +11948,27 @@ function demoBaslat() {
       if (st) {
         _elCiftTik(st, () => {
           showTab('tab-subj', st);
-          _vurgula(st, 6000);
+          _vurgula(st, 5200);
         });
       } else {
         showTab('tab-subj', document.getElementById('tab-btn-subj'));
       }
-    }, 400);
+    }, 350);
     _bsoy(
-      'Üstteki <b>Subjektif Faktörler</b> sekmesine geçiyoruz. Toplam notun <b>otuz puanlık</b> kısmı buradan gelir.',
+      '<b>Subjektif Faktörler</b> — toplam notun <b>otuz puanlık</b> payı buradan gelir.',
       function _demoAdim7SubjBilgi() {
         if (!window._demoMod) return;
         const otom = document.querySelector('button[onclick="subjOtomatikSec()"]');
         const manuel = document.querySelector('button[onclick="subjManuelSec()"]');
-        setTimeout(() => _elDolas([otom, manuel].filter(Boolean), 1200), 300);
+        setTimeout(() => _elDolas([otom, manuel].filter(Boolean), 1000), 260);
         _bsoy(
-          'Burada <b>Otomatik puan</b> veya <b>manuel</b> seçebilirsiniz.',
+          '<b>Otomatik</b> veya <b>manuel</b>.',
           function _demoAdim7SubjOzetSon() {
             if (!window._demoMod) return;
             const grid = document.getElementById('subjGridWrap');
             if (grid && grid.offsetParent !== null) {
               grid.scrollIntoView({behavior:'smooth', block:'center'});
-              _vurgula(grid, 2800);
+              _vurgula(grid, 2400);
             }
             setTimeout(function() {
               if (!window._demoMod) return;
@@ -11985,17 +11985,17 @@ function demoBaslat() {
                   if (!analizBtn) analizBtn = document.querySelector('button.analyze-btn[onclick="runAnalysis()"]');
                   if (analizBtn) {
                     analizBtn.scrollIntoView({behavior:'smooth', block:'center'});
-                    _vurgula(analizBtn, 16000);
+                    _vurgula(analizBtn, 14000);
                   }
-                  _bsoy('Şimdi <b>Analiz Et</b> butonuna basın.', null);
+                  _bsoy('<b>Analiz Et</b> ile devam edin.', null);
                 });
               });
-            }, 500);
+            }, 420);
           }
         );
       }
     );
-  }, 64000);
+  }, 60400);
 
   _demoGeriSayimBaslat();
 }
@@ -12124,10 +12124,8 @@ function _demoAnalizSunumu() {
     }
     if (typeof _renderSenaryo === 'function') _renderSenaryo();
     const senModal = document.getElementById('senaryoModal');
-    if (senModal) _vurgula(senModal, 14000);
-    _bsoy('Kısa vadeli banka borcunun yüzde 75 i 48 ay vadeli taksitli kredi kullanılarak kapatıldığında, ' +
-      'senaryo puanı ve kredi notu anlık olarak güncellenir. Ekranda gördüğünüz değerler geçerlidir. ' +
-      'Bu şekilde birçok simülasyon yapılabilir.', _demoAnSunStep8);
+    if (senModal) _vurgula(senModal, 11500);
+    _bsoy('KV borcunun yüzde yetmiş beşi kırk sekiz ay vadeyle kapatıldığında senaryo puanı ve not canlı güncellenir.', _demoAnSunStep8);
   }
 
   function _demoAnSunStep8() {
@@ -12142,12 +12140,10 @@ function _demoAnalizSunumu() {
       const otomBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('FinSkor Otomatik Senaryo'));
       if (otomBtn) {
         otomBtn.scrollIntoView({behavior:'smooth', block:'center'});
-        _vurgula(otomBtn, 14000);
+        _vurgula(otomBtn, 11500);
       }
-    }, 500);
-    _bsoy('FinSkor otomatik senaryo önerisi, notunuzu bir ve iki kademe artırmak için ' +
-      'en uygun kombinasyonu hesaplar. Sermaye artışı, kısa vadeden uzun vadeye taşıma ve satış büyümesi ' +
-      'kombinasyonları denenir. Bu öneri PDF raporda da yer alır.', _demoAnSunStep8b);
+    }, 420);
+    _bsoy('Otomatik senaryo, notu yükseltmeye uygun sermaye, vade ve satış kombinasyonlarını dener.', _demoAnSunStep8b);
   }
 
   /** Otomatik senaryo popup kapanır → Satın Al + son anlatım → sunum biter */
@@ -12162,17 +12158,14 @@ function _demoAnalizSunumu() {
       const satinBtn = document.querySelector('#demoBanner button[onclick="demoSatinAl()"]')
         || Array.from(document.querySelectorAll('#demoBanner button')).find(b => /Satın\s*Al/i.test((b.textContent || '')));
       if (satinBtn) {
-        _vurgula(satinBtn, 10000);
+        _vurgula(satinBtn, 8200);
         _demoAnSunElGit(satinBtn, null);
       }
-      _bsoy('Bankadan kredi kullanmak isteyen KOBİ ve ticari firmaların en büyük dezavantajı, bankanın kendilerini nasıl değerlendirdiğini bilmemeleridir. ' +
-        'FinSkor bu bilgiyi firmanın eline verir. Üst bantta gördüğünüz Satın Al düğmesiyle tam sürüme geçebilirsiniz; ' +
-        'kredi başvurusundan önce notunuzu öğrenin, zayıf noktaları güçlendirin, bankaya hazırlıklı gidin. ' +
-        'Daha az teminat, daha iyi faiz, daha hızlı onay. FinSkor, kredide güç dengesi artık sizin tarafınızda. Demo sunumu burada sona erdi.', function () {
+      _bsoy('Bankanın firmanızı nasıl gördüğünü önceden bilmek görüşmede avantajdır. Üst banttaki <b>Satın Al</b> ile tam sürüme geçin. Demo sunumu burada bitti.', function () {
           _demoAnSunElGizle();
           window._demoAnalizSunumuBitti = true;
         });
-    }, 450);
+    }, 380);
   }
 
   // ADIM 1 — Kredi notu açıklaması | 300ms (DOM hazır, hemen başla)
@@ -12180,7 +12173,7 @@ function _demoAnalizSunumu() {
     if (!window._demoMod) return;
     window.scrollTo({top:0, behavior:'smooth'});
     const hero = document.getElementById('ratingHero');
-    if (hero) _vurgula(hero, 13000);
+    if (hero) _vurgula(hero, 11000);
     const fin = document.getElementById('valFinansal');
     const subj = document.getElementById('valSubjektif');
     const finVal = fin ? fin.textContent.trim().split('/')[0].trim() : '21';
@@ -12190,58 +12183,52 @@ function _demoAnalizSunumu() {
     const teminat = document.getElementById('ratingDesc');
     const teminatVal = teminat ? teminat.textContent.trim() : '';
     const notYorum = _ratingRiskVoiceSuffix(notVal);
-    _bsoy('Finansal değerlerden 75 puan üzerinden ' + finVal + ' puan, '
-      + 'subjektif değerlerden ise 30 üzerinden ' + subjVal + ' puan alındı. '
-      + 'Kredi notu ' + notVal + '. ' + notYorum
-      + 'Teminat şartı: ' + teminatVal + '.');
+    _bsoy('Finansal yetmiş beş üzerinden ' + finVal + ' puan; subjektif otuz üzerinden ' + subjVal + '. '
+      + 'Not ' + notVal + '. ' + notYorum
+      + 'Teminat: ' + teminatVal + '.');
   }, 300);
 
-  // ADIM 2 — Kredi not skalası | 17000ms (ADIM 1 ~14sn → 0.3+14+3 buffer)
+  // ADIM 2 — Kredi not skalası | kısaltılmış anlatıya göre ~15sn
   setTimeout(() => {
     if (!window._demoMod) return;
     const skala = document.getElementById('skalaBody');
     if (skala) {
       skala.scrollIntoView({behavior:'smooth', block:'center'});
-      _vurgula(skala, 9000);
+      _vurgula(skala, 7800);
       // Aktif notu vurgula
       const aktifSatir = skala.querySelector('tr[style*="border-left"]');
-      if (aktifSatir) _vurgula(aktifSatir, 9000);
+      if (aktifSatir) _vurgula(aktifSatir, 7800);
     }
-    _bsoy('Kredi not skalasında firmanın notu işaretli. Skala AAA dan D ye 10 kademe. ' +
-      'Her kademenin teminat koşulları farklıdır. Üst notlarda teminatsız çalışılabilir.');
-  }, 17000);
+    _bsoy('Skalada firmanın notu işaretli; AAA dan D ye on kademe. Teminat koşulları kademeye göre değişir.');
+  }, 15400);
 
-  // ADIM 3 — Finansal oranlar | 32000ms (ADIM 2 ~12sn konuşma → 17+12+3 buffer)
+  // ADIM 3 — Finansal oranlar
   setTimeout(() => {
     if (!window._demoMod) return;
     const oran = document.getElementById('liquidityRatios');
-    if (oran) { oran.scrollIntoView({behavior:'smooth', block:'center'}); _vurgula(oran, 9000); }
-    _bsoy('Finansal oranlar bölümünde 18 oran hesaplanmış. ' +
-      'Her oran için referans aralığı gösterilir. ' +
-      'Yeşil iyi, sarı kabul edilebilir, kırmızı riskli demektir.');
-  }, 32000);
+    if (oran) { oran.scrollIntoView({behavior:'smooth', block:'center'}); _vurgula(oran, 7800); }
+    _bsoy('On sekiz finansal oran; yeşil iyi, sarı orta, kırmızı risk.');
+  }, 28600);
 
-  // ADIM 4 — Rating artırıcı öneriler | 43000ms (ADIM 3 ~8sn konuşma → 32+8+3 buffer)
+  // ADIM 4 — Rating artırıcı öneriler
   setTimeout(() => {
     if (!window._demoMod) return;
     const oneri = document.getElementById('i18nOneri');
-    if (oneri) { oneri.scrollIntoView({behavior:'smooth', block:'center'}); _vurgula(oneri, 8000); }
-    _bsoy('Rating artırıcı öneriler bölümünde firmanın zayıf noktaları ve iyileştirme adımları yer alır. ' +
-      'Bu öneriler PDF raporda da bulunur.');
-  }, 43000);
+    if (oneri) { oneri.scrollIntoView({behavior:'smooth', block:'center'}); _vurgula(oneri, 6800); }
+    _bsoy('Zayıf alanlar ve iyileştirme önerileri; PDF raporda da yer alır.');
+  }, 39800);
 
-  // ADIM 5 — Özet bilanço | 54000ms (ADIM 4 ~8sn konuşma → 43+8+3 buffer)
+  // ADIM 5 — Özet bilanço
   setTimeout(() => {
     if (!window._demoMod) return;
     const ozet = document.getElementById('ozetTabloGrid');
     if (ozet) {
       ozet.style.display = 'block';
       ozet.scrollIntoView({behavior:'smooth', block:'center'});
-      _vurgula(ozet, 9000);
+      _vurgula(ozet, 7800);
     }
-    _bsoy('Özet bilanço ve gelir tablosu bölümünde aktif ve pasif toplamı birbirine eşittir. ' +
-      'Aktif pasif dengesi sağlıklı bir bilançonun temelidir.');
-  }, 54000);
+    _bsoy('Özet tabloda aktif ile pasif toplamı dengelenir.');
+  }, 49800);
 
   // ADIM 6–9 — Senaryo modalı + KV örneği + otomatik öneri modalı; ADIM 7–9 önceki TTS bitince zincirlenir
   setTimeout(() => {
@@ -12266,15 +12253,13 @@ function _demoAnalizSunumu() {
           if (typeof _renderSenaryo === 'function') _renderSenaryo();
         }
         const senModal = document.getElementById('senaryoModal');
-        if (senModal) _vurgula(senModal, 14000);
-      }, 800);
-    }, 500);
-    _bsoy('Kredi notu artırma senaryo analizi. Sermaye, borç vadesi, kâr marjı ve ciro ' +
-      'parametreleriyle simülasyon yapılır. ' +
-      'Bu ekranda gördüğünüz puan ve kredi notu, o anki senaryo değerlerine göre canlı hesaplanır.', function () {
-        setTimeout(_demoAnSunStep7, 700);
+        if (senModal) _vurgula(senModal, 11800);
+      }, 680);
+    }, 420);
+    _bsoy('Senaryoda sermaye, vade, kâr ve ciro ile simülasyon; puan ve not anlık hesaplanır.', function () {
+        setTimeout(_demoAnSunStep7, 620);
       });
-  }, 66000);
+  }, 60800);
 }
 
 
