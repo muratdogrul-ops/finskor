@@ -11915,7 +11915,7 @@ function demoBaslat() {
       b.textContent.includes('Pazarlama') || b.textContent.includes('Üretim') || b.textContent.includes('Taahhüt'));
     if (btnler.length) { btnler[0].scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elDolas(btnler,650), 550); }
     _bsoy('<b>Firma tipi</b>: Pazarlama, üretim veya taahhüt — oran eşikleri buna göre hesaplanır.');
-  }, 19850);
+  }, 18700);
 
   // ADIM 4 — 2024/2023 zorunluluğu
   setTimeout(() => {
@@ -11928,7 +11928,7 @@ function demoBaslat() {
       if (kartlar.length) { kartlar[0].scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elDolas(kartlar,1300), 450); }
     }, 650);
     _bsoy('<b>Mali veri</b>: Analiz yılı <b>iki bin yirmi dört</b> ile önceki yıl <b>iki bin yirmi üç</b> kartları dolu olmalı.');
-  }, 27150);
+  }, 26180);
 
   // ADIM 5 — Yükleme yöntemleri
   setTimeout(() => {
@@ -11938,7 +11938,7 @@ function demoBaslat() {
     if (upCur) { upCur.scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>_elCiftTik(upCur,()=>{ if(upPrev) setTimeout(()=>_elCiftTik(upPrev,()=>_elGizle()),850); }),450); }
     _bsoy('<b>Excel mizan</b>, <b>PDF beyanname</b> ve <b>PDF mizan</b> yükleyebilirsiniz. '
       + 'Aynı yıl kartına hem mizan hem geçici vergi beyannamesi yüklenebilir. Kartı açmak için <b>çift tıklayın</b>.');
-  }, 38950);
+  }, 37280);
 
   // ADIM 6–7 — Subjektif (otomatik Analiz Et yok; kullanıcı verisini yükleyip kendisi basar → paket sayfası)
   setTimeout(() => {
@@ -11996,7 +11996,7 @@ function demoBaslat() {
         );
       }
     );
-  }, 53600);
+  }, 51520);
 
   _demoGeriSayimBaslat();
 }
