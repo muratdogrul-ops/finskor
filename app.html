@@ -934,11 +934,6 @@ tbody td { padding:8px 13px; color:var(--text); }
       </div>
       <!-- Mevcut metrik grid ve oran tabloları korunuyor -->
       <div class="results-grid" id="metricsGrid"></div>
-      <!-- Taahhüt: normalize özet gelir (scripts/taahhut_adjusted_pl_finskor.py ile uyumlu; yalnızca taahhüt tipinde) -->
-      <div class="card" id="taahhutPlCard" style="display:none;margin-bottom:16px;border:1px solid rgba(248,113,113,0.35);background:rgba(248,113,113,0.06)">
-        <div class="card-title">🔨 <span id="taahhutPlTitle">Taahhüt — Özet gelir (TFRS net satış)</span></div>
-        <div id="taahhutPlInner"></div>
-      </div>
       <div class="ratio-grid">
         <div class="card"><div class="card-title">📐 LİKİDİTE ORANLARI</div><div id="liquidityRatios"></div></div>
         <div class="card"><div class="card-title">⚖️ BORÇLANMA ORANLARI</div><div id="leverageRatios"></div></div>
@@ -3527,19 +3522,16 @@ function enrichRatiosAfterCalc(r, refYear) {
 }
 
 /**
- * Taahhüt: özet P&L kartı TFRS net satış (r.netSatis) üzerinden; düzeltilmiş ciro ayrı metrikte.
- * scripts/taahhut_adjusted_pl_finskor.py — risk ayarlı ciro yok.
+ * Taahhüt: normalize özet P&L metrikleri (TFRS net satış tabanı); DOM’da ayrı kart yok — özet gelir tablosunda düzeltilmiş ciro gösterilir.
  */
 function attachTaahhutNormalizedPl(r, refYear) {
   r.taahhutPl = null;
   const card = document.getElementById('taahhutPlCard');
   const inner = document.getElementById('taahhutPlInner');
-  const titleEl = document.getElementById('taahhutPlTitle');
   if (state.firmType !== 'taahhut') {
     if (card) card.style.display = 'none';
     return;
   }
-  if (!inner) return;
 
   const d = state.yearData[refYear] || {};
   const D = k => (d[k] || 0);
@@ -3585,41 +3577,9 @@ function attachTaahhutNormalizedPl(r, refYear) {
     ebitdaMarginPct: payda ? (ebitdaAdj / payda) * 100 : 0,
   };
 
-  const en = state.lang === 'en';
-  if (titleEl) titleEl.textContent = en
-    ? 'Contractor — P&L summary (TFRS net sales)'
-    : 'Taahhüt — Özet gelir (TFRS net satış)';
-
-  const fmt = v => Number(v || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const pct = v => (Number(v) || 0).toFixed(2) + '%';
-  const row = (a, b) => '<tr><td style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--text-dim)">' + a + '</td><td style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:right;font-weight:600;white-space:nowrap">' + b + '</td></tr>';
-
-  const note = en
-    ? 'Summary uses TFRS net sales as revenue base (same as official income statement top line). Adjusted contractor revenue (for leverage/growth ratios) is shown separately in metrics. Tax 25% is illustrative.'
-    : 'Özet gelir tabanı TFRS net satıştır (resmi gelir tablosu ile uyumlu). KV/satış ve büyüme için kullanılan düzeltilmiş ciro üst metriklerde ayrı gösterilir. Vergi %25 örnektir.';
-
-  inner.innerHTML =
-    '<div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;line-height:1.55">' + note + '</div>' +
-    '<div class="table-wrapper"><table class="skala-table" style="font-size:13px;width:100%"><tbody>' +
-    row(en ? 'Net sales (TFRS)' : 'Net satış (TFRS)', fmt(ciro) + ' TL') +
-    row(en ? 'Cost of sales' : 'Satılan mal/hizmet maliyeti', fmt(smm) + ' TL') +
-    row(en ? 'Gross profit (ciro × margin)' : 'Brüt kâr (ciro × marj)', fmt(adjBrut) + ' TL') +
-    row(en ? 'Gross margin' : 'Brüt kar marjı', pct(gm * 100)) +
-    row(en ? 'Operating expenses (normalized)' : 'Faaliyet gideri (normalize)', fmt(opexNorm) + ' TL') +
-    row(en ? 'Amortization' : 'Amortisman', fmt(amort) + ' TL') +
-    row('EBITDA', fmt(ebitdaAdj) + ' TL') +
-    row('EBIT', fmt(ebitAdj) + ' TL') +
-    row(en ? 'Finance expense (normalized)' : 'Finansman gideri (normalize)', fmt(finNorm) + ' TL') +
-    row(en ? 'Pre-tax profit (summary)' : 'Vergi öncesi kâr (özet)', fmt(ebtAdj) + ' TL') +
-    row(en ? 'Tax (illustrative 25%)' : 'Vergi (örnek %25)', fmt(taxAdj) + ' TL') +
-    row(en ? 'Net profit (summary)' : 'Net kâr (özet)', fmt(netAdj) + ' TL') +
-    row(en ? 'Operating exp. / revenue' : 'Faaliyet gideri / ciro', pct(r.taahhutPl.opexCiroPct)) +
-    row(en ? 'Finance exp. / revenue' : 'Finansman gideri / ciro', pct(r.taahhutPl.finGiderCiroPct)) +
-    row(en ? 'EBITDA margin' : 'EBITDA marjı', pct(r.taahhutPl.ebitdaMarginPct)) +
-    row(en ? 'Net margin (summary)' : 'Net marj (özet)', pct(r.taahhutPl.netMarginPct)) +
-    '</tbody></table></div>';
-
-  if (card) card.style.display = 'block';
+  // Analiz sayfasında ayrı özet gelir kartı gösterilmez; düzeltilmiş ciro özet gelir tablosunda.
+  if (inner) inner.innerHTML = '';
+  if (card) card.style.display = 'none';
 }
 
 function XXXX_OLD_RUN(){}
@@ -4297,6 +4257,19 @@ function computeOzetTabloData(refYear, prevYear, isTaahhut) {
     {tip:'anatoplam', label: en?'NET PROFIT':'DÖNEM NET KARI',             cv: netKar,    pv: pNetKar},
   ];
 
+  if (isTaahhut) {
+    const hakIkiYilOnce = (state.yearData[refYear - 2] || {})['yilHakediş'] || 0;
+    const duzC = _a2(D('netSatis')) + _a2(D('yilHakediş')) - _a2(Dp('yilHakediş'));
+    const duzP = _a2(Dp('netSatis')) + _a2(Dp('yilHakediş')) - _a2(hakIkiYilOnce);
+    gelirSatirlar.push({
+      tip: 'ozel',
+      label: en ? 'Adjusted revenue (net sales + curr. accr. − prior accr.)' : 'Düzeltilmiş ciro (net satış + hakediş − önceki yıl hakediş)',
+      cv: duzC,
+      pv: duzP,
+      pdfPctSkip: true,
+    });
+  }
+
   return { bilancoSatirlar, gelirSatirlar, ciro, yy, py, _per, en };
 }
 
@@ -4367,6 +4340,21 @@ function buildOzetTablolar(refYear, prevYear, isTaahhut) {
       } else {
         titleEl.textContent = '📊 ' + (en ? 'SUMMARY INCOME STATEMENT' : 'ÖZET GELİR TABLOSU');
       }
+    }
+    let footTa = document.getElementById('ozetGelirTaahhutFoot');
+    if (isTaahhut) {
+      if (!footTa) {
+        footTa = document.createElement('div');
+        footTa.id = 'ozetGelirTaahhutFoot';
+        footTa.style.cssText = 'font-size:11px;color:var(--text-muted);margin-top:10px;line-height:1.55';
+        elGCard.appendChild(footTa);
+      }
+      footTa.textContent = en
+        ? 'Contractor: the highlighted last row is adjusted revenue — same basis as KV/sales and real sales growth.'
+        : 'Taahhüt: vurgulu son satır düzeltilmiş cirodur; KV/satış ve reel satış büyümesi bu tanımla hesaplanır.';
+      footTa.style.display = '';
+    } else if (footTa) {
+      footTa.style.display = 'none';
     }
   }
 
@@ -5803,7 +5791,7 @@ function pdfHtmlOzetGelirRows(gelirSatirlar, ciro, TL, r, pyLabel, yyLabel) {
   for (const s of gelirSatirlar) {
     const tip = s.tip || 'kalem';
     const lab = _pdfEsc(s.label);
-    const pctC = pctOf(s.cv, ciro);
+    const pctC = s.pdfPctSkip ? '—' : pctOf(s.cv, ciro);
     const negC = (s.cv || 0) < 0;
     const negP = (s.pv || 0) < 0;
     if (tip === 'toplam') {
@@ -6768,6 +6756,7 @@ ${pdfHtmlOzetBilancoRows(ozPdf.bilancoSatirlar, TLpdfBil, ozPdf.py, ozPdf.yy)}
 
 <h2 id="i18nGelirTab" style="page-break-after:avoid">📈 Özet gelir tablosu</h2>
 ${ozPdf._per < 12 ? '<p style="font-size:11px;color:#64748b;margin:-6px 0 10px">(Cari sütun: seçili aylar yıllıklaştırılmış; tam yıl simülasyonu)</p>' : ''}
+${isTaahhutPdf ? '<p style="font-size:10px;color:#64748b;margin:-4px 0 8px;line-height:1.45">Taahhüt: son satır <strong>düzeltilmiş ciro</strong> (net satış + cari yıl hakediş − önceki yıl hakediş); KV/satış ve reel satış büyümesi bu tanımla uyumludur.</p>' : ''}
 ${pdfHtmlOzetGelirRows(ozPdf.gelirSatirlar, ozPdf.ciro, TL, r, ozPdf.py, ozPdf.yy)}
 
 <h2 id="i18nFinOran" style="page-break-before:always;page-break-after:avoid">📐 Finansal Oranlar</h2>
