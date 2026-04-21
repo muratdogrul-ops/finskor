@@ -6940,6 +6940,7 @@ function generatePDF() {
   .badge-ok{background:rgba(34,197,94,.2);color:#22c55e;border:1px solid #22c55e;}
   /* Profesyonel bilanço / gelir tablosu stilleri */
   .fin-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:0}
+  .fin-table tr,.fin-table td,.fin-table th{page-break-inside:avoid;break-inside:avoid}
   .fin-table td,.fin-table th{padding:6px 10px;border:1px solid #e2e8f0}
   .fin-table .row-header{background:#1e3a5f;color:#fff;font-weight:700;font-size:11px;letter-spacing:.5px;text-transform:uppercase}
   .fin-table .row-section{background:#f0f4f8;font-weight:700;color:#1e3a5f;font-size:12px}
@@ -6980,18 +6981,21 @@ function generatePDF() {
   .badge-bad{background:rgba(239,68,68,.2);color:#ef4444;border:1px solid #ef4444;}
   .body{padding:32px 40px;}
   .body h2{font-size:13px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#f5a623;border-bottom:2px solid #e2e8f0;padding-bottom:8px;margin:28px 0 14px;}
+  .pdf-section{page-break-inside:avoid;break-inside:avoid;margin-bottom:16px;orphans:3;widows:3;}
+  .pdf-section h2{page-break-after:avoid;break-after:avoid;}
   .score-row{display:flex;gap:12px;margin-bottom:20px;}
   .score-box{flex:1;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;text-align:center;}
-  .score-box .lbl{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin-bottom:6px;}
+  .score-box .lbl{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#334155;margin-bottom:6px;}
   .score-box .val{font-size:26px;font-weight:900;}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
   .metric-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;}
-  .metric-box .label{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin-bottom:4px;}
+  .metric-box .label{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#334155;margin-bottom:4px;}
   .metric-box .value{font-size:20px;font-weight:900;color:#1a1a2e;}
-  .metric-box .sub{font-size:10px;color:#94a3b8;margin-top:4px;}
+  .metric-box .sub{font-size:10px;color:#475569;margin-top:4px;}
   table{width:100%;border-collapse:collapse;margin-bottom:16px;font-size:14px;}
-  th{background:#f1f5f9;padding:8px 12px;text-align:left;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#64748b;border:1px solid #e2e8f0;}
-  td{padding:8px 12px;border:1px solid #e2e8f0;}
+  table tr,table td,table th{page-break-inside:avoid;break-inside:avoid;}
+  th{background:#f1f5f9;padding:8px 12px;text-align:left;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#334155;border:1px solid #e2e8f0;}
+  td{padding:8px 12px;border:1px solid #e2e8f0;color:#1e293b;}
   tr:nth-child(even) td{background:#f8fafc;}
   .badge-s{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;}
   .s-ok{background:#dcfce7;color:#16a34a;} .s-warn{background:#fef3c7;color:#d97706;} .s-bad{background:#fee2e2;color:#dc2626;}
@@ -7020,7 +7024,8 @@ function generatePDF() {
 </div>
 
 <div class="body">
-<h2 id="i18nKrediNotu" style="page-break-after:avoid">⭐ KREDİ NOTU</h2>
+<section class="pdf-section">
+<h2 id="i18nKrediNotu">⭐ KREDİ NOTU</h2>
 <div class="score-row">
   <div class="score-box">
     <div class="lbl">Kredi Notu</div>
@@ -7028,18 +7033,20 @@ function generatePDF() {
   </div>
   <div class="score-box">
     <div class="lbl">Finansal Puan</div>
-    <div class="val">${objPuan.toFixed(1)}<span style="font-size:14px;color:#94a3b8">/75</span></div>
+    <div class="val">${objPuan.toFixed(1)}<span style="font-size:14px;color:#475569">/75</span></div>
   </div>
   <div class="score-box">
     <div class="lbl">Subjektif Puan</div>
-    <div class="val">${subjPuan.toFixed(1)}<span style="font-size:14px;color:#94a3b8">/30</span></div>
+    <div class="val">${subjPuan.toFixed(1)}<span style="font-size:14px;color:#475569">/30</span></div>
   </div>
   <div class="score-box" style="border-color:#f5a623">
     <div class="lbl">Toplam Puan</div>
-    <div class="val" style="color:#f5a623">${toplam.toFixed(1)}<span style="font-size:14px;color:#94a3b8">/105</span></div>
+    <div class="val" style="color:#b45309">${toplam.toFixed(1)}<span style="font-size:14px;color:#475569">/105</span></div>
   </div>
 </div>
+</section>
 
+<section class="pdf-section">
 <h2 id="i18nTemelFin" style="page-break-before:auto">📊 Temel Finansal Göstergeler</h2>
 <div class="grid2">
   <div class="metric-box"><div class="label">Net Satışlar</div><div class="value">${TL(r.netSatis)}</div><div class="sub">${refYear} yılı</div></div>
@@ -7049,6 +7056,7 @@ function generatePDF() {
   <div class="metric-box"><div class="label">Borç / Öz Kaynak</div><div class="value">${N2(r.borcOzKay)}</div><div class="sub">Kaldıraç</div></div>
   <div class="metric-box"><div class="label">Öz Kaynak</div><div class="value">${TL(r.ozKaynak)}</div><div class="sub">Net Varlık</div></div>
 </div>
+</section>
 
 <div class="pdf-bilanco-sheet">
 <h2 id="i18nBilanco" style="page-break-after:avoid">Özet finansal durum tablosu</h2>
@@ -7056,13 +7064,16 @@ function generatePDF() {
 ${pdfHtmlOzetBilancoRows(ozPdf.bilancoSatirlar, TLpdfBil, ozPdf.py, ozPdf.yy)}
 </div>
 
-<h2 id="i18nGelirTab" style="page-break-after:avoid">📈 Özet gelir tablosu</h2>
+<section class="pdf-section">
+<h2 id="i18nGelirTab">📈 Özet gelir tablosu</h2>
 ${ozPdf._per < 12 ? '<p style="font-size:11px;color:#64748b;margin:-6px 0 10px">(Cari sütun: seçili aylar yıllıklaştırılmış; tam yıl simülasyonu)</p>' : ''}
 ${isTaahhutPdf ? '<p style="font-size:10px;color:#64748b;margin:-4px 0 8px;line-height:1.45">Taahhüt: son satır <strong>düzeltilmiş ciro</strong> (net satış + cari yıl hakediş − önceki yıl hakediş); KV/satış ve reel satış büyümesi bu tanımla uyumludur.</p>' : ''}
 ${pdfHtmlOzetGelirRows(ozPdf.gelirSatirlar, ozPdf.ciro, TL, r, ozPdf.py, ozPdf.yy)}
+</section>
 
-<h2 id="i18nFinOran" style="page-break-before:always;page-break-after:avoid">📐 Finansal Oranlar</h2>
-<table style="page-break-inside:avoid;width:100%">
+<section class="pdf-section" style="page-break-before:always">
+<h2 id="i18nFinOran">📐 Finansal Oranlar</h2>
+<table style="page-break-inside:avoid;break-inside:avoid;width:100%">
   <tr><th>ORAN KATEGORİSİ</th><th>ORAN</th><th>DEĞER</th><th>REFERANS</th><th>DURUM</th></tr>
   <tr><td rowspan="3" style="font-weight:700;color:#3b82f6;font-size:11px">LİKİDİTE</td>
     <td>Cari Oran</td><td>${N2(r.cariOran)}</td><td>Min:1.0 / İyi:2.0</td><td><span class="badge-s ${r.cariOran>=2?'s-ok':r.cariOran>=1?'s-warn':'s-bad'}">${r.cariOran>=2?'İYİ':r.cariOran>=1?'KABUL':'ZAYIF'}</span></td></tr>
@@ -7089,9 +7100,11 @@ ${pdfHtmlOzetGelirRows(ozPdf.gelirSatirlar, ozPdf.ciro, TL, r, ozPdf.py, ozPdf.y
     <td>Banka Borç / Aktif</td><td>${PCT(r.bnkBorcAkt)}</td><td>Max:%45</td><td><span class="badge-s ${r.bnkBorcAkt<=25?'s-ok':r.bnkBorcAkt<=45?'s-warn':'s-bad'}">${r.bnkBorcAkt<=25?'İYİ':r.bnkBorcAkt<=45?'KABUL':'ZAYIF'}</span></td></tr>
   <tr><td>KV Banka / Satış</td><td>${PCT(r.kvBankaB_Sat)}</td><td>Max:%20</td><td><span class="badge-s ${r.kvBankaB_Sat<=10?'s-ok':r.kvBankaB_Sat<=20?'s-warn':'s-bad'}">${r.kvBankaB_Sat<=10?'İYİ':r.kvBankaB_Sat<=20?'KABUL':'ZAYIF'}</span></td></tr>
 </table>
+</section>
 
 
-<h2 style="page-break-before:always;page-break-after:avoid">📅 Yıllık Karşılaştırma ve Trend Analizi</h2>
+<section class="pdf-section" style="page-break-before:always">
+<h2>📅 Yıllık Karşılaştırma ve Trend Analizi</h2>
 ${(function(){
   const YILLAR = [2022,2023,2024,2025,2026];
   const SERILER = [
@@ -7103,7 +7116,7 @@ ${(function(){
     {k:'kvYKToplam',  lbl:'KV Borclar',     renk:'#ef4444'}
   ];
   const aktifYillar = YILLAR.filter(y => state.yearData[y] && SERILER.some(s => (state.yearData[y][s.k]||0) > 0));
-  if (aktifYillar.length < 1) return '<p style="color:#94a3b8;font-size:12px">Yillik veri bulunamadi.</p>';
+  if (aktifYillar.length < 1) return '<p style="color:#475569;font-size:12px">Yillik veri bulunamadi.</p>';
 
   const TLm = v => (v/1e6).toFixed(2) + ' M';
 
@@ -7147,7 +7160,7 @@ ${(function(){
     [0,25,50,75,100].forEach(function(pct){
       const x = LPAD + barW*pct/100;
       svg += '<line x1="'+x+'" y1="'+TPAD+'" x2="'+x+'" y2="'+(svgH-BPAD)+'" stroke="#d1d5db" stroke-width="0.5" stroke-dasharray="2,2"/>';
-      svg += '<text x="'+x+'" y="'+(svgH-2)+'" font-size="7" fill="#9ca3af" text-anchor="middle" font-family="sans-serif">'+(maxVal*pct/100/1e6).toFixed(0)+'M</text>';
+      svg += '<text x="'+x+'" y="'+(svgH-2)+'" font-size="7" fill="#64748b" text-anchor="middle" font-family="sans-serif">'+(maxVal*pct/100/1e6).toFixed(0)+'M</text>';
     });
 
     aktifYillar.forEach(function(y, i){
@@ -7174,9 +7187,11 @@ ${(function(){
   out += '</div>';
   return out;
 })()}
+</section>
 
 
-<h2 style="page-break-before:always;page-break-after:avoid">📋 ANALİZ SONUCU</h2>
+<section class="pdf-section" style="page-break-before:always">
+<h2>📋 ANALİZ SONUCU</h2>
 <div style="background:${_kararBg};border:2px solid ${_kararRenk};border-radius:10px;padding:20px;margin-bottom:16px;page-break-inside:avoid">
   <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
     <div style="text-align:center;min-width:80px">
@@ -7201,11 +7216,15 @@ ${(function(){
       : '❌ Firma yüksek finansal risk taşımaktadır. Kredi kullandırımı ancak güçlü teminat yapısıyla değerlendirilebilir.'}
   </div>
 </div>
+</section>
 
-<h2 style="page-break-before:auto;page-break-after:avoid">💡 RATING ARTIRICI ÖNERİLER</h2>
+<section class="pdf-section">
+<h2 style="page-break-before:auto">💡 RATING ARTIRICI ÖNERİLER</h2>
 <div style="margin-bottom:16px">${_oneriHTMLpdf}</div>
+</section>
 
-<h2 style="page-break-before:always;page-break-after:avoid">⭐ KREDİ NOT SKALASI</h2>
+<section class="pdf-section" style="page-break-before:always">
+<h2>⭐ KREDİ NOT SKALASI</h2>
 <div style="page-break-inside:avoid"><table style="margin-bottom:16px">
   <tr>
     <th style="width:70px">NOT</th>
@@ -7215,6 +7234,7 @@ ${(function(){
   </tr>
   ${_skalaHTML}
 </table></div>
+</section>
 
 ${(function(){
     window._senaryoPrevC5  = r.reelFaalKarBuy > 14 ? 5 : r.reelFaalKarBuy > 9 ? 4 : r.reelFaalKarBuy > 5 ? 3 : r.reelFaalKarBuy > 2 ? 2 : r.reelFaalKarBuy > 0 ? 1 : 0;
