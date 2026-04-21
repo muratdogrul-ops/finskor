@@ -49,6 +49,9 @@
 [functions."kurumsal-teklif"]
   timeout = 20
 
+[functions."finskor-analytics"]
+  timeout = 10
+
 # Baykuş LLM (lokal/deneme): OPENAI_API_KEY veya FINSKOR_OPENAI_KEY; opsiyonel FINSKOR_AVATAR_MODEL
 [functions."avatar-chat"]
   timeout = 45

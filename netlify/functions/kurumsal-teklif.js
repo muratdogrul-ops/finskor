@@ -46,6 +46,8 @@ exports.handler = async (event) => {
 
   const adSoyad = String(body.adSoyad || '').trim();
   const telefon = String(body.telefon || body.cep || '').trim();
+  const attributionText = String(body.attributionText || '').trim();
+  const attributionJson = body.attribution ? JSON.stringify(body.attribution).slice(0, 1500) : '';
   if (!adSoyad || adSoyad.length < 2) {
     return { statusCode: 400, headers: jsonHeaders, body: JSON.stringify({ ok: false, error: 'ad' }) };
   }
@@ -82,6 +84,7 @@ exports.handler = async (event) => {
       <table style="width:100%;border-collapse:collapse;font-size:14px">
         <tr><td style="padding:8px 0;color:rgba(244,246,249,0.5);width:120px">Ad Soyad</td><td style="color:#F4F6F9;font-weight:600">${adSoyad.replace(/</g, '&lt;')}</td></tr>
         <tr><td style="padding:8px 0;color:rgba(244,246,249,0.5)">Cep</td><td><a href="https://wa.me/90${waDigits}" style="color:#25D366;font-weight:600">${telefon.replace(/</g, '&lt;')}</a></td></tr>
+        <tr><td style="padding:8px 0;color:rgba(244,246,249,0.5)">Attribution</td><td style="color:#F4F6F9;font-weight:600;font-size:12px;line-height:1.4">${(attributionText || '—').replace(/</g, '&lt;')}</td></tr>
       </table>
       <p style="margin-top:14px;font-size:12px;color:rgba(244,246,249,0.55)">Kaynak: Uygulama içi paket penceresi (Teklif Al).</p>
     </div>
@@ -92,7 +95,7 @@ exports.handler = async (event) => {
       from: `"FinSkor" <${ADMIN_MAIL}>`,
       to: ADMIN_MAIL,
       subject: `[FinSkor] Kurumsal KOBİ teklif — ${adSoyad}`,
-      text: `Kurumsal / KOBİ teklif talebi\nTarih: ${tarih}\nAd Soyad: ${adSoyad}\nCep: ${telefon}\n`,
+      text: `Kurumsal / KOBİ teklif talebi\nTarih: ${tarih}\nAd Soyad: ${adSoyad}\nCep: ${telefon}\nAttribution: ${attributionText || '-'}\n`,
       html,
     });
   } catch (err) {
@@ -117,7 +120,7 @@ exports.handler = async (event) => {
     telefon: telefon || null,
     kaynak: 'Kurumsal KOBİ teklif',
     durum: 'Takipte',
-    notlar: 'Uygulama — paket popup (Teklif Al)',
+    notlar: ['Uygulama — paket popup (Teklif Al)', attributionText ? `Attribution: ${attributionText}` : '', attributionJson ? `Attribution JSON: ${attributionJson}` : ''].filter(Boolean).join('\n'),
   }).catch((e) => console.warn('kurumsal-teklif Supabase:', e.message));
 
   return { statusCode: 200, headers: jsonHeaders, body: JSON.stringify({ ok: true }) };

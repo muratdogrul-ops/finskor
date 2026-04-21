@@ -12,6 +12,7 @@ ALTER TABLE IF EXISTS public.analyses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.access_codes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.leads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.finskor_analytics_events ENABLE ROW LEVEL SECURITY;
 
 -- ── Politikalar: app.html (anon okuma) + admin.html (anon CRUD) aynı kalır ──
 -- service_role RLS'i bypass eder; Netlify fonksiyonlarında SUPABASE_SERVICE_KEY önerilir.
@@ -27,7 +28,8 @@ BEGIN
     'analyses',
     'payments',
     'access_codes',
-    'leads'
+    'leads',
+    'finskor_analytics_events'
   ]
   LOOP
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = t) THEN

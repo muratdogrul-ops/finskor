@@ -226,6 +226,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
       <button class="nav-item" onclick="showPage('codes')" id="nav-codes"><span class="icon">🔑</span><span>Erişim Kodları</span></button>
       <button class="nav-item" onclick="showPage('payments')" id="nav-payments"><span class="icon">💳</span><span>Ödemeler</span></button>
       <button class="nav-item" onclick="showPage('analyses')" id="nav-analyses"><span class="icon">📈</span><span>Analizler</span></button>
+      <button class="nav-item" onclick="showPage('attr')" id="nav-attr"><span class="icon">🔗</span><span>Attribution Özeti</span></button>
       <button class="nav-item" onclick="showPage('ufe')" id="nav-ufe"><span class="icon">📉</span><span>ÜFE Oranları</span></button>
       <button class="nav-item" onclick="showPage('maliyil')" id="nav-maliyil"><span class="icon">📆</span><span>Mali Yıl/Dönem</span></button>
       <button class="nav-item" onclick="showPage('ayarlar')" id="nav-ayarlar"><span class="icon">⚙️</span><span>Ayarlar</span></button>
@@ -432,6 +433,40 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
           </div>
           <button class="btn btn-primary" onclick="adminSifreDegistir()">🔐 Şifreyi Güncelle</button>
         </div>
+      </div>
+    </div>
+
+    <!-- ATTRIBUTION ÖZETİ -->
+    <div class="page" id="page-attr">
+      <div class="page-title">Attribution Özeti</div>
+      <div class="page-sub">Lead kaynakları + uygulama içi demo/paket/iletişim adımları</div>
+      <div class="rls-warn">ℹ️ Supabase SQL migrasyonunda <code style="font-family:monospace">finskor_analytics_events</code> tablosu oluşturulmadıysa olay listesi boş görünür. Migrasyon: <code style="font-family:monospace">supabase/migrations/20260421120000_finskor_analytics_events.sql</code></div>
+
+      <div class="stats-row" style="margin-bottom:18px">
+        <div class="stat-card"><div class="stat-label">Lead (toplam)</div><div class="stat-value" id="attr-stat-leads">—</div><div class="stat-sub">potansiyel müşteri</div></div>
+        <div class="stat-card"><div class="stat-label">Attribution içeren lead</div><div class="stat-value" id="attr-stat-leads-attr">—</div><div class="stat-sub">notlar içinde UTM</div></div>
+        <div class="stat-card"><div class="stat-label">Uygulama olayı (7 gün)</div><div class="stat-value" id="attr-stat-events-7d">—</div><div class="stat-sub">finskor_analytics_events</div></div>
+        <div class="stat-card"><div class="stat-label">Demo başlat</div><div class="stat-value" id="attr-stat-demo-start">—</div><div class="stat-sub">demo_start_click</div></div>
+      </div>
+
+      <div class="toolbar">
+        <input class="search-input" type="text" placeholder="🔍 Event / UTM / telefon / lead ara..." id="attr-search" oninput="filterAttrRows()">
+        <button class="btn btn-outline" onclick="loadAttrSummary()">🔄 Yenile</button>
+      </div>
+
+      <div class="card" style="margin-bottom:18px">
+        <div class="card-head"><div class="card-head-title">📌 En sık UTM kombinasyonları (lead notlarından)</div></div>
+        <div class="card-body"><table class="tbl"><thead><tr><th>Kampanya anahtarı</th><th>Adet</th></tr></thead><tbody id="attr-utm-body"><tr class="loading-row"><td colspan="2"><span class="spinner"></span></td></tr></tbody></table></div>
+      </div>
+
+      <div class="card" style="margin-bottom:18px">
+        <div class="card-head"><div class="card-head-title">📊 Uygulama olayları (son 500)</div></div>
+        <div class="card-body"><table class="tbl"><thead><tr><th>Zaman</th><th>Olay</th><th>Sayfa</th><th>UTM (son)</th><th>Detay</th></tr></thead><tbody id="attr-events-body"><tr class="loading-row"><td colspan="5"><span class="spinner"></span></td></tr></tbody></table></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div class="card-head-title">🎯 Lead satırları (attribution özetli)</div></div>
+        <div class="card-body"><table class="tbl"><thead><tr><th>Kayıt</th><th>Kişi</th><th>Kaynak</th><th>Attribution</th><th>İpuçları</th></tr></thead><tbody id="attr-leads-body"><tr class="loading-row"><td colspan="5"><span class="spinner"></span></td></tr></tbody></table></div>
       </div>
     </div>
 
@@ -694,6 +729,7 @@ function showPage(name) {
   if (name === 'ufe') loadUfe();
   if (name === 'maliyil') loadMaliYil();
   if (name === 'ayarlar') loadAyarlar();
+  if (name === 'attr') loadAttrSummary();
 }
 
 // ══════════════════════════════════════════
@@ -1660,6 +1696,9 @@ function adminSifreDegistir() {
 // ══════════════════════════════════════════
 let allLeads = [];
 
+let _attrRows = [];
+let _attrEvents = [];
+
 async function loadLeads() {
   const body = document.getElementById('leads-body');
   try {
@@ -1670,6 +1709,180 @@ async function loadLeads() {
   } catch(e) {
     body.innerHTML = `<tr class="loading-row"><td colspan="7" style="color:var(--danger)">⚠️ ${e.message}</td></tr>`;
   }
+}
+
+function _attrExtractJsonBlock(notlar, label) {
+  const raw = String(notlar || '');
+  const idx = raw.indexOf(label);
+  if (idx < 0) return null;
+  const rest = raw.slice(idx + label.length).trim();
+  if (!rest.startsWith('{')) return null;
+  const end = rest.indexOf('\n');
+  const slice = end >= 0 ? rest.slice(0, end) : rest;
+  try { return JSON.parse(slice); } catch (e) { return null; }
+}
+
+function _attrLeadHints(notlar) {
+  const n = String(notlar || '').toLowerCase();
+  const hints = [];
+  if (n.includes('kurumsal kobi teklif')) hints.push('kurumsal teklif');
+  if (n.includes('web sitesi') || n.includes('demo talebi')) hints.push('web form');
+  if (n.includes('attribution')) hints.push('utm kaydı');
+  return hints.length ? hints.join(', ') : '—';
+}
+
+function _attrFormatUtmCell(attrObj) {
+  try {
+    const last = attrObj && attrObj.last && typeof attrObj.last === 'object' ? attrObj.last : null;
+    const cur = attrObj && attrObj.current && typeof attrObj.current === 'object' ? attrObj.current : null;
+    const pick = last || cur;
+    if (!pick) return '—';
+    const src = pick.utm_source || pick.utm_medium || pick.utm_campaign ? [
+      pick.utm_source, pick.utm_medium, pick.utm_campaign, pick.utm_content
+    ].filter(Boolean).join(' / ') : '—';
+    return src || '—';
+  } catch (e) {
+    return '—';
+  }
+}
+
+function _attrTopUtmKeys(leads) {
+  const map = new Map();
+  for (const l of leads) {
+    const j = _attrExtractJsonBlock(l.notlar, 'Attribution JSON:');
+    if (!j || !j.last) continue;
+    const pick = j.last;
+    const key = [
+      pick.utm_source || '',
+      pick.utm_medium || '',
+      pick.utm_campaign || '',
+      pick.utm_content || ''
+    ].join('|');
+    if (!key.replace(/\|/g, '')) continue;
+    map.set(key, (map.get(key) || 0) + 1);
+  }
+  return Array.from(map.entries()).sort((a,b) => b[1]-a[1]).slice(0, 15);
+}
+
+async function loadAttrSummary() {
+  const evBody = document.getElementById('attr-events-body');
+  const utmBody = document.getElementById('attr-utm-body');
+  const ldBody = document.getElementById('attr-leads-body');
+  try {
+    const since = new Date(Date.now() - 7 * 86400000).toISOString();
+    const [{ data: leadsData, error: leadsErr }, { data: evData, error: evErr }] = await Promise.all([
+      sb.from('leads').select('*').order('created_at', { ascending: false }),
+      sb.from('finskor_analytics_events').select('*').gte('created_at', since).order('created_at', { ascending: false }).limit(500)
+    ]);
+    if (leadsErr) throw leadsErr;
+
+    allLeads = leadsData || [];
+    _attrEvents = (!evErr && evData) ? evData : [];
+
+    const withAttr = allLeads.filter(l => String(l.notlar || '').includes('Attribution'));
+    document.getElementById('attr-stat-leads').textContent = String(allLeads.length);
+    document.getElementById('attr-stat-leads-attr').textContent = String(withAttr.length);
+
+    const demoStart = _attrEvents.filter(e => e.event === 'demo_start_click').length;
+    document.getElementById('attr-stat-events-7d').textContent = String(_attrEvents.length);
+    document.getElementById('attr-stat-demo-start').textContent = String(demoStart);
+
+    const top = _attrTopUtmKeys(allLeads);
+    if (utmBody) {
+      if (!top.length) {
+        utmBody.innerHTML = `<tr><td colspan="2"><div class="empty-state"><div class="empty-title">Henüz UTM içeren lead notu yok</div></div></td></tr>`;
+      } else {
+        utmBody.innerHTML = top.map(([k,c]) => {
+          const p = k.split('|');
+          const label = [p[0],p[1],p[2],p[3]].filter(Boolean).join(' · ') || k;
+          return `<tr><td style="font-size:12px;color:var(--text)">${label}</td><td style="font-weight:700">${c}</td></tr>`;
+        }).join('');
+      }
+    }
+
+    if (evErr) {
+      if (evBody) evBody.innerHTML = `<tr><td colspan="5" style="color:var(--danger)">⚠️ Olay tablosu okunamadı: ${evErr.message}</td></tr>`;
+    } else if (!_attrEvents.length) {
+      if (evBody) evBody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-title">Son 7 günde olay yok</div><div class="empty-sub">Tablo kurulduysa birkaç dakika içinde dolmaya başlar.</div></div></td></tr>`;
+    } else if (evBody) {
+      evBody.innerHTML = `<tr class="loading-row"><td colspan="5"><span class="spinner"></span></td></tr>`;
+    }
+
+    _attrRows = allLeads.map(l => {
+      const json = _attrExtractJsonBlock(l.notlar, 'Attribution JSON:');
+      const textLine = (String(l.notlar || '').split('\n').find(x => x.startsWith('Attribution:')) || '').replace(/^Attribution:\s*/,'').trim();
+      return {
+        kind: 'lead',
+        ts: l.created_at,
+        title: l.ad_soyad || '—',
+        sub: l.telefon || '',
+        source: l.kaynak || '—',
+        utm: _attrFormatUtmCell(json),
+        hints: _attrLeadHints(l.notlar),
+        detail: textLine || (json ? JSON.stringify(json).slice(0, 240) : '—')
+      };
+    });
+
+    renderAttrTables();
+  } catch (e) {
+    if (utmBody) utmBody.innerHTML = `<tr><td colspan="2" style="color:var(--danger)">⚠️ ${e.message}</td></tr>`;
+    if (evBody) evBody.innerHTML = `<tr><td colspan="5" style="color:var(--danger)">⚠️ ${e.message}</td></tr>`;
+    if (ldBody) ldBody.innerHTML = `<tr><td colspan="5" style="color:var(--danger)">⚠️ ${e.message}</td></tr>`;
+  }
+}
+
+function renderAttrTables() {
+  const q = (document.getElementById('attr-search') || {}).value || '';
+  const qq = q.toLowerCase().trim();
+
+  const evBody = document.getElementById('attr-events-body');
+  if (evBody && _attrEvents && _attrEvents.length) {
+    const rows = !qq ? _attrEvents : _attrEvents.filter(e => {
+      const blob = JSON.stringify(e).toLowerCase();
+      return blob.includes(qq);
+    });
+    evBody.innerHTML = rows.slice(0, 200).map(e => {
+      const a = e.attribution || {};
+      const last = a.last || a.current || {};
+      const utm = [last.utm_source, last.utm_medium, last.utm_campaign].filter(Boolean).join(' / ') || '—';
+      const det = (e.props && Object.keys(e.props).length) ? JSON.stringify(e.props) : '—';
+      return `<tr>
+        <td style="font-size:11px;color:var(--text-muted);white-space:nowrap">${fmtDateTime(e.created_at)}</td>
+        <td style="font-weight:700;font-size:12px">${e.event || '—'}</td>
+        <td style="font-size:11px;color:var(--text-muted);max-width:240px;overflow:hidden;text-overflow:ellipsis">${e.page || '—'}</td>
+        <td style="font-size:11px">${utm}</td>
+        <td style="font-size:11px;color:var(--text-muted);max-width:360px;overflow:hidden;text-overflow:ellipsis">${det}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  const ldBody = document.getElementById('attr-leads-body');
+  if (!ldBody || !_attrRows) return;
+  const rows = !qq ? _attrRows : _attrRows.filter(r => {
+    const blob = (r.title + ' ' + r.sub + ' ' + r.source + ' ' + r.utm + ' ' + r.detail + ' ' + r.hints).toLowerCase();
+    return blob.includes(qq);
+  });
+  if (!rows.length) {
+    ldBody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-title">Kayıt bulunamadı</div></div></td></tr>`;
+    return;
+  }
+  ldBody.innerHTML = rows.map(r => `<tr>
+    <td style="font-size:11px;color:var(--text-muted);white-space:nowrap">${fmtDateTime(r.ts)}</td>
+    <td><strong>${r.title}</strong>${r.sub ? `<br><span style="font-size:11px;color:var(--text-muted)">${r.sub}</span>` : ''}</td>
+    <td style="font-size:11px">${r.source}</td>
+    <td style="font-size:11px;color:var(--text-muted);max-width:360px;overflow:hidden;text-overflow:ellipsis">${r.utm}</td>
+    <td style="font-size:11px;color:var(--text-muted);max-width:260px">${r.hints}<br><span style="opacity:.75">${r.detail}</span></td>
+  </tr>`).join('');
+}
+
+function filterAttrRows() {
+  renderAttrTables();
+}
+
+function fmtDateTime(d) {
+  if (!d) return '—';
+  const dt = new Date(d);
+  return dt.toLocaleString('tr-TR', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
 }
 
 function renderLeads(list) {

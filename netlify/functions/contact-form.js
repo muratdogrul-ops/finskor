@@ -36,12 +36,13 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body); }
   catch { return { statusCode: 400, body: 'Geçersiz istek.' }; }
 
-  const { adSoyad, telefon, konu, mesaj } = body;
+  const { adSoyad, telefon, konu, mesaj, attribution, attributionText } = body;
   if (!adSoyad || !telefon) {
     return { statusCode: 400, body: 'Zorunlu alanlar eksik.' };
   }
 
   const tarih = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
+  const attrLine = String(attributionText || '').trim();
 
   const transporter = nodemailer.createTransport({
     host: 'smtppro.zoho.eu',
@@ -64,6 +65,7 @@ exports.handler = async (event) => {
         <tr><td style="padding:8px 0;color:rgba(244,246,249,0.5);width:120px">Ad Soyad</td><td style="color:#F4F6F9;font-weight:600">${adSoyad}</td></tr>
         <tr><td style="padding:8px 0;color:rgba(244,246,249,0.5)">Telefon</td><td><a href="https://wa.me/90${telefon.replace(/\D/g,'').replace(/^0/,'')}" style="color:#25D366;font-weight:600">${telefon}</a></td></tr>
         <tr><td style="padding:8px 0;color:rgba(244,246,249,0.5)">Konu</td><td style="color:#C9A84C;font-weight:600">${konu || '—'}</td></tr>
+        <tr><td style="padding:8px 0;color:rgba(244,246,249,0.5)">Attribution</td><td style="color:#F4F6F9;font-weight:600;font-size:12px;line-height:1.4">${(attrLine || '—').replace(/</g, '&lt;')}</td></tr>
       </table>
       <div style="margin-top:16px;padding:12px 16px;background:rgba(46,204,154,0.08);border:1px solid rgba(46,204,154,0.2);border-radius:8px;font-size:13px;color:rgba(244,246,249,0.6)">
         Telefon numarasına tıklayarak WhatsApp'tan ulaşabilirsiniz.
@@ -88,7 +90,14 @@ exports.handler = async (event) => {
     }
 
     // Supabase leads tablosuna kaydet
-    const notlar = [konu ? `Konu: ${konu}` : '', mesaj || ''].filter(Boolean).join('\n');
+    const safeAttr = (attrLine || '').slice(0, 1500);
+    const attrJson = attribution ? JSON.stringify(attribution).slice(0, 1500) : '';
+    const notlar = [
+      konu ? `Konu: ${konu}` : '',
+      mesaj || '',
+      safeAttr ? `Attribution: ${safeAttr}` : '',
+      attrJson ? `Attribution JSON: ${attrJson}` : ''
+    ].filter(Boolean).join('\n');
     await sbPost('leads', {
       ad_soyad: adSoyad,
       telefon: telefon || null,
