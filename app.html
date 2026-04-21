@@ -1279,7 +1279,6 @@ tbody td { padding:8px 13px; color:var(--text); }
         style="flex:1;background:rgba(245,166,35,.06);border:1px solid rgba(245,166,35,.2);
           border-radius:10px;color:#e2e8f0;font-size:12px;padding:7px 10px;
           resize:none;max-height:80px;font-family:inherit;line-height:1.4"
-        onkeydown="if(event.key==='Enter'&amp;&amp;!event.shiftKey){event.preventDefault();sendAvatarMsg()}"
         oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px'">
       </textarea>
       <button id="avMicBtn" onclick="toggleAvMic()" title="Sesli komut (Türkçe)"
@@ -12617,6 +12616,15 @@ window.onload = () => {
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
   document.getElementById('loginUser').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('loginPass').focus(); });
+  const avatarInputEl = document.getElementById('avatarInput');
+  if (avatarInputEl) {
+    avatarInputEl.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendAvatarMsg();
+      }
+    });
+  }
   syncDemoBannerOffset();
 };
 
