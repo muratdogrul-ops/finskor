@@ -1421,7 +1421,12 @@ function finskorCaptureAttribution() {
     const current = {};
     keys.forEach(function (k) {
       const v = (q.get(k) || '').trim();
-      if (v) current[k] = v;
+      if (!v) return;
+      if (k === 'utm_source') {
+        current[k] = v.toLowerCase();
+        return;
+      }
+      current[k] = v;
     });
     // Bu oturum URL'de UTM tasimiyorsa "current" bilgiyi sifirla.
     // Aksi halde onceki LinkedIn oturumu bu oturuma tasinabiliyor.
