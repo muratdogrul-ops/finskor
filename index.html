@@ -1491,7 +1491,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </p>
       <div class="hero-actions fade-up fade-up-3">
         <a href="app.html" class="btn-hero-primary">Analiz ve Senaryo →</a>
-        <button class="btn-hero-outline" onclick="openQuickStartModal()" style="background:rgba(46,204,154,0.12);border-color:rgba(46,204,154,0.4);color:#2ECC9A;cursor:pointer;">
+        <button class="btn-hero-outline" onclick="openQuickStartModal('hero')" style="background:rgba(46,204,154,0.12);border-color:rgba(46,204,154,0.4);color:#2ECC9A;cursor:pointer;">
           <span>▶</span> Demo Yap — Ücretsiz
         </button>
       </div>
@@ -2314,7 +2314,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       Daha az teminat, daha iyi faiz, daha hızlı onay.
     </p>
     <div class="cta-actions">
-      <button class="btn-hero-primary" onclick="openQuickStartModal()" style="cursor:pointer">Demo Yap — Ücretsiz</button>
+      <button class="btn-hero-primary" onclick="openQuickStartModal('cta')" style="cursor:pointer">Demo Yap — Ücretsiz</button>
       <button class="btn-hero-outline" onclick="openContactModal()" style="cursor:pointer">Bize Yazın</button>
     </div>
   </div>
@@ -2329,8 +2329,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <p style="font-size:13px;color:rgba(244,246,249,0.58);margin:0 0 20px;line-height:1.6">Tek tıkla demoya geçebilir, fiyat teklifi isteyebilir veya uzman görüşmesi talep edebilirsiniz.</p>
 
     <div style="display:grid;grid-template-columns:1fr;gap:10px">
-      <a href="app.html" onclick="closeQuickStartModal()" style="text-decoration:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:10px;background:rgba(46,204,154,0.13);border:1px solid rgba(46,204,154,0.38);color:#2ECC9A;font-weight:700">Ücretsiz Demoyu Başlat <span>▶</span></a>
-      <button onclick="selectQuickStart('Demo Talebi')" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:10px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.35);color:#f5c842;font-weight:700;cursor:pointer">Ücretsiz Demo Talep Et <span>→</span></button>
+      <a href="app.html" onclick="quickStartGoDemo(event)" style="text-decoration:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:10px;background:rgba(46,204,154,0.13);border:1px solid rgba(46,204,154,0.38);color:#2ECC9A;font-weight:700">Ücretsiz Demoyu Başlat <span>▶</span></a>
+      <button onclick="selectQuickStart('Demo Talebi')" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:10px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.35);color:#f5c842;font-weight:700;cursor:pointer">Bunu Talep Edeceğim <span>→</span></button>
       <button onclick="selectQuickStart('Fiyat Bilgisi')" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.2);color:#f4f6f9;font-weight:700;cursor:pointer">Fiyat Teklifi Al <span>→</span></button>
       <button onclick="selectQuickStart('Kurumsal Paket')" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.2);color:#f4f6f9;font-weight:700;cursor:pointer">Uzmanla Görüş <span>→</span></button>
     </div>
@@ -2423,12 +2423,70 @@ document.querySelectorAll('.features-grid .feature-card').forEach((el, i) => el.
 document.querySelectorAll('.how-steps .how-step').forEach((el, i) => el.style.transitionDelay = (i * 0.1) + 's');
 document.querySelectorAll('.rating-row').forEach((el, i) => el.style.transitionDelay = (i * 0.05) + 's');
 
+// Landing attribution + analytics
+function finskorCaptureAttributionLanding() {
+  try {
+    const q = new URLSearchParams(location.search || '');
+    const keys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'gclid', 'fbclid'];
+    const current = {};
+    keys.forEach(function (k) {
+      const v = (q.get(k) || '').trim();
+      if (!v) return;
+      current[k] = (k === 'utm_source') ? v.toLowerCase() : v;
+    });
+    if (!Object.keys(current).length) {
+      sessionStorage.removeItem('finskor_attr_current');
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    let firstObj = {};
+    try { firstObj = JSON.parse(localStorage.getItem('finskor_attr_first') || '{}'); } catch (e) {}
+    if (!firstObj || !Object.keys(firstObj).length) {
+      localStorage.setItem('finskor_attr_first', JSON.stringify(Object.assign({ ts: nowIso }, current)));
+    }
+    localStorage.setItem('finskor_attr_last', JSON.stringify(Object.assign({ ts: nowIso }, current)));
+    sessionStorage.setItem('finskor_attr_current', JSON.stringify(Object.assign({ ts: nowIso }, current)));
+  } catch (e) {}
+}
+function finskorGetAttributionLanding() {
+  try {
+    const parseLocal = function (k) { try { return JSON.parse(localStorage.getItem(k) || '{}'); } catch (e) { return {}; } };
+    const parseSession = function (k) { try { return JSON.parse(sessionStorage.getItem(k) || '{}'); } catch (e) { return {}; } };
+    return {
+      first: parseLocal('finskor_attr_first'),
+      last: parseLocal('finskor_attr_last'),
+      current: parseSession('finskor_attr_current')
+    };
+  } catch (e) {
+    return { first: {}, last: {}, current: {} };
+  }
+}
+function finskorTrackLandingEvent(eventName, props) {
+  try {
+    const body = JSON.stringify({
+      event: eventName,
+      props: props || {},
+      attribution: finskorGetAttributionLanding(),
+      page: (location.pathname + location.search + location.hash),
+      referrer: (document.referrer || ''),
+      userAgent: (navigator.userAgent || '')
+    });
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon('/.netlify/functions/finskor-analytics', new Blob([body], { type: 'application/json' }));
+      return;
+    }
+    fetch('/.netlify/functions/finskor-analytics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(function () {});
+  } catch (e) {}
+}
+finskorCaptureAttributionLanding();
+
 // İletişim Modal
-function openQuickStartModal() {
+function openQuickStartModal(source) {
   const m = document.getElementById('quickStartModal');
   if (!m) return;
   m.style.display = 'flex';
   document.body.style.overflow = 'hidden';
+  finskorTrackLandingEvent('landing_quick_popup_open', { source: source || 'unknown' });
 }
 function closeQuickStartModal() {
   const m = document.getElementById('quickStartModal');
@@ -2437,11 +2495,18 @@ function closeQuickStartModal() {
   document.body.style.overflow = '';
 }
 function selectQuickStart(konu) {
+  finskorTrackLandingEvent('landing_quick_popup_select', { option: konu || 'Fiyat Bilgisi' });
   closeQuickStartModal();
   openContactModal();
   const konuEl = document.getElementById('cKonu');
   if (konuEl) konuEl.value = konu || 'Fiyat Bilgisi';
   toggleDiger('cAciklama','cKonu');
+}
+function quickStartGoDemo(event) {
+  if (event && typeof event.preventDefault === 'function') event.preventDefault();
+  finskorTrackLandingEvent('landing_quick_popup_demo_click', { target: 'app.html' });
+  closeQuickStartModal();
+  setTimeout(function () { window.location.href = 'app.html'; }, 60);
 }
 function openContactModal() {
   const m = document.getElementById('contactModal');
@@ -2488,6 +2553,7 @@ async function submitContact() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ adSoyad: ad, telefon: tel, konu: konu + (aciklama ? (' — ' + aciklama) : '') })
     });
+    finskorTrackLandingEvent('landing_contact_submit_success', { topic: konu || 'Fiyat Bilgisi', source: 'landing_modal' });
   } catch(e) { /* sessiz hata — başarı göster */ }
 
   btn.textContent = 'Gönder →';
@@ -2556,7 +2622,7 @@ function copyMailIndex(mail, el) {
 try {
   const qs = new URLSearchParams(window.location.search || '');
   if ((qs.get('cta') || '').toLowerCase() === 'quick') {
-    setTimeout(openQuickStartModal, 150);
+    setTimeout(function () { openQuickStartModal('url_param'); }, 150);
   }
 } catch (e) {}
 </script>
