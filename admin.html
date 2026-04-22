@@ -444,18 +444,15 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
     <!-- ATTRIBUTION ÖZETİ -->
     <div class="page" id="page-attr">
       <div class="page-title">Attribution Özeti</div>
-      <div class="page-sub">Lead kaynakları + uygulama içi demo/paket/iletişim adımları</div>
+      <div class="page-sub">Lead kaynakları + landing popup dönüşüm adımları</div>
       <div class="stats-row attr-stats-grid" style="margin-bottom:18px">
         <div class="stat-card"><div class="stat-label">Lead (toplam)</div><div class="stat-value" id="attr-stat-leads">—</div><div class="stat-sub">potansiyel müşteri</div></div>
         <div class="stat-card"><div class="stat-label">Attribution içeren lead</div><div class="stat-value" id="attr-stat-leads-attr">—</div><div class="stat-sub">iletişim veya Teklif Al formu (notta Attribution)</div></div>
-        <div class="stat-card"><div class="stat-label">UTM içeren olay (7 gün)</div><div class="stat-value" id="attr-stat-events-utm-7d">—</div><div class="stat-sub">analytics kaydında utm_*</div></div>
         <div class="stat-card"><div class="stat-label">Popup açılış (7 gün)</div><div class="stat-value" id="attr-stat-quick-open-7d">—</div><div class="stat-sub">landing_quick_popup_open</div></div>
         <div class="stat-card"><div class="stat-label">Popup demo tık (7 gün)</div><div class="stat-value" id="attr-stat-quick-demo-7d">—</div><div class="stat-sub">landing_quick_popup_demo_click</div></div>
         <div class="stat-card"><div class="stat-label">Landing form gönderim</div><div class="stat-value" id="attr-stat-landing-submit-7d">—</div><div class="stat-sub">landing_contact_submit_success</div></div>
         <div class="stat-card"><div class="stat-label">LinkedIn olay (Oturum)</div><div class="stat-value" id="attr-stat-events-linkedin-session-7d">—</div><div class="stat-sub">attribution.current.utm_source=linkedin</div></div>
-        <div class="stat-card"><div class="stat-label">LinkedIn olay (Son temas)</div><div class="stat-value" id="attr-stat-events-linkedin-touch-7d">—</div><div class="stat-sub">attribution.last.utm_source=linkedin</div></div>
         <div class="stat-card"><div class="stat-label">Uygulama olayı (7 gün)</div><div class="stat-value" id="attr-stat-events-7d">—</div><div class="stat-sub">finskor_analytics_events</div></div>
-        <div class="stat-card"><div class="stat-label">Demo başlat</div><div class="stat-value" id="attr-stat-demo-start">—</div><div class="stat-sub">demo_start_click</div></div>
       </div>
 
       <div class="toolbar">
@@ -1828,8 +1825,6 @@ async function loadAttrSummary() {
     document.getElementById('attr-stat-leads').textContent = String(allLeads.length);
     document.getElementById('attr-stat-leads-attr').textContent = String(withAttr.length);
 
-    const demoStart = _attrEvents.filter(e => e.event === 'demo_start_click').length;
-    const utmEvCount = _attrEvents.filter(e => _attrPickUtmForEvent(e.attribution) !== '—').length;
     const quickPopupOpen = _attrEvents.filter(e => e.event === 'landing_quick_popup_open').length;
     const quickPopupDemo = _attrEvents.filter(e => e.event === 'landing_quick_popup_demo_click').length;
     const landingSubmit = _attrEvents.filter(e => e.event === 'landing_contact_submit_success').length;
@@ -1842,19 +1837,7 @@ async function loadAttrSummary() {
         return false;
       }
     }).length;
-    const linkedinTouchCount = _attrEvents.filter(e => {
-      try {
-        const a = e.attribution || {};
-        const last = (a.last && typeof a.last === 'object') ? a.last : {};
-        return String(last.utm_source || '').toLowerCase() === 'linkedin';
-      } catch (_) {
-        return false;
-      }
-    }).length;
     document.getElementById('attr-stat-events-7d').textContent = String(_attrEvents.length);
-    document.getElementById('attr-stat-demo-start').textContent = String(demoStart);
-    const elUtm = document.getElementById('attr-stat-events-utm-7d');
-    if (elUtm) elUtm.textContent = String(utmEvCount);
     const elQuickOpen = document.getElementById('attr-stat-quick-open-7d');
     if (elQuickOpen) elQuickOpen.textContent = String(quickPopupOpen);
     const elQuickDemo = document.getElementById('attr-stat-quick-demo-7d');
@@ -1863,8 +1846,6 @@ async function loadAttrSummary() {
     if (elLandingSubmit) elLandingSubmit.textContent = String(landingSubmit);
     const elLinkedinSession = document.getElementById('attr-stat-events-linkedin-session-7d');
     if (elLinkedinSession) elLinkedinSession.textContent = String(linkedinSessionCount);
-    const elLinkedinTouch = document.getElementById('attr-stat-events-linkedin-touch-7d');
-    if (elLinkedinTouch) elLinkedinTouch.textContent = String(linkedinTouchCount);
 
     const top = _attrTopUtmKeys(allLeads);
     if (utmBody) {
@@ -1916,7 +1897,8 @@ function renderAttrTables() {
 
   const evBody = document.getElementById('attr-events-body');
   if (evBody && _attrEvents && _attrEvents.length) {
-    const rows = !qq ? _attrEvents : _attrEvents.filter(e => {
+    const popupEvents = _attrEvents.filter(e => String(e.event || '').startsWith('landing_'));
+    const rows = !qq ? popupEvents : popupEvents.filter(e => {
       const blob = JSON.stringify(e).toLowerCase();
       return blob.includes(qq);
     });
