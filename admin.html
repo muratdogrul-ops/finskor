@@ -448,13 +448,13 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
       <div class="stats-row attr-stats-grid" style="margin-bottom:18px">
         <div class="stat-card"><div class="stat-label">Lead (toplam)</div><div class="stat-value" id="attr-stat-leads">—</div><div class="stat-sub">potansiyel müşteri</div></div>
         <div class="stat-card"><div class="stat-label">Attribution içeren lead</div><div class="stat-value" id="attr-stat-leads-attr">—</div><div class="stat-sub">iletişim veya Teklif Al formu (notta Attribution)</div></div>
-        <div class="stat-card"><div class="stat-label">Popup açılış (7 gün)</div><div class="stat-value" id="attr-stat-quick-open-7d">—</div><div class="stat-sub">landing_quick_popup_open</div></div>
-        <div class="stat-card"><div class="stat-label">Popup seçenek tık</div><div class="stat-value" id="attr-stat-quick-select-7d">—</div><div class="stat-sub">landing_quick_popup_select</div></div>
-        <div class="stat-card"><div class="stat-label">Popup kapatma</div><div class="stat-value" id="attr-stat-quick-close-7d">—</div><div class="stat-sub">landing_quick_popup_close</div></div>
-        <div class="stat-card"><div class="stat-label">Popup demo tık (7 gün)</div><div class="stat-value" id="attr-stat-quick-demo-7d">—</div><div class="stat-sub">landing_quick_popup_demo_click</div></div>
-        <div class="stat-card"><div class="stat-label">Landing form gönderim</div><div class="stat-value" id="attr-stat-landing-submit-7d">—</div><div class="stat-sub">landing_contact_submit_success</div></div>
-        <div class="stat-card"><div class="stat-label">İletişim modal açılış</div><div class="stat-value" id="attr-stat-contact-modal-open-7d">—</div><div class="stat-sub">landing_contact_modal_open</div></div>
-        <div class="stat-card"><div class="stat-label">Landing form denemesi</div><div class="stat-value" id="attr-stat-contact-attempt-7d">—</div><div class="stat-sub">landing_contact_submit_attempt</div></div>
+        <div class="stat-card"><div class="stat-label">Popup açılış (7 gün)</div><div class="stat-value" id="attr-stat-quick-open-7d">—</div><div class="stat-sub" title="landing_quick_popup_open">Hızlı başlangıç penceresi açıldı</div></div>
+        <div class="stat-card"><div class="stat-label">Popup seçenek tık</div><div class="stat-value" id="attr-stat-quick-select-7d">—</div><div class="stat-sub" title="landing_quick_popup_select">Hızlı başlangıçta seçim yapıldı</div></div>
+        <div class="stat-card"><div class="stat-label">Popup kapatma</div><div class="stat-value" id="attr-stat-quick-close-7d">—</div><div class="stat-sub" title="landing_quick_popup_close">Hızlı başlangıç penceresi kapatıldı</div></div>
+        <div class="stat-card"><div class="stat-label">Popup demo tık (7 gün)</div><div class="stat-value" id="attr-stat-quick-demo-7d">—</div><div class="stat-sub" title="landing_quick_popup_demo_click">Ücretsiz demoya geçiş tıklandı</div></div>
+        <div class="stat-card"><div class="stat-label">Landing form gönderim</div><div class="stat-value" id="attr-stat-landing-submit-7d">—</div><div class="stat-sub" title="landing_contact_submit_success">İletişim formu başarıyla gönderildi</div></div>
+        <div class="stat-card"><div class="stat-label">İletişim modal açılış</div><div class="stat-value" id="attr-stat-contact-modal-open-7d">—</div><div class="stat-sub" title="landing_contact_modal_open">İletişim formu açıldı</div></div>
+        <div class="stat-card"><div class="stat-label">Landing form denemesi</div><div class="stat-value" id="attr-stat-contact-attempt-7d">—</div><div class="stat-sub" title="landing_contact_submit_attempt">İletişim formu gönderimi denendi</div></div>
         <div class="stat-card"><div class="stat-label">LinkedIn olay (Oturum)</div><div class="stat-value" id="attr-stat-events-linkedin-session-7d">—</div><div class="stat-sub">attribution.current.utm_source=linkedin</div></div>
         <div class="stat-card"><div class="stat-label">Uygulama olayı (7 gün)</div><div class="stat-value" id="attr-stat-events-7d">—</div><div class="stat-sub">finskor_analytics_events</div></div>
       </div>
@@ -1774,6 +1774,21 @@ function _attrTopUtmKeys(leads) {
   return Array.from(map.entries()).sort((a,b) => b[1]-a[1]).slice(0, 15);
 }
 
+/** Supabase teknik olay anahtarı → tabloda Türkçe başlık (DB değişmez). */
+function _attrEventLabelTr(eventName) {
+  const key = String(eventName || '').trim();
+  const M = {
+    landing_quick_popup_open: 'Hızlı başlangıç penceresi açıldı',
+    landing_quick_popup_select: 'Hızlı başlangıçta seçim yapıldı',
+    landing_quick_popup_close: 'Hızlı başlangıç penceresi kapatıldı',
+    landing_quick_popup_demo_click: 'Ücretsiz demoya geçiş tıklandı',
+    landing_contact_modal_open: 'İletişim formu açıldı',
+    landing_contact_submit_attempt: 'İletişim formu gönderimi denendi',
+    landing_contact_submit_success: 'İletişim formu başarıyla gönderildi'
+  };
+  return M[key] || key || '—';
+}
+
 function _attrFormatEventDetail(eventName, props) {
   const p = props && typeof props === 'object' ? props : {};
   const labels = [];
@@ -1929,15 +1944,17 @@ function renderAttrTables() {
   if (evBody && _attrEvents && _attrEvents.length) {
     const popupEvents = _attrEvents.filter(e => String(e.event || '').startsWith('landing_'));
     const rows = !qq ? popupEvents : popupEvents.filter(e => {
-      const blob = JSON.stringify(e).toLowerCase();
+      const blob = JSON.stringify(e).toLowerCase() + ' ' + String(_attrEventLabelTr(e.event)).toLowerCase();
       return blob.includes(qq);
     });
     evBody.innerHTML = rows.slice(0, 200).map(e => {
       const utmSession = _attrPickUtmForEvent(e.attribution);
       const det = _attrFormatEventDetail(e.event, e.props);
+      const evLabel = _attrEventLabelTr(e.event);
+      const evRaw = String(e.event || '').replace(/"/g, '&quot;');
       return `<tr>
         <td style="font-size:11px;color:var(--text-muted);white-space:nowrap">${fmtDateTime(e.created_at)}</td>
-        <td style="font-weight:700;font-size:12px">${e.event || '—'}</td>
+        <td style="font-weight:700;font-size:12px" title="${evRaw}">${evLabel}</td>
         <td style="font-size:11px;color:var(--text-muted);max-width:240px;overflow:hidden;text-overflow:ellipsis">${e.page || '—'}</td>
         <td style="font-size:11px">${utmSession}</td>
         <td style="font-size:11px;color:var(--text-muted);max-width:360px;overflow:hidden;text-overflow:ellipsis">${det}</td>
