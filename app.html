@@ -1497,8 +1497,8 @@ function finskorBackendLog(eventName, props) {
     var body = JSON.stringify(bodyObj);
     if (navigator.sendBeacon) {
       var blob = new Blob([body], { type: 'application/json' });
-      navigator.sendBeacon('/.netlify/functions/finskor-analytics', blob);
-      return;
+      var ok = navigator.sendBeacon('/.netlify/functions/finskor-analytics', blob);
+      if (ok) return;
     }
     fetch('/.netlify/functions/finskor-analytics', {
       method: 'POST',

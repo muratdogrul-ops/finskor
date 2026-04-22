@@ -2472,8 +2472,8 @@ function finskorTrackLandingEvent(eventName, props) {
       userAgent: (navigator.userAgent || '')
     });
     if (navigator.sendBeacon) {
-      navigator.sendBeacon('/.netlify/functions/finskor-analytics', new Blob([body], { type: 'application/json' }));
-      return;
+      const ok = navigator.sendBeacon('/.netlify/functions/finskor-analytics', new Blob([body], { type: 'application/json' }));
+      if (ok) return;
     }
     fetch('/.netlify/functions/finskor-analytics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(function () {});
   } catch (e) {}
