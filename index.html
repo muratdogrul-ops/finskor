@@ -2109,7 +2109,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <li>Özelleştirilmiş raporlama</li>
           <li>1 yıllık finansal danışmanlık</li>
         </ul>
-        <button class="pricing-btn pricing-btn-outline" onclick="openContactModal()" style="cursor:pointer;border-color:rgba(201,168,76,0.45);color:#f1f5f9">İletişime Geçin</button>
+        <button class="pricing-btn pricing-btn-outline" onclick="openContactModal('pricing')" style="cursor:pointer;border-color:rgba(201,168,76,0.45);color:#f1f5f9">İletişime Geçin</button>
       </div>
 
       <div class="pricing-card paket-site-hidden" hidden aria-hidden="true" style="display:none!important;border-color:rgba(16,185,129,0.5)">
@@ -2206,7 +2206,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="section-inner">
     <div class="section-tag">SSS</div>
     <h2 class="section-title">Sıkça Sorulan Sorular</h2>
-    <p class="section-desc">Aklınızdaki soruların cevabı burada. Bulamazsanız <span class="copy-mail-footer" onclick="openContactModal()" style="color:var(--gold);cursor:pointer;border-bottom:1px dashed rgba(201,168,76,0.4)">bize yazın</span>.</p>
+    <p class="section-desc">Aklınızdaki soruların cevabı burada. Bulamazsanız <span class="copy-mail-footer" onclick="openContactModal('faq_intro')" style="color:var(--gold);cursor:pointer;border-bottom:1px dashed rgba(201,168,76,0.4)">bize yazın</span>.</p>
     <div class="faq-list">
 
       <div class="faq-item">
@@ -2297,7 +2297,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <span class="faq-icon">+</span>
         </button>
         <div class="faq-a">
-          Profesyonel paket bireysel kullanım için uygundur; 4 analiz kontörü içerir. Kurumsal paket ise birden fazla kullanıcı, özelleştirilmiş raporlama ve 1 yıllık finansal danışmanlık desteği sunar. Kurumsal fiyatlandırma için <span class="copy-mail-footer" onclick="openContactModal()" style="color:var(--gold);cursor:pointer;border-bottom:1px dashed rgba(201,168,76,0.4)">bize ulaşın</span>.
+          Profesyonel paket bireysel kullanım için uygundur; 4 analiz kontörü içerir. Kurumsal paket ise birden fazla kullanıcı, özelleştirilmiş raporlama ve 1 yıllık finansal danışmanlık desteği sunar. Kurumsal fiyatlandırma için <span class="copy-mail-footer" onclick="openContactModal('faq_kurumsal')" style="color:var(--gold);cursor:pointer;border-bottom:1px dashed rgba(201,168,76,0.4)">bize ulaşın</span>.
         </div>
       </div>
 
@@ -2315,7 +2315,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </p>
     <div class="cta-actions">
       <button class="btn-hero-primary" onclick="openQuickStartModal('cta')" style="cursor:pointer">Demo Yap — Ücretsiz</button>
-      <button class="btn-hero-outline" onclick="openContactModal()" style="cursor:pointer">Bize Yazın</button>
+      <button class="btn-hero-outline" onclick="openContactModal('cta')" style="cursor:pointer">Bize Yazın</button>
     </div>
   </div>
 </section>
@@ -2392,7 +2392,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <a href="#">Gizlilik</a>
       <a href="#">KVKK</a>
       <a href="#">Sorumluluk Reddi</a>
-      <span class="copy-mail-footer" onclick="openContactModal()" title="Bize ulaşın">info@finskor.tr</span>
+      <span class="copy-mail-footer" onclick="openContactModal('footer_email')" title="Bize ulaşın">info@finskor.tr</span>
     </div>
     <div class="footer-copy">© 2026 FinSkor. Tüm hakları saklıdır.</div>
   </div>
@@ -2500,7 +2500,7 @@ function closeQuickStartModal(reason) {
 function selectQuickStart(konu) {
   finskorTrackLandingEvent('landing_quick_popup_select', { option: konu || 'Fiyat Bilgisi' });
   closeQuickStartModal('select');
-  openContactModal();
+  openContactModal('quick_popup_select');
   const konuEl = document.getElementById('cKonu');
   if (konuEl) konuEl.value = konu || 'Fiyat Bilgisi';
   toggleDiger('cAciklama','cKonu');
@@ -2511,10 +2511,11 @@ function quickStartGoDemo(event) {
   closeQuickStartModal('demo_click');
   setTimeout(function () { window.location.href = 'app.html'; }, 60);
 }
-function openContactModal() {
+function openContactModal(source) {
   const m = document.getElementById('contactModal');
   m.style.display = 'flex';
   document.body.style.overflow = 'hidden';
+  finskorTrackLandingEvent('landing_contact_modal_open', { source: source || 'unknown' });
   setTimeout(() => { document.getElementById('cAdSoyad').focus(); }, 100);
 }
 function closeContactModal() {
@@ -2542,8 +2543,14 @@ async function submitContact() {
   const aciklama = document.getElementById('cAciklamaText').value.trim();
   const hata = document.getElementById('cHata');
 
-  if (!ad) { hata.textContent = 'Ad Soyad zorunludur.'; hata.style.display='block'; return; }
-  if (!tel || tel.length < 10) { hata.textContent = 'Geçerli bir telefon numarası giriniz.'; hata.style.display='block'; return; }
+  finskorTrackLandingEvent('landing_contact_submit_attempt', { topic: konu || 'Fiyat Bilgisi' });
+
+  if (!ad) {
+    hata.textContent = 'Ad Soyad zorunludur.'; hata.style.display='block'; return;
+  }
+  if (!tel || tel.length < 10) {
+    hata.textContent = 'Geçerli bir telefon numarası giriniz.'; hata.style.display='block'; return;
+  }
   hata.style.display = 'none';
 
   const btn = event.target;
@@ -2557,7 +2564,10 @@ async function submitContact() {
       body: JSON.stringify({ adSoyad: ad, telefon: tel, konu: konu + (aciklama ? (' — ' + aciklama) : '') })
     });
     finskorTrackLandingEvent('landing_contact_submit_success', { topic: konu || 'Fiyat Bilgisi', source: 'landing_modal' });
-  } catch(e) { /* sessiz hata — başarı göster */ }
+  } catch(e) {
+    finskorTrackLandingEvent('landing_contact_submit_attempt', { topic: konu || 'Fiyat Bilgisi', outcome: 'network_fail' });
+    /* sessiz hata — başarı göster */
+  }
 
   btn.textContent = 'Gönder →';
   btn.disabled = false;

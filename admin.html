@@ -453,6 +453,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
         <div class="stat-card"><div class="stat-label">Popup kapatma</div><div class="stat-value" id="attr-stat-quick-close-7d">—</div><div class="stat-sub">landing_quick_popup_close</div></div>
         <div class="stat-card"><div class="stat-label">Popup demo tık (7 gün)</div><div class="stat-value" id="attr-stat-quick-demo-7d">—</div><div class="stat-sub">landing_quick_popup_demo_click</div></div>
         <div class="stat-card"><div class="stat-label">Landing form gönderim</div><div class="stat-value" id="attr-stat-landing-submit-7d">—</div><div class="stat-sub">landing_contact_submit_success</div></div>
+        <div class="stat-card"><div class="stat-label">İletişim modal açılış</div><div class="stat-value" id="attr-stat-contact-modal-open-7d">—</div><div class="stat-sub">landing_contact_modal_open</div></div>
+        <div class="stat-card"><div class="stat-label">Landing form denemesi</div><div class="stat-value" id="attr-stat-contact-attempt-7d">—</div><div class="stat-sub">landing_contact_submit_attempt</div></div>
         <div class="stat-card"><div class="stat-label">LinkedIn olay (Oturum)</div><div class="stat-value" id="attr-stat-events-linkedin-session-7d">—</div><div class="stat-sub">attribution.current.utm_source=linkedin</div></div>
         <div class="stat-card"><div class="stat-label">Uygulama olayı (7 gün)</div><div class="stat-value" id="attr-stat-events-7d">—</div><div class="stat-sub">finskor_analytics_events</div></div>
       </div>
@@ -1780,6 +1782,14 @@ function _attrFormatEventDetail(eventName, props) {
       login: 'Kaynak: Giris',
       demo_overlay: 'Kaynak: Demo popup',
       demo_offer_popup: 'Kaynak: Teklif popup',
+      pricing: 'Kaynak: Fiyatlandirma',
+      faq_intro: 'Kaynak: SSS giris',
+      faq_kurumsal: 'Kaynak: SSS kurumsal',
+      cta: 'Kaynak: CTA',
+      footer_email: 'Kaynak: Footer e-posta',
+      quick_popup_select: 'Kaynak: Hizli popup secim',
+      landing_modal: 'Kaynak: Landing iletisim',
+      unknown: 'Kaynak: Bilinmiyor',
     };
     labels.push(srcMap[p.source] || `Kaynak: ${String(p.source)}`);
   }
@@ -1792,6 +1802,12 @@ function _attrFormatEventDetail(eventName, props) {
   }
   if (p.method) labels.push(`Yontem: ${String(p.method)}`);
   if (p.konu) labels.push(`Konu: ${String(p.konu)}`);
+  if (p.topic) labels.push(`Konu: ${String(p.topic)}`);
+  if (p.option) labels.push(`Secenek: ${String(p.option)}`);
+  if (p.stage) labels.push(`Asama: ${String(p.stage)}`);
+  if (p.reason) labels.push(`Neden: ${String(p.reason)}`);
+  if (p.outcome) labels.push(`Sonuc: ${String(p.outcome)}`);
+  if (p.target) labels.push(`Hedef: ${String(p.target)}`);
   if (!labels.length) return '—';
   return labels.join(' | ');
 }
@@ -1832,6 +1848,8 @@ async function loadAttrSummary() {
     const quickPopupClose = _attrEvents.filter(e => e.event === 'landing_quick_popup_close').length;
     const quickPopupDemo = _attrEvents.filter(e => e.event === 'landing_quick_popup_demo_click').length;
     const landingSubmit = _attrEvents.filter(e => e.event === 'landing_contact_submit_success').length;
+    const contactModalOpen = _attrEvents.filter(e => e.event === 'landing_contact_modal_open').length;
+    const contactAttempt = _attrEvents.filter(e => e.event === 'landing_contact_submit_attempt').length;
     const linkedinSessionCount = _attrEvents.filter(e => {
       try {
         const a = e.attribution || {};
@@ -1852,6 +1870,10 @@ async function loadAttrSummary() {
     if (elQuickDemo) elQuickDemo.textContent = String(quickPopupDemo);
     const elLandingSubmit = document.getElementById('attr-stat-landing-submit-7d');
     if (elLandingSubmit) elLandingSubmit.textContent = String(landingSubmit);
+    const elContactModalOpen = document.getElementById('attr-stat-contact-modal-open-7d');
+    if (elContactModalOpen) elContactModalOpen.textContent = String(contactModalOpen);
+    const elContactAttempt = document.getElementById('attr-stat-contact-attempt-7d');
+    if (elContactAttempt) elContactAttempt.textContent = String(contactAttempt);
     const elLinkedinSession = document.getElementById('attr-stat-events-linkedin-session-7d');
     if (elLinkedinSession) elLinkedinSession.textContent = String(linkedinSessionCount);
 
