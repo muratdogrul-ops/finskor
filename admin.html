@@ -1792,6 +1792,21 @@ function _attrFormatEventDetail(eventName, props) {
   return labels.join(' | ');
 }
 
+function _attrPickUtmForEvent(attribution) {
+  try {
+    const a = attribution && typeof attribution === 'object' ? attribution : {};
+    const cur = (a.current && typeof a.current === 'object') ? a.current : {};
+    const last = (a.last && typeof a.last === 'object') ? a.last : {};
+    const curStr = [cur.utm_source, cur.utm_medium, cur.utm_campaign].filter(Boolean).join(' / ');
+    if (curStr) return `${curStr} (Oturum)`;
+    const lastStr = [last.utm_source, last.utm_medium, last.utm_campaign].filter(Boolean).join(' / ');
+    if (lastStr) return `${lastStr} (Son temas)`;
+    return '—';
+  } catch (_) {
+    return '—';
+  }
+}
+
 async function loadAttrSummary() {
   const evBody = document.getElementById('attr-events-body');
   const utmBody = document.getElementById('attr-utm-body');
@@ -1812,15 +1827,7 @@ async function loadAttrSummary() {
     document.getElementById('attr-stat-leads-attr').textContent = String(withAttr.length);
 
     const demoStart = _attrEvents.filter(e => e.event === 'demo_start_click').length;
-    const utmEvCount = _attrEvents.filter(e => {
-      try {
-        const a = e.attribution || {};
-        const pick = (a.current && typeof a.current === 'object') ? a.current : {};
-        return !!(pick && (pick.utm_source || pick.utm_medium || pick.utm_campaign || pick.utm_content));
-      } catch (_) {
-        return false;
-      }
-    }).length;
+    const utmEvCount = _attrEvents.filter(e => _attrPickUtmForEvent(e.attribution) !== '—').length;
     document.getElementById('attr-stat-events-7d').textContent = String(_attrEvents.length);
     document.getElementById('attr-stat-demo-start').textContent = String(demoStart);
     const elUtm = document.getElementById('attr-stat-events-utm-7d');
@@ -1881,9 +1888,7 @@ function renderAttrTables() {
       return blob.includes(qq);
     });
     evBody.innerHTML = rows.slice(0, 200).map(e => {
-      const a = e.attribution || {};
-      const cur = (a.current && typeof a.current === 'object') ? a.current : {};
-      const utm = [cur.utm_source, cur.utm_medium, cur.utm_campaign].filter(Boolean).join(' / ') || '—';
+      const utm = _attrPickUtmForEvent(e.attribution);
       const det = _attrFormatEventDetail(e.event, e.props);
       return `<tr>
         <td style="font-size:11px;color:var(--text-muted);white-space:nowrap">${fmtDateTime(e.created_at)}</td>
