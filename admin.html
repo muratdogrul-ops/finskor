@@ -1796,11 +1796,8 @@ function _attrPickUtmForEvent(attribution) {
   try {
     const a = attribution && typeof attribution === 'object' ? attribution : {};
     const cur = (a.current && typeof a.current === 'object') ? a.current : {};
-    const last = (a.last && typeof a.last === 'object') ? a.last : {};
     const curStr = [cur.utm_source, cur.utm_medium, cur.utm_campaign].filter(Boolean).join(' / ');
     if (curStr) return `${curStr} (Oturum)`;
-    const lastStr = [last.utm_source, last.utm_medium, last.utm_campaign].filter(Boolean).join(' / ');
-    if (lastStr) return `${lastStr} (Son temas)`;
     return '—';
   } catch (_) {
     return '—';
