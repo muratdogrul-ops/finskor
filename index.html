@@ -2488,15 +2488,18 @@ function openQuickStartModal(source) {
   document.body.style.overflow = 'hidden';
   finskorTrackLandingEvent('landing_quick_popup_open', { source: source || 'unknown' });
 }
-function closeQuickStartModal() {
+function closeQuickStartModal(reason) {
   const m = document.getElementById('quickStartModal');
   if (!m) return;
   m.style.display = 'none';
   document.body.style.overflow = '';
+  if ((reason || 'dismiss') === 'dismiss') {
+    finskorTrackLandingEvent('landing_quick_popup_close', { reason: 'dismiss' });
+  }
 }
 function selectQuickStart(konu) {
   finskorTrackLandingEvent('landing_quick_popup_select', { option: konu || 'Fiyat Bilgisi' });
-  closeQuickStartModal();
+  closeQuickStartModal('select');
   openContactModal();
   const konuEl = document.getElementById('cKonu');
   if (konuEl) konuEl.value = konu || 'Fiyat Bilgisi';
@@ -2505,7 +2508,7 @@ function selectQuickStart(konu) {
 function quickStartGoDemo(event) {
   if (event && typeof event.preventDefault === 'function') event.preventDefault();
   finskorTrackLandingEvent('landing_quick_popup_demo_click', { target: 'app.html' });
-  closeQuickStartModal();
+  closeQuickStartModal('demo_click');
   setTimeout(function () { window.location.href = 'app.html'; }, 60);
 }
 function openContactModal() {
