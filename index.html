@@ -1491,9 +1491,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </p>
       <div class="hero-actions fade-up fade-up-3">
         <a href="app.html" class="btn-hero-primary">Analiz ve Senaryo →</a>
-        <button class="btn-hero-outline" onclick="openQuickStartModal('hero')" style="background:rgba(46,204,154,0.12);border-color:rgba(46,204,154,0.4);color:#2ECC9A;cursor:pointer;">
+        <a href="app.html" class="btn-hero-outline" onclick="event.preventDefault();try{finskorTrackLandingEvent('landing_quick_popup_demo_click',{target:'app.html',source:'hero'});}catch(e){}setTimeout(function(){window.location.href='app.html';},60);" style="background:rgba(46,204,154,0.12);border-color:rgba(46,204,154,0.4);color:#2ECC9A;text-decoration:none;display:inline-block;">
           <span>▶</span> Demoyu Baykuş AI ile yap
-        </button>
+        </a>
       </div>
       <div class="hero-stats fade-up fade-up-4">
         <div>
@@ -2314,7 +2314,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       Daha az teminat, daha iyi faiz, daha hızlı onay.
     </p>
     <div class="cta-actions">
-      <button class="btn-hero-primary" onclick="openQuickStartModal('cta')" style="cursor:pointer">Demoyu Baykuş AI ile yap</button>
+      <a href="app.html" class="btn-hero-primary" onclick="event.preventDefault();try{finskorTrackLandingEvent('landing_quick_popup_demo_click',{target:'app.html',source:'cta_section'});}catch(e){}setTimeout(function(){window.location.href='app.html';},60);" style="cursor:pointer;text-decoration:none;display:inline-block">Demoyu Baykuş AI ile yap</a>
       <button class="btn-hero-outline" onclick="openContactModal('cta')" style="cursor:pointer">Bize Yazın</button>
     </div>
   </div>
@@ -2326,7 +2326,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <button onclick="closeQuickStartModal()" style="position:absolute;top:12px;right:14px;background:none;border:none;color:rgba(255,255,255,0.5);font-size:22px;cursor:pointer;line-height:1">✕</button>
     <div style="font-size:11px;letter-spacing:2px;color:#C9A84C;font-weight:700;margin-bottom:10px">NASIL İLERLEYELİM?</div>
     <h3 style="font-family:'Playfair Display',serif;font-size:24px;color:#fff;margin:0 0 8px">Önce demoyu Baykuş AI ile deneyin ya da biz size dönelim</h3>
-    <p style="font-size:13px;color:rgba(244,246,249,0.58);margin:0 0 20px;line-height:1.6">İlk seçenek demoyu Baykuş AI eşliğinde uygulamada açar — başta iletişim formu yok. Fiyat ya da görüşme için düğmelere bastığınızda iletişim kutusu açılır; ilettiğiniz bilgi yalnızca size geri dönmek için kullanılır.</p>
+    <p style="font-size:13px;color:rgba(244,246,249,0.58);margin:0 0 20px;line-height:1.6">İlk seçenek demoyu Baykuş AI eşliğinde uygulamada açar; başlangıçta iletişim bilgisi istenmez. Fiyatlandırma veya görüşme talepleri için aşağıdaki alternatif adımlardan birini seçmeniz halinde iletişim formu açılır; paylaştığınız bilgiler yalnızca tarafınıza dönüş amacıyla işlenir.</p>
 
     <div style="display:grid;grid-template-columns:1fr;gap:10px">
       <a href="app.html" onclick="quickStartGoDemo(event)" style="text-decoration:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:10px;background:rgba(46,204,154,0.13);border:1px solid rgba(46,204,154,0.38);color:#2ECC9A;font-weight:700">Demoyu Baykuş AI ile uygulamada aç <span>▶</span></a>
