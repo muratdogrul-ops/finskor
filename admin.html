@@ -449,6 +449,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
         <div class="stat-card"><div class="stat-label">Lead (toplam)</div><div class="stat-value" id="attr-stat-leads">—</div><div class="stat-sub">potansiyel müşteri</div></div>
         <div class="stat-card"><div class="stat-label">Attribution içeren lead</div><div class="stat-value" id="attr-stat-leads-attr">—</div><div class="stat-sub">iletişim veya Teklif Al formu (notta Attribution)</div></div>
         <div class="stat-card"><div class="stat-label">UTM içeren olay (7 gün)</div><div class="stat-value" id="attr-stat-events-utm-7d">—</div><div class="stat-sub">analytics kaydında utm_*</div></div>
+        <div class="stat-card"><div class="stat-label">LinkedIn olay (7 gün)</div><div class="stat-value" id="attr-stat-events-linkedin-7d">—</div><div class="stat-sub">attribution.last.utm_source=linkedin</div></div>
         <div class="stat-card"><div class="stat-label">Uygulama olayı (7 gün)</div><div class="stat-value" id="attr-stat-events-7d">—</div><div class="stat-sub">finskor_analytics_events</div></div>
         <div class="stat-card"><div class="stat-label">Demo başlat</div><div class="stat-value" id="attr-stat-demo-start">—</div><div class="stat-sub">demo_start_click</div></div>
       </div>
@@ -1825,10 +1826,21 @@ async function loadAttrSummary() {
 
     const demoStart = _attrEvents.filter(e => e.event === 'demo_start_click').length;
     const utmEvCount = _attrEvents.filter(e => _attrPickUtmForEvent(e.attribution) !== '—').length;
+    const linkedinEvCount = _attrEvents.filter(e => {
+      try {
+        const a = e.attribution || {};
+        const last = (a.last && typeof a.last === 'object') ? a.last : {};
+        return String(last.utm_source || '').toLowerCase() === 'linkedin';
+      } catch (_) {
+        return false;
+      }
+    }).length;
     document.getElementById('attr-stat-events-7d').textContent = String(_attrEvents.length);
     document.getElementById('attr-stat-demo-start').textContent = String(demoStart);
     const elUtm = document.getElementById('attr-stat-events-utm-7d');
     if (elUtm) elUtm.textContent = String(utmEvCount);
+    const elLinkedin = document.getElementById('attr-stat-events-linkedin-7d');
+    if (elLinkedin) elLinkedin.textContent = String(linkedinEvCount);
 
     const top = _attrTopUtmKeys(allLeads);
     if (utmBody) {
