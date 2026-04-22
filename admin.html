@@ -465,7 +465,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
 
       <div class="card" style="margin-bottom:18px">
         <div class="card-head"><div class="card-head-title">📊 Uygulama olayları (son 500)</div></div>
-        <div class="card-body"><table class="tbl"><thead><tr><th>Zaman</th><th>Olay</th><th>Sayfa</th><th>UTM (son)</th><th>Detay</th></tr></thead><tbody id="attr-events-body"><tr class="loading-row"><td colspan="5"><span class="spinner"></span></td></tr></tbody></table></div>
+        <div class="card-body"><table class="tbl"><thead><tr><th>Zaman</th><th>Olay</th><th>Sayfa</th><th>UTM (Oturum)</th><th>UTM (Temas)</th><th>Detay</th></tr></thead><tbody id="attr-events-body"><tr class="loading-row"><td colspan="6"><span class="spinner"></span></td></tr></tbody></table></div>
       </div>
 
       <div class="card">
@@ -1797,7 +1797,19 @@ function _attrPickUtmForEvent(attribution) {
     const a = attribution && typeof attribution === 'object' ? attribution : {};
     const cur = (a.current && typeof a.current === 'object') ? a.current : {};
     const curStr = [cur.utm_source, cur.utm_medium, cur.utm_campaign].filter(Boolean).join(' / ');
-    if (curStr) return `${curStr} (Oturum)`;
+    if (curStr) return curStr;
+    return '—';
+  } catch (_) {
+    return '—';
+  }
+}
+
+function _attrPickTouchUtmForEvent(attribution) {
+  try {
+    const a = attribution && typeof attribution === 'object' ? attribution : {};
+    const last = (a.last && typeof a.last === 'object') ? a.last : {};
+    const lastStr = [last.utm_source, last.utm_medium, last.utm_campaign].filter(Boolean).join(' / ');
+    if (lastStr) return lastStr;
     return '—';
   } catch (_) {
     return '—';
@@ -1844,11 +1856,11 @@ async function loadAttrSummary() {
     }
 
     if (evErr) {
-      if (evBody) evBody.innerHTML = `<tr><td colspan="5" style="color:var(--danger)">⚠️ Olay tablosu okunamadı: ${evErr.message}</td></tr>`;
+      if (evBody) evBody.innerHTML = `<tr><td colspan="6" style="color:var(--danger)">⚠️ Olay tablosu okunamadı: ${evErr.message}</td></tr>`;
     } else if (!_attrEvents.length) {
-      if (evBody) evBody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-title">Son 7 günde olay yok</div><div class="empty-sub">Tablo kurulduysa birkaç dakika içinde dolmaya başlar.</div></div></td></tr>`;
+      if (evBody) evBody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-title">Son 7 günde olay yok</div><div class="empty-sub">Tablo kurulduysa birkaç dakika içinde dolmaya başlar.</div></div></td></tr>`;
     } else if (evBody) {
-      evBody.innerHTML = `<tr class="loading-row"><td colspan="5"><span class="spinner"></span></td></tr>`;
+      evBody.innerHTML = `<tr class="loading-row"><td colspan="6"><span class="spinner"></span></td></tr>`;
     }
 
     _attrRows = allLeads.map(l => {
@@ -1869,7 +1881,7 @@ async function loadAttrSummary() {
     renderAttrTables();
   } catch (e) {
     if (utmBody) utmBody.innerHTML = `<tr><td colspan="2" style="color:var(--danger)">⚠️ ${e.message}</td></tr>`;
-    if (evBody) evBody.innerHTML = `<tr><td colspan="5" style="color:var(--danger)">⚠️ ${e.message}</td></tr>`;
+    if (evBody) evBody.innerHTML = `<tr><td colspan="6" style="color:var(--danger)">⚠️ ${e.message}</td></tr>`;
     if (ldBody) ldBody.innerHTML = `<tr><td colspan="5" style="color:var(--danger)">⚠️ ${e.message}</td></tr>`;
   }
 }
@@ -1885,13 +1897,15 @@ function renderAttrTables() {
       return blob.includes(qq);
     });
     evBody.innerHTML = rows.slice(0, 200).map(e => {
-      const utm = _attrPickUtmForEvent(e.attribution);
+      const utmSession = _attrPickUtmForEvent(e.attribution);
+      const utmTouch = _attrPickTouchUtmForEvent(e.attribution);
       const det = _attrFormatEventDetail(e.event, e.props);
       return `<tr>
         <td style="font-size:11px;color:var(--text-muted);white-space:nowrap">${fmtDateTime(e.created_at)}</td>
         <td style="font-weight:700;font-size:12px">${e.event || '—'}</td>
         <td style="font-size:11px;color:var(--text-muted);max-width:240px;overflow:hidden;text-overflow:ellipsis">${e.page || '—'}</td>
-        <td style="font-size:11px">${utm}</td>
+        <td style="font-size:11px">${utmSession}</td>
+        <td style="font-size:11px;color:var(--text-muted)">${utmTouch}</td>
         <td style="font-size:11px;color:var(--text-muted);max-width:360px;overflow:hidden;text-overflow:ellipsis">${det}</td>
       </tr>`;
     }).join('');
