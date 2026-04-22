@@ -1770,6 +1770,30 @@ function _attrTopUtmKeys(leads) {
   return Array.from(map.entries()).sort((a,b) => b[1]-a[1]).slice(0, 15);
 }
 
+function _attrFormatEventDetail(eventName, props) {
+  const p = props && typeof props === 'object' ? props : {};
+  const labels = [];
+  if (p.source) {
+    const srcMap = {
+      login: 'Kaynak: Giris',
+      demo_overlay: 'Kaynak: Demo popup',
+      demo_offer_popup: 'Kaynak: Teklif popup',
+    };
+    labels.push(srcMap[p.source] || `Kaynak: ${String(p.source)}`);
+  }
+  if (p.mode) {
+    const modeMap = {
+      instant_ui: 'Mod: Anlik UI',
+      post_analyze: 'Mod: Analiz sonrasi',
+    };
+    labels.push(modeMap[p.mode] || `Mod: ${String(p.mode)}`);
+  }
+  if (p.method) labels.push(`Yontem: ${String(p.method)}`);
+  if (p.konu) labels.push(`Konu: ${String(p.konu)}`);
+  if (!labels.length) return '—';
+  return labels.join(' | ');
+}
+
 async function loadAttrSummary() {
   const evBody = document.getElementById('attr-events-body');
   const utmBody = document.getElementById('attr-utm-body');
@@ -1862,7 +1886,7 @@ function renderAttrTables() {
       const a = e.attribution || {};
       const last = a.last || a.current || {};
       const utm = [last.utm_source, last.utm_medium, last.utm_campaign].filter(Boolean).join(' / ') || '—';
-      const det = (e.props && Object.keys(e.props).length) ? JSON.stringify(e.props) : '—';
+      const det = _attrFormatEventDetail(e.event, e.props);
       return `<tr>
         <td style="font-size:11px;color:var(--text-muted);white-space:nowrap">${fmtDateTime(e.created_at)}</td>
         <td style="font-weight:700;font-size:12px">${e.event || '—'}</td>
