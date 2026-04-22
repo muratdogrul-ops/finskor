@@ -268,6 +268,10 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
       <div class="page-sub">Bilgi talep edenler ve takip listesi</div>
       <div class="toolbar">
         <input class="search-input" type="text" placeholder="🔍 Ad, firma veya telefon ara..." id="lead-search" oninput="filterLeads()">
+        <select class="form-select" id="lead-quick-filter" onchange="filterLeads()" style="max-width:280px;margin:0">
+          <option value="all">Tüm leadler</option>
+          <option value="linkedin_contact">LinkedIn + telefon/email dolu</option>
+        </select>
         <button class="btn btn-primary" onclick="openLeadModal()">+ Yeni Ekle</button>
       </div>
       <div class="card">
@@ -1927,14 +1931,32 @@ function renderLeads(list) {
   }).join('');
 }
 
+function _leadHasLinkedinSource(lead) {
+  const kaynak = String(lead && lead.kaynak || '').toLowerCase();
+  if (kaynak.includes('linkedin')) return true;
+  const notlar = String(lead && lead.notlar || '').toLowerCase();
+  return notlar.includes('utm_source') && notlar.includes('linkedin');
+}
+
+function _leadHasReachableContact(lead) {
+  const tel = String(lead && lead.telefon || '').replace(/\D/g, '');
+  const email = String(lead && lead.email || '').trim();
+  return tel.length >= 10 || email.includes('@');
+}
+
 function filterLeads() {
-  const q = document.getElementById('lead-search').value.toLowerCase();
-  renderLeads(allLeads.filter(l =>
-    (l.ad_soyad||'').toLowerCase().includes(q) ||
-    (l.firma_adi||'').toLowerCase().includes(q) ||
-    (l.telefon||'').includes(q) ||
-    (l.email||'').toLowerCase().includes(q)
-  ));
+  const q = (document.getElementById('lead-search') || {}).value?.toLowerCase() || '';
+  const quick = (document.getElementById('lead-quick-filter') || {}).value || 'all';
+  renderLeads(allLeads.filter(l => {
+    const textMatch =
+      (l.ad_soyad||'').toLowerCase().includes(q) ||
+      (l.firma_adi||'').toLowerCase().includes(q) ||
+      (l.telefon||'').includes(q) ||
+      (l.email||'').toLowerCase().includes(q);
+    if (!textMatch) return false;
+    if (quick === 'linkedin_contact') return _leadHasLinkedinSource(l) && _leadHasReachableContact(l);
+    return true;
+  }));
 }
 
 function openLeadModal() {
