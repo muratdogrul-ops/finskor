@@ -20,14 +20,14 @@ RSA — BAŞLIKLAR (her biri en fazla 30 karakter)
 FinSkor · KOBİ kredi analizi
 KGF öncesi firma notu görün
 KOSGEB ve KGF bilgilendirme
-Ücretsiz demo · kredi notu
+Demo · kredi notu
 Bankaya gitmeden not görün
 Senaryo ile not nasıl artar?
 Kefalet paketleri ve bankalar
 FinSkor ile mali görünüm
 KGF rehberi · FinSkor
 KOSGEB öncesi analiz
-Kredi notu · ücretsiz demo
+Kredi notu · Baykuş ile demo
 KOBİ finansal analiz
 kgf.com.tr özeti + analiz
 Hibe ve kefalet öncesi not
@@ -39,7 +39,7 @@ RSA — AÇIKLAMALAR (her biri en fazla 90 karakter)
 ────────────────────────────────────────
 KGF paket ve banka özeti bilgilendirme. FinSkor ile not ve senaryo; resmi koşul kgf.com.tr.
 KOSGEB destekleri genel bilgi. FinSkor analiz yazılımıdır; başvuru kosgeb.gov.tr üzerinden.
-Firma kredi notunuzu ve zayıf oranları görün. Ücretsiz demo. KGF/KOSGEB resmi değildir.
+Firma kredi notunuzu ve zayıf oranları görün. Baykuş AI ile demo. KGF/KOSGEB resmi değildir.
 Senaryo ile sermaye ve borç etkisini deneyin. Bilgilendirme; kredi kararı bankanızındadır.
 
 ────────────────────────────────────────
@@ -47,13 +47,13 @@ SİTE BAĞLANTISI AÇIKLAMALARI (isteğe bağlı, 25 karaktere kadar)
 ────────────────────────────────────────
 kgf.html açılış
 FinSkor analiz
-Ücretsiz demo
+Baykuş ile demo
 KGF rehberi
 
 ────────────────────────────────────────
 ÇAĞRI İFADELERİ (varlık grupları / uzantı)
 ────────────────────────────────────────
-Ücretsiz demo yap
+Demoyu Baykuş ile dene
 Kredi notunu öğren
 Senaryoyu dene
 Rehberi oku
