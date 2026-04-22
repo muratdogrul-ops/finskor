@@ -1815,7 +1815,7 @@ async function loadAttrSummary() {
     const utmEvCount = _attrEvents.filter(e => {
       try {
         const a = e.attribution || {};
-        const pick = (a.last && typeof a.last === 'object') ? a.last : ((a.current && typeof a.current === 'object') ? a.current : {});
+        const pick = (a.current && typeof a.current === 'object') ? a.current : {};
         return !!(pick && (pick.utm_source || pick.utm_medium || pick.utm_campaign || pick.utm_content));
       } catch (_) {
         return false;
@@ -1882,8 +1882,8 @@ function renderAttrTables() {
     });
     evBody.innerHTML = rows.slice(0, 200).map(e => {
       const a = e.attribution || {};
-      const last = a.last || a.current || {};
-      const utm = [last.utm_source, last.utm_medium, last.utm_campaign].filter(Boolean).join(' / ') || '—';
+      const cur = (a.current && typeof a.current === 'object') ? a.current : {};
+      const utm = [cur.utm_source, cur.utm_medium, cur.utm_campaign].filter(Boolean).join(' / ') || '—';
       const det = _attrFormatEventDetail(e.event, e.props);
       return `<tr>
         <td style="font-size:11px;color:var(--text-muted);white-space:nowrap">${fmtDateTime(e.created_at)}</td>

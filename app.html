@@ -1423,7 +1423,12 @@ function finskorCaptureAttribution() {
       const v = (q.get(k) || '').trim();
       if (v) current[k] = v;
     });
-    if (!Object.keys(current).length) return;
+    // Bu oturum URL'de UTM tasimiyorsa "current" bilgiyi sifirla.
+    // Aksi halde onceki LinkedIn oturumu bu oturuma tasinabiliyor.
+    if (!Object.keys(current).length) {
+      sessionStorage.removeItem('finskor_attr_current');
+      return;
+    }
 
     const nowIso = new Date().toISOString();
     const firstRaw = localStorage.getItem('finskor_attr_first');
