@@ -1,0 +1,196 @@
+/* ════════════════════════════════════════════════════
+   İnşaatERP — Global Responsive / Mobile CSS
+   ════════════════════════════════════════════════════ */
+
+/* ── GENEL ── */
+* { box-sizing: border-box; }
+
+/* ── SCROLL BARS ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 2px; }
+
+/* ── MODAL MOBİL ── */
+.erp-modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.75);
+  z-index: 1000; display: flex; align-items: center;
+  justify-content: center; padding: 16px;
+}
+.erp-modal-box {
+  background: #141b2d; border: 1px solid rgba(255,255,255,.1);
+  border-radius: 20px; padding: 24px; width: 100%;
+  max-height: 92dvh; overflow-y: auto;
+}
+
+/* ── TABLO KAYDIRMA KAPSAYICI ── */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.07);
+}
+.table-scroll table {
+  border: none;
+  border-radius: 0;
+  width: 100%;
+}
+
+/* ── SEKME (TAB) KAYDIRMA ── */
+.tab-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.tab-scroll::-webkit-scrollbar { display: none; }
+
+/* ── HIZLI ERİŞİM BUTONLARI ── */
+.quick-btn {
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 10px; padding: 12px;
+  cursor: pointer; text-align: left;
+  transition: background .15s; color: #f1f5f9;
+  width: 100%;
+}
+.quick-btn:hover { background: rgba(255,255,255,.06); }
+.quick-btn:active { transform: scale(.98); }
+
+/* ════════════════════════════════════════════════════
+   TABLET  (768px – 1023px)
+   ════════════════════════════════════════════════════ */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .g4 { grid-template-columns: repeat(2, 1fr) !important; }
+  .g3 { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+/* ════════════════════════════════════════════════════
+   MOBİL  (≤ 767px)
+   ════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+
+  /* İç padding küçük */
+  .erp-content { padding: 10px !important; }
+
+  /* Grid yığma — CSS class kullananlar */
+  .g1, .g2, .g3, .g4, .g6 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* inline style kullanan iki/üç sütunlu grid'leri tek sütuna çek.
+     Seçici kombinasyonu: tüm display:grid div'leri — bu override inline stili
+     NOT: !important ile inline style geçersiz kılınabilir. */
+
+  /* KPI kartları ise auto-fit kullandığından bunlar zaten responsive */
+
+  /* Tablolar yatay kaydır */
+  table {
+    display: block !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    white-space: nowrap !important;
+    max-width: 100% !important;
+    min-width: unset !important;
+  }
+
+  /* 2-sütun grid'leri tek sütuna — attr seçici ile inline style override */
+  div[style*="grid-template-columns: 1fr 1fr"],
+  div[style*="grid-template-columns: '1fr 1fr'"],
+  div[style*='grid-template-columns: "1fr 1fr"'] {
+    grid-template-columns: 1fr !important;
+  }
+
+  div[style*="grid-template-columns: repeat(2,1fr)"],
+  div[style*="grid-template-columns: repeat(2, 1fr)"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  div[style*="grid-template-columns: repeat(3,1fr)"],
+  div[style*="grid-template-columns: repeat(3, 1fr)"] {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  div[style*="grid-template-columns: 2fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  div[style*="grid-template-columns: 1fr 340px"],
+  div[style*="grid-template-columns: 1fr 300px"],
+  div[style*="grid-template-columns: 1fr 320px"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  div[style*="grid-template-columns: 2fr 1fr 2fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Flex wrap'i zorla */
+  div[style*="display: flex"][style*="gap"]:not(.no-wrap) {
+    flex-wrap: wrap;
+  }
+
+  /* Buton grupları tam genişlik */
+  .btn-group { width: 100% !important; }
+  .btn-group button { flex: 1; }
+
+  /* Modal tam ekran */
+  .erp-modal-backdrop { padding: 8px !important; align-items: flex-end !important; }
+  .erp-modal-box {
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    max-height: 96dvh !important;
+    padding: 20px 16px !important;
+  }
+
+  /* Büyük değer fontları küçült */
+  div[style*="fontSize: 22"],
+  div[style*="font-size: 22px"] {
+    font-size: 18px !important;
+  }
+
+  /* Başlıklar */
+  div[style*="fontSize: 24"],
+  div[style*="fontSize: 28"],
+  div[style*="fontSize: 32"] {
+    font-size: 18px !important;
+  }
+
+  /* Sekme çubuğu mobilde yatay kaydırılabilir */
+  div[style*="width: fit-content"],
+  div[style*="width: \"fit-content\""] {
+    width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Input'lar tam genişlik */
+  input, select, textarea {
+    width: 100% !important;
+    max-width: 100% !important;
+    font-size: 16px !important; /* iOS zoom önleme */
+  }
+
+  /* Buton touch hedefi büyüt */
+  button, a[role="button"] {
+    min-height: 36px;
+  }
+
+  /* Sayfa padding bottom — bottom nav için */
+  .erp-content { padding-bottom: 76px !important; }
+}
+
+/* ════════════════════════════════════════════════════
+   KÜÇÜK MOBİL  (≤ 380px)
+   ════════════════════════════════════════════════════ */
+@media (max-width: 380px) {
+  .erp-content { padding: 8px !important; padding-bottom: 76px !important; }
+
+  div[style*="fontSize: 18"],
+  div[style*="fontSize: 20"] {
+    font-size: 15px !important;
+  }
+
+  /* KPI grid 2'li */
+  div[style*="repeat(auto-fit"] {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}

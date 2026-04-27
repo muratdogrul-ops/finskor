@@ -196,17 +196,20 @@ export const SantiyeDetay: React.FC = () => {
         <RaporLinkButton santiyeId={id} />
       </div>
 
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16, background: 'rgba(255,255,255,.04)', borderRadius: 10, padding: 4, width: 'fit-content', flexWrap: 'wrap' }}>
-        {tabs.map(([tab, label]) => (
-          <button key={tab} onClick={() => {
-            setActiveTab(tab)
-            if (tab === 'yazismalar') navigate(`/mesajlar/${id}`)
-          }} style={{
-            padding: '7px 16px', borderRadius: 7, border: 'none', cursor: 'pointer',
-            background: activeTab === tab ? '#00d4aa' : 'transparent',
-            color: activeTab === tab ? '#000' : '#6b7280', fontWeight: 600, fontSize: 12
-          }}>{label}</button>
-        ))}
+      <div className="tab-scroll" style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,.04)', borderRadius: 10, padding: 4, width: 'fit-content', minWidth: '100%' }}>
+          {tabs.map(([tab, label]) => (
+            <button key={tab} onClick={() => {
+              setActiveTab(tab)
+              if (tab === 'yazismalar') navigate(`/mesajlar/${id}`)
+            }} style={{
+              padding: '8px 14px', borderRadius: 7, border: 'none', cursor: 'pointer',
+              background: activeTab === tab ? '#00d4aa' : 'transparent',
+              color: activeTab === tab ? '#000' : '#6b7280', fontWeight: 600, fontSize: 12,
+              whiteSpace: 'nowrap', flexShrink: 0
+            }}>{label}</button>
+          ))}
+        </div>
       </div>
 
       {activeTab === 'gelismeler' && <GelismelerTab santiye={s} santiyeId={id} />}

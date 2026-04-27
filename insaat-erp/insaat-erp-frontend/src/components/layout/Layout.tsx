@@ -23,6 +23,14 @@ const navItems = [
   { path: '/admin',       label: 'Admin Paneli',  icon: 'M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z' },
 ]
 
+// Mobil alt çubukta gösterilecek 5 ana sekme
+const bottomNavItems = [
+  { path: '/dashboard',  label: 'Ana Sayfa', icon: 'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z' },
+  { path: '/santiyeler', label: 'Şantiyeler', icon: 'M12 3L2 12h3v9h6v-6h2v6h6v-9h3L12 3z' },
+  { path: '/mesajlar',   label: 'Mesajlar', icon: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z' },
+  { path: '/hakedisler', label: 'Hakedişler', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z' },
+]
+
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -30,166 +38,123 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const navigate = useNavigate()
   const { kullanici, refreshToken, logout } = useAuthStore()
 
-  // Mobilde sayfa değişince menüyü kapat
   useEffect(() => { setMobileOpen(false) }, [location.pathname])
 
   const handleLogout = async () => {
-    try {
-      if (refreshToken) await authApi.logout(refreshToken)
-    } finally {
-      logout()
-      navigate('/giris')
-      toast.success('Çıkış yapıldı')
+    try { if (refreshToken) await authApi.logout(refreshToken) } finally {
+      logout(); navigate('/giris'); toast.success('Çıkış yapıldı')
     }
   }
 
   const activeItem = navItems.find(n => location.pathname.startsWith(n.path))
-
   const sidebarWidth = collapsed ? 60 : 220
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#0a0e1a', fontFamily: "'DM Sans','Segoe UI',sans-serif", overflow: 'hidden' }}>
+    <div className="erp-root">
 
       {/* MOBİL OVERLAY */}
       {mobileOpen && (
-        <div
-          className="mobile-overlay"
-          onClick={() => setMobileOpen(false)}
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)',
-            zIndex: 40, display: 'none',
-          }}
-        />
+        <div className="mob-overlay" onClick={() => setMobileOpen(false)} />
       )}
 
       {/* SIDEBAR */}
       <aside
-        className={`sidebar${mobileOpen ? ' sidebar-open' : ''}`}
-        style={{
-          width: sidebarWidth, flexShrink: 0,
-          background: '#0d1526', borderRight: '1px solid rgba(255,255,255,.06)',
-          display: 'flex', flexDirection: 'column', transition: 'width .25s, transform .25s',
-          overflow: 'hidden', zIndex: 50,
-        }}
+        className={`erp-sidebar${mobileOpen ? ' sidebar-open' : ''}${collapsed ? ' collapsed' : ''}`}
+        style={{ width: sidebarWidth }}
       >
-        {/* Logo */}
-        <div style={{ padding: '16px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-            background: 'linear-gradient(135deg,#00d4aa,#00a896)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#000', fontWeight: 900, fontSize: 15
-          }}>İ</div>
+
+        {/* Logo + Collapse Toggle (masaüstü) */}
+        <div className="sidebar-logo">
+          <div className="logo-icon">İ</div>
           {!collapsed && (
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 13, color: '#f1f5f9', whiteSpace: 'nowrap' }}>İnşaatERP</div>
-              <div style={{ fontSize: 10, color: '#4b5563' }}>v2.0 Enterprise</div>
+            <div className="logo-text">
+              <div className="logo-name">İnşaatERP</div>
+              <div className="logo-ver">v2.0 Enterprise</div>
             </div>
           )}
+          <button className="collapse-btn desk-only" onClick={() => setCollapsed(c => !c)} title={collapsed ? 'Genişlet' : 'Daralt'}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d={collapsed ? 'M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z' : 'M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z'} />
+            </svg>
+          </button>
         </div>
 
-        {/* Firma adı */}
+        {/* Firma */}
         {!collapsed && kullanici && (
-          <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.04)', background: 'rgba(0,212,170,.04)' }}>
-            <div style={{ fontSize: 10, color: '#4b5563', fontWeight: 600, textTransform: 'uppercase', letterSpacing: .5 }}>Firma</div>
-            <div style={{ fontSize: 12, color: '#00d4aa', fontWeight: 700, marginTop: 2 }}>{kullanici.tenant_ad}</div>
-            <div style={{ fontSize: 10, color: '#4b5563', marginTop: 1 }}>{kullanici.plan} plan</div>
+          <div className="sidebar-firma">
+            <div className="firma-label">Firma</div>
+            <div className="firma-ad">{kullanici.tenant_ad}</div>
+            <div className="firma-plan">{kullanici.plan} plan</div>
           </div>
         )}
 
         {/* Nav */}
-        <nav style={{ flex: 1, padding: '10px 6px', overflowY: 'auto' }}>
+        <nav className="sidebar-nav">
           {navItems.map(item => {
             const isActive = location.pathname.startsWith(item.path)
             return (
-              <Link key={item.path} to={item.path} style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '9px 10px', borderRadius: 8, marginBottom: 2,
-                background: isActive ? 'rgba(0,212,170,.1)' : 'transparent',
-                color: isActive ? '#00d4aa' : '#6b7280',
-                borderLeft: `2px solid ${isActive ? '#00d4aa' : 'transparent'}`,
-                textDecoration: 'none', fontSize: 12, fontWeight: isActive ? 700 : 500,
-                whiteSpace: 'nowrap', overflow: 'hidden', transition: 'all .15s'
-              }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+              <Link key={item.path} to={item.path}
+                className={`nav-item${isActive ? ' active' : ''}`}
+                title={collapsed ? item.label : undefined}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="nav-icon">
                   <path d={item.icon} />
                 </svg>
-                {!collapsed && <span>{item.label}</span>}
+                {!collapsed && <span className="nav-label">{item.label}</span>}
               </Link>
             )
           })}
         </nav>
 
         {/* Kullanıcı */}
-        <div style={{ padding: '10px 6px', borderTop: '1px solid rgba(255,255,255,.06)' }}>
-          {kullanici && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px' }}>
-              <div style={{
-                width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
-                background: avatarColor(kullanici.id),
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 11, fontWeight: 700, color: '#fff'
-              }}>{initials(kullanici.ad, kullanici.soyad)}</div>
-              {!collapsed && (
-                <>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {kullanici.ad} {kullanici.soyad}
-                    </div>
-                    <div style={{ fontSize: 10, color: '#4b5563' }}>{kullanici.rol}</div>
-                  </div>
-                  <button onClick={handleLogout} title="Çıkış yap" style={{
-                    background: 'none', border: 'none', color: '#4b5563',
-                    cursor: 'pointer', padding: 4, flexShrink: 0
-                  }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
-                    </svg>
-                  </button>
-                </>
-              )}
+        {kullanici && (
+          <div className="sidebar-user">
+            <div className="user-avatar" style={{ background: avatarColor(kullanici.id) }}>
+              {initials(kullanici.ad, kullanici.soyad)}
             </div>
-          )}
-        </div>
+            {!collapsed && (
+              <>
+                <div className="user-info">
+                  <div className="user-name">{kullanici.ad} {kullanici.soyad}</div>
+                  <div className="user-rol">{kullanici.rol}</div>
+                </div>
+                <button onClick={handleLogout} className="logout-btn" title="Çıkış yap">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+                  </svg>
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </aside>
 
       {/* MAIN */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+      <div className="erp-main">
+
         {/* Topbar */}
-        <header style={{
-          height: 54, background: 'rgba(13,21,38,.98)',
-          borderBottom: '1px solid rgba(255,255,255,.06)',
-          display: 'flex', alignItems: 'center', padding: '0 18px', gap: 12, flexShrink: 0
-        }}>
-          {/* Masaüstü: collapse toggle / Mobil: hamburger */}
-          <button
-            className="menu-toggle"
-            onClick={() => {
-              if (window.innerWidth < 768) setMobileOpen(o => !o)
-              else setCollapsed(c => !c)
-            }}
-            style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', padding: 4 }}
-          >
+        <header className="erp-topbar">
+          <button className="hamburger" onClick={() => {
+            if (window.innerWidth < 768) setMobileOpen(o => !o)
+            else setCollapsed(c => !c)
+          }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
               <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
             </svg>
           </button>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 14, color: '#f1f5f9' }}>{activeItem?.label || 'İnşaatERP'}</div>
-            <div style={{ fontSize: 10, color: '#4b5563' }} className="hide-mobile">
+
+          <div className="topbar-title">
+            <div className="page-title">{activeItem?.label || 'İnşaatERP'}</div>
+            <div className="page-date desk-only">
               {new Date().toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </div>
           </div>
+
           <div style={{ flex: 1 }} />
-          <div style={{ fontSize: 11, color: '#4b5563' }} className="hide-mobile">
-            {kullanici?.tenant_ad}
-          </div>
-          {/* Mobil: çıkış */}
-          <button
-            className="show-mobile"
-            onClick={handleLogout}
-            style={{ background: 'none', border: 'none', color: '#4b5563', cursor: 'pointer', padding: 4, display: 'none' }}
-          >
+
+          <div className="topbar-tenant desk-only">{kullanici?.tenant_ad}</div>
+
+          {/* Mobil çıkış */}
+          <button className="mob-only logout-btn-mob" onClick={handleLogout}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
             </svg>
@@ -197,55 +162,214 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         </header>
 
         {/* Content */}
-        <main style={{ flex: 1, overflowY: 'auto', padding: 20, color: '#f1f5f9' }}>
+        <main className="erp-content">
           {children}
         </main>
+
+        {/* MOBİL ALT NAVİGASYON */}
+        <nav className="bottom-nav mob-only">
+          {bottomNavItems.map(item => {
+            const isActive = location.pathname.startsWith(item.path)
+            return (
+              <Link key={item.path} to={item.path} className={`bottom-nav-item${isActive ? ' active' : ''}`}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                  <path d={item.icon} />
+                </svg>
+                <span>{item.label}</span>
+              </Link>
+            )
+          })}
+          {/* Daha Fazla butonu */}
+          <button className={`bottom-nav-item${mobileOpen ? ' active' : ''}`} onClick={() => setMobileOpen(o => !o)}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+            </svg>
+            <span>Menü</span>
+          </button>
+        </nav>
       </div>
 
       <style>{`
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { overflow: hidden; background: #0a0e1a; font-family: 'DM Sans','Segoe UI',sans-serif; }
         @keyframes spin { to { transform: rotate(360deg) } }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { overflow: hidden; }
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 2px; }
         a { text-decoration: none; }
         input, select, textarea, button { font-family: inherit; }
 
-        /* ── MOBİL RESPONSIVE ── */
-        @media (max-width: 767px) {
-          .sidebar {
-            position: fixed !important;
-            top: 0; left: 0; bottom: 0;
-            width: 240px !important;
-            transform: translateX(-100%);
-            z-index: 50;
-            box-shadow: 4px 0 24px rgba(0,0,0,.5);
-          }
-          .sidebar.sidebar-open {
-            transform: translateX(0) !important;
-          }
-          .mobile-overlay {
-            display: block !important;
-          }
-          .hide-mobile { display: none !important; }
-          .show-mobile { display: flex !important; }
-          main { padding: 12px !important; }
+        /* ── ROOT ── */
+        .erp-root { display: flex; height: 100dvh; background: #0a0e1a; overflow: hidden; color: #f1f5f9; }
+
+        /* ── SIDEBAR ── */
+        .erp-sidebar {
+          flex-shrink: 0;
+          background: #0d1526; border-right: 1px solid rgba(255,255,255,.06);
+          display: flex; flex-direction: column; transition: width .25s, transform .25s;
+          overflow: hidden; z-index: 50;
         }
 
-        /* ── TABLO MOBİL ── */
-        @media (max-width: 767px) {
-          table { display: block; overflow-x: auto; white-space: nowrap; }
-          .grid-responsive { grid-template-columns: 1fr !important; }
-          .grid-2 { grid-template-columns: 1fr !important; }
-          .grid-3 { grid-template-columns: 1fr 1fr !important; }
-          .grid-4 { grid-template-columns: 1fr 1fr !important; }
+        .sidebar-logo {
+          padding: 16px 14px; border-bottom: 1px solid rgba(255,255,255,.06);
+          display: flex; align-items: center; gap: 10; flex-shrink: 0; position: relative;
         }
+        .logo-icon {
+          width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+          background: linear-gradient(135deg,#00d4aa,#00a896);
+          display: flex; align-items: center; justify-content: center;
+          color: #000; font-weight: 900; font-size: 15px;
+        }
+        .logo-text { overflow: hidden; }
+        .logo-name { font-weight: 800; font-size: 13px; color: #f1f5f9; white-space: nowrap; }
+        .logo-ver  { font-size: 10px; color: #4b5563; }
+        .collapse-btn {
+          position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+          background: none; border: none; color: #4b5563; cursor: pointer;
+          width: 24px; height: 24px; border-radius: 4px; display: flex; align-items: center; justify-content: center;
+        }
+        .collapse-btn:hover { background: rgba(255,255,255,.06); color: #9ca3af; }
+
+        .sidebar-firma {
+          padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,.04);
+          background: rgba(0,212,170,.04); flex-shrink: 0;
+        }
+        .firma-label { font-size: 10px; color: #4b5563; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+        .firma-ad    { font-size: 12px; color: #00d4aa; font-weight: 700; margin-top: 2px; }
+        .firma-plan  { font-size: 10px; color: #4b5563; margin-top: 1px; }
+
+        .sidebar-nav { flex: 1; padding: 10px 6px; overflow-y: auto; overflow-x: hidden; }
+        .nav-item {
+          display: flex; align-items: center; gap: 10px;
+          padding: 9px 10px; border-radius: 8px; margin-bottom: 2px;
+          background: transparent; color: #6b7280;
+          border-left: 2px solid transparent;
+          font-size: 12px; font-weight: 500; white-space: nowrap;
+          overflow: hidden; transition: all .15s; cursor: pointer;
+        }
+        .nav-item:hover  { background: rgba(255,255,255,.04); color: #9ca3af; }
+        .nav-item.active { background: rgba(0,212,170,.1); color: #00d4aa; border-left-color: #00d4aa; font-weight: 700; }
+        .nav-icon { flex-shrink: 0; }
+        .nav-label { overflow: hidden; text-overflow: ellipsis; }
+
+        .sidebar-user {
+          padding: 10px 6px; border-top: 1px solid rgba(255,255,255,.06);
+          display: flex; align-items: center; gap: 8px; padding: 8px 10px; flex-shrink: 0;
+        }
+        .user-avatar {
+          width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 11px; font-weight: 700; color: #fff;
+        }
+        .user-info { flex: 1; min-width: 0; }
+        .user-name { font-size: 11px; font-weight: 700; color: #f1f5f9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .user-rol  { font-size: 10px; color: #4b5563; }
+        .logout-btn { background: none; border: none; color: #4b5563; cursor: pointer; padding: 4px; flex-shrink: 0; }
+        .logout-btn:hover { color: #ef4444; }
+
+        /* ── MAIN ── */
+        .erp-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+        /* ── TOPBAR ── */
+        .erp-topbar {
+          height: 54px; background: rgba(13,21,38,.98);
+          border-bottom: 1px solid rgba(255,255,255,.06);
+          display: flex; align-items: center; padding: 0 18px; gap: 12; flex-shrink: 0;
+        }
+        .hamburger { background: none; border: none; color: #6b7280; cursor: pointer; padding: 6px; border-radius: 6px; display: flex; align-items: center; }
+        .hamburger:hover { background: rgba(255,255,255,.06); color: #9ca3af; }
+        .topbar-title { }
+        .page-title { font-weight: 700; font-size: 14px; color: #f1f5f9; }
+        .page-date   { font-size: 10px; color: #4b5563; margin-top: 1px; }
+        .topbar-tenant { font-size: 11px; color: #4b5563; }
+        .logout-btn-mob { background: none; border: none; color: #6b7280; cursor: pointer; padding: 6px; }
+
+        /* ── CONTENT ── */
+        .erp-content { flex: 1; overflow-y: auto; padding: 20px; color: #f1f5f9; }
+
+        /* ── BOTTOM NAV ── */
+        .bottom-nav {
+          display: none;
+          background: #0d1526; border-top: 1px solid rgba(255,255,255,.08);
+          padding: 6px 0 max(6px, env(safe-area-inset-bottom));
+        }
+        .bottom-nav-item {
+          display: flex; flex-direction: column; align-items: center; gap: 3px;
+          flex: 1; padding: 6px 4px; background: none; border: none;
+          color: #4b5563; font-size: 10px; font-weight: 500; cursor: pointer; text-decoration: none;
+          transition: color .15s;
+        }
+        .bottom-nav-item.active { color: #00d4aa; }
+        .bottom-nav-item:hover  { color: #9ca3af; }
+
+        /* ── HELPER CLASSES ── */
+        .mob-only  { display: none !important; }
+        .desk-only { display: block; }
 
         /* ── TABLET ── */
         @media (min-width: 768px) and (max-width: 1023px) {
-          .grid-4 { grid-template-columns: repeat(2,1fr) !important; }
-          .grid-3 { grid-template-columns: repeat(2,1fr) !important; }
+          .erp-sidebar { width: 60px !important; }
+          .nav-label, .logo-text, .sidebar-firma, .user-info, .logout-btn { display: none !important; }
+          .collapse-btn { display: none; }
+        }
+
+        /* ── MOBİL ── */
+        @media (max-width: 767px) {
+          .erp-root { flex-direction: column; }
+
+          .erp-sidebar {
+            position: fixed !important;
+            top: 0; left: 0; bottom: 0; width: 260px !important;
+            transform: translateX(-100%); z-index: 100;
+            box-shadow: 4px 0 24px rgba(0,0,0,.6);
+          }
+          .erp-sidebar.sidebar-open { transform: translateX(0) !important; }
+          .collapse-btn { display: none !important; }
+
+          .mob-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,.6);
+            z-index: 90; touch-action: none;
+          }
+
+          .mob-only  { display: flex !important; }
+          .desk-only { display: none !important; }
+
+          .erp-topbar { padding: 0 12px; gap: 8px; }
+          .erp-content { padding: 12px; padding-bottom: 80px; }
+
+          .bottom-nav {
+            display: flex; position: sticky; bottom: 0;
+            z-index: 40; width: 100%;
+          }
+
+          /* Responsive grid */
+          .r-grid-4 { grid-template-columns: 1fr 1fr !important; }
+          .r-grid-3 { grid-template-columns: 1fr 1fr !important; }
+          .r-grid-2 { grid-template-columns: 1fr !important; }
+          .r-grid-auto { grid-template-columns: 1fr !important; }
+
+          /* Tablolar yatay kaydır */
+          .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+          table { min-width: 600px; }
+
+          /* Kartlar tam genişlik */
+          .card-full-mob { width: 100% !important; }
+        }
+
+        /* ── FORM RESPONSIVE ── */
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        @media (max-width: 600px) {
+          .form-grid { grid-template-columns: 1fr !important; }
+        }
+
+        /* ── GENEL ── */
+        .kpi-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+          gap: 12px; margin-bottom: 20px;
+        }
+        @media (max-width: 480px) {
+          .kpi-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
         }
       `}</style>
     </div>
