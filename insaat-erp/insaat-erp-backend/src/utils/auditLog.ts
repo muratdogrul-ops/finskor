@@ -3,6 +3,58 @@ import type { Request } from 'express';
 import type { JwtPayload } from '../middleware/auth';
 import logger from './logger';
 
+interface LogAuditOpts {
+  userId?: string;
+  tenantId?: string;
+  islem?: string;
+  tablo?: string;
+  kayitId?: string;
+  yeniDeger?: unknown;
+  eskiDeger?: unknown;
+}
+
+/** logAudit — controller'larla uyumlu nesne imzası */
+export async function logAudit(opts: LogAuditOpts): Promise<void> {
+  try {
+    if (!opts.tenantId) return;
+    await query(
+      `INSERT INTO audit_log (tenant_id, kullanici_id, tablo, kayit_id, islem, eski_deger, yeni_deger)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        opts.tenantId,
+        opts.userId ?? null,
+        opts.tablo ?? null,
+        opts.kayitId ?? null,
+        opts.islem ?? 'INSERT',
+        opts.eskiDeger ?? null,
+        opts.yeniDeger ?? null,
+      ]
+    );
+  } catch (e) {
+    logger.warn('logAudit yazilamadi', e);
+  }
+}
+
+/**
+ * verifySantiyeTenant — şantiyenin tenant'a ait olduğunu doğrular.
+ * Geçerliyse true, geçersizse false döner.
+ */
+export async function verifySantiyeTenant(
+  santiyeId: string,
+  tenantId: string
+): Promise<boolean> {
+  try {
+    const result = await query(
+      'SELECT id FROM santiyeler WHERE id = $1 AND tenant_id = $2',
+      [santiyeId, tenantId]
+    );
+    return result.rows.length > 0;
+  } catch (e) {
+    logger.warn('verifySantiyeTenant hatası', e);
+    return false;
+  }
+}
+
 export async function writeAudit(
   user: JwtPayload | undefined,
   tablo: string,

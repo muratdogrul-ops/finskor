@@ -24,6 +24,7 @@ const IhaleImport   = lazy(() => import('@/components/modules/IhaleImport'))
 const ZincirGorunum  = lazy(() => import('@/components/modules/ZincirGorunum').then(m => ({ default: m.ZincirGorunum })))
 const MusteriPortal  = lazy(() => import('@/components/modules/MusteriPortal').then(m => ({ default: m.MusteriPortal })))
 const StokDepo       = lazy(() => import('@/components/modules/Stok').then(m => ({ default: m.StokDepo })))
+const AiUyarilar     = lazy(() => import('@/components/modules/AiUyarilar').then(m => ({ default: m.AiUyarilar })))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -80,6 +81,7 @@ export default function App() {
                     <Route path="/ihale/:id" element={<IhaleImport />} />
                     <Route path="/zincir" element={<ZincirGorunum />} />
                     <Route path="/stok" element={<StokDepo />} />
+                    <Route path="/ai-uyarilar" element={<AiUyarilar />} />
                   </Routes>
                 </Suspense>
               </Layout>

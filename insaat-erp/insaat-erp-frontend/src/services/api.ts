@@ -277,4 +277,11 @@ export const ihaleApi = {
   sablonUrl: () => '/api/v1/ihale/sablon',
 }
 
+// ─── AI UYARI / ANALİTİK ─────────────────────────────────────────────────────
+export const aiApi = {
+  uyarilar:     () => api.get('/ai/uyarilar'),
+  projeRiskler: () => api.get('/ai/proje-riskler'),
+  ozet:         () => api.get('/ai/ozet'),
+}
+
 export default api
