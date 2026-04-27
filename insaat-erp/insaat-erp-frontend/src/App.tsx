@@ -26,6 +26,7 @@ const MusteriPortal  = lazy(() => import('@/components/modules/MusteriPortal').t
 const StokDepo       = lazy(() => import('@/components/modules/Stok').then(m => ({ default: m.StokDepo })))
 const AiUyarilar     = lazy(() => import('@/components/modules/AiUyarilar').then(m => ({ default: m.AiUyarilar })))
 const AdminPanel     = lazy(() => import('@/components/modules/AdminPanel').then(m => ({ default: m.AdminPanel })))
+const Taseron        = lazy(() => import('@/components/modules/Taseron').then(m => ({ default: m.Taseron })))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -82,6 +83,7 @@ export default function App() {
                     <Route path="/ihale/:id" element={<IhaleImport />} />
                     <Route path="/zincir" element={<ZincirGorunum />} />
                     <Route path="/stok" element={<StokDepo />} />
+                    <Route path="/taseron" element={<Taseron />} />
                     <Route path="/ai-uyarilar" element={<AiUyarilar />} />
                     <Route path="/admin" element={<AdminPanel />} />
                   </Routes>

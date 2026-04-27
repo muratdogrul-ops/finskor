@@ -245,6 +245,31 @@ export const ihaleApi = {
   sablonUrl: () => '/api/v1/ihale/sablon',
 }
 
+// ─── TAŞERON ─────────────────────────────────────────────────────────────────
+export const taseronApi = {
+  list: () => api.get('/taseron'),
+  get: (id: string) => api.get(`/taseron/${id}`),
+  create: (data: Record<string, unknown>) => api.post('/taseron', data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/taseron/${id}`, data),
+  // Sözleşmeler
+  sozlesmeler: (params?: Record<string, string>) => api.get('/taseron-sozlesmeler', { params }),
+  sozlesme: (id: string) => api.get(`/taseron-sozlesmeler/${id}`),
+  sozlesmeOlustur: (data: Record<string, unknown>) => api.post('/taseron-sozlesmeler', data),
+  sozlesmeGuncelle: (id: string, data: Record<string, unknown>) => api.put(`/taseron-sozlesmeler/${id}`, data),
+  // Hakediş
+  hakedisler: (sozlesmeId: string) => api.get(`/taseron-sozlesmeler/${sozlesmeId}/hakedis`),
+  hakedisOlustur: (sozlesmeId: string, data: Record<string, unknown>) =>
+    api.post(`/taseron-sozlesmeler/${sozlesmeId}/hakedis`, data),
+  hakedisOnayla: (id: string, data: Record<string, unknown>) =>
+    api.post(`/taseron-hakedis/${id}/onayla`, data),
+  // Ekipman maliyet
+  ekipmanMaliyet: (params?: Record<string, string>) => api.get('/ekipman-maliyet', { params }),
+  ekipmanMaliyetEkle: (data: Record<string, unknown>) => api.post('/ekipman-maliyet', data),
+  // Puantaj
+  puantajGrid: (params: Record<string, string>) => api.get('/puantaj/grid', { params }),
+  puantajKaydet: (data: Record<string, unknown>) => api.post('/puantaj/grid', data),
+}
+
 // ─── AI UYARI / ANALİTİK ─────────────────────────────────────────────────────
 export const aiApi = {
   uyarilar:     () => api.get('/ai/uyarilar'),

@@ -18,6 +18,7 @@ import * as stokCtrl from '../controllers/stokController';
 import * as ihaleCtrl from '../controllers/ihaleController';
 import * as aiCtrl from '../controllers/aiUyariController';
 import * as adminCtrl from '../controllers/adminController';
+import * as taseronCtrl from '../controllers/taseronController';
 
 const router = Router();
 
@@ -123,6 +124,27 @@ router.get('/ihale/:id',       authenticate, ihaleCtrl.getIhale);
 router.post('/ihale/parse',    authenticate, ihaleCtrl.parseExcel);
 router.post('/ihale/import',   authenticate, ihaleCtrl.importIhale);
 router.delete('/ihale/:id',    authenticate, requireRole('admin','mudur'), ihaleCtrl.deleteIhale);
+
+// ─── TAŞERON ─────────────────────────────────────────────────────────────────
+router.get('/taseron',                           authenticate, taseronCtrl.getTaseronlar);
+router.post('/taseron',                          authenticate, requireRole('admin','mudur'), taseronCtrl.createTaseron);
+router.get('/taseron/:id',                       authenticate, taseronCtrl.getTaseron);
+router.put('/taseron/:id',                       authenticate, requireRole('admin','mudur'), taseronCtrl.updateTaseron);
+// Sözleşmeler
+router.get('/taseron-sozlesmeler',               authenticate, taseronCtrl.getSozlesmeler);
+router.post('/taseron-sozlesmeler',              authenticate, requireRole('admin','mudur'), taseronCtrl.createSozlesme);
+router.get('/taseron-sozlesmeler/:id',           authenticate, taseronCtrl.getSozlesme);
+router.put('/taseron-sozlesmeler/:id',           authenticate, requireRole('admin','mudur'), taseronCtrl.updateSozlesme);
+// Taşeron hakediş
+router.get('/taseron-sozlesmeler/:sozlesme_id/hakedis',     authenticate, taseronCtrl.getHakedisler);
+router.post('/taseron-sozlesmeler/:sozlesme_id/hakedis',    authenticate, requireRole('admin','mudur'), taseronCtrl.createHakedis);
+router.post('/taseron-hakedis/:id/onayla',       authenticate, requireRole('admin','mudur'), taseronCtrl.onaylaHakedis);
+// Ekipman maliyet
+router.get('/ekipman-maliyet',                   authenticate, taseronCtrl.getEkipmanMaliyet);
+router.post('/ekipman-maliyet',                  authenticate, requireRole('admin','mudur','muhendis'), taseronCtrl.addEkipmanMaliyet);
+// Puantaj grid
+router.get('/puantaj/grid',                      authenticate, taseronCtrl.getPuantajGrid);
+router.post('/puantaj/grid',                     authenticate, taseronCtrl.savePuantajGrid);
 
 // ─── AI UYARI / ANALİTİK ─────────────────────────────────────────────────────
 router.get('/ai/uyarilar',      authenticate, aiCtrl.getUyarilar);
