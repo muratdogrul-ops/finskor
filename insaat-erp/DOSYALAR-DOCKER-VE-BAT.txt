@@ -1,0 +1,47 @@
+Bu projede nerede? (Gizli dosya/uzanti gorme: Dosya Gecgini: Gorunum -> gizli ogeleri goster)
+================================================================================
+
+1) DOCKERFILE (API imaji icin)
+   Klasor:  insaat-erp\insaat-erp-backend\Dockerfile
+   Tam ornek (sizin PC):
+   ...\insaat-erp\insaat-erp-backend\Dockerfile
+   (docker-compose "api" servisi buna gore "build" eder; normalde npm run dev ile
+   bu dosyaya ihtiyaciniz yok, sadece "docker imaji uret" derseniz gerekir.)
+
+2) .DOCKERIGNORE
+   Klasor:  insaat-erp\insaat-erp-backend\.dockerignore
+   Not: basinda nokta vardir; bazi Gezginlerde gizli dosya gibi dusunulebilir.
+
+3) BASH/BAT (basit, cift tik)
+   a)  insaat-erp\veritabani-doker-basit.bat
+       -> Sadece PostgreSQL konteyneri (docker run). API icin once bu, sonra npm run dev
+   b)  insaat-erp\CALISTIR-ONCE-SUNUCU.bat
+       -> Iki pencere: insaat-erp-backend + insaat-erp-frontend icinde npm run dev
+
+   Ikisinin de yeri:  insaat-erp  (backend'in BIR USTU), icinde
+   "insaat-erp-backend" ve "insaat-erp-frontend" alt klasorleri varken.
+
+4) ANA DOCKER BILESEN
+   Klasor:  insaat-erp\docker-compose.local.yml
+   (Veri tabani + api birlikte; ucretsiz .env ayarlari  insaat-erp  icinde
+    olmali, detay: diger rehberler)
+
+================================================================================
+Klasor yapisi (ozet)
+================================================================================
+
+  insaat-erp\
+    CALISTIR-ONCE-SUNUCU.bat
+    veritabani-doker-basit.bat
+    docker-compose.local.yml
+    insaat-erp-backend\
+      Dockerfile
+      .dockerignore
+      ( .env  — sizin olusturduğunuz gizli ayar)
+    insaat-erp-frontend\
+      ...
+
+================================================================================
+.bat gormuyorsaniz: uzanti gizlidir. Dosya Gecgini: Gorunum -> Dosya adi
+uzantilari goster. Veya Cursor sol panelden "insaat-erp" acip dosya isimlerine bakin.
+================================================================================

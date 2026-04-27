@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Insaat ERP (Web)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Segoe UI, system-ui, sans-serif; max-width: 46rem; margin: 0 auto; padding: 1rem; background: #f4f4f4; color: #111; }
+    h1 { font-size: 1.1rem; margin: 0 0 0.75rem; }
+    .card { background: #fff; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    label { display: block; margin: 0.4rem 0 0.2rem; font-size: 0.9rem; }
+    input, button { font: inherit; padding: 0.45rem 0.6rem; width: 100%; max-width: 22rem; }
+    button { margin-top: 0.5rem; max-width: 10rem; cursor: pointer; }
+    .row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .err { color: #b00020; font-size: 0.9rem; }
+    .ok { color: #0a0; }
+    pre { background: #eee; padding: 0.75rem; overflow: auto; font-size: 0.8rem; max-height: 12rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { text-align: left; padding: 0.35rem; border-bottom: 1px solid #ddd; }
+  </style>
+</head>
+<body>
+  <h1>Insaat ERP — sadece tarayıcı (HTML, masaüstü yok)</h1>
+  <p class="ok" style="font-size:0.85rem"><strong>Doğru adres (sonu .html):</strong> <code id="adresGoster"></code></p>
+  <p class="err" style="font-size:0.8rem">Yanlış: <code>erp-web.h</code> veya yarım yazı — sayfa 404 verir. Önce aşağıdaki pencereyi görmelisiniz.</p>
+  <p class="ok" style="font-size:0.9rem">Sunucu: <code>npm run dev</code> (insaat-erp-frontend). <code>file://</code> ile açmayın.</p>
+  <script>document.getElementById("adresGoster").textContent = location.origin + "/erp-web.html";</script>
+
+  <div class="card">
+    <strong>1) API adresi</strong> (sonda / olmasın)
+    <div class="row">
+      <input type="url" id="apiBase" placeholder="http://127.0.0.1:3000" value="http://127.0.0.1:3000" />
+      <button type="button" id="saveBase">Kaydet (tarayıcıda hatırla)</button>
+    </div>
+    <button type="button" id="btnHealth">/health dene</button>
+    <p id="healthOut" class="err"></p>
+  </div>
+
+  <div class="card" id="loginBox">
+    <strong>2) Giriş</strong>
+    <label>E-posta <input type="email" id="email" autocomplete="username" /></label>
+    <label>Şifre <input type="password" id="sifre" autocomplete="current-password" /></label>
+    <button type="button" id="btnLogin">Giriş yap</button>
+    <p id="loginErr" class="err"></p>
+  </div>
+
+  <div class="card" id="panel" style="display:none">
+    <div class="row" style="justify-content: space-between">
+      <strong>Şantiyeler</strong>
+      <button type="button" id="btnOut">Çıkış</button>
+    </div>
+    <p id="loadErr" class="err"></p>
+    <div id="tableWrap"></div>
+  </div>
+
+  <script>
+(function () {
+  var K = "insaatErpToken";
+  var B = "insaatErpApiBase";
+
+  function $id(id) { return document.getElementById(id); }
+  function api(b, path) {
+    var x = (b || "").replace(/\/+$/, "");
+    return x + "/api/v1" + (path.indexOf("/") === 0 ? path : "/" + path);
+  }
+  function getBase() { return ($id("apiBase").value || "").trim() || "http://127.0.0.1:3000"; }
+  function token() { return localStorage.getItem(K) || ""; }
+
+  $id("saveBase").onclick = function () {
+    localStorage.setItem(B, getBase());
+    $id("healthOut").textContent = "Kaydedildi: " + getBase();
+    $id("healthOut").className = "ok";
+  };
+  if (localStorage.getItem(B)) $id("apiBase").value = localStorage.getItem(B);
+
+  $id("btnHealth").onclick = function () {
+    var u = getBase() + "/health";
+    $id("healthOut").textContent = "Yükleniyor…";
+    $id("healthOut").className = "";
+    fetch(u).then(function (r) { return r.text(); })
+      .then(function (t) { $id("healthOut").textContent = t; $id("healthOut").className = "ok"; })
+      .catch(function (e) { $id("healthOut").textContent = "Hata: " + e; $id("healthOut").className = "err"; });
+  };
+
+  function showPanel() {
+    $id("loginBox").style.display = token() ? "none" : "block";
+    $id("panel").style.display = token() ? "block" : "none";
+    if (token()) loadSant();
+  }
+  $id("btnOut").onclick = function () { localStorage.removeItem(K); showPanel(); };
+
+  $id("btnLogin").onclick = function () {
+    $id("loginErr").textContent = "";
+    var body = { email: $id("email").value.trim(), sifre: $id("sifre").value };
+    fetch(api(getBase(), "/auth/login"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json().then(function (j) { return { r: r, j: j }; }); })
+    .then(function (x) {
+      if (!x.r.ok || !x.j.success || !x.j.data || !x.j.data.token) {
+        $id("loginErr").textContent = (x.j && x.j.message) || "Giriş başarısız";
+        return;
+      }
+      localStorage.setItem(K, x.j.data.token);
+      showPanel();
+    })
+    .catch(function (e) { $id("loginErr").textContent = String(e); });
+  };
+
+  function loadSant() {
+    $id("loadErr").textContent = "Yükleniyor…";
+    fetch(api(getBase(), "/santiyeler?limit=50"), {
+      headers: { Authorization: "Bearer " + token() }
+    }).then(function (r) { return r.json().then(function (j) { return { r: r, j: j }; }); })
+    .then(function (x) {
+      if (!x.r.ok) { $id("loadErr").textContent = (x.j && x.j.message) || "Liste alınamadı"; $id("tableWrap").innerHTML = ""; return; }
+      var rows = (x.j.data && x.j.data) || [];
+      if (!Array.isArray(rows)) { $id("loadErr").textContent = "Beklenmeyen cevap"; return; }
+      $id("loadErr").textContent = rows.length + " kayıt";
+      $id("loadErr").className = "ok";
+      var h = "<table><thead><tr><th>Ad</th><th>İl</th><th>Durum</th></tr></thead><tbody>";
+      for (var i = 0; i < rows.length; i++) {
+        var s = rows[i];
+        h += "<tr><td>" + esc(s.ad) + "</td><td>" + esc(s.il || "") + "</td><td>" + esc(s.durum || "") + "</td></tr>";
+      }
+      h += "</tbody></table>";
+      $id("tableWrap").innerHTML = h;
+    })
+    .catch(function (e) { $id("loadErr").textContent = String(e); });
+  }
+  function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  showPanel();
+})();
+  </script>
+</body>
+</html>

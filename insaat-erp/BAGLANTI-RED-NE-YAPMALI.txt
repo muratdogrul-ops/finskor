@@ -1,0 +1,35 @@
+ERR_CONNECTION_REFUSED  (127.0.0.1 baglanmayi reddetti)
+================================================================
+
+Bunun anlami: o portta hic program dinlemiyor. Tarayici calisiyor; sunucu
+kapalidir VYA yanlis portu deniyorsunuz.
+
+1) IKI SUNUCU GEREK (yerelde)
+   A) API     -> genelde 3000  (insaat-erp-backend)
+   B) Web ekran -> 5173        (insaat-erp-frontend, Vite: npm run dev)
+
+2) KOLAY YOL
+   Proje "insaat-erp" icinde:  CALISTIR-ONCE-SUNUCU.bat  cift tik
+   (Iki siyah pencere acar; onlari kapatmayin. Sonra tarayicida adrese girin.)
+
+3) ELLE (PowerShell, iki pencere)
+   Pencere 1:
+     cd ......\insaat-erp-backend
+     npm install
+     npm run dev
+   Pencere 2:
+     cd ......\insaat-erp-frontend
+     npm install
+     npm run dev
+   Sonra: http://127.0.0.1:5173/erp-web.html
+
+4) 3000 icin: tarayicida 5173 DEGIL 3000 ozel bir "sayfa" yok; API JSON verir.
+   /health: http://127.0.0.1:3000/health
+
+5) Sadece "node dist\server.js" derseniz: once  insaat-erp-backend  icinde
+   npm run build  (dist olusur). Gelistirmede  npm run dev  daha pratik.
+
+6) Hala red: baska program 3000/5173 kullaniyor olabilir; gorev yoneticisinden
+   node / eski pencereleri kapat; anti-virus 127.0.0.1 engellemesini kontrol.
+
+================================================================

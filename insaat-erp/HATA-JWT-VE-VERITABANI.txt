@@ -1,0 +1,39 @@
+JWT_SECRET hatasi / Veritabani baglanamadi
+============================================
+
+1) .env var mi?
+   insaat-erp-backend klasorinde ".env" dosyasi (uzantisiz) olmali.
+   Sizin projede (Cursor) bu dosya eklendiyse: npm run dev ONCESI kaydedin.
+
+2) AYNI 6 satir, PostgreSQL ile uyusmalidir:
+   DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
+   Sifre bos birakilamaz; database.ts bunu ister.
+
+3) Secenek A — DOCKER (kolay, sadece veritabani)
+   a) Docker Desktop Windows kurulu olsun.
+   b) Proje  insaat-erp  (backend'in bir ust klasoru) icindeyken .env olusturun
+      veya  insaat-erp\.env  icine (backend .env ile AYNI sifre ve kullanici)
+      ornek icerik:
+         DB_USER=erp_user
+         DB_PASSWORD=erp_yerel_sifre_2026
+         DB_NAME=insaat_erp
+   c) Ayni klasorde (insaat-erp):
+         docker compose -f docker-compose.local.yml up -d db
+   d) 5-10 sn bekleyin, sonra  insaat-erp-backend  icinde:
+         npm run dev
+
+4) Secenek B — BILGISAYARINIZA POSTGRESQL
+   a) postgresql.org indir, kur, servis "running" olsun.
+   b) pgAdmin veya psql ile:
+      - Kullanici: erp_user, sifre: .env ile ayni (ornek: erp_yerel_sifre_2026)
+        VEYA  .env icinde  DB_USER=postgres  ve sizin kurarken koydugunuz sifre
+      - Veritabani: insaat_erp  (yoksa olustur)
+   c)  insaat-erp-backend\.env  degerlerini buna gore guncelleyin.
+   d)  npm run dev
+
+5) Sema (tablolar) yoksa: ayri meseledir. Once  baglanti  olsun; /health ve sunucu
+   ayaga kalksin. Sonra 001+ migration SQL'leri sizin ana projedeki gibi uygulayin.
+
+6) CORS: 127.0.0.1:5173 zaten ornekte.
+
+============================================

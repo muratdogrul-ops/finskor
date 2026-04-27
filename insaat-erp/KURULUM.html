@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Insaat ERP - Masaustu kurulum (Windows)</title>
+  <style>
+    body { font-family: Segoe UI, system-ui, sans-serif; max-width: 48rem; margin: 1.5rem auto; padding: 0 1rem; line-height: 1.5; color: #111; }
+    h1 { font-size: 1.25rem; border-bottom: 1px solid #ccc; padding-bottom: 0.5rem; }
+    h2 { font-size: 1rem; margin-top: 1.5rem; }
+    .cmd { background: #f0f0f0; padding: 0.75rem 1rem; border-left: 4px solid #333; font-family: Consolas, monospace; white-space: pre-wrap; font-size: 0.9rem; }
+    .note { color: #333; }
+  </style>
+</head>
+<body>
+  <h1>Insaat ERP — Masaustu (Windows) adim adim</h1>
+  <p class="note">Bu dosyayi cift tiklayin: Internet Explorer degil, Chrome / Edge acsin. .txt acilmazsa yine bu HTML kullanin.</p>
+
+  <h2>Ne bu?</h2>
+  <p><strong>Masaustu</strong>: "Insaat ERP" penceresi. <strong>API</strong>: ayni PC veya sunucuda 3000 portu (ornek). Uygulama veriyi API'den alir; API kapaliyken giris/ liste calismayabilir.</p>
+
+  <h2>Ne kopyalamaniz gerekir?</h2>
+  <p>Proje aracinda <strong>insaat-erp-backend</strong> ve <strong>insaat-erp-frontend</strong> klasorlerinin tamamini (ornek: C suresinde bir klasor icine).</p>
+
+  <h2>Bolum A — Ilk kurulum</h2>
+  <p>0) Node.js LTS: <a href="https://nodejs.org">https://nodejs.org</a> — LTS indirin, kurun.</p>
+  <p>1) PowerShell acin, frontend klasorune girin (yolu kendi yolunuzla degistirin):</p>
+  <div class="cmd">cd C:\SIZIN_KLASOR\insaat-erp-frontend</div>
+  <p>2) Paketler (internet):</p>
+  <div class="cmd">npm install</div>
+  <p>3) (Istege bagli) Hizli pencere + API ayni PC'de. Once API'yi baska pencerede: <code>insaat-erp-backend</code> icinde <code>npm start</code> (veya <code>npm run dev</code>). Sonra:</p>
+  <div class="cmd">cd C:\SIZIN_KLASOR\insaat-erp-frontend
+npm run electron:dev</div>
+  <p>4) Kurulabilir .exe icin (release klasorune yazar):</p>
+  <div class="cmd">cd C:\SIZIN_KLASOR\insaat-erp-frontend
+npm run build:desktop
+npm run pack:win</div>
+  <p>5) Cikti: <code>insaat-erp-frontend\release\</code> — icinde kurulum .exe veya portable .exe</p>
+  <p>6) Masaustu acilinca API ciksin: varsayilan <code>http://127.0.0.1:3000</code> (frontend icinde <code>.env.electron</code>).</p>
+
+  <h2>Bolum B — Guncelleme</h2>
+  <p>Yeni dosyalari uzerine kopyalayin, sonra ayni frontend klasorunde:</p>
+  <div class="cmd">npm install
+npm run build:desktop
+npm run pack:win</div>
+
+  <h2>API baska bilgisayardaysa</h2>
+  <p><code>insaat-erp-frontend\.env.electron</code> icinde <code>VITE_API_BASE=</code> satirini o sunucunun adresiyle guncelleyin; sonra yine <code>build:desktop</code> ve <code>pack:win</code> calistirin.</p>
+
+  <h2>Sorun: Endpoint bulunamadi / bos ekran</h2>
+  <p>API calismiyor veya yanlis adreste. Backend klasorunda test:</p>
+  <div class="cmd">cd C:\SIZIN_KLASOR\insaat-erp-backend
+node scripts\verify-api.cjs</div>
+  <p>200 ve "surum" = 2 benzeri gorunmuyorsa, yanlis proje calisiyor veya port karisik.</p>
+
+  <p style="margin-top:2rem;font-size:0.85rem;color:#666;">Dosya: KURULUM.html — proje: insaat-erp kok klasoru</p>
+</body>
+</html>

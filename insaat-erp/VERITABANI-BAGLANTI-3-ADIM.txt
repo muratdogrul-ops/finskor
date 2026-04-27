@@ -1,0 +1,35 @@
+"Veritabanina baglanilamadi" = PostgreSQL hic yok VEYA sifre/kullanici .env ile uyusmuyor
+================================================================
+
+ADIM 1 - Hangisi sizin durum
+-----------------------------
+A) Docker Desktop kuracak/ kullanacaksaniz:  asagidaki ADIM 2A
+B) Zaten Windows'a PostgreSQL kurdunuz:      ADIM 2B
+
+ADIM 2A (Docker - en tutarli yol, .env degistirmeden)
+-----------------------------
+1) Docker Desktop kur, acik olsun (balina ikon yesil).
+2) Bu klasorde (insaat-erp)  veritabani-doker-basit.bat  cift tik.
+3) Bittikten 5-10 sn sonra  insaat-erp-backend  icinde:  npm run dev
+
+2A devam) 5432 "already in use" hatasi: bilgisayarda baska PostgreSQL var.
+  - A) Windows servislerinden o eski Pg'yi durdur veya
+  - B)  veritabani-doker-basit.bat  icinde  -p 5432:5432  satirini  -p 5433:5432
+     yap, kaydet, tekrar calistir;  insaat-erp-backend\.env  icine:
+     DB_PORT=5433
+     kaydedin.
+
+ADIM 2B (Kurulumlu PostgreSQL)
+-----------------------------
+1) pgAdmin veya arayüz: kullanici  erp_user  sifre  erp_yerel_sifre_2026
+   veritabani: insaat_erp
+   (yoksa olustur; yetki: kullanicinin o db uzerinde hakki olsun)
+2) baska kullanici kullanacaksaniz,  insaat-erp-backend\.env  degerlerini
+   ayni yapin: DB_USER, DB_PASSWORD, DB_NAME
+
+ADIM 3 - Sema (tablolar) yoksa
+-----------------------------
+API baglantisindan sonraki asamada SQL migration'lari uygulamaniz gerekir;
+once /health 200 ve  npm run dev  hata vermeyi biraksin yeter.
+
+================================================================

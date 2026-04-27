@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Insaat ERP — kurulum yok, sadece örnek ekran</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 1rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.1rem; }
+    .b { background: #fff3cd; border: 1px solid #ccc; padding: 0.75rem; border-radius: 6px; margin: 0.75rem 0; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 0.4rem; border-bottom: 1px solid #ddd; }
+  </style>
+</head>
+<body>
+  <h1>Kurulumsuz örnek (sadece görüntü)</h1>
+  <p class="b">
+    <strong>Ne bu?</strong> Hiç Node, Docker, PostgreSQL yok. Gerçek sunucu yok; tablo aşağıdaki
+    sahte veridir. Tıkla, “Giriş” sadece ekran değiştirir, sunucuya gitmez.
+  </p>
+  <p>
+    <strong>Gerçek uygulama</strong> için: bilgisayara PostgreSQL + <code>insaat-erp-backend</code> içinde
+    <code>npm run dev</code> (ve isterseniz <code>insaat-erp-frontend</code> aynı şekilde) gerekir; başka
+    yok diye söylemek dürüst değil.
+  </p>
+
+  <div id="p1">
+    <button type="button" id="bGiris" style="font-size:1rem;padding:0.5rem 1rem">“Giriş” (sahte)</button>
+  </div>
+  <div id="p2" style="display:none">
+    <p><strong>Örnek şantiye listesi (veri sunucudan değil)</strong></p>
+    <table>
+      <thead><tr><th>Ad</th><th>İl</th><th>Durum</th></tr></thead>
+      <tbody>
+        <tr><td>Örnek Şantiye A</td><td>İstanbul</td><td>devam</td></tr>
+        <tr><td>Örnek Şantiye B</td><td>Ankara</td><td>devam</td></tr>
+      </tbody>
+    </table>
+    <p><button type="button" id="bGeri">Geri</button></p>
+  </div>
+  <script>
+    document.getElementById("bGiris").onclick = function () {
+      document.getElementById("p1").style.display = "none";
+      document.getElementById("p2").style.display = "block";
+    };
+    document.getElementById("bGeri").onclick = function () {
+      document.getElementById("p2").style.display = "none";
+      document.getElementById("p1").style.display = "block";
+    };
+  </script>
+</body>
+</html>

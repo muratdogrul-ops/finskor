@@ -1,0 +1,34 @@
+SADECE WEB (HTML) — MASAUSTU YOK
+==================================
+
+A) TAM PANEL (React)
+   1) insaat-erp-frontend klasorunde:
+      npm install
+      npm run build
+   2) dist\ klasorunun HEPSINI alip IIS / nginx / herhangi bir sitenin dosya
+      kokune koyun. Ornek: site kokunde index.html, assets\ gorusun.
+   3) API ayni sunucuda ters proksi ile /api  altinda 3000'e gidebilir VEYA
+      .env.production icine VITE_API_BASE=http://API_ADRES:3000 yazip build
+      alin (API adresi derlemeye gomulur).
+
+B) TEK SAYFA (sade, npm gerekmez derlenmis dosya ile)
+   - public\erp-web.html  dosyasi build ile dist\erp-web.html olur.
+   - Tarayicida acin:  https://siteniz/erp-web.html
+   - API kutusuna backend adresi (ornek: http://127.0.0.1:3000), Giris
+     yapin. Cikis token siler.
+
+C) CORS: API ayni origin degilse backend ALLOWED_ORIGINS / CORS sizin site
+   adresinizi iceren sekilde olmali. Yerelde 127.0.0.1:3000 + 127.0.0.1:5173
+   genelde yeterlidir.
+
+D) HIZLI DENEME (gelistirme)
+   insaat-erp-backend: npm start
+   insaat-erp-frontend:  npm run dev
+   TAM ADRES (sonu .html — .h DEGIL):
+   http://127.0.0.1:5173/erp-web.html
+   Kisa: http://127.0.0.1:5173/web.html  (yukariya yonlendirir)
+   Ana React: http://127.0.0.1:5173/
+
+E) MASAUSTU / Electron istemeyen:  pack:win KULLANMAYIN, bu dosyada anlatilmaz.
+
+==================================

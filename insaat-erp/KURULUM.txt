@@ -1,0 +1,42 @@
+BURADAN BASLAYIN
+================
+
+1) Bu rehber .txt yoksa veya acilmiyorsa, AYNI KLASORDEKİ dosyaya cift tiklayin:
+
+   KURULUM.html
+
+   (Chrome veya Edge ile acilir, tum adimlar orada.)
+
+
+2) Kopyalayacaginiz kodlar / klasorler (Cursor veya proje aracindan):
+
+   insaat-erp-backend\     (tum klasor)
+   insaat-erp-frontend\   (tum klasor)
+
+   Hedef: ornegin C:\inetpub\insaat-erp\ veya sizin actiginiz klasor.
+
+
+3) PowerShell (ornek, yolu sizin yola cevirip) — ONCE insaat-erp-frontend:
+
+   cd C:\SIZIN_KLASOR\insaat-erp-frontend
+   npm install
+   npm run build:desktop
+   npm run pack:win
+
+   Sonuc: insaat-erp-frontend\release\  icinde .exe
+
+
+4) Masaustu uygulama girdisi icin, BASKA pencerede API (ayni PC, once bu):
+
+   cd C:\SIZIN_KLASOR\insaat-erp-backend
+   npm install
+   npm run build
+   npm start
+
+   (Veya: node dist\server.js)
+
+
+5) Ayrintili sozlerle (Turkce karakter) KURULUM-MASADUSTU.txt burada:
+   insaat-erp-frontend\KURULUM-MASADUSTU.txt
+
+================================================================================

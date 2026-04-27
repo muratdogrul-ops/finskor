@@ -1,0 +1,85 @@
+================================================================================
+  İNŞAAT ERP – MASAÜSTÜ (Windows)  –  adım adım
+================================================================================
+
+Ne bu?
+- Masaüstü: Insaat ERP adlı pencere (Electron). İçinde web ekranları açılır.
+- Ayrıca bilgisayarda veya sunucuda: "API" diye adlandırdığımız sunucu (port 3000
+  varsayılan). Giriş, şantiye listesi vb. bu sunucudan gelir. Masaüstü tek başına
+  veri üretmez; API yoksa boş/ hata alırsınız.
+
+Klasör nereye? (C: üzerinde, örnek)
+- Örnek: C:\inetpub\insaat-erp\  veya  C:\projeler\insaat-erp\
+- İçinde şu klasörler olsun (bu projedeki aynı yapı):
+    insaat-erp-backend\     (API sunucusu)
+    insaat-erp-frontend\    (masaüstü pencerenin derlendiği yer)
+  (İsterseniz sadece masaüstü derlemek için sadece insaat-erp-frontend yeter, ama
+  tam kullanım için API’yi de aynı makinede veya ağdaki sunucuda çalıştıracaksınız.)
+
+
+------------------------- BÖLÜM A – BİLGISAYARDA (ilk kurulum) -------------------------
+
+0) Gerekli: Node.js LTS kurulu olsun (https://nodejs.org  – LTS sürüm).
+
+1) PowerShell’i YÖNETİCİ gerekmeden, proje diye açtığınız klasöre inin, örnek:
+      cd C:\inetpub\insaat-erp\insaat-erp-frontend
+
+2) Ağ paketlerini yükleyin (bir kere, internet gerekir):
+      npm install
+
+3) (İsteğe bağlı) Hızlı deneme: API + aynı bilgisayarda Vite + pencere açılır
+      (API ayrı terminalde: insaat-erp-backend içinde npm start veya sizin komut)
+      Bunda:
+      cd ...\insaat-erp-frontend
+      npm run electron:dev
+
+4) Kurulabilir .exe veya kurulum sihirbazı için:
+      cd ...\insaat-erp-frontend
+      npm run build:desktop
+      npm run pack:win
+
+5) Nerede dosya?
+- Çıktı:   insaat-erp-frontend\release\
+- İçinde NSIS kurulum .exe ve taşınabilir (portable) .exe olabilir. Kuruluma tıklayıp
+  kurun; kısayol Masaüstü’ne/ Başlangıç’a eklenebilir.
+
+6) Masaüstü uygulamayı açmadan önce:
+- API (backend) çalışıyor olsun. Varsayılan API adresi, masaüstü derlemesinde
+  http://127.0.0.1:3000  olarak gömülüdür (dosya: .env.electron).
+- API farklı bir sunucudaysa, .env.electron içinde VITE_API_BASE=... değiştirip
+  tekrar 4. maddedeki "build:desktop" ve "pack:win" adımlarını yapın.
+
+
+------------------------- BÖLÜM B – GÜNCELLEME (yeni sürüm / dosya geldikçe) ----------
+
+1) Yeni dosyaları, eskisinin üstüne kopyalayın (aynı klasör yapısı: özellikle
+   insaat-erp-frontend\src ve electron\  vb.).
+
+2) Tekrar, insaat-erp-frontend klasöründe:
+      npm install
+   (Sadece package.json değişmediyse atlanabilir; emin değilseniz çalıştırın.)
+
+3) Yeniden paket:
+      npm run build:desktop
+      npm run pack:win
+
+4) release\ altındaki yeni .exe / kurulumla eski uygulama üstüne kurun
+   (gerekirse önce uygulamayı kapatın).
+
+
+------------------------- SIK SORUNLAR ---------------------------------------------------
+
+- "Endpoint bulunamadı" veya boş: API kapalı, yanlış port veya .env’de farklı adres.
+- Aynı bilgisayarda: önce insaat-erp-backend\ içinde "npm start" (veya build edilmiş
+  dist\server.js), sonra masasıstü aç.
+- 404’te sadece kısa JSON görüyorsanız, çalışan API eski derleme olabilir; backend
+  klasöründe "npm run build" sonra yeni "node dist\server.js" veya sizin servis
+  yönteminizle yenileyin.
+- API’nin bu projeden açık olduğunu test: insaat-erp-backend içinde, PowerShell:
+      node scripts/verify-api.cjs
+  "OK" / surum=2 benzeri yazıyorsa doğru API dinleniyor demektir.
+
+================================================================================
+  (Bu dosyayı dilediğiniz yere C: üzerinde kopyalayın; ekip arkadaşlarınıza
+   aynı adımlar geçerli.)
+================================================================================
