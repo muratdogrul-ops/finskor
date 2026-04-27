@@ -17,6 +17,7 @@ import * as portalCtrl from '../controllers/musteriPortalController';
 import * as stokCtrl from '../controllers/stokController';
 import * as ihaleCtrl from '../controllers/ihaleController';
 import * as aiCtrl from '../controllers/aiUyariController';
+import * as adminCtrl from '../controllers/adminController';
 
 const router = Router();
 
@@ -127,5 +128,21 @@ router.delete('/ihale/:id',    authenticate, requireRole('admin','mudur'), ihale
 router.get('/ai/uyarilar',      authenticate, aiCtrl.getUyarilar);
 router.get('/ai/proje-riskler', authenticate, aiCtrl.getProjeRiskler);
 router.get('/ai/ozet',          authenticate, aiCtrl.getAiOzet);
+
+// ─── ADMIN — AUDIT LOG ───────────────────────────────────────────────────────
+router.get('/admin/audit-log',         authenticate, requireRole('admin'), adminCtrl.getAuditLog);
+router.get('/admin/audit-log/export',  authenticate, requireRole('admin'), adminCtrl.exportAuditLogCsv);
+
+// ─── ADMIN — YEDEKLEME ───────────────────────────────────────────────────────
+router.post('/admin/yedek',            authenticate, requireRole('admin'), adminCtrl.createBackup);
+router.get('/admin/yedekler',          authenticate, requireRole('admin'), adminCtrl.listBackups);
+router.get('/admin/yedekler/:dosya',   authenticate, requireRole('admin'), adminCtrl.downloadBackup);
+
+// ─── ADMIN — KULLANICI YÖNETİMİ ──────────────────────────────────────────────
+router.get('/admin/kullanicilar',       authenticate, requireRole('admin'), adminCtrl.getKullanicilar);
+router.post('/admin/kullanicilar',      authenticate, requireRole('admin'), adminCtrl.createKullanici);
+router.put('/admin/kullanicilar/:id',   authenticate, requireRole('admin'), adminCtrl.updateKullanici);
+router.delete('/admin/kullanicilar/:id',authenticate, requireRole('admin'), adminCtrl.deleteKullanici);
+router.get('/admin/ozet',              authenticate, requireRole('admin'), adminCtrl.getTenantOzet);
 
 export default router;

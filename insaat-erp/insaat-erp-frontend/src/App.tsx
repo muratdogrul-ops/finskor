@@ -25,6 +25,7 @@ const ZincirGorunum  = lazy(() => import('@/components/modules/ZincirGorunum').t
 const MusteriPortal  = lazy(() => import('@/components/modules/MusteriPortal').then(m => ({ default: m.MusteriPortal })))
 const StokDepo       = lazy(() => import('@/components/modules/Stok').then(m => ({ default: m.StokDepo })))
 const AiUyarilar     = lazy(() => import('@/components/modules/AiUyarilar').then(m => ({ default: m.AiUyarilar })))
+const AdminPanel     = lazy(() => import('@/components/modules/AdminPanel').then(m => ({ default: m.AdminPanel })))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -82,6 +83,7 @@ export default function App() {
                     <Route path="/zincir" element={<ZincirGorunum />} />
                     <Route path="/stok" element={<StokDepo />} />
                     <Route path="/ai-uyarilar" element={<AiUyarilar />} />
+                    <Route path="/admin" element={<AdminPanel />} />
                   </Routes>
                 </Suspense>
               </Layout>
