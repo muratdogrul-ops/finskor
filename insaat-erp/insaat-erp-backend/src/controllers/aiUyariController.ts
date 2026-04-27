@@ -206,7 +206,11 @@ export const getUyarilar = async (req: Request, res: Response): Promise<void> =>
     // 1. Vadesi geçmiş faturalar
     const vadesiGeçmisRes = await query(
       `SELECT COUNT(*) AS sayi, COALESCE(SUM(genel_toplam),0) AS toplam,
-              STRING_AGG(f.fatura_no, ', ' ORDER BY vade_tarihi LIMIT 3) AS ornek_no
+              (SELECT STRING_AGG(fatura_no, ', ')
+               FROM (SELECT fatura_no FROM faturalar
+                     WHERE tenant_id = $1 AND odeme_durumu = 'bekliyor'
+                       AND vade_tarihi < CURRENT_DATE AND gib_durum != 'iptal'
+                     ORDER BY vade_tarihi LIMIT 3) sub) AS ornek_no
        FROM faturalar f
        WHERE f.tenant_id = $1 AND f.odeme_durumu = 'bekliyor'
          AND f.vade_tarihi < CURRENT_DATE AND f.gib_durum != 'iptal'`,
@@ -229,7 +233,11 @@ export const getUyarilar = async (req: Request, res: Response): Promise<void> =>
     // 2. Kritik stok seviyeleri
     const stokRes = await query(
       `SELECT COUNT(*) AS sayi,
-              STRING_AGG(malzeme_adi, ', ' ORDER BY (mevcut_miktar/NULLIF(minimum_miktar,0)) LIMIT 3) AS ornekler
+              (SELECT STRING_AGG(malzeme_adi, ', ')
+               FROM (SELECT malzeme_adi FROM stoklar
+                     WHERE tenant_id = $1 AND aktif = true
+                       AND minimum_miktar > 0 AND mevcut_miktar <= minimum_miktar
+                     ORDER BY (mevcut_miktar::float / NULLIF(minimum_miktar, 0)) LIMIT 3) sub) AS ornekler
        FROM stoklar
        WHERE tenant_id = $1 AND aktif = true
          AND minimum_miktar > 0 AND mevcut_miktar <= minimum_miktar`,
@@ -296,7 +304,11 @@ export const getUyarilar = async (req: Request, res: Response): Promise<void> =>
     // 5. Maliyet aşımı olan şantiyeler (gerceklesen > sozlesme_bedel * 0.9)
     const maliyetRes = await query(
       `SELECT COUNT(*) AS sayi,
-              STRING_AGG(ad, ', ' LIMIT 2) AS ornekler,
+              (SELECT STRING_AGG(ad, ', ')
+               FROM (SELECT ad FROM santiyeler
+                     WHERE tenant_id = $1 AND aktif = true AND durum != 'tamamlandi'
+                       AND sozlesme_bedel > 0 AND gerceklesen > sozlesme_bedel * 0.9
+                     ORDER BY (gerceklesen - sozlesme_bedel) DESC LIMIT 2) sub) AS ornekler,
               COALESCE(SUM(gerceklesen - sozlesme_bedel),0) AS toplam_asim
        FROM santiyeler
        WHERE tenant_id = $1 AND aktif = true AND durum != 'tamamlandi'
@@ -320,7 +332,12 @@ export const getUyarilar = async (req: Request, res: Response): Promise<void> =>
     // 6. Süresi yaklaşan projeler (30 gün içinde bitiyor, ilerleme < %80)
     const surRes = await query(
       `SELECT COUNT(*) AS sayi,
-              STRING_AGG(ad, ', ' LIMIT 2) AS ornekler
+              (SELECT STRING_AGG(ad, ', ')
+               FROM (SELECT ad FROM santiyeler
+                     WHERE tenant_id = $1 AND aktif = true AND durum != 'tamamlandi'
+                       AND bitis_planlanan BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'
+                       AND fiziksel_ilerleme < 80
+                     ORDER BY bitis_planlanan LIMIT 2) sub) AS ornekler
        FROM santiyeler
        WHERE tenant_id = $1 AND aktif = true AND durum != 'tamamlandi'
          AND bitis_planlanan BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'
@@ -343,7 +360,14 @@ export const getUyarilar = async (req: Request, res: Response): Promise<void> =>
     // 7. Uzun süredir günlük rapor girilmeyen şantiyeler
     const gunlukRes = await query(
       `SELECT COUNT(*) AS sayi,
-              STRING_AGG(s.ad, ', ' LIMIT 2) AS ornekler
+              (SELECT STRING_AGG(ad, ', ')
+               FROM (SELECT s2.ad FROM santiyeler s2
+                     WHERE s2.tenant_id = $1 AND s2.aktif = true AND s2.durum = 'devam'
+                       AND NOT EXISTS (
+                         SELECT 1 FROM santiye_gunlukleri g
+                         WHERE g.santiye_id = s2.id AND g.tarih >= CURRENT_DATE - INTERVAL '5 days'
+                       )
+                     ORDER BY s2.ad LIMIT 2) sub) AS ornekler
        FROM santiyeler s
        WHERE s.tenant_id = $1 AND s.aktif = true AND s.durum = 'devam'
          AND NOT EXISTS (
@@ -361,6 +385,33 @@ export const getUyarilar = async (req: Request, res: Response): Promise<void> =>
         baslik: `${gnl.sayi} şantiyede 5+ gündür günlük rapor yok`,
         aciklama: `${gnl.ornekler || ''} — Saha takibi eksik kalıyor.`,
         oneri: 'Saha mühendislerine hatırlatma yapın. Düzenli günlük rapor tutulması önerilir.',
+        tarih: new Date().toISOString(),
+      });
+    }
+
+    // 8. Geciken projeler (bitis_planlanan geçmiş, tamamlanmamış)
+    const gecikmisRes = await query(
+      `SELECT COUNT(*) AS sayi,
+              (SELECT STRING_AGG(ad, ', ')
+               FROM (SELECT ad FROM santiyeler
+                     WHERE tenant_id = $1 AND aktif = true AND durum != 'tamamlandi'
+                       AND bitis_planlanan < CURRENT_DATE AND fiziksel_ilerleme < 100
+                     ORDER BY bitis_planlanan LIMIT 3) sub) AS ornekler
+       FROM santiyeler
+       WHERE tenant_id = $1 AND aktif = true AND durum != 'tamamlandi'
+         AND bitis_planlanan < CURRENT_DATE AND fiziksel_ilerleme < 100`,
+      [tenantId]
+    );
+    const gec = gecikmisRes.rows[0];
+    if (parseInt(gec.sayi) > 0) {
+      uyarilar.push({
+        id: 'geciken-proje',
+        tip: parseInt(gec.sayi) > 2 ? 'kritik' : 'uyari',
+        kategori: 'gecikme',
+        baslik: `${gec.sayi} proje planlanan bitiş tarihini geçti`,
+        aciklama: `${gec.ornekler || ''} — Sözleşmesel gecikme cezası riski.`,
+        deger: parseInt(gec.sayi),
+        oneri: 'Süre uzatım talebini işverene iletin; gerekçe raporunu hazırlayın.',
         tarih: new Date().toISOString(),
       });
     }
