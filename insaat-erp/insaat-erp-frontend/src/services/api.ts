@@ -18,51 +18,19 @@ api.interceptors.request.use((config) => {
 })
 
 // ─── RESPONSE INTERCEPTOR (Token Refresh) ────────────────────────────────────
-let isRefreshing = false
-let refreshQueue: Array<(token: string) => void> = []
 
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const original = error.config
-
-    if (error.response?.status === 401 &&
-        error.response?.data?.code === 'TOKEN_EXPIRED' &&
-        !original._retry) {
-
-      if (isRefreshing) {
-        return new Promise((resolve) => {
-          refreshQueue.push((token) => {
-            original.headers.Authorization = `Bearer ${token}`
-            resolve(api(original))
-          })
-        })
-      }
-
-      original._retry = true
-      isRefreshing = true
-
-      try {
-        const refreshToken = useAuthStore.getState().refreshToken
-        if (!refreshToken) throw new Error('No refresh token')
-
-        const response = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken })
-        const { accessToken, refreshToken: newRefresh } = response.data.data
-
-        useAuthStore.getState().setTokens(accessToken, newRefresh)
-        original.headers.Authorization = `Bearer ${accessToken}`
-
-        refreshQueue.forEach(cb => cb(accessToken))
-        refreshQueue = []
-
-        return api(original)
-      } catch {
-        useAuthStore.getState().logout()
+    // Herhangi bir 401 → oturumu kapat ve giriş ekranına yönlendir
+    if (error.response?.status === 401 && !error.config?._retry) {
+      error.config._retry = true
+      useAuthStore.getState().logout()
+      // zaten giriş sayfasındaysak döngü oluşmasın
+      if (window.location.pathname !== '/giris') {
         window.location.href = '/giris'
-        return Promise.reject(error)
-      } finally {
-        isRefreshing = false
       }
+      return Promise.reject(error)
     }
 
     return Promise.reject(error)
