@@ -18,7 +18,8 @@ import * as stokCtrl from '../controllers/stokController';
 import * as ihaleCtrl from '../controllers/ihaleController';
 import * as aiCtrl from '../controllers/aiUyariController';
 import * as adminCtrl from '../controllers/adminController';
-import * as taseronCtrl from '../controllers/taseronController';
+import * as taseronCtrl    from '../controllers/taseronController';
+import * as muhasebeCtrl   from '../controllers/muhasebeController';
 
 const router = Router();
 
@@ -145,6 +146,20 @@ router.post('/ekipman-maliyet',                  authenticate, requireRole('admi
 // Puantaj grid
 router.get('/puantaj/grid',                      authenticate, taseronCtrl.getPuantajGrid);
 router.post('/puantaj/grid',                     authenticate, taseronCtrl.savePuantajGrid);
+
+// ─── MUHASEBE ────────────────────────────────────────────────────────────────
+router.get('/muhasebe/hesap-plani',              authenticate, muhasebeCtrl.getHesapPlani);
+router.post('/muhasebe/hesap-plani',             authenticate, requireRole('admin','mudur'), muhasebeCtrl.createHesap);
+router.put('/muhasebe/hesap-plani/:id',          authenticate, requireRole('admin','mudur'), muhasebeCtrl.updateHesap);
+router.post('/muhasebe/hesap-plani/seed',        authenticate, requireRole('admin'), muhasebeCtrl.seedHesapPlani);
+router.get('/muhasebe/fisler',                   authenticate, muhasebeCtrl.getFisler);
+router.get('/muhasebe/fisler/:id',               authenticate, muhasebeCtrl.getFis);
+router.post('/muhasebe/fisler',                  authenticate, requireRole('admin','mudur','muhasebe'), muhasebeCtrl.createFis);
+router.post('/muhasebe/fisler/:id/onayla',       authenticate, requireRole('admin','mudur'), muhasebeCtrl.onaylaFis);
+router.post('/muhasebe/fisler/:id/iptal',        authenticate, requireRole('admin','mudur'), muhasebeCtrl.iptalFis);
+router.get('/muhasebe/mizan',                    authenticate, muhasebeCtrl.getMizan);
+router.get('/muhasebe/muavin/:hesap_id',         authenticate, muhasebeCtrl.getMuavin);
+router.get('/muhasebe/gelir-gider',              authenticate, muhasebeCtrl.getGelirGider);
 
 // ─── AI UYARI / ANALİTİK ─────────────────────────────────────────────────────
 router.get('/ai/uyarilar',      authenticate, aiCtrl.getUyarilar);

@@ -37,6 +37,9 @@ api.interceptors.response.use(
   }
 )
 
+// Interceptor'lı axios instance'ı dışa aktar
+export { api as apiClient }
+
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
 export const authApi = {
   login: (email: string, sifre: string) =>

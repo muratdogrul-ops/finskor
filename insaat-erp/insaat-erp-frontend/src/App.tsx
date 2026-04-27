@@ -27,6 +27,7 @@ const StokDepo       = lazy(() => import('@/components/modules/Stok').then(m => 
 const AiUyarilar     = lazy(() => import('@/components/modules/AiUyarilar').then(m => ({ default: m.AiUyarilar })))
 const AdminPanel     = lazy(() => import('@/components/modules/AdminPanel').then(m => ({ default: m.AdminPanel })))
 const Taseron        = lazy(() => import('@/components/modules/Taseron').then(m => ({ default: m.Taseron })))
+const Muhasebe       = lazy(() => import('@/components/modules/Muhasebe').then(m => ({ default: m.Muhasebe })))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -84,6 +85,7 @@ export default function App() {
                     <Route path="/zincir" element={<ZincirGorunum />} />
                     <Route path="/stok" element={<StokDepo />} />
                     <Route path="/taseron" element={<Taseron />} />
+                    <Route path="/muhasebe" element={<Muhasebe />} />
                     <Route path="/ai-uyarilar" element={<AiUyarilar />} />
                     <Route path="/admin" element={<AdminPanel />} />
                   </Routes>
