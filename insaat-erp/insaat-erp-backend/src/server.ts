@@ -15,6 +15,7 @@ import logger from './utils/logger';
 import { checkDbConnection } from './config/database';
 import router from './routes/index';
 import { setSocketIO } from './controllers/mesajController';
+import { runMigrations } from './utils/migration';
 import jwt from 'jsonwebtoken';
 import { JwtPayload } from './middleware/auth';
 import { userCanAccessSantiye } from './utils/santiyeAccess';
@@ -242,6 +243,8 @@ const start = async () => {
     logger.error('Veritabanına bağlanılamadı. Sunucu başlatılamıyor.');
     process.exit(1);
   }
+
+  await runMigrations();
 
   httpServer.listen(PORT, '0.0.0.0', () => {
     logger.info(

@@ -100,7 +100,7 @@ export const getProjeRiskler = async (req: Request, res: Response): Promise<void
        ) sa ON sa.santiye_id = s.id
        LEFT JOIN (
          SELECT santiye_id,
-           SUM(tutar) FILTER (WHERE odeme_durumu='bekliyor' AND vade_tarihi < CURRENT_DATE) AS vadesi_gecmis
+          SUM(genel_toplam) FILTER (WHERE odeme_durumu='bekliyor' AND vade_tarihi < CURRENT_DATE AND gib_durum != 'iptal') AS vadesi_gecmis
          FROM faturalar WHERE tenant_id = $1 GROUP BY santiye_id
        ) f ON f.santiye_id = s.id
        WHERE s.tenant_id = $1 AND s.aktif = true AND s.durum != 'tamamlandi'
@@ -205,11 +205,11 @@ export const getUyarilar = async (req: Request, res: Response): Promise<void> =>
 
     // 1. Vadesi geçmiş faturalar
     const vadesiGeçmisRes = await query(
-      `SELECT COUNT(*) AS sayi, COALESCE(SUM(tutar),0) AS toplam,
+      `SELECT COUNT(*) AS sayi, COALESCE(SUM(genel_toplam),0) AS toplam,
               STRING_AGG(f.fatura_no, ', ' ORDER BY vade_tarihi LIMIT 3) AS ornek_no
        FROM faturalar f
        WHERE f.tenant_id = $1 AND f.odeme_durumu = 'bekliyor'
-         AND f.vade_tarihi < CURRENT_DATE AND f.durum != 'iptal'`,
+         AND f.vade_tarihi < CURRENT_DATE AND f.gib_durum != 'iptal'`,
       [tenantId]
     );
     const vg = vadesiGeçmisRes.rows[0];
@@ -402,9 +402,9 @@ export const getAiOzet = async (req: Request, res: Response): Promise<void> => {
       query(
         `SELECT
            COUNT(*) FILTER (WHERE odeme_durumu='bekliyor' AND vade_tarihi < CURRENT_DATE) AS vadesi_gecmis,
-           COALESCE(SUM(tutar) FILTER (WHERE odeme_durumu='bekliyor' AND vade_tarihi < CURRENT_DATE), 0) AS vadesi_gecmis_tutar,
-           COALESCE(SUM(tutar) FILTER (WHERE odeme_durumu='bekliyor'), 0) AS tahsil_bekleyen
-         FROM faturalar WHERE tenant_id = $1 AND durum != 'iptal'`,
+           COALESCE(SUM(genel_toplam) FILTER (WHERE odeme_durumu='bekliyor' AND vade_tarihi < CURRENT_DATE), 0) AS vadesi_gecmis_tutar,
+           COALESCE(SUM(genel_toplam) FILTER (WHERE odeme_durumu='bekliyor'), 0) AS tahsil_bekleyen
+         FROM faturalar WHERE tenant_id = $1 AND gib_durum != 'iptal'`,
         [tenantId]
       ),
     ]);
