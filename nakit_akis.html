@@ -3957,21 +3957,22 @@ function parseLoanRow(cols) {
   const fc = String(cols[0] ?? '').trim();
   // Banka ödeme planındaki taksit no (1,2,3…) satırlarını şablon sanma
   if (/^\d+(\.\d+)?$/.test(fc)) return null;
-  const tipRaw = (cols[0] || '').toLowerCase().trim();
+  const tipRaw = String(cols[0] ?? '').toLowerCase().trim();
   const type = tipRaw.includes('bch') ? 'bch_existing' : 'installment';
-  const bank = cols[1] || 'Belirtilmemiş';
+  const bank = String(cols[1] != null && cols[1] !== '' ? cols[1] : 'Belirtilmemiş').trim() || 'Belirtilmemiş';
   let ccy = 'TL';
-  if (cols[2]) {
-    const c = cols[2].toUpperCase().trim();
+  if (cols[2] != null && cols[2] !== '') {
+    const c = String(cols[2]).toUpperCase().trim();
     if (c === 'USD' || c === 'EUR') ccy = c;
   }
   const principal = fnum(cols[3] || 0);
   let startDate = null;
   let term = 0, rate = 0;
   if (type === 'installment') {
-    const dt = parseDate(cols[4] || '');
+    const d4 = cols[4] instanceof Date && !isNaN(+cols[4]) ? fmtDate(cols[4]) : String(cols[4] ?? '');
+    const dt = parseDate(d4);
     startDate = dt ? dt.toISOString() : null;
-    term = parseInt(cols[5]) || 0;
+    term = parseInt(String(cols[5] ?? ''), 10) || 0;
     rate = fnum(cols[6] || 0);
   }
   return { type, bank, ccy, principal, startDate, term, rate };
