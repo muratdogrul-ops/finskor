@@ -3842,15 +3842,20 @@ function readExcelCsvLoans(file, ext) {
         buildLoanPreview(parseCSVRows(text));
       } else {
         const sheets = parseWorkbookSheets(e.target.result);
-        let found = false;
+        if (!sheets.length) throw new Error('Çalışma sayfası boş.');
+        let bestSi = 0;
+        let bestScore = -1;
         for (let si = 0; si < sheets.length; si++) {
           buildLoanPreview(sheets[si]);
-          if (loanPreviewData.length) {
-            found = true;
-            break;
+          const okc = loanPreviewData.filter(function (x) { return x._ok; }).length;
+          const total = loanPreviewData.length;
+          const score = okc * 10000 + total * 100 + (total > 0 ? 1 : 0);
+          if (score > bestScore) {
+            bestScore = score;
+            bestSi = si;
           }
         }
-        if (!found && sheets.length) buildLoanPreview(sheets[0]);
+        buildLoanPreview(sheets[bestSi]);
       }
     } catch(err) {
       document.getElementById('loan-import-status').textContent = '⚠ Hata: ' + err.message;
@@ -3969,10 +3974,17 @@ function parseLoanRow(cols) {
   let startDate = null;
   let term = 0, rate = 0;
   if (type === 'installment') {
-    const d4 = cols[4] instanceof Date && !isNaN(+cols[4]) ? fmtDate(cols[4]) : String(cols[4] ?? '');
-    const dt = parseDate(d4);
-    startDate = dt ? dt.toISOString() : null;
-    term = parseInt(String(cols[5] ?? ''), 10) || 0;
+    let dt = null;
+    const rawD = cols[4];
+    if (rawD instanceof Date && !isNaN(+rawD)) dt = rawD;
+    else if (rawD != null && rawD !== '') {
+      dt = parseDate(String(rawD).trim());
+      if (!dt) dt = cellToLoanDate(rawD);
+    }
+    startDate = dt && !isNaN(+dt) ? dt.toISOString() : null;
+    let tm = parseInt(String(cols[5] ?? '').replace(/\s/g, ''), 10);
+    if (!tm && typeof cols[5] === 'number' && isFinite(cols[5])) tm = Math.round(cols[5]);
+    term = tm || 0;
     rate = fnum(cols[6] || 0);
   }
   return { type, bank, ccy, principal, startDate, term, rate };
@@ -4003,30 +4015,35 @@ function buildLoanPreview(rows) {
       '<td>' + (ok ? '<span class="pos">✓</span>' : '<span class="neg">⚠ ' + errors.join(', ') + '</span>') + '</td>' +
       '</tr>';
   }
-  if (!loanPreviewData.length) {
+  const anyOk = loanPreviewData.some(function (x) { return x._ok; });
+  function applyInferredLoanRow() {
     const inferred = inferLoanFromBankSchedule(rows);
-    if (inferred) {
-      const L = parseLoanRow(inferred);
-      if (L && L.principal > 0) {
-        const errors = [];
-        if (!L.bank) errors.push('Banka?');
-        if (L.type === 'installment' && !L.startDate) errors.push('Tarih?');
-        if (L.type === 'installment' && L.term <= 0) errors.push('Vade?');
-        const ok = errors.length === 0;
-        loanPreviewData.push({ ...L, _ok: ok });
-        const ccyBadge = L.ccy === 'USD' ? 'badge-green' : L.ccy === 'EUR' ? 'badge-pur' : 'badge-blue';
-        html = '<tr>' +
-          '<td><span class="badge badge-blue">Taksitli</span></td>' +
-          '<td style="text-align:left">' + esc(L.bank) + '</td>' +
-          '<td><span class="badge ' + ccyBadge + '">' + L.ccy + '</span></td>' +
-          '<td>' + tr(L.principal) + '</td>' +
-          '<td>' + (L.startDate ? fmtDate(new Date(L.startDate)) : '—') + '</td>' +
-          '<td>' + (L.term || '—') + '</td>' +
-          '<td>' + (L.rate ? '%' + L.rate : '—') + '</td>' +
-          '<td>' + (ok ? '<span class="pos">✓</span> <small>(banka planından çıkarıldı)</small>' : '<span class="neg">⚠ ' + errors.join(', ') + '</span>') + '</td>' +
-          '</tr>';
-      }
-    }
+    if (!inferred) return false;
+    const L = parseLoanRow(inferred);
+    if (!L || L.principal <= 0) return false;
+    const errors = [];
+    if (!L.bank) errors.push('Banka?');
+    if (L.type === 'installment' && !L.startDate) errors.push('Tarih?');
+    if (L.type === 'installment' && L.term <= 0) errors.push('Vade?');
+    const ok = errors.length === 0;
+    loanPreviewData = [{ ...L, _ok: ok }];
+    const ccyBadge = L.ccy === 'USD' ? 'badge-green' : L.ccy === 'EUR' ? 'badge-pur' : 'badge-blue';
+    html = '<tr>' +
+      '<td><span class="badge badge-blue">Taksitli</span></td>' +
+      '<td style="text-align:left">' + esc(L.bank) + '</td>' +
+      '<td><span class="badge ' + ccyBadge + '">' + L.ccy + '</span></td>' +
+      '<td>' + tr(L.principal) + '</td>' +
+      '<td>' + (L.startDate ? fmtDate(new Date(L.startDate)) : '—') + '</td>' +
+      '<td>' + (L.term || '—') + '</td>' +
+      '<td>' + (L.rate ? '%' + L.rate : '—') + '</td>' +
+      '<td>' + (ok ? '<span class="pos">✓</span> <small>(banka planından çıkarıldı)</small>' : '<span class="neg">⚠ ' + errors.join(', ') + '</span>') + '</td>' +
+      '</tr>';
+    return true;
+  }
+  if (!loanPreviewData.length) {
+    applyInferredLoanRow();
+  } else if (!anyOk) {
+    applyInferredLoanRow();
   }
   if (!loanPreviewData.length) {
     document.getElementById('loan-import-status').textContent = '⚠ Tanınabilir kredi satırı bulunamadı. Şablon: Tip;Banka;TL;anapara;tarih;vade;faiz veya banka ödeme planı (.xls/.xlsx).';
@@ -4035,7 +4052,9 @@ function buildLoanPreview(rows) {
   }
   tbody.innerHTML = html;
   document.getElementById('loan-preview').style.display = '';
-  document.getElementById('loan-import-status').textContent = loanPreviewData.length + ' satır bulundu.';
+  const okn = loanPreviewData.filter(function (x) { return x._ok; }).length;
+  document.getElementById('loan-import-status').textContent = loanPreviewData.length + ' satır bulundu' +
+    (okn < loanPreviewData.length ? ' — ' + okn + ' tanesi ✓ (⚠ satır aktarılmaz).' : ' — hepsi ✓.');
 }
 
 function importLoansFromPreview() {
@@ -4046,6 +4065,10 @@ function importLoansFromPreview() {
     const { _ok, ...loan } = L;
     f.loans.push(loan);
     count++;
+  }
+  if (count === 0) {
+    showAlert('Aktarılmadı: Önizlemede ✓ yok — tarih/vade eksik veya hatalı satır. Tablodaki ⚠ uyarısını giderin.', 'err');
+    return;
   }
   saveState(); renderLoans(); clearLoanPreview();
   showAlert(count + ' kredi başarıyla aktarıldı.', 'ok');
