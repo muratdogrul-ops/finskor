@@ -1202,12 +1202,35 @@ function fmtDateSafe(iso){
 const LOAN_TERM_MAX_MONTHS=480;
 function normalizeInstallmentLoan(L){
   if(!L||L.type!=='installment')return;
+  /** Eski bug: "55,999" CSV → fnum 55999 saklandı. /1000 ile geri al (55,999). 45833→45.833 gibi ara değerleri elleme. */
+  const r=Number(L.rate);
+  if(isFinite(r)&&r>200&&r<=999999){
+    const scaled=r/1000;
+    if(scaled>=5&&scaled<=130){
+      const frac=scaled-Math.floor(scaled);
+      if(frac>=0.99||frac<1e-9)L.rate=Math.round(scaled*1000)/1000;
+    }
+  }
   if(typeof L.term==='number'&&(L.term>LOAN_TERM_MAX_MONTHS||L.term<0||!isFinite(L.term)))L.term=0;
   if(L.startDate){
     const d=new Date(L.startDate);
     const y=d.getFullYear();
     if(isNaN(+d)||y<1980||y>2100)L.startDate=null;
   }
+}
+function migrateLegacyLoanRates(){
+  let dirty=false;
+  const firms=state.firms||{};
+  for(const id of Object.keys(firms)){
+    const loans=firms[id].loans||[];
+    for(const L of loans){
+      if(L.type!=='installment')continue;
+      const prev=L.rate;
+      normalizeInstallmentLoan(L);
+      if(prev!==L.rate)dirty=true;
+    }
+  }
+  return dirty;
 }
 function addMonths(date,n){const d=new Date(date);d.setMonth(d.getMonth()+n);return d;}
 function tr(x,d=2){if(x===null||x===undefined||x==='')return '';const n=Number(x);if(isNaN(n))return String(x);return n.toLocaleString('tr-TR',{minimumFractionDigits:d,maximumFractionDigits:d});}
@@ -4546,6 +4569,7 @@ async function importFromFinSkor(){
 
 async function init(){
   await loadState();
+  if(migrateLegacyLoanRates())await saveState();
   await importFromFinSkor();   // FinSkor'dan veri geldiyse önce oluştur
   renderFirmList();
   $('new-firm-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal('new-firm-modal');});
