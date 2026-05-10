@@ -119,7 +119,13 @@
 
 [[redirects]]
   from = "/finnakitflow"
-  to = "/finnakitflow.html"
+  to = "/nakitflow.html"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/nakitflow"
+  to = "/nakitflow.html"
   status = 302
   force = true
 
@@ -138,6 +144,16 @@
 # Ana uygulama — Baykuş / yerel cevap güncellemeleri eski deploy metninde takılmasın
 [[headers]]
   for = "/app.html"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate, max-age=0"
+
+[[headers]]
+  for = "/nakitflow.html"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate, max-age=0"
+
+[[headers]]
+  for = "/nakit_akis.html"
   [headers.values]
     Cache-Control = "no-store, no-cache, must-revalidate, max-age=0"
 
