@@ -989,6 +989,7 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
   </div>
 </div>
       <div id="proj-kpis" class="kpi-grid"></div>
+      <div id="proj-cash-summary" class="card glow" style="display:none;margin-bottom:16px"></div>
       <div class="notice" style="margin-bottom:14px">⚠ Yıllık VÖK(EBT) ≤ 0 ise kurumlar vergisi = 0. Zarar 5 yıl devredilir. Dövizli kredilerde aylık kur × taksit = TL.</div>
       <div id="proj-years-container"></div>
       <div class="notice" style="margin-top:12px;font-size:.76rem">Excel ve PDF paketinde <b>İNA</b> sayfası da vardır; rakamlar <b>İNA / Değerleme</b> ekranında <b>Kaydet ve hesapla</b> ile kaydettiğiniz parametrelere göre üretilir.</div>
@@ -3331,9 +3332,78 @@ function colorClass(v, rd){
   return v<0?'neg':'';
 }
 
+/** Projeksiyon satırlarından: kasa+mevduat likiditesinin ay başına göre net değişimi (motor değişmez). */
+function buildMonthlyCashSummarySeries(proj){
+  const rows=proj.rows||[];
+  const cash0=(proj.summary&&proj.summary.cash0)||0;
+  const series=[];
+  let prev=cash0;
+  let posMonths=0,negMonths=0;
+  let firstNegLabel=null;
+  for(let i=0;i<rows.length;i++){
+    const r=rows[i];
+    const end=(r['Son.Nakit']||0)+(r['Son.Mevduat']||0);
+    const net=end-prev;
+    if(net>=-1e-6)posMonths++;else negMonths++;
+    if(net<-1e-6&&!firstNegLabel)firstNegLabel=r['Tarih']||'';
+    series.push({ay:r['Ay'],tarih:r['Tarih']||'',onceki:prev,son:end,net:net,arti:net>=-1e-6});
+    prev=end;
+  }
+  return{series,posMonths,negMonths,firstNegLabel,months:rows.length};
+}
+
+function renderProjectionCashSummary(proj){
+  const box=$('proj-cash-summary');
+  if(!box)return;
+  const data=buildMonthlyCashSummarySeries(proj);
+  if(!data.series.length){box.innerHTML='';box.style.display='none';return;}
+  box.style.display='block';
+  const miniKpi=
+    '<div class="kpi-grid" style="margin-bottom:14px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">'+
+    '<div class="kpi"><div class="kpi-label">Likidite artışı (ay)</div><div class="kpi-val green">'+data.posMonths+' / '+data.months+'</div></div>'+
+    '<div class="kpi"><div class="kpi-label">Likidite azalışı (ay)</div><div class="kpi-val red">'+data.negMonths+'</div></div>'+
+    '<div class="kpi"><div class="kpi-label">İlk likidite düşüşü</div><div class="kpi-val '+(data.firstNegLabel?'amber':'green')+'">'+(data.firstNegLabel?esc(data.firstNegLabel):'—')+'</div></div>'+
+    '</div>';
+  let tbody='';
+  for(const x of data.series){
+    const cls=x.arti?'pos':'neg';
+    const durum=x.arti?'<span class="badge badge-green">Artıda</span>':'<span class="badge badge-red">Ekside</span>';
+    tbody+='<tr><td>'+x.ay+'</td><td>'+esc(String(x.tarih))+'</td><td>'+tr(x.onceki)+'</td><td>'+tr(x.son)+'</td><td class="'+cls+'">'+tr(x.net)+'</td><td>'+durum+'</td></tr>';
+  }
+  box.innerHTML=
+    '<div class="card-header" style="border:none;padding-bottom:10px;margin-bottom:0"><div class="card-icon">📋</div><div><div class="card-title">Aylık likidite özeti</div>'+
+    '<div style="font-size:.72rem;color:var(--tx3);margin-top:4px">Kasa + mevduat toplamı: dönem başına göre <strong>aylık net değişim</strong>. Pozitif = likidite artıyor (artıda), negatif = azalıyor (ekside).</div></div></div>'+
+    miniKpi+
+    '<div class="tbl-scroll"><table><thead><tr><th>Ay</th><th>Tarih</th><th>Dönem başı</th><th>Dönem sonu</th><th>Aylık net</th><th>Durum</th></tr></thead><tbody>'+tbody+'</tbody></table></div>'+
+    '<div class="btn-group" style="margin-top:12px;margin-bottom:0"><button type="button" class="btn btn-ghost btn-sm" onclick="exportCashSummaryCSV()">⬇ Özet CSV</button></div>';
+}
+
+function exportCashSummaryCSV(){
+  if(!lastProjection||!lastProjection.rows||!lastProjection.rows.length){showAlert('Önce Nakit Akış sayfasını açıp projeksiyonu yükleyin.','err');return;}
+  const data=buildMonthlyCashSummarySeries(lastProjection);
+  const sep=';';
+  const lines=['Ay'+sep+'Tarih'+sep+'DonemBasi'+sep+'DonemSonu'+sep+'AylikNet'+sep+'Artida'];
+  for(const x of data.series){
+    lines.push([x.ay,x.tarih,x.onceki,x.son,x.net,x.arti?'Evet':'Hayir'].join(sep));
+  }
+  const blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='nakit-ozet-likidite.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showAlert('Özet CSV indirildi.','ok');
+}
+
 function renderProjection(){
   const f=curFirm();if(!f)return;
-  let proj;try{proj=buildProjection(state.currentFirmId);}catch(e){showAlert(e.message,'err');return;}
+  let proj;
+  try{proj=buildProjection(state.currentFirmId);}
+  catch(e){
+    showAlert(e.message,'err');
+    const sb=$('proj-cash-summary');if(sb){sb.innerHTML='';sb.style.display='none';}
+    return;
+  }
   lastProjection=proj;
   const{summary,rows}=proj;
   $('proj-title').textContent=f.name+' — Aylık Nakit Akım Projeksiyonu';
@@ -3346,7 +3416,11 @@ function renderProjection(){
     '<div class="kpi"><div class="kpi-label">DSO</div><div class="kpi-val">'+tr(summary.dso,0)+' gün</div></div>'+
     '<div class="kpi"><div class="kpi-label">DPO</div><div class="kpi-val">'+tr(summary.dpo,0)+' gün</div></div>'+
     '<div class="kpi"><div class="kpi-label">Stok (ciro ile)</div><div class="kpi-val amber">%'+tr(summary.revenueGrowthPct,1)+'/yıl</div></div>';
-  if(!rows.length)return;
+  if(!rows.length){
+    const sb=$('proj-cash-summary');if(sb){sb.innerHTML='';sb.style.display='none';}
+    return;
+  }
+  renderProjectionCashSummary(proj);
   const startYear=new Date(f.startDate).getFullYear();
   const numYears=Math.ceil(summary.months/12);
   const yearlyData=buildYearlyData(rows, startYear, numYears);
