@@ -7,58 +7,48 @@
   <title>Fininsaat ERP — Giriş</title>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: 'Segoe UI', system-ui, sans-serif; max-width: 28rem; margin: 0 auto; padding: 1.5rem 1rem 2rem; background: #eef2f7; color: #111; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; max-width: 26rem; margin: 0 auto; padding: 1.5rem 1rem 2rem; background: #eef2f7; color: #111; }
     h1 { font-size: 1.35rem; margin: 0 0 0.35rem; color: #1e1b4b; font-weight: 800; }
-    .lead { font-size: 0.95rem; color: #475569; margin: 0 0 1.25rem; line-height: 1.45; }
-    .card { background: #fff; border-radius: 12px; padding: 1.25rem 1.2rem; margin-bottom: 0.85rem; box-shadow: 0 1px 4px rgba(15,23,42,.08); border: 1px solid #e2e8f0; }
+    .lead { font-size: 0.92rem; color: #475569; margin: 0 0 1rem; line-height: 1.45; }
+    .card { background: #fff; border-radius: 12px; padding: 1.2rem 1.15rem; margin-bottom: 0.85rem; box-shadow: 0 1px 4px rgba(15,23,42,.08); border: 1px solid #e2e8f0; }
     label { display: block; margin: 0.45rem 0 0.25rem; font-size: 0.88rem; font-weight: 600; color: #334155; }
     input, button { font: inherit; padding: 0.55rem 0.65rem; width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; }
-    button.primary { margin-top: 0.75rem; cursor: pointer; background: #4f46e5; color: #fff; border-color: #4f46e5; font-weight: 600; }
+    button.primary { margin-top: 0.65rem; cursor: pointer; background: #4f46e5; color: #fff; border-color: #4f46e5; font-weight: 600; }
     button.primary:hover { background: #4338ca; }
-    button.secondary { margin-top: 0.5rem; cursor: pointer; background: #fff; color: #475569; border-color: #cbd5e1; font-weight: 500; font-size: 0.85rem; }
-    .err { color: #b91c1c; font-size: 0.88rem; margin-top: 0.5rem; }
-    .ok { color: #15803d; font-size: 0.88rem; }
+    button.secondary { margin-top: 0.45rem; cursor: pointer; background: #f8fafc; color: #334155; border-color: #cbd5e1; font-weight: 600; font-size: 0.88rem; }
+    .err { color: #b91c1c; font-size: 0.86rem; margin-top: 0.45rem; }
+    .ok { color: #15803d; font-size: 0.86rem; }
     table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
     th, td { text-align: left; padding: 0.45rem 0.35rem; border-bottom: 1px solid #e2e8f0; }
-    a.home { color: #4f46e5; font-weight: 600; text-decoration: none; }
-    a.home:hover { text-decoration: underline; }
-    #advanced { display: none; margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #cbd5e1; font-size: 0.82rem; color: #64748b; }
-    #advanced input { margin-top: 0.35rem; }
+    a.home { color: #4f46e5; font-weight: 600; text-decoration: none; font-size: 0.9rem; }
+    .muted { font-size: 0.8rem; color: #64748b; margin-top: 0.35rem; line-height: 1.4; }
   </style>
 </head>
 <body>
-  <!-- Netlify build: INSAAT_ERP_API_URL → patchInsaatErpApiDefault -->
   <script>window.__INSAAT_ERP_API_DEFAULT="";</script>
 
+  <p style="margin:0 0 0.25rem"><a class="home" href="index.html">← Ana sayfa</a></p>
   <h1>Fininsaat ERP</h1>
-  <p id="leadLogin" class="lead" style="display:none">Kurumsal hesabınızla giriş yapın.</p>
+  <p id="leadMain" class="lead">E-posta ve şifrenizle giriş yapın.</p>
 
-  <div id="blockWait" class="card" style="display:none">
-    <p style="margin:0;line-height:1.55;color:#334155;font-size:0.95rem">
-      Bu giriş şu an sizin için açılmadı veya kurulum sürüyor. Bir süre sonra yeniden deneyin ya da FinSkor ile iletişime geçin.
-    </p>
-    <p style="margin:1rem 0 0"><a class="home" href="index.html">← Ana sayfaya dön</a></p>
+  <input type="hidden" id="apiBase" value="" />
+
+  <div id="setupOnce" class="card" style="display:none">
+    <strong style="color:#312e81;display:block;margin-bottom:0.35rem">İlk kez mi giriyorsunuz?</strong>
+    <p class="muted">Firmanızın ERP sunucu adresini bir kez yazın (sonunda / olmasın). Sonra aşağıdan giriş yapın.</p>
+    <label for="apiVisible">Sunucu adresi</label>
+    <input type="url" id="apiVisible" placeholder="https://..." autocomplete="url" />
+    <button type="button" class="secondary" id="saveBase">Kaydet</button>
+    <p id="setupMsg" class="err" style="min-height:1em"></p>
   </div>
 
-  <div id="blockLogin" style="display:none">
-    <input type="hidden" id="apiBase" value="" />
-    <div class="card">
-      <label for="email">E-posta</label>
-      <input type="email" id="email" autocomplete="username" />
-      <label for="sifre">Şifre</label>
-      <input type="password" id="sifre" autocomplete="current-password" />
-      <button type="button" class="primary" id="btnLogin">Giriş yap</button>
-      <p id="loginErr" class="err"></p>
-    </div>
-    <p style="text-align:center;margin-top:0.75rem">
-      <button type="button" class="secondary" id="btnAdvanced">Bağlantı sorunu · teknik ayar</button>
-    </p>
-    <div id="advanced">
-      <p style="margin:0 0 0.5rem">Yalnızca IT / yazılım için — sunucu adresi (sonunda / olmasın):</p>
-      <input type="url" id="apiVisible" placeholder="" autocomplete="url" />
-      <button type="button" class="secondary" id="saveBase">Kaydet ve yenile</button>
-      <p id="setupHint" class="err" style="min-height:1em;margin-top:0.35rem"></p>
-    </div>
+  <div id="loginCard" class="card">
+    <label for="email">E-posta</label>
+    <input type="email" id="email" autocomplete="username" />
+    <label for="sifre">Şifre</label>
+    <input type="password" id="sifre" autocomplete="current-password" />
+    <button type="button" class="primary" id="btnLogin">Giriş yap</button>
+    <p id="loginErr" class="err"></p>
   </div>
 
   <div class="card" id="panel" style="display:none">
@@ -89,37 +79,53 @@
 
   if (DEF) localStorage.setItem(B, DEF);
 
-  if (!resolved) {
-    $id("blockWait").style.display = "block";
-    return;
+  if (stored && !DEF) $id("apiVisible").value = stored;
+  if (resolved) $id("apiBase").value = resolved;
+
+  function refreshUI() {
+    var base = getBase();
+    var t = token();
+    if (t) {
+      $id("setupOnce").style.display = "none";
+      $id("loginCard").style.display = "none";
+      $id("leadMain").style.display = "none";
+      $id("panel").style.display = "block";
+      loadSant();
+      return;
+    }
+    $id("panel").style.display = "none";
+    $id("leadMain").style.display = "block";
+    if (base) {
+      $id("setupOnce").style.display = "none";
+      $id("loginCard").style.display = "block";
+      $id("leadMain").textContent = "E-posta ve şifrenizle giriş yapın.";
+    } else {
+      $id("setupOnce").style.display = "block";
+      $id("loginCard").style.display = "block";
+      $id("leadMain").textContent = "Önce sunucu adresini kaydedin, sonra giriş yapın.";
+    }
   }
 
-  $id("apiBase").value = resolved;
-  $id("leadLogin").style.display = "block";
-  $id("blockLogin").style.display = "block";
-
-  $id("btnAdvanced").onclick = function () {
-    var a = $id("advanced");
-    a.style.display = a.style.display === "block" ? "none" : "block";
-    $id("apiVisible").value = getBase();
-  };
   $id("saveBase").onclick = function () {
     var v = ($id("apiVisible").value || "").trim();
-    if (!v) { $id("setupHint").textContent = "Adres yazın."; return; }
+    $id("setupMsg").textContent = "";
+    if (!v) { $id("setupMsg").textContent = "Adresi yazın."; $id("setupMsg").className = "err"; return; }
     localStorage.setItem(B, v);
-    location.reload();
+    $id("apiBase").value = v;
+    $id("setupMsg").textContent = "Kaydedildi.";
+    $id("setupMsg").className = "ok";
+    refreshUI();
   };
 
-  function showPanel() {
-    $id("blockLogin").style.display = token() ? "none" : "block";
-    $id("leadLogin").style.display = token() ? "none" : "block";
-    $id("panel").style.display = token() ? "block" : "none";
-    if (token()) loadSant();
-  }
-  $id("btnOut").onclick = function () { localStorage.removeItem(K); showPanel(); };
+  $id("btnOut").onclick = function () { localStorage.removeItem(K); refreshUI(); };
 
   $id("btnLogin").onclick = function () {
     $id("loginErr").textContent = "";
+    if (!getBase()) {
+      $id("loginErr").textContent = "Önce sunucu adresini yazıp Kaydet'e basın.";
+      $id("setupOnce").style.display = "block";
+      return;
+    }
     var body = { email: $id("email").value.trim(), sifre: $id("sifre").value };
     fetch(api(getBase(), "/auth/login"), {
       method: "POST",
@@ -128,13 +134,13 @@
     }).then(function (r) { return r.json().then(function (j) { return { r: r, j: j }; }); })
     .then(function (x) {
       if (!x.r.ok || !x.j.success || !x.j.data || !x.j.data.token) {
-        $id("loginErr").textContent = (x.j && x.j.message) || "Giriş yapılamadı. E-posta ve şifreyi kontrol edin.";
+        $id("loginErr").textContent = (x.j && x.j.message) || "Giriş yapılamadı. Bilgileri kontrol edin.";
         return;
       }
       localStorage.setItem(K, x.j.data.token);
-      showPanel();
+      refreshUI();
     })
-    .catch(function () { $id("loginErr").textContent = "Şu an bağlanılamıyor. Daha sonra deneyin."; });
+    .catch(function () { $id("loginErr").textContent = "Şu an bağlanılamıyor. Sunucu adresini kontrol edin."; });
   };
 
   function loadSant() {
@@ -156,11 +162,11 @@
       h += "</tbody></table>";
       $id("tableWrap").innerHTML = h;
     })
-    .catch(function (e) { $id("loadErr").textContent = "Bağlantı sorunu."; });
+    .catch(function () { $id("loadErr").textContent = "Bağlantı sorunu."; });
   }
   function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
-  showPanel();
+  refreshUI();
 })();
   </script>
 </body>
