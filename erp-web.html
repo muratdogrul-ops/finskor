@@ -73,13 +73,14 @@
     if (h.endsWith(".netlify.app")) return true;
     return false;
   }
-  /** /api/v1 sonrası yol; ör. /auth/login veya /santiyeler?limit=50 */
+  /** Önce gizli kök (build / insaat-erp-api.json / Kaydet); yoksa Netlify proxy */
   function apiUrl(rel) {
     var p = rel.indexOf("/") === 0 ? rel : "/" + rel;
+    var b = (getBase() || "").replace(/\/+$/, "");
+    if (b) return b + "/api/v1" + p;
     if (useNetlifyProxy()) {
       return "/.netlify/functions/insaat-erp-proxy?p=" + encodeURIComponent(p);
     }
-    var b = (getBase() || "").replace(/\/+$/, "");
     return b + "/api/v1" + p;
   }
   function getBase() { return ($id("apiBase").value || "").trim(); }
@@ -134,7 +135,7 @@
     } else {
       $id("setupOnce").style.display = "block";
       $id("loginCard").style.display = "block";
-      $id("leadMain").textContent = "ERP adresi bu ortamda tanımlı değil. Netlify → Environment variables → INSAAT_ERP_API_URL (örn. https://api.firmaniz.com, sonda / yok) kaydedip yeniden deploy edin — veya aşağıya adres yazıp Kaydet'e basın.";
+      $id("leadMain").textContent = "ERP adresi yok: repo kökündeki insaat-erp-api.json içine \"apiBase\":\"https://erp-adresiniz.com\" yazın (sonda / yok), push + deploy. İsterseniz Netlify → INSAAT_ERP_API_URL ile de olur. Ya da aşağıya yazıp Kaydet.";
     }
   }
 
@@ -207,7 +208,7 @@
       refreshUI();
     }
 
-    if (!getBase() && !useNetlifyProxy()) {
+    if (!getBase()) {
       fetch("/insaat-erp-api.json", { cache: "no-store" })
         .then(function (r) { return r.ok ? r.json() : {}; })
         .then(function (j) { applyJsonBase(j); })
