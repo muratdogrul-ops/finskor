@@ -24,6 +24,7 @@
     .muted { font-size: 0.8rem; color: #64748b; margin-top: 0.35rem; line-height: 1.45; }
     .helpfoot { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; font-size: 0.85rem; color: #64748b; text-align: center; line-height: 1.5; }
     .helpfoot a { color: #4f46e5; font-weight: 600; }
+    .helpfoot .mailbig { font-weight: 800; font-size: 1.05rem; color: #1e1b4b; margin: 0.35rem 0; user-select: all; -webkit-user-select: all; word-break: break-all; }
   </style>
 </head>
 <body>
@@ -63,7 +64,16 @@
   </div>
 
   <div class="helpfoot">
-    Sorun mu var? <a href="mailto:info@finskor.tr?subject=Fininsaat%20ERP%20yard%C4%B1m">info@finskor.tr</a>
+    <div>Sorun mu var?</div>
+    <div class="mailbig" id="mailAddrShow">info@finskor.tr</div>
+    <button type="button" class="secondary" id="copyMailBtn">E-postayı kopyala</button>
+    <p id="copyMailHint" class="muted" style="margin-top:0.4rem;min-height:1.3em"></p>
+    <p class="muted">Tıklayınca boş kalıyorsa bilgisayarda posta programı yoktur — üstteki düğme ile kopyalayıp Gmail veya Outlook’ta yapıştırın.</p>
+    <p style="margin-top:0.55rem;font-size:0.84rem">
+      <a href="mailto:info@finskor.tr">Postayı açmayı dene</a>
+      <span style="color:#cbd5e1"> · </span>
+      <a href="tel:+905308943775">Telefon: 0530 894 37 75</a>
+    </p>
   </div>
 
   <script>
@@ -205,6 +215,36 @@
         refreshUI();
       })
       .catch(function () { $id("loginErr").textContent = "Şu an bağlanılamıyor." + HELP; });
+    };
+
+    var mailAddr = "info@finskor.tr";
+    $id("copyMailBtn").onclick = function () {
+      $id("copyMailHint").textContent = "";
+      function done(ok) {
+        $id("copyMailHint").textContent = ok
+          ? "Kopyalandı — Gmail / Outlook’ta yeni posta açıp yapıştırın (Ctrl+V)."
+          : "Kopyalanamadı; adresi üstteki satırdan elle seçip kopyalayın.";
+        $id("copyMailHint").className = ok ? "ok" : "err";
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(mailAddr).then(function () { done(true); }).catch(function () { execCopy(); });
+      } else execCopy();
+      function execCopy() {
+        try {
+          var ta = document.createElement("textarea");
+          ta.value = mailAddr;
+          ta.setAttribute("readonly", "");
+          ta.style.position = "fixed";
+          ta.style.left = "-9999px";
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+          done(true);
+        } catch (_e) {
+          done(false);
+        }
+      }
     };
   }
 
