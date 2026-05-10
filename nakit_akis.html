@@ -4773,6 +4773,7 @@ function buildMonthlyExcelSummaryRows(rows) {
     'Nakit ödemeleri (TL)',
     'Net nakit (giriş − ödeme)',
     'Dönem sonu likidite (kasa+mevduat)',
+    'Toplam banka borcu (TL)',
     'Durum'
   ];
   const dataRows = [];
@@ -4799,10 +4800,13 @@ function buildMonthlyExcelSummaryRows(rows) {
       Math.max(0, -(r['Yatırım'] || 0));
     const net = gir - cik;
     const lik = (r['Son.Nakit'] || 0) + (r['Son.Mevduat'] || 0);
+    /* BCH + taksitli + spot anapara bakiyesi (ay sonu, TL) */
+    const bankBorc =
+      (r['Son.BCH'] || 0) + (r['Taksit Bakiye'] || 0) + (r['Spot Bakiye'] || 0);
     let durum = 'Dengede';
     if (net > 1e-6) durum = 'Nakit fazlası';
     else if (net < -1e-6) durum = 'Ödeme baskısı / nakit ihtiyacı';
-    dataRows.push([r['Ay'], r['Tarih'] || '', gir, cik, net, lik, durum]);
+    dataRows.push([r['Ay'], r['Tarih'] || '', gir, cik, net, lik, bankBorc, durum]);
   }
   return { hdrs, dataRows };
 }
