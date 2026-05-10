@@ -3841,6 +3841,22 @@ function inferLoanFromBankSchedule(rows) {
     }
   }
 
+  // Metinde "(24 AY)" yoksa (kesilmiş çıktı): 1..n sıralı taksit satırı sayısından vade
+  if (term <= 0) {
+    let expect = 1;
+    let maxSeq = 0;
+    for (let ii = 0; ii < rows.length; ii++) {
+      const r = rows[ii];
+      if (!Array.isArray(r)) continue;
+      const ni = Math.round(parseFloat(String(r[0]).replace(',', '.')));
+      if (ni === expect && ni >= 1 && ni <= LOAN_TERM_MAX_MONTHS) {
+        maxSeq = ni;
+        expect++;
+      }
+    }
+    if (maxSeq >= 2) term = maxSeq;
+  }
+
   if (principal <= 0 || term <= 0) return null;
 
   let usageStr = '';
@@ -3884,16 +3900,18 @@ function readExcelCsvLoans(file, ext) {
         let bestSi = 0;
         let bestScore = -1;
         for (let si = 0; si < sheets.length; si++) {
-          buildLoanPreview(sheets[si]);
+          const pack = sheets[si];
+          buildLoanPreview(pack.rows);
           const okc = loanPreviewData.filter(function (x) { return x._ok; }).length;
           const total = loanPreviewData.length;
-          const score = okc * 10000 + total * 100 + (total > 0 ? 1 : 0);
+          const hint = scoreLoanSheetHint(pack.name, pack.rows);
+          const score = hint + okc * 10000 + total * 100 + (total > 0 ? 1 : 0);
           if (score > bestScore) {
             bestScore = score;
             bestSi = si;
           }
         }
-        buildLoanPreview(sheets[bestSi]);
+        buildLoanPreview(sheets[bestSi].rows);
       }
     } catch(err) {
       document.getElementById('loan-import-status').textContent = '⚠ Hata: ' + err.message;
@@ -3914,7 +3932,23 @@ function parseCSVRows(text) {
   return lines.map(l => l.split(sep).map(c => c.trim().replace(/^["']|["']$/g, '')));
 }
 
-/** Tüm çalışma sayfaları — özet bir sayfada, ödeme tablosu diğerinde olabilir */
+/** Banka XLS: KAET / ödeme tablosu sayfasını önceliklendir (Param yoğun rapor düzeni kalır) */
+function scoreLoanSheetHint(sheetName, rows) {
+  let h = 0;
+  const nm = String(sheetName || '').trim();
+  if (/^KAET$/i.test(nm)) h += 85000;
+  else if (/ÖDEME|TAKS[Iİ]T|PLAN|SCHEDULE/i.test(nm)) h += 40000;
+  const blob = rows.map(function (r) {
+    return Array.isArray(r) ? r.map(function (c) { return c == null ? '' : String(c); }).join(' ') : '';
+  }).join('\n').toUpperCase();
+  if (/TAKS[Iİ]T\s*NO|TAKSIT\s*NO/.test(blob)) h += 55000;
+  if (/KRED[Iİ]\s*TUTAR/.test(blob)) h += 18000;
+  if (/FA[Iİ]Z\s*ORAN/.test(blob)) h += 6000;
+  h += Math.min(rows.length, 300);
+  return h;
+}
+
+/** Tüm çalışma sayfaları — { name, rows }[] (İlk sayfa yerine KAET seçimi için ad taşınır) */
 function parseWorkbookSheets(buffer) {
   if (typeof XLSX === 'undefined' || !XLSX.read) {
     throw new Error('Excel kütüphanesi yüklenmedi (CDN). İnternet bağlantısı kontrol edin veya sayfayı yenileyin (Ctrl+F5).');
@@ -3936,21 +3970,22 @@ function parseWorkbookSheets(buffer) {
   if (!wb.SheetNames || !wb.SheetNames.length) throw new Error('Çalışma sayfası bulunamadı.');
   const out = [];
   for (let si = 0; si < wb.SheetNames.length; si++) {
-    const sheet = wb.Sheets[wb.SheetNames[si]];
+    const nm = wb.SheetNames[si];
+    const sheet = wb.Sheets[nm];
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: '' });
     const filtered = rows.filter(function (r) {
       return Array.isArray(r) && r.some(function (c) {
         return c !== '' && c !== null && c !== undefined;
       });
     });
-    if (filtered.length) out.push(filtered);
+    if (filtered.length) out.push({ name: nm, rows: filtered });
   }
   return out;
 }
 
 function parseXLSXRows(buffer) {
   const sheets = parseWorkbookSheets(buffer);
-  return sheets.length ? sheets[0] : [];
+  return sheets.length ? sheets[0].rows : [];
 }
 
 function readPdfLoans(file) {
