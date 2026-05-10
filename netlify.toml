@@ -144,6 +144,12 @@
   force = true
 
 [[redirects]]
+  from = "/erp-web"
+  to = "/erp-web.html"
+  status = 302
+  force = true
+
+[[redirects]]
   from = "/favicon.ico"
   to = "/favicon.svg"
   status = 200
@@ -178,6 +184,11 @@
 
 [[headers]]
   for = "/fininsaat_erp.html"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate, max-age=0"
+
+[[headers]]
+  for = "/erp-web.html"
   [headers.values]
     Cache-Control = "no-store, no-cache, must-revalidate, max-age=0"
 
