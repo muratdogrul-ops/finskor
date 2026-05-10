@@ -1158,8 +1158,24 @@ function fnum(x,def=0){
     else s=s.replace(/,/g,'');
   }else if(lastComma>=0&&!s.includes('.')){
     const p=s.split(',');
-    if(p[p.length-1].length<=2)s=s.replace(/\./g,'').replace(',','.');
-    else s=s.replace(/,/g,'');
+    /* Tek virgül: TR ondalık "43,999" / "4,5833" — eski kod "43999" / "45833" yapıyordu.
+       - Sağ 2 hane: klasik ,56
+       - Sağ 3–4 hane ve solda ≥2 hane: ondalık (43,999 / 55,999 / 123,456)
+       - Sağ 3 hane ve solda 1 hane: uluslararası binlik "1,234" → 1234 */
+    if(p.length===2){
+      const left=p[0].replace(/\./g,'');
+      const right=p[1];
+      if(right.length<=2)s=left+'.'+right;
+      /* 4,5833 → sol 1 hane + sağ 4 hane = aylık oran; 43,999 → sol 2+ + sağ 3 */
+      else if(right.length===4)s=left+'.'+right;
+      else if(right.length===3&&left.length>=2)s=left+'.'+right;
+      else if(right.length===3&&left.length===1)s=left+right;
+      else s=s.replace(/,/g,'');
+    }else{
+      const last=p[p.length-1];
+      if(last.length<=2)s=s.replace(/\./g,'').replace(',','.');
+      else s=s.replace(/,/g,'');
+    }
   }else if(lastDot>=0&&!s.includes(',')){
     const p=s.split('.');
     if(p.length>2||(p.length===2&&p[1].length===3&&/^\d{1,3}$/.test(p[0])))s=s.replace(/\./g,'');
