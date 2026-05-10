@@ -132,6 +132,18 @@
   force = true
 
 [[redirects]]
+  from = "/fininsaat-erp"
+  to = "/fininsaat-erp.html"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/fininsaat"
+  to = "/fininsaat-erp.html"
+  status = 302
+  force = true
+
+[[redirects]]
   from = "/favicon.ico"
   to = "/favicon.svg"
   status = 200
@@ -156,6 +168,16 @@
 
 [[headers]]
   for = "/nakit_akis.html"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate, max-age=0"
+
+[[headers]]
+  for = "/fininsaat-erp.html"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate, max-age=0"
+
+[[headers]]
+  for = "/fininsaat_erp.html"
   [headers.values]
     Cache-Control = "no-store, no-cache, must-revalidate, max-age=0"
 
