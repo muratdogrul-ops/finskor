@@ -1174,6 +1174,25 @@ function parseDate(s){
   return null;
 }
 function fmtDate(d){if(!d)return '';const dt=d instanceof Date?d:new Date(d);return String(dt.getDate()).padStart(2,'0')+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+dt.getFullYear();}
+/** Bozuk ISO / Excel karışıklığında tabloda saçma yıl göstermez */
+function fmtDateSafe(iso){
+  if(!iso)return '—';
+  const d=new Date(iso);
+  if(isNaN(+d))return '—';
+  const y=d.getFullYear();
+  if(y<1980||y>2100)return '—';
+  return fmtDate(d);
+}
+const LOAN_TERM_MAX_MONTHS=480;
+function normalizeInstallmentLoan(L){
+  if(!L||L.type!=='installment')return;
+  if(typeof L.term==='number'&&(L.term>LOAN_TERM_MAX_MONTHS||L.term<0||!isFinite(L.term)))L.term=0;
+  if(L.startDate){
+    const d=new Date(L.startDate);
+    const y=d.getFullYear();
+    if(isNaN(+d)||y<1980||y>2100)L.startDate=null;
+  }
+}
 function addMonths(date,n){const d=new Date(date);d.setMonth(d.getMonth()+n);return d;}
 function tr(x,d=2){if(x===null||x===undefined||x==='')return '';const n=Number(x);if(isNaN(n))return String(x);return n.toLocaleString('tr-TR',{minimumFractionDigits:d,maximumFractionDigits:d});}
 function parseIntList(s){return(s||'').split(',').map(x=>parseInt(x.trim())).filter(x=>!isNaN(x));}
@@ -1532,8 +1551,8 @@ function renderLoans(){
       '<td style="text-align:left;font-family:Syne,sans-serif">'+esc(L.bank)+'</td>'+
       '<td><span class="badge '+ccyBadge+'">'+(L.ccy||'TL')+'</span></td>'+
       '<td>'+tr(L.principal)+'</td>'+
-      '<td>'+(hasDate&&L.startDate?fmtDate(new Date(L.startDate)):'—')+'</td>'+
-      '<td>'+(L.term?(L.term+' ay'):'—')+'</td>'+
+      '<td>'+(hasDate&&L.startDate?fmtDateSafe(L.startDate):'—')+'</td>'+
+      '<td>'+(L.term>0&&L.term<=LOAN_TERM_MAX_MONTHS?(L.term+' ay'):'—')+'</td>'+
       '<td>'+(L.rate!==undefined&&L.rate!==null&&(L.type!=='bch_existing')?('%'+L.rate):'—')+'</td>'+
       '<td><button class="btn btn-danger btn-xs" onclick="deleteLoan('+i+')">Sil</button></td></tr>';
   }).join('');
@@ -1546,7 +1565,8 @@ function addInstallmentLoan(){
   if(!bank){showAlert('Banka adı gerekli.','err');return;}
   if(!dt){showAlert('Geçersiz tarih.','err');return;}
   if(principal<=0||term<=0){showAlert('Anapara ve vade gerekli.','err');return;}
-  f.loans.push({type:'installment',bank,ccy,principal,startDate:dt.toISOString(),term,rate});
+  const nl={type:'installment',bank,ccy,principal,startDate:dt.toISOString(),term,rate};
+  normalizeInstallmentLoan(nl);f.loans.push(nl);
   ['ln-bank','ln-principal','ln-term','ln-rate','ln-date'].forEach(id=>$(id).value='');
   saveState();renderLoans();showAlert('Taksitli kredi eklendi.','ok');
 }
@@ -3721,17 +3741,31 @@ function download(text,filename){
 // ══════════════════════════════════════════════
 let loanPreviewData = [];
 
-/** Excel hücresi → Date veya null (seri gün / metin) */
+/** Excel hücresi → Date veya null (seri gün / metin). Büyük sayıları tarih sanma (vade/tutar karışması). */
 function cellToLoanDate(c) {
   if (c == null || c === '') return null;
-  if (c instanceof Date && !isNaN(+c)) return c;
+  if (c instanceof Date && !isNaN(+c)) {
+    const y = c.getFullYear();
+    if (y >= 1980 && y <= 2100) return c;
+    return null;
+  }
   if (typeof c === 'number' && isFinite(c)) {
     const utcMs = (c - 25569) * 86400 * 1000;
     const d = new Date(utcMs);
-    if (!isNaN(+d)) return d;
+    if (!isNaN(+d)) {
+      const y = d.getFullYear();
+      if (y >= 1940 && y <= 2120) return d;
+    }
+    return null;
   }
   const s = String(c).trim().replace(/\./g, '-');
-  return parseDate(s);
+  const d0 = parseDate(s);
+  if (d0) {
+    const y = d0.getFullYear();
+    if (y >= 1980 && y <= 2100) return d0;
+    return null;
+  }
+  return null;
 }
 
 function cellStr_(c) {
@@ -3757,7 +3791,11 @@ function inferLoanFromBankSchedule(rows) {
     const joined = r.map(cellStr_).join(' ').toLowerCase();
     if (/müşteri|unvan|ünvan/.test(joined)) {
       const nameCell = r.map(cellStr_).find(function (x) {
-        return x && x.length > 3 && !/^\d[\d.,]*$/.test(x) && !/no|kod|şube/i.test(x);
+        const t = (x || '').trim();
+        if (t.length < 4) return false;
+        if (/^\d[\d.,\s]*$/.test(t)) return false;
+        if (/no|kod|şube|toplam|genel|özet|geri\s*ödeme|faiz\s*oran|komisyon|taksit\s*no|ana\s*para|bsmv|kkdf|kalan/i.test(t)) return false;
+        return true;
       });
       if (nameCell) bankLabel = nameCell.slice(0, 80);
     }
@@ -3768,7 +3806,7 @@ function inferLoanFromBankSchedule(rows) {
       }
     }
     let mj = joined.match(/\(\s*(\d{1,3})\s*ay/i) || joined.match(/(\d{1,3})\s*ay\b/i);
-    if (mj && !term) term = parseInt(mj[1], 10);
+    if (mj && !term) term = Math.min(parseInt(mj[1], 10), LOAN_TERM_MAX_MONTHS);
     const c0 = r[0];
     const n0 = typeof c0 === 'number' && isFinite(c0) ? c0 : parseFloat(String(c0).replace(',', '.').trim());
     const rowOne = n0 === 1 || Math.abs(n0 - 1) < 1e-9 || String(c0).trim() === '1';
@@ -3987,7 +4025,9 @@ function parseLoanRow(cols) {
     term = tm || 0;
     rate = fnum(cols[6] || 0);
   }
-  return { type, bank, ccy, principal, startDate, term, rate };
+  const out = { type, bank, ccy, principal, startDate, term, rate };
+  if (type === 'installment') normalizeInstallmentLoan(out);
+  return out;
 }
 
 function buildLoanPreview(rows) {
@@ -4009,8 +4049,8 @@ function buildLoanPreview(rows) {
       '<td style="text-align:left">' + esc(L.bank) + '</td>' +
       '<td><span class="badge ' + ccyBadge + '">' + L.ccy + '</span></td>' +
       '<td>' + tr(L.principal) + '</td>' +
-      '<td>' + (L.startDate ? fmtDate(new Date(L.startDate)) : '—') + '</td>' +
-      '<td>' + (L.term || '—') + '</td>' +
+      '<td>' + fmtDateSafe(L.startDate) + '</td>' +
+      '<td>' + (L.term > 0 && L.term <= LOAN_TERM_MAX_MONTHS ? L.term + ' ay' : '—') + '</td>' +
       '<td>' + (L.rate ? '%' + L.rate : '—') + '</td>' +
       '<td>' + (ok ? '<span class="pos">✓</span>' : '<span class="neg">⚠ ' + errors.join(', ') + '</span>') + '</td>' +
       '</tr>';
@@ -4033,8 +4073,8 @@ function buildLoanPreview(rows) {
       '<td style="text-align:left">' + esc(L.bank) + '</td>' +
       '<td><span class="badge ' + ccyBadge + '">' + L.ccy + '</span></td>' +
       '<td>' + tr(L.principal) + '</td>' +
-      '<td>' + (L.startDate ? fmtDate(new Date(L.startDate)) : '—') + '</td>' +
-      '<td>' + (L.term || '—') + '</td>' +
+      '<td>' + fmtDateSafe(L.startDate) + '</td>' +
+      '<td>' + (L.term > 0 && L.term <= LOAN_TERM_MAX_MONTHS ? L.term + ' ay' : '—') + '</td>' +
       '<td>' + (L.rate ? '%' + L.rate : '—') + '</td>' +
       '<td>' + (ok ? '<span class="pos">✓</span> <small>(banka planından çıkarıldı)</small>' : '<span class="neg">⚠ ' + errors.join(', ') + '</span>') + '</td>' +
       '</tr>';
