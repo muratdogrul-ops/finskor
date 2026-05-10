@@ -10,7 +10,7 @@ exports.handler = async (event) => {
     return json(503, {
       success: false,
       message:
-        'ERP sunucu adresi tanımlı değil. Netlify → Site settings → Environment variables → INSAAT_ERP_API_URL',
+        'ERP bağlantısı henüz tamamlanmadı. FinSkor: info@finskor.tr — veya sayfadaki “Bağlantı adresi” kutusuna adresinizi yazın.',
     });
   }
 

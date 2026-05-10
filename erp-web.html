@@ -21,7 +21,9 @@
     table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
     th, td { text-align: left; padding: 0.45rem 0.35rem; border-bottom: 1px solid #e2e8f0; }
     a.home { color: #4f46e5; font-weight: 600; text-decoration: none; font-size: 0.9rem; }
-    .muted { font-size: 0.8rem; color: #64748b; margin-top: 0.35rem; line-height: 1.4; }
+    .muted { font-size: 0.8rem; color: #64748b; margin-top: 0.35rem; line-height: 1.45; }
+    .helpfoot { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; font-size: 0.85rem; color: #64748b; text-align: center; line-height: 1.5; }
+    .helpfoot a { color: #4f46e5; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -29,14 +31,14 @@
 
   <p style="margin:0 0 0.25rem"><a class="home" href="index.html">← Ana sayfa</a></p>
   <h1>Fininsaat ERP</h1>
-  <p id="leadMain" class="lead">E-posta ve şifrenizle giriş yapın.</p>
+  <p id="leadMain" class="lead">İş e-postanız ve şifrenizle giriş yapın.</p>
 
   <input type="hidden" id="apiBase" value="" />
 
   <div id="setupOnce" class="card" style="display:none">
-    <strong style="color:#312e81;display:block;margin-bottom:0.35rem">İlk kez mi giriyorsunuz?</strong>
-    <p class="muted">Firmanızın ERP sunucu adresini bir kez yazın (sonunda / olmasın). Sonra aşağıdan giriş yapın.</p>
-    <label for="apiVisible">Sunucu adresi</label>
+    <strong style="color:#312e81;display:block;margin-bottom:0.35rem">Bağlantı adresi</strong>
+    <p class="muted">FinSkor size bir adres verdiyse aynen yapıştırın (sonda / olmadan). Bilginiz yoksa aşağıdaki e-postadan yazın; size ayarlarız.</p>
+    <label for="apiVisible">Adres</label>
     <input type="url" id="apiVisible" placeholder="https://..." autocomplete="url" />
     <button type="button" class="secondary" id="saveBase">Kaydet</button>
     <p id="setupMsg" class="err" style="min-height:1em"></p>
@@ -60,20 +62,23 @@
     <div id="tableWrap"></div>
   </div>
 
+  <div class="helpfoot">
+    Sorun mu var? <a href="mailto:info@finskor.tr?subject=Fininsaat%20ERP%20yard%C4%B1m">info@finskor.tr</a>
+  </div>
+
   <script>
 (function () {
   var K = "insaatErpToken";
   var B = "insaatErpApiBase";
+  var HELP = " Sorun devam ederse info@finskor.tr adresine yazın.";
 
   function $id(id) { return document.getElementById(id); }
-  /** Canlı Netlify (prod + branch preview): sunucu adresi kutusu yok; API kökü ortamda INSAAT_ERP_API_URL */
   function useNetlifyProxy() {
     var h = (location.hostname || "").toLowerCase();
     if (h === "finskor.tr" || h === "www.finskor.tr") return true;
     if (h.endsWith(".netlify.app")) return true;
     return false;
   }
-  /** Önce gizli kök (build / insaat-erp-api.json / Kaydet); yoksa Netlify proxy */
   function apiUrl(rel) {
     var p = rel.indexOf("/") === 0 ? rel : "/" + rel;
     var b = (getBase() || "").replace(/\/+$/, "");
@@ -89,6 +94,13 @@
     if (useNetlifyProxy()) return true;
     return !!getBase().trim();
   }
+  function friendlyErr(msg) {
+    var m = (msg || "").trim();
+    if (/INSAAT_ERP|Netlify|Environment variables/i.test(m)) {
+      return "Bağlantı henüz hazır değil." + HELP;
+    }
+    return m || ("İşlem yapılamadı." + HELP);
+  }
 
   function loadSant() {
     $id("loadErr").textContent = "Yükleniyor…";
@@ -96,9 +108,13 @@
       headers: { Authorization: "Bearer " + token() }
     }).then(function (r) { return r.json().then(function (j) { return { r: r, j: j }; }); })
     .then(function (x) {
-      if (!x.r.ok) { $id("loadErr").textContent = (x.j && x.j.message) || "Liste alınamadı"; $id("tableWrap").innerHTML = ""; return; }
+      if (!x.r.ok) {
+        $id("loadErr").textContent = friendlyErr(x.j && x.j.message) || "Liste alınamadı.";
+        $id("tableWrap").innerHTML = "";
+        return;
+      }
       var rows = (x.j.data && x.j.data) || [];
-      if (!Array.isArray(rows)) { $id("loadErr").textContent = "Yanıt beklenenden farklı"; return; }
+      if (!Array.isArray(rows)) { $id("loadErr").textContent = "Liste okunamadı."; return; }
       $id("loadErr").textContent = rows.length + " şantiye";
       $id("loadErr").className = "ok";
       var h = "<table><thead><tr><th>Ad</th><th>İl</th><th>Durum</th></tr></thead><tbody>";
@@ -109,7 +125,7 @@
       h += "</tbody></table>";
       $id("tableWrap").innerHTML = h;
     })
-    .catch(function () { $id("loadErr").textContent = "Bağlantı sorunu."; });
+    .catch(function () { $id("loadErr").textContent = "İnternet bağlantınızı kontrol edin." + HELP; });
   }
 
   function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
@@ -131,11 +147,11 @@
     if (proxy || base) {
       $id("setupOnce").style.display = "none";
       $id("loginCard").style.display = "block";
-      $id("leadMain").textContent = "E-posta ve şifrenizle giriş yapın.";
+      $id("leadMain").textContent = "İş e-postanız ve şifrenizle giriş yapın.";
     } else {
       $id("setupOnce").style.display = "block";
       $id("loginCard").style.display = "block";
-      $id("leadMain").textContent = "ERP adresi yok: repo kökündeki insaat-erp-api.json içine \"apiBase\":\"https://erp-adresiniz.com\" yazın (sonda / yok), push + deploy. İsterseniz Netlify → INSAAT_ERP_API_URL ile de olur. Ya da aşağıya yazıp Kaydet.";
+      $id("leadMain").textContent = "Önce üstteki kutuya bağlantı adresini yazıp Kaydet’e basın. Adres yoksa info@finskor.tr — yardım için yazın.";
     }
   }
 
@@ -155,10 +171,10 @@
     $id("saveBase").onclick = function () {
       var v = ($id("apiVisible").value || "").trim();
       $id("setupMsg").textContent = "";
-      if (!v) { $id("setupMsg").textContent = "Adresi yazın."; $id("setupMsg").className = "err"; return; }
+      if (!v) { $id("setupMsg").textContent = "Lütfen adresi yazın."; $id("setupMsg").className = "err"; return; }
       localStorage.setItem(B, v);
       $id("apiBase").value = v;
-      $id("setupMsg").textContent = "Kaydedildi.";
+      $id("setupMsg").textContent = "Kaydedildi. Şimdi giriş yapabilirsiniz.";
       $id("setupMsg").className = "ok";
       refreshUI();
     };
@@ -168,7 +184,7 @@
     $id("btnLogin").onclick = function () {
       $id("loginErr").textContent = "";
       if (!hasApiBase()) {
-        $id("loginErr").textContent = "Önce sunucu adresini yazıp Kaydet'e basın.";
+        $id("loginErr").textContent = "Önce bağlantı adresini yazıp Kaydet’e basın." + HELP;
         $id("setupOnce").style.display = "block";
         return;
       }
@@ -182,13 +198,13 @@
         var d = x.j && x.j.data;
         var tok = d && (d.token || d.accessToken);
         if (!x.r.ok || !x.j.success || !d || !tok) {
-          $id("loginErr").textContent = (x.j && x.j.message) || "Giriş yapılamadı. Bilgileri kontrol edin.";
+          $id("loginErr").textContent = friendlyErr(x.j && x.j.message);
           return;
         }
         localStorage.setItem(K, tok);
         refreshUI();
       })
-      .catch(function () { $id("loginErr").textContent = "Şu an bağlanılamıyor. Sunucu adresini kontrol edin."; });
+      .catch(function () { $id("loginErr").textContent = "Şu an bağlanılamıyor." + HELP; });
     };
   }
 
