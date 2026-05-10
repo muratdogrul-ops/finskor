@@ -66,16 +66,29 @@
   var B = "insaatErpApiBase";
 
   function $id(id) { return document.getElementById(id); }
-  function api(b, path) {
-    var x = (b || "").replace(/\/+$/, "");
-    return x + "/api/v1" + (path.indexOf("/") === 0 ? path : "/" + path);
+  function useNetlifyProxy() {
+    var h = (location.hostname || "").toLowerCase();
+    return h === "finskor.tr" || h === "www.finskor.tr";
+  }
+  /** /api/v1 sonrası yol; ör. /auth/login veya /santiyeler?limit=50 */
+  function apiUrl(rel) {
+    var p = rel.indexOf("/") === 0 ? rel : "/" + rel;
+    if (useNetlifyProxy()) {
+      return "/.netlify/functions/insaat-erp-proxy?p=" + encodeURIComponent(p);
+    }
+    var b = (getBase() || "").replace(/\/+$/, "");
+    return b + "/api/v1" + p;
   }
   function getBase() { return ($id("apiBase").value || "").trim(); }
   function token() { return localStorage.getItem(K) || ""; }
+  function hasApiBase() {
+    if (useNetlifyProxy()) return true;
+    return !!getBase().trim();
+  }
 
   function loadSant() {
     $id("loadErr").textContent = "Yükleniyor…";
-    fetch(api(getBase(), "/santiyeler?limit=50"), {
+    fetch(apiUrl("/santiyeler?limit=50"), {
       headers: { Authorization: "Bearer " + token() }
     }).then(function (r) { return r.json().then(function (j) { return { r: r, j: j }; }); })
     .then(function (x) {
@@ -100,6 +113,7 @@
   function refreshUI() {
     var base = getBase();
     var t = token();
+    var proxy = useNetlifyProxy();
     if (t) {
       $id("setupOnce").style.display = "none";
       $id("loginCard").style.display = "none";
@@ -110,7 +124,7 @@
     }
     $id("panel").style.display = "none";
     $id("leadMain").style.display = "block";
-    if (base) {
+    if (proxy || base) {
       $id("setupOnce").style.display = "none";
       $id("loginCard").style.display = "block";
       $id("leadMain").textContent = "E-posta ve şifrenizle giriş yapın.";
@@ -149,13 +163,13 @@
 
     $id("btnLogin").onclick = function () {
       $id("loginErr").textContent = "";
-      if (!getBase()) {
+      if (!hasApiBase()) {
         $id("loginErr").textContent = "Önce sunucu adresini yazıp Kaydet'e basın.";
         $id("setupOnce").style.display = "block";
         return;
       }
       var body = { email: $id("email").value.trim(), sifre: $id("sifre").value };
-      fetch(api(getBase(), "/auth/login"), {
+      fetch(apiUrl("/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
@@ -188,7 +202,7 @@
       refreshUI();
     }
 
-    if (!getBase()) {
+    if (!getBase() && !useNetlifyProxy()) {
       fetch("/insaat-erp-api.json", { cache: "no-store" })
         .then(function (r) { return r.ok ? r.json() : {}; })
         .then(function (j) { applyJsonBase(j); })
