@@ -1,3 +1,6 @@
+# İnşaat ERP (Fininsaat): Netlify → Environment variables → INSAAT_ERP_API_URL=https://api-adresiniz.com
+# (sonda / olmayın). Deploy sonrası erp-web.html içinde API kutusu otomatik dolu gelir — kullanıcıdan kod istemezsiniz.
+#
 # LinkedIn reklam / dönüşüm: Site settings → Environment variables → LINKEDIN_PARTNER_ID
 #   (Campaign Manager → Analiz → Insight Tag; yalnızca rakam). Build dist/app.html'e etiketi enjekte eder.
 # Tanımlı değilse yer tutucu yorum kalır; kampanyayı siz oluşturursunuz — kod hesaba giriş yapmaz.
@@ -133,13 +136,13 @@
 
 [[redirects]]
   from = "/fininsaat-erp"
-  to = "/fininsaat-erp.html"
+  to = "/erp-web.html"
   status = 302
   force = true
 
 [[redirects]]
   from = "/fininsaat"
-  to = "/fininsaat-erp.html"
+  to = "/erp-web.html"
   status = 302
   force = true
 

@@ -98,11 +98,26 @@ const OUT  = path.join(DIST, 'app.html');
 
   writeFaviconIco(path.join(DIST, 'favicon.ico'));
 
+  patchInsaatErpApiDefault();
+
   const origSize = (fs.statSync(SRC).size / 1024).toFixed(1);
   const newSize  = (fs.statSync(OUT).size / 1024).toFixed(1);
   console.log(`Build tamamlandi: ${origSize}KB → ${newSize}KB`);
   console.log(`Cikti: dist/app.html`);
 })();
+
+/** Netlify INSAAT_ERP_API_URL → dist/erp-web.html içine gömülür (kullanıcı kod görmez) */
+function patchInsaatErpApiDefault() {
+  const p = path.join(DIST, 'erp-web.html');
+  if (!fs.existsSync(p)) return;
+  let h = fs.readFileSync(p, 'utf8');
+  const u = String(process.env.INSAAT_ERP_API_URL || '').trim();
+  const re = /window\.__INSAAT_ERP_API_DEFAULT\s*=\s*""\s*;/;
+  if (!re.test(h)) return;
+  h = h.replace(re, 'window.__INSAAT_ERP_API_DEFAULT=' + JSON.stringify(u) + ';');
+  fs.writeFileSync(p, h, 'utf8');
+  if (u) console.log('[build] INSAAT_ERP_API_URL dist/erp-web.html dosyasina yazildi.');
+}
 
 function copyRecursive(src, dst) {
   const stat = fs.statSync(src);
