@@ -7,67 +7,87 @@ import { fmtTL } from '@/utils/format'
 import type { Santiye } from '@/types'
 import toast from 'react-hot-toast'
 
+function publicHtml(file: string): string {
+  const base = import.meta.env.BASE_URL || '/'
+  const root = base.endsWith('/') ? base : `${base}/`
+  return `${root}${file.replace(/^\//, '')}`.replace(/([^:]\/)\/+/g, '$1')
+}
+
 function resolveNakitFlowSrc(): string {
   const u = import.meta.env.VITE_NAKITFLOW_URL?.trim()
   if (u) return u
-  return '/nakit_akis.html'
+  return publicHtml('nakit_akis.html')
+}
+
+function resolveFininsaatErpSrc(): string {
+  const u = import.meta.env.VITE_FININSAAT_ERP_URL?.trim()
+  if (u) return u
+  return publicHtml('fininsaat_erp.html')
+}
+
+type NakitView = 'erp' | 'finskor' | 'fininsaat'
+
+function parseView(searchParams: URLSearchParams): NakitView {
+  const v = searchParams.get('view')
+  if (v === 'finskor') return 'finskor'
+  if (v === 'fininsaat') return 'fininsaat'
+  return 'erp'
 }
 
 export const NakitAkis: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams()
-  const view = searchParams.get('view') === 'finskor' ? 'finskor' : 'erp'
+  const view = parseView(searchParams)
 
-  const setView = (v: 'erp' | 'finskor') => {
+  const setView = (v: NakitView) => {
     const next = new URLSearchParams(searchParams)
-    if (v === 'finskor') next.set('view', 'finskor')
-    else next.delete('view')
+    if (v === 'erp') next.delete('view')
+    else next.set('view', v)
     setSearchParams(next, { replace: true })
   }
 
-  const iframeSrc = useMemo(() => resolveNakitFlowSrc(), [])
+  const nakitFlowSrc = useMemo(() => resolveNakitFlowSrc(), [])
+  const fininsaatSrc = useMemo(() => resolveFininsaatErpSrc(), [])
+
+  const btn = (active: boolean) => ({
+    padding: '8px 14px',
+    borderRadius: 8,
+    border: '1px solid rgba(255,255,255,.12)',
+    background: active ? 'rgba(14,165,233,.22)' : 'rgba(255,255,255,.04)',
+    color: '#e2e8f0',
+    cursor: 'pointer',
+    fontWeight: 600,
+    fontSize: 12,
+  })
 
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
         <span style={{ fontSize: 12, color: '#64748b', marginRight: 4 }}>Görünüm:</span>
-        <button
-          type="button"
-          onClick={() => setView('erp')}
-          style={{
-            padding: '8px 14px',
-            borderRadius: 8,
-            border: '1px solid rgba(255,255,255,.12)',
-            background: view === 'erp' ? 'rgba(14,165,233,.22)' : 'rgba(255,255,255,.04)',
-            color: '#e2e8f0',
-            cursor: 'pointer',
-            fontWeight: 600,
-            fontSize: 12,
-          }}
-        >
+        <button type="button" onClick={() => setView('erp')} style={btn(view === 'erp')}>
           Şantiye nakit özeti
         </button>
-        <button
-          type="button"
-          onClick={() => setView('finskor')}
-          style={{
-            padding: '8px 14px',
-            borderRadius: 8,
-            border: '1px solid rgba(255,255,255,.12)',
-            background: view === 'finskor' ? 'rgba(14,165,233,.22)' : 'rgba(255,255,255,.04)',
-            color: '#e2e8f0',
-            cursor: 'pointer',
-            fontWeight: 600,
-            fontSize: 12,
-          }}
-        >
+        <button type="button" onClick={() => setView('finskor')} style={btn(view === 'finskor')}>
           FinSkor NakitFlow
+        </button>
+        <button type="button" onClick={() => setView('fininsaat')} style={btn(view === 'fininsaat')}>
+          Fininsaat ERP
         </button>
         {view === 'finskor' && (
           <a
-            href={iframeSrc}
+            href={nakitFlowSrc}
             target="_blank"
             rel="noopener noreferrer"
             style={{ marginLeft: 'auto', fontSize: 12, color: '#38bdf8', fontWeight: 600 }}
+          >
+            Yeni sekmede aç ↗
+          </a>
+        )}
+        {view === 'fininsaat' && (
+          <a
+            href={fininsaatSrc}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ marginLeft: 'auto', fontSize: 12, color: '#a5b4fc', fontWeight: 600 }}
           >
             Yeni sekmede aç ↗
           </a>
@@ -84,7 +104,19 @@ export const NakitAkis: React.FC = () => {
             background: '#060810',
           }}
         >
-          <iframe title="FinSkor NakitFlow" src={iframeSrc} style={{ width: '100%', height: '100%', border: 'none', display: 'block' }} />
+          <iframe title="FinSkor NakitFlow" src={nakitFlowSrc} style={{ width: '100%', height: '100%', border: 'none', display: 'block' }} />
+        </div>
+      ) : view === 'fininsaat' ? (
+        <div
+          style={{
+            border: '1px solid rgba(255,255,255,.1)',
+            borderRadius: 12,
+            overflow: 'hidden',
+            height: 'min(85vh, 920px)',
+            background: '#060810',
+          }}
+        >
+          <iframe title="Fininsaat ERP" src={fininsaatSrc} style={{ width: '100%', height: '100%', border: 'none', display: 'block' }} />
         </div>
       ) : (
         <NakitAkisErpBody />

@@ -17,7 +17,6 @@ const Satinalma    = lazy(() => import('@/components/modules/Satinalma').then(m 
 const Ekipmanlar   = lazy(() => import('@/components/modules/Ekipmanlar').then(m => ({ default: m.Ekipmanlar })))
 const Personel     = lazy(() => import('@/components/modules/Personel').then(m => ({ default: m.Personel })))
 const NakitAkis    = lazy(() => import('@/components/modules/NakitAkis').then(m => ({ default: m.NakitAkis })))
-const FininsaatErp = lazy(() => import('@/components/modules/FininsaatErp').then(m => ({ default: m.FininsaatErp })))
 const Finans       = lazy(() => import('@/components/modules/Finans').then(m => ({ default: m.Finans })))
 const Faturalar    = lazy(() => import('@/components/modules/Faturalar').then(m => ({ default: m.Faturalar })))
 const MusteriRaporu = lazy(() => import('@/components/modules/MusteriRaporu').then(m => ({ default: m.MusteriRaporu })))
@@ -69,7 +68,7 @@ export default function App() {
                   <Routes>
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />
                     <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/fininsaat-erp" element={<FininsaatErp />} />
+                    <Route path="/fininsaat-erp" element={<Navigate to="/nakit?view=fininsaat" replace />} />
                     <Route path="/santiyeler" element={<Santiyeler />} />
                     <Route path="/santiyeler/:id" element={<SantiyeDetay />} />
                     <Route path="/mesajlar" element={<Mesajlar />} />

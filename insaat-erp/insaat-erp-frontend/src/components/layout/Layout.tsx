@@ -11,7 +11,6 @@ const navGroups = [
     label: null,
     items: [
       { path: '/dashboard', label: 'Genel Bakış', icon: 'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z' },
-      { path: '/fininsaat-erp', label: 'Fininsaat ERP', icon: 'M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z' },
     ],
   },
   {
@@ -32,6 +31,7 @@ const navGroups = [
       { path: '/faturalar',  label: 'e-Fatura',         icon: 'M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z' },
       { path: '/nakit',      label: 'Nakit Akışı',      icon: 'M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z', match: 'erp' as const },
       { path: '/nakit',      label: 'FinSkor NakitFlow', icon: 'M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z', match: 'finskor' as const },
+      { path: '/nakit',      label: 'Fininsaat ERP',    icon: 'M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z', match: 'fininsaat' as const },
       { path: '/finans',     label: 'Banka / Kasa',     icon: 'M4 10h3v7H4zm6.5 0h3v7h-3zM2 19h20v3H2zm15-9h3v7h-3zM12 1L2 6v2h20V6z' },
       { path: '/zincir',     label: 'Tahsilat Zinciri', icon: 'M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z' },
     ],
@@ -61,7 +61,7 @@ const allNavItems = navGroups.flatMap(g => g.items)
 
 // Mobil alt çubuk: en sık kullanılan 4 + menü
 const bottomNavItems = [
-  { path: '/fininsaat-erp',  label: 'Fininsaat ERP',  icon: 'M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z' },
+  { path: '/nakit', search: '?view=fininsaat', label: 'Fininsaat ERP', icon: 'M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z' },
   { path: '/santiyeler', label: 'Şantiyeler', icon: 'M12 3L2 12h3v9h6v-6h2v6h6v-9h3L12 3z' },
   { path: '/hakedisler', label: 'Hakedişler', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z' },
   { path: '/mesajlar',   label: 'Mesajlar',   icon: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z' },
@@ -75,7 +75,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const navigate = useNavigate()
   const { kullanici, refreshToken, logout } = useAuthStore()
 
-  useEffect(() => { setMobileOpen(false) }, [location.pathname])
+  useEffect(() => { setMobileOpen(false) }, [location.pathname, location.search])
 
   const handleLogout = async () => {
     try { if (refreshToken) await authApi.logout(refreshToken) } finally {
@@ -86,7 +86,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const navMatchActive = (n: (typeof allNavItems)[0]) => {
     const view = new URLSearchParams(location.search).get('view')
     if ('match' in n && n.match === 'finskor') return location.pathname === '/nakit' && view === 'finskor'
-    if ('match' in n && n.match === 'erp') return location.pathname === '/nakit' && view !== 'finskor'
+    if ('match' in n && n.match === 'fininsaat') return location.pathname === '/nakit' && view === 'fininsaat'
+    if ('match' in n && n.match === 'erp') return location.pathname === '/nakit' && view !== 'finskor' && view !== 'fininsaat'
     if (n.path === '/nakit') return false
     return location.pathname === n.path || (n.path !== '/dashboard' && location.pathname.startsWith(n.path))
   }
@@ -130,12 +131,12 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         </div>
 
         {!collapsed && (
-          <Link to="/fininsaat-erp" className="sidebar-finerp-strip" title="Fininsaat ERP paneli">
+          <Link to="/nakit?view=fininsaat" className="sidebar-finerp-strip" title="Fininsaat ERP — Nakit Akışı ile aynı route">
             Fininsaat ERP
           </Link>
         )}
         {collapsed && (
-          <Link to="/fininsaat-erp" className="sidebar-finerp-collapsed" title="Fininsaat ERP paneli">
+          <Link to="/nakit?view=fininsaat" className="sidebar-finerp-collapsed" title="Fininsaat ERP">
             Fi
           </Link>
         )}
@@ -165,7 +166,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 const toLink =
                   'match' in item && item.match === 'finskor'
                     ? '/nakit?view=finskor'
-                    : item.path
+                    : 'match' in item && item.match === 'fininsaat'
+                      ? '/nakit?view=fininsaat'
+                      : item.path
                 return (
                   <Link
                     key={item.path + ('match' in item ? String((item as { match?: string }).match) : '')}
@@ -228,8 +231,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <button
             type="button"
             className="finerp-top-btn"
-            onClick={() => navigate('/fininsaat-erp')}
-            title="Fininsaat ERP paneli (/fininsaat-erp)"
+            onClick={() => navigate('/nakit?view=fininsaat')}
+            title="Fininsaat ERP — /nakit ile birlikte yüklenir (NakitFlow gibi)"
           >
             Fininsaat ERP
           </button>
@@ -272,9 +275,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         {/* MOBİL ALT NAVİGASYON */}
         <nav className="bottom-nav mob-only">
           {bottomNavItems.map(item => {
-            const isActive = location.pathname.startsWith(item.path)
+            const view = new URLSearchParams(location.search).get('view')
+            const isActive = 'search' in item && item.search
+              ? location.pathname === item.path && view === 'fininsaat'
+              : location.pathname.startsWith(item.path)
+            const to = 'search' in item && item.search ? `${item.path}${item.search}` : item.path
             return (
-              <Link key={item.path} to={item.path} className={`bottom-nav-item${isActive ? ' active' : ''}`}>
+              <Link key={item.path + ('search' in item ? String((item as { search?: string }).search) : '')} to={to} className={`bottom-nav-item${isActive ? ' active' : ''}`}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                   <path d={item.icon} />
                 </svg>

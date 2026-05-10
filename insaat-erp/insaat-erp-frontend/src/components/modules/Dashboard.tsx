@@ -158,7 +158,7 @@ export const Dashboard: React.FC = () => {
           {/* Hızlı erişim */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 14 }}>
             {[
-              { label: 'Fininsaat ERP', path: '/fininsaat-erp', icon: '🏗️', color: '#6366f1' },
+              { label: 'Fininsaat ERP', path: '/nakit?view=fininsaat', icon: '🏗️', color: '#6366f1' },
               { label: 'Hakediş Ekle', path: '/hakedisler', icon: '📄', color: '#60a5fa' },
               { label: 'Satın Alma', path: '/satinalma', icon: '🛒', color: '#00d4aa' },
               { label: 'Mesajlar', path: '/mesajlar', icon: '💬', color: '#a78bfa' },
