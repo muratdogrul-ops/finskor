@@ -106,17 +106,32 @@ const OUT  = path.join(DIST, 'app.html');
   console.log(`Cikti: dist/app.html`);
 })();
 
-/** Netlify INSAAT_ERP_API_URL → dist/erp-web.html içine gömülür (kullanıcı kod görmez) */
+/** Öncelik: INSAAT_ERP_API_URL (Netlify) → yoksa kökteki insaat-erp-api.json → dist/erp-web.html */
+function readInsaatErpApiUrlForBuild() {
+  const env = String(process.env.INSAAT_ERP_API_URL || '').trim();
+  if (env) return { url: env, src: 'INSAAT_ERP_API_URL' };
+  try {
+    const p = path.join(__dirname, 'insaat-erp-api.json');
+    if (!fs.existsSync(p)) return { url: '', src: '' };
+    const j = JSON.parse(fs.readFileSync(p, 'utf8'));
+    const u = j && typeof j.apiBase === 'string' ? j.apiBase.trim() : '';
+    if (u) return { url: u, src: 'insaat-erp-api.json' };
+  } catch (e) {
+    console.warn('[build] insaat-erp-api.json okunamadi:', e.message);
+  }
+  return { url: '', src: '' };
+}
+
 function patchInsaatErpApiDefault() {
   const p = path.join(DIST, 'erp-web.html');
   if (!fs.existsSync(p)) return;
   let h = fs.readFileSync(p, 'utf8');
-  const u = String(process.env.INSAAT_ERP_API_URL || '').trim();
+  const { url: u, src } = readInsaatErpApiUrlForBuild();
   const re = /window\.__INSAAT_ERP_API_DEFAULT\s*=\s*""\s*;/;
   if (!re.test(h)) return;
   h = h.replace(re, 'window.__INSAAT_ERP_API_DEFAULT=' + JSON.stringify(u) + ';');
   fs.writeFileSync(p, h, 'utf8');
-  if (u) console.log('[build] INSAAT_ERP_API_URL dist/erp-web.html dosyasina yazildi.');
+  if (u) console.log('[build] Fininsaat ERP API → dist/erp-web.html:', u, '(' + src + ')');
 }
 
 function copyRecursive(src, dst) {

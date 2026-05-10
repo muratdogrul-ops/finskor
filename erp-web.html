@@ -64,7 +64,6 @@
 (function () {
   var K = "insaatErpToken";
   var B = "insaatErpApiBase";
-  var DEF = typeof window.__INSAAT_ERP_API_DEFAULT === "string" ? window.__INSAAT_ERP_API_DEFAULT.trim() : "";
 
   function $id(id) { return document.getElementById(id); }
   function api(b, path) {
@@ -73,75 +72,6 @@
   }
   function getBase() { return ($id("apiBase").value || "").trim(); }
   function token() { return localStorage.getItem(K) || ""; }
-
-  var stored = (localStorage.getItem(B) || "").trim();
-  var resolved = DEF || stored;
-
-  if (DEF) localStorage.setItem(B, DEF);
-
-  if (stored && !DEF) $id("apiVisible").value = stored;
-  if (resolved) $id("apiBase").value = resolved;
-
-  function refreshUI() {
-    var base = getBase();
-    var t = token();
-    if (t) {
-      $id("setupOnce").style.display = "none";
-      $id("loginCard").style.display = "none";
-      $id("leadMain").style.display = "none";
-      $id("panel").style.display = "block";
-      loadSant();
-      return;
-    }
-    $id("panel").style.display = "none";
-    $id("leadMain").style.display = "block";
-    if (base) {
-      $id("setupOnce").style.display = "none";
-      $id("loginCard").style.display = "block";
-      $id("leadMain").textContent = "E-posta ve şifrenizle giriş yapın.";
-    } else {
-      $id("setupOnce").style.display = "block";
-      $id("loginCard").style.display = "block";
-      $id("leadMain").textContent = "Önce sunucu adresini kaydedin, sonra giriş yapın.";
-    }
-  }
-
-  $id("saveBase").onclick = function () {
-    var v = ($id("apiVisible").value || "").trim();
-    $id("setupMsg").textContent = "";
-    if (!v) { $id("setupMsg").textContent = "Adresi yazın."; $id("setupMsg").className = "err"; return; }
-    localStorage.setItem(B, v);
-    $id("apiBase").value = v;
-    $id("setupMsg").textContent = "Kaydedildi.";
-    $id("setupMsg").className = "ok";
-    refreshUI();
-  };
-
-  $id("btnOut").onclick = function () { localStorage.removeItem(K); refreshUI(); };
-
-  $id("btnLogin").onclick = function () {
-    $id("loginErr").textContent = "";
-    if (!getBase()) {
-      $id("loginErr").textContent = "Önce sunucu adresini yazıp Kaydet'e basın.";
-      $id("setupOnce").style.display = "block";
-      return;
-    }
-    var body = { email: $id("email").value.trim(), sifre: $id("sifre").value };
-    fetch(api(getBase(), "/auth/login"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    }).then(function (r) { return r.json().then(function (j) { return { r: r, j: j }; }); })
-    .then(function (x) {
-      if (!x.r.ok || !x.j.success || !x.j.data || !x.j.data.token) {
-        $id("loginErr").textContent = (x.j && x.j.message) || "Giriş yapılamadı. Bilgileri kontrol edin.";
-        return;
-      }
-      localStorage.setItem(K, x.j.data.token);
-      refreshUI();
-    })
-    .catch(function () { $id("loginErr").textContent = "Şu an bağlanılamıyor. Sunucu adresini kontrol edin."; });
-  };
 
   function loadSant() {
     $id("loadErr").textContent = "Yükleniyor…";
@@ -164,9 +94,112 @@
     })
     .catch(function () { $id("loadErr").textContent = "Bağlantı sorunu."; });
   }
+
   function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
-  refreshUI();
+  function refreshUI() {
+    var base = getBase();
+    var t = token();
+    if (t) {
+      $id("setupOnce").style.display = "none";
+      $id("loginCard").style.display = "none";
+      $id("leadMain").style.display = "none";
+      $id("panel").style.display = "block";
+      loadSant();
+      return;
+    }
+    $id("panel").style.display = "none";
+    $id("leadMain").style.display = "block";
+    if (base) {
+      $id("setupOnce").style.display = "none";
+      $id("loginCard").style.display = "block";
+      $id("leadMain").textContent = "E-posta ve şifrenizle giriş yapın.";
+    } else {
+      $id("setupOnce").style.display = "block";
+      $id("loginCard").style.display = "block";
+      $id("leadMain").textContent = "ERP sunucu adresi tanımlı değil. Aşağıya adresi yazıp Kaydet'e basın veya FinSkor'a bildirin.";
+    }
+  }
+
+  function applyJsonBase(j) {
+    try {
+      if (!j || typeof j.apiBase !== "string") return false;
+      var u = j.apiBase.trim();
+      if (!/^https?:\/\//i.test(u)) return false;
+      localStorage.setItem(B, u);
+      $id("apiBase").value = u;
+      $id("apiVisible").value = u;
+      return true;
+    } catch (e) { return false; }
+  }
+
+  function wireEvents() {
+    $id("saveBase").onclick = function () {
+      var v = ($id("apiVisible").value || "").trim();
+      $id("setupMsg").textContent = "";
+      if (!v) { $id("setupMsg").textContent = "Adresi yazın."; $id("setupMsg").className = "err"; return; }
+      localStorage.setItem(B, v);
+      $id("apiBase").value = v;
+      $id("setupMsg").textContent = "Kaydedildi.";
+      $id("setupMsg").className = "ok";
+      refreshUI();
+    };
+
+    $id("btnOut").onclick = function () { localStorage.removeItem(K); refreshUI(); };
+
+    $id("btnLogin").onclick = function () {
+      $id("loginErr").textContent = "";
+      if (!getBase()) {
+        $id("loginErr").textContent = "Önce sunucu adresini yazıp Kaydet'e basın.";
+        $id("setupOnce").style.display = "block";
+        return;
+      }
+      var body = { email: $id("email").value.trim(), sifre: $id("sifre").value };
+      fetch(api(getBase(), "/auth/login"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      }).then(function (r) { return r.json().then(function (j) { return { r: r, j: j }; }); })
+      .then(function (x) {
+        if (!x.r.ok || !x.j.success || !x.j.data || !x.j.data.token) {
+          $id("loginErr").textContent = (x.j && x.j.message) || "Giriş yapılamadı. Bilgileri kontrol edin.";
+          return;
+        }
+        localStorage.setItem(K, x.j.data.token);
+        refreshUI();
+      })
+      .catch(function () { $id("loginErr").textContent = "Şu an bağlanılamıyor. Sunucu adresini kontrol edin."; });
+    };
+  }
+
+  function boot() {
+    var DEF = typeof window.__INSAAT_ERP_API_DEFAULT === "string" ? window.__INSAAT_ERP_API_DEFAULT.trim() : "";
+    var stored = (localStorage.getItem(B) || "").trim();
+    var resolved = DEF || stored;
+
+    if (DEF) localStorage.setItem(B, DEF);
+
+    if (stored && !DEF) $id("apiVisible").value = stored;
+    if (resolved) $id("apiBase").value = resolved;
+
+    wireEvents();
+
+    function finish() {
+      refreshUI();
+    }
+
+    if (!getBase()) {
+      fetch("/insaat-erp-api.json", { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : {}; })
+        .then(function (j) { applyJsonBase(j); })
+        .catch(function () {})
+        .then(finish);
+    } else {
+      finish();
+    }
+  }
+
+  boot();
 })();
   </script>
 </body>
