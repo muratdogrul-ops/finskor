@@ -29,7 +29,8 @@ const navGroups = [
     items: [
       { path: '/hakedisler', label: 'Hakedişler',       icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z' },
       { path: '/faturalar',  label: 'e-Fatura',         icon: 'M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z' },
-      { path: '/nakit',      label: 'Nakit Akışı',      icon: 'M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z' },
+      { path: '/nakit',      label: 'Nakit Akışı',      icon: 'M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z', match: 'erp' as const },
+      { path: '/nakit',      label: 'FinSkor NakitFlow', icon: 'M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z', match: 'finskor' as const },
       { path: '/finans',     label: 'Banka / Kasa',     icon: 'M4 10h3v7H4zm6.5 0h3v7h-3zM2 19h20v3H2zm15-9h3v7h-3zM12 1L2 6v2h20V6z' },
       { path: '/zincir',     label: 'Tahsilat Zinciri', icon: 'M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z' },
     ],
@@ -81,7 +82,14 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     }
   }
 
-  const activeItem = allNavItems.find(n => location.pathname.startsWith(n.path))
+  const navMatchActive = (n: (typeof allNavItems)[0]) => {
+    const view = new URLSearchParams(location.search).get('view')
+    if ('match' in n && n.match === 'finskor') return location.pathname === '/nakit' && view === 'finskor'
+    if ('match' in n && n.match === 'erp') return location.pathname === '/nakit' && view !== 'finskor'
+    if (n.path === '/nakit') return false
+    return location.pathname === n.path || (n.path !== '/dashboard' && location.pathname.startsWith(n.path))
+  }
+  const activeItem = allNavItems.find(navMatchActive)
 
   return (
     <div className="erp-root">
@@ -141,12 +149,15 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 <div className="nav-group-label">{group.label}</div>
               )}
               {group.items.map(item => {
-                const isActive = location.pathname === item.path ||
-                  (item.path !== '/dashboard' && location.pathname.startsWith(item.path))
+                const isActive = navMatchActive(item)
+                const toLink =
+                  'match' in item && item.match === 'finskor'
+                    ? '/nakit?view=finskor'
+                    : item.path
                 return (
                   <Link
-                    key={item.path}
-                    to={item.path}
+                    key={item.path + ('match' in item ? String((item as { match?: string }).match) : '')}
+                    to={toLink}
                     className={`nav-item${isActive ? ' active' : ''}`}
                     title={collapsed ? item.label : undefined}
                   >
@@ -200,6 +211,15 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
             </svg>
+          </button>
+
+          <button
+            type="button"
+            className="finerp-top-btn"
+            onClick={() => navigate('/dashboard')}
+            title="FinERP — Genel bakış"
+          >
+            FinERP
           </button>
 
           <div className="topbar-breadcrumb">
@@ -463,6 +483,25 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           display: flex; align-items: center; transition: all .15s;
         }
         .hamburger:hover { background: rgba(255,255,255,.05); color: #9ca3af; }
+
+        .finerp-top-btn {
+          flex-shrink: 0;
+          padding: 6px 12px;
+          border-radius: 8px;
+          border: 1px solid rgba(99,102,241,.35);
+          background: linear-gradient(135deg, rgba(99,102,241,.22), rgba(79,70,229,.12));
+          color: #a5b4fc;
+          font-size: 12px;
+          font-weight: 800;
+          letter-spacing: .04em;
+          cursor: pointer;
+          transition: all .15s;
+        }
+        .finerp-top-btn:hover {
+          color: #e0e7ff;
+          border-color: rgba(99,102,241,.55);
+          background: linear-gradient(135deg, rgba(99,102,241,.32), rgba(79,70,229,.2));
+        }
 
         .topbar-breadcrumb { display: flex; align-items: center; gap: 6px; }
         .topbar-app  { font-size: 12px; color: #374151; font-weight: 600; }

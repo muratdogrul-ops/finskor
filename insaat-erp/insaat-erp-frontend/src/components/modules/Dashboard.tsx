@@ -158,12 +158,14 @@ export const Dashboard: React.FC = () => {
           {/* Hızlı erişim */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 14 }}>
             {[
+              { label: 'FinERP', path: '/dashboard', icon: '🏗️', color: '#6366f1' },
               { label: 'Hakediş Ekle', path: '/hakedisler', icon: '📄', color: '#60a5fa' },
               { label: 'Satın Alma', path: '/satinalma', icon: '🛒', color: '#00d4aa' },
               { label: 'Mesajlar', path: '/mesajlar', icon: '💬', color: '#a78bfa' },
               { label: 'Nakit Akışı', path: '/nakit', icon: '💰', color: '#f59e0b' },
+              { label: 'FinSkor NakitFlow', path: '/nakit?view=finskor', icon: '📈', color: '#0ea5e9' },
             ].map(item => (
-              <button key={item.path} onClick={() => navigate(item.path)} style={{
+              <button key={item.path + item.label} onClick={() => navigate(item.path)} style={{
                 background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.07)',
                 borderRadius: 10, padding: '12px', cursor: 'pointer', textAlign: 'left',
                 transition: 'all .15s', color: '#f1f5f9'
