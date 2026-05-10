@@ -65,7 +65,7 @@ export const MusteriPortal: React.FC = () => {
         padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <div style={{ color: '#94a3b8', fontSize: 13 }}>
-          <span style={{ color: '#6366f1', fontWeight: 700 }}>FinERP</span>
+          <span style={{ color: '#6366f1', fontWeight: 700 }}>Fininsaat ERP</span>
           {' · '}
           <span style={{ color: '#f1f5f9' }}>{s.firma_adi}</span>
           {' — '}
@@ -268,7 +268,7 @@ export const MusteriPortal: React.FC = () => {
           <div style={{ textAlign: 'right', fontSize: 12, color: '#94a3b8' }}>
             <div style={{ fontWeight: 700, color: '#1e293b', fontSize: 14 }}>{s.firma_adi}</div>
             <div>Bu rapor {fmtTarih(r.rapor_tarihi)} tarihinde oluşturulmuştur.</div>
-            <div style={{ marginTop: 4, color: '#6366f1', fontSize: 11, fontWeight: 600 }}>FinERP — İnşaat Yönetim Sistemi</div>
+            <div style={{ marginTop: 4, color: '#6366f1', fontSize: 11, fontWeight: 600 }}>Fininsaat ERP — İnşaat Yönetim Sistemi</div>
           </div>
         </div>
       </div>

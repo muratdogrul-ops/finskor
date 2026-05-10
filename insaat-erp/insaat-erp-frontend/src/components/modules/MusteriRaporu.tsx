@@ -275,7 +275,7 @@ export const MusteriRaporu: React.FC = () => {
           <div style={{ textAlign: 'right', fontSize: 12, color: '#94a3b8' }}>
             <div style={{ fontWeight: 700, color: '#1e293b', fontSize: 14 }}>{s.firma_adi}</div>
             <div>Bu rapor {fmtTarih(r.rapor_tarihi)} tarihinde oluşturulmuştur.</div>
-            <div style={{ marginTop: 4, color: '#6366f1', fontSize: 11 }}>FinERP — İnşaat Yönetim Sistemi</div>
+            <div style={{ marginTop: 4, color: '#6366f1', fontSize: 11 }}>Fininsaat ERP — İnşaat Yönetim Sistemi</div>
           </div>
         </div>
       </div>

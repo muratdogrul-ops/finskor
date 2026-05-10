@@ -60,7 +60,7 @@ const allNavItems = navGroups.flatMap(g => g.items)
 
 // Mobil alt çubuk: en sık kullanılan 4 + menü
 const bottomNavItems = [
-  { path: '/dashboard',  label: 'Ana Sayfa',  icon: 'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z' },
+  { path: '/dashboard',  label: 'Fininsaat ERP',  icon: 'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z' },
   { path: '/santiyeler', label: 'Şantiyeler', icon: 'M12 3L2 12h3v9h6v-6h2v6h6v-9h3L12 3z' },
   { path: '/hakedisler', label: 'Hakedişler', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z' },
   { path: '/mesajlar',   label: 'Mesajlar',   icon: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z' },
@@ -111,7 +111,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           </div>
           {!collapsed && (
             <div className="logo-text">
-              <span className="logo-name">İnşaat<strong>ERP</strong></span>
+              <span className="logo-name">Fininsaat<strong>ERP</strong></span>
               <span className="logo-ver">Enterprise</span>
             </div>
           )}
@@ -127,6 +127,17 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             </svg>
           </button>
         </div>
+
+        {!collapsed && (
+          <Link to="/dashboard" className="sidebar-finerp-strip" title="Fininsaat ERP — Ana sayfa">
+            Fininsaat ERP
+          </Link>
+        )}
+        {collapsed && (
+          <Link to="/dashboard" className="sidebar-finerp-collapsed" title="Fininsaat ERP — Ana sayfa">
+            Fi
+          </Link>
+        )}
 
         {/* Firma Bilgisi */}
         {!collapsed && kullanici && (
@@ -217,13 +228,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             type="button"
             className="finerp-top-btn"
             onClick={() => navigate('/dashboard')}
-            title="FinERP — Genel bakış"
+            title="Fininsaat ERP — Genel bakış"
           >
-            FinERP
+            Fininsaat ERP
           </button>
 
           <div className="topbar-breadcrumb">
-            <span className="topbar-app desk-only">İnşaatERP</span>
+            <span className="topbar-app desk-only">Fininsaat ERP</span>
             <span className="topbar-sep desk-only">/</span>
             <span className="topbar-page">{activeItem?.label || 'Ana Sayfa'}</span>
           </div>
@@ -362,6 +373,47 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           transition: all .15s;
         }
         .collapse-btn:hover { background: rgba(255,255,255,.06); color: #6b7280; }
+
+        .sidebar-finerp-strip {
+          display: block;
+          margin: 6px 10px 2px;
+          padding: 10px 12px;
+          border-radius: 8px;
+          text-align: center;
+          font-size: 12px;
+          font-weight: 800;
+          letter-spacing: .04em;
+          color: #e0e7ff;
+          text-decoration: none;
+          background: linear-gradient(135deg, rgba(99,102,241,.4), rgba(79,70,229,.22));
+          border: 1px solid rgba(129,140,248,.55);
+          box-shadow: 0 2px 12px rgba(99,102,241,.15);
+          transition: all .15s;
+        }
+        .sidebar-finerp-strip:hover {
+          color: #fff;
+          border-color: rgba(165,180,252,.8);
+          background: linear-gradient(135deg, rgba(99,102,241,.55), rgba(79,70,229,.35));
+        }
+        .sidebar-finerp-collapsed {
+          display: block;
+          margin: 6px auto 4px;
+          width: 34px;
+          height: 34px;
+          line-height: 34px;
+          text-align: center;
+          border-radius: 8px;
+          font-size: 11px;
+          font-weight: 800;
+          color: #e0e7ff;
+          text-decoration: none;
+          background: linear-gradient(135deg, rgba(99,102,241,.45), rgba(79,70,229,.28));
+          border: 1px solid rgba(129,140,248,.55);
+        }
+        .sidebar-finerp-collapsed:hover {
+          color: #fff;
+          border-color: rgba(165,180,252,.85);
+        }
 
         /* Firma */
         .sidebar-firma {
@@ -502,6 +554,16 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           border-color: rgba(99,102,241,.55);
           background: linear-gradient(135deg, rgba(99,102,241,.32), rgba(79,70,229,.2));
         }
+        @media (max-width: 420px) {
+          .finerp-top-btn {
+            font-size: 10px;
+            padding: 6px 8px;
+            max-width: 112px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+        }
 
         .topbar-breadcrumb { display: flex; align-items: center; gap: 6px; }
         .topbar-app  { font-size: 12px; color: #374151; font-weight: 600; }
@@ -548,6 +610,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           text-transform: uppercase; letter-spacing: .4px;
           cursor: pointer; text-decoration: none;
           transition: color .15s;
+        }
+        .bottom-nav-item span {
+          display: block;
+          max-width: 76px;
+          line-height: 1.15;
+          text-align: center;
+          white-space: normal;
         }
         .bottom-nav-item.active { color: #3b82f6; }
         .bottom-nav-item:hover  { color: #6b7280; }
