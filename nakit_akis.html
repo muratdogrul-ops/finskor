@@ -3794,6 +3794,21 @@ function dateOnly(d) {
   return new Date(x.getFullYear(), x.getMonth(), x.getDate());
 }
 
+/** «Faiz Oranı :» yanındaki değer (ör. 4,5833) — banka aylık %; NakitFlow yıllık % = aylık×12 (gösterim) */
+function extractBankMonthlyRatePercent(rows) {
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (!Array.isArray(r)) continue;
+    const joined = r.map(cellStr_).join(' ').toLowerCase();
+    if (!/faiz\s*oran/.test(joined)) continue;
+    for (let j = 0; j < r.length; j++) {
+      const v = fnum(r[j]);
+      if (v > 0.05 && v < 30) return v;
+    }
+  }
+  return null;
+}
+
 /**
  * Banka ödeme planı (.xls): Kredi Tutarı / (36 AY) / 1. taksit satırından tek satır NakitFlow şablonu üretir.
  */
@@ -3879,12 +3894,11 @@ function inferLoanFromBankSchedule(rows) {
 
   if (principal <= 0 || term <= 0) return null;
 
+  // Kullanım = ödeme tablosundaki 1. taksitin tarihi (TAKSİT TAR). «−1 ay» nakit kullanımını yanlış gösteriyordu.
   let usageStr = '';
   let usageFromSchedule = null;
   if (firstPay) {
-    const u = new Date(firstPay);
-    u.setMonth(u.getMonth() - 1);
-    usageFromSchedule = dateOnly(u);
+    usageFromSchedule = dateOnly(firstPay);
     usageStr = fmtDate(usageFromSchedule);
   }
   const reportDt = extractBankReportDate(rows);
@@ -3892,7 +3906,12 @@ function inferLoanFromBankSchedule(rows) {
     usageStr = fmtDate(dateOnly(reportDt));
   }
   let rate = 0;
-  if (firstPmt > 0) rate = solveAnnualRateForPayment(principal, term, firstPmt);
+  const mPct = extractBankMonthlyRatePercent(rows);
+  if (mPct != null) {
+    rate = Math.round(mPct * 12 * 1000) / 1000;
+  } else if (firstPmt > 0) {
+    rate = solveAnnualRateForPayment(principal, term, firstPmt);
+  }
   if (!rate || rate < 0.1) rate = 55;
 
   return ['taksitli', bankLabel, 'TL', String(principal), usageStr || fmtDate(new Date()), String(term), String(Math.round(rate * 1000) / 1000)];
