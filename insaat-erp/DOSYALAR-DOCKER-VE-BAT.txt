@@ -22,7 +22,7 @@ Bu projede nerede? (Gizli dosya/uzanti gorme: Dosya Gecgini: Gorunum -> gizli og
    "insaat-erp-backend" ve "insaat-erp-frontend" alt klasorleri varken.
 
 4) ANA DOCKER BILESEN
-   Klasor:  insaat-erp\docker-compose.local.yml
+   Klasor:  insaat-erp\docker-compose.yml
    (Veri tabani + api birlikte; ucretsiz .env ayarlari  insaat-erp  icinde
     olmali, detay: diger rehberler)
 
@@ -33,7 +33,7 @@ Klasor yapisi (ozet)
   insaat-erp\
     CALISTIR-ONCE-SUNUCU.bat
     veritabani-doker-basit.bat
-    docker-compose.local.yml
+    docker-compose.yml
     insaat-erp-backend\
       Dockerfile
       .dockerignore

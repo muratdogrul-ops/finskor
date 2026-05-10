@@ -1,4 +1,6 @@
-# Geriye dönük: aynı tanım — tercihen `docker-compose.yml` kullanın.
+# Yerel FinSkor + İnşaat ERP API + PostgreSQL
+# Kullanım: insaat-erp klasöründe .env oluştur (.env.example kopyası), sonra:
+#   docker compose up --build
 services:
   db:
     image: postgres:16-alpine
@@ -29,6 +31,7 @@ services:
       DB_HOST: db
       DB_PORT: "5432"
       NODE_ENV: production
+      # Tarayıcı / Netlify proxy / Vite — virgülle (compose .env içinden genişletilebilir)
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000,https://finskor.tr,https://www.finskor.tr}
     ports:
       - "${PORT:-3000}:3000"

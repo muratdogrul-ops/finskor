@@ -18,7 +18,7 @@ JWT_SECRET hatasi / Veritabani baglanamadi
          DB_PASSWORD=erp_yerel_sifre_2026
          DB_NAME=insaat_erp
    c) Ayni klasorde (insaat-erp):
-         docker compose -f docker-compose.local.yml up -d db
+         docker compose up -d db
    d) 5-10 sn bekleyin, sonra  insaat-erp-backend  icinde:
          npm run dev
 
