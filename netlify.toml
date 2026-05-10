@@ -64,10 +64,12 @@
 [functions."avatar-kb"]
   timeout = 12
 
+# SAMEORIGIN: yalnızca finskor.tr içinde iframe gömülebilir; başka domain clickjacking ile gömez.
+# DENY kullanmayın — nakitflow.html aynı origin'de nakit_akis.html iframe şart.
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Frame-Options = "DENY"
+    X-Frame-Options = "SAMEORIGIN"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
 
