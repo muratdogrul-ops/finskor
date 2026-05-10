@@ -7,57 +7,64 @@
   <title>Fininsaat ERP — Giriş</title>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: 'Segoe UI', system-ui, sans-serif; max-width: 42rem; margin: 0 auto; padding: 1rem 1rem 2rem; background: #eef2f7; color: #111; }
-    h1 { font-size: 1.25rem; margin: 0 0 0.5rem; color: #1e1b4b; }
-    .lead { font-size: 0.92rem; color: #475569; margin: 0 0 1rem; line-height: 1.5; }
-    .card { background: #fff; border-radius: 10px; padding: 1rem 1.1rem; margin-bottom: 0.85rem; box-shadow: 0 1px 4px rgba(15,23,42,.08); border: 1px solid #e2e8f0; }
-    label { display: block; margin: 0.4rem 0 0.2rem; font-size: 0.88rem; font-weight: 600; color: #334155; }
-    input, button { font: inherit; padding: 0.5rem 0.65rem; width: 100%; max-width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; }
-    button { margin-top: 0.5rem; max-width: 12rem; cursor: pointer; background: #4f46e5; color: #fff; border-color: #4f46e5; font-weight: 600; }
-    button:hover { background: #4338ca; }
-    button.secondary { background: #fff; color: #334155; border-color: #cbd5e1; }
-    .row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
-    .err { color: #b91c1c; font-size: 0.88rem; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; max-width: 28rem; margin: 0 auto; padding: 1.5rem 1rem 2rem; background: #eef2f7; color: #111; }
+    h1 { font-size: 1.35rem; margin: 0 0 0.35rem; color: #1e1b4b; font-weight: 800; }
+    .lead { font-size: 0.95rem; color: #475569; margin: 0 0 1.25rem; line-height: 1.45; }
+    .card { background: #fff; border-radius: 12px; padding: 1.25rem 1.2rem; margin-bottom: 0.85rem; box-shadow: 0 1px 4px rgba(15,23,42,.08); border: 1px solid #e2e8f0; }
+    label { display: block; margin: 0.45rem 0 0.25rem; font-size: 0.88rem; font-weight: 600; color: #334155; }
+    input, button { font: inherit; padding: 0.55rem 0.65rem; width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; }
+    button.primary { margin-top: 0.75rem; cursor: pointer; background: #4f46e5; color: #fff; border-color: #4f46e5; font-weight: 600; }
+    button.primary:hover { background: #4338ca; }
+    button.secondary { margin-top: 0.5rem; cursor: pointer; background: #fff; color: #475569; border-color: #cbd5e1; font-weight: 500; font-size: 0.85rem; }
+    .err { color: #b91c1c; font-size: 0.88rem; margin-top: 0.5rem; }
     .ok { color: #15803d; font-size: 0.88rem; }
     table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
     th, td { text-align: left; padding: 0.45rem 0.35rem; border-bottom: 1px solid #e2e8f0; }
-    code { font-size: 0.8rem; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
+    a.home { color: #4f46e5; font-weight: 600; text-decoration: none; }
+    a.home:hover { text-decoration: underline; }
+    #advanced { display: none; margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #cbd5e1; font-size: 0.82rem; color: #64748b; }
+    #advanced input { margin-top: 0.35rem; }
   </style>
 </head>
 <body>
-  <!-- Build (Netlify): INSAAT_ERP_API_URL ortam değişkeni ile otomatik dolar; boş bırakılırsa elle yazılır -->
+  <!-- Netlify build: INSAAT_ERP_API_URL → patchInsaatErpApiDefault -->
   <script>window.__INSAAT_ERP_API_DEFAULT="";</script>
-  <h1>Fininsaat ERP</h1>
-  <p class="lead">
-    Aşağıda API adresi doluysa <strong>direkt e-posta ve şifre</strong> ile giriş yapabilirsiniz.
-    Boşsa tek seferlik adresi yazıp <strong>Kaydet</strong> deyin; tarayıcı hatırlar.
-    Sonra <strong>Bağlantıyı dene</strong> ve <strong>Giriş yap</strong>.
-  </p>
 
-  <div class="card">
-    <strong style="display:block;margin-bottom:0.5rem;color:#312e81">API sunucusu</strong>
-    <div class="row">
-      <input type="url" id="apiBase" placeholder="https://erp-api.sirketiniz.com" value="" autocomplete="url" />
-    </div>
-    <div class="row" style="margin-top:0.6rem">
-      <button type="button" class="secondary" id="saveBase">Kaydet</button>
-      <button type="button" class="secondary" id="btnHealth">Bağlantıyı dene (/health)</button>
-    </div>
-    <p id="healthOut" class="err" style="margin-top:0.5rem;min-height:1.2em"></p>
+  <h1>Fininsaat ERP</h1>
+  <p id="leadLogin" class="lead" style="display:none">Kurumsal hesabınızla giriş yapın.</p>
+
+  <div id="blockWait" class="card" style="display:none">
+    <p style="margin:0;line-height:1.55;color:#334155;font-size:0.95rem">
+      Bu giriş şu an sizin için açılmadı veya kurulum sürüyor. Bir süre sonra yeniden deneyin ya da FinSkor ile iletişime geçin.
+    </p>
+    <p style="margin:1rem 0 0"><a class="home" href="index.html">← Ana sayfaya dön</a></p>
   </div>
 
-  <div class="card" id="loginBox">
-    <strong style="display:block;margin-bottom:0.5rem;color:#312e81">Giriş</strong>
-    <label>E-posta <input type="email" id="email" autocomplete="username" /></label>
-    <label>Şifre <input type="password" id="sifre" autocomplete="current-password" /></label>
-    <button type="button" id="btnLogin">Giriş yap</button>
-    <p id="loginErr" class="err"></p>
+  <div id="blockLogin" style="display:none">
+    <input type="hidden" id="apiBase" value="" />
+    <div class="card">
+      <label for="email">E-posta</label>
+      <input type="email" id="email" autocomplete="username" />
+      <label for="sifre">Şifre</label>
+      <input type="password" id="sifre" autocomplete="current-password" />
+      <button type="button" class="primary" id="btnLogin">Giriş yap</button>
+      <p id="loginErr" class="err"></p>
+    </div>
+    <p style="text-align:center;margin-top:0.75rem">
+      <button type="button" class="secondary" id="btnAdvanced">Bağlantı sorunu · teknik ayar</button>
+    </p>
+    <div id="advanced">
+      <p style="margin:0 0 0.5rem">Yalnızca IT / yazılım için — sunucu adresi (sonunda / olmasın):</p>
+      <input type="url" id="apiVisible" placeholder="" autocomplete="url" />
+      <button type="button" class="secondary" id="saveBase">Kaydet ve yenile</button>
+      <p id="setupHint" class="err" style="min-height:1em;margin-top:0.35rem"></p>
+    </div>
   </div>
 
   <div class="card" id="panel" style="display:none">
-    <div class="row" style="justify-content: space-between">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
       <strong style="color:#312e81">Şantiyeler</strong>
-      <button type="button" id="btnOut" class="secondary">Çıkış</button>
+      <button type="button" class="secondary" id="btnOut">Çıkış</button>
     </div>
     <p id="loadErr" class="err"></p>
     <div id="tableWrap"></div>
@@ -77,29 +84,35 @@
   function getBase() { return ($id("apiBase").value || "").trim(); }
   function token() { return localStorage.getItem(K) || ""; }
 
-  if (DEF) $id("apiBase").placeholder = DEF;
-  if (localStorage.getItem(B)) $id("apiBase").value = localStorage.getItem(B);
-  else if (DEF && !$id("apiBase").value) $id("apiBase").value = DEF;
+  var stored = (localStorage.getItem(B) || "").trim();
+  var resolved = DEF || stored;
 
-  $id("saveBase").onclick = function () {
-    if (!getBase()) { $id("healthOut").textContent = "Önce API adresi yazın."; $id("healthOut").className = "err"; return; }
-    localStorage.setItem(B, getBase());
-    $id("healthOut").textContent = "Kaydedildi.";
-    $id("healthOut").className = "ok";
+  if (DEF) localStorage.setItem(B, DEF);
+
+  if (!resolved) {
+    $id("blockWait").style.display = "block";
+    return;
+  }
+
+  $id("apiBase").value = resolved;
+  $id("leadLogin").style.display = "block";
+  $id("blockLogin").style.display = "block";
+
+  $id("btnAdvanced").onclick = function () {
+    var a = $id("advanced");
+    a.style.display = a.style.display === "block" ? "none" : "block";
+    $id("apiVisible").value = getBase();
   };
-
-  $id("btnHealth").onclick = function () {
-    if (!getBase()) { $id("healthOut").textContent = "Önce API adresi yazın."; $id("healthOut").className = "err"; return; }
-    var u = getBase().replace(/\/+$/, "") + "/health";
-    $id("healthOut").textContent = "Kontrol ediliyor…";
-    $id("healthOut").className = "";
-    fetch(u).then(function (r) { return r.text(); })
-      .then(function (t) { $id("healthOut").textContent = t.slice(0, 200); $id("healthOut").className = "ok"; })
-      .catch(function (e) { $id("healthOut").textContent = "Ulaşılamadı: " + e; $id("healthOut").className = "err"; });
+  $id("saveBase").onclick = function () {
+    var v = ($id("apiVisible").value || "").trim();
+    if (!v) { $id("setupHint").textContent = "Adres yazın."; return; }
+    localStorage.setItem(B, v);
+    location.reload();
   };
 
   function showPanel() {
-    $id("loginBox").style.display = token() ? "none" : "block";
+    $id("blockLogin").style.display = token() ? "none" : "block";
+    $id("leadLogin").style.display = token() ? "none" : "block";
     $id("panel").style.display = token() ? "block" : "none";
     if (token()) loadSant();
   }
@@ -107,7 +120,6 @@
 
   $id("btnLogin").onclick = function () {
     $id("loginErr").textContent = "";
-    if (!getBase()) { $id("loginErr").textContent = "Önce API adresini yazıp Kaydet’e basın."; return; }
     var body = { email: $id("email").value.trim(), sifre: $id("sifre").value };
     fetch(api(getBase(), "/auth/login"), {
       method: "POST",
@@ -116,13 +128,13 @@
     }).then(function (r) { return r.json().then(function (j) { return { r: r, j: j }; }); })
     .then(function (x) {
       if (!x.r.ok || !x.j.success || !x.j.data || !x.j.data.token) {
-        $id("loginErr").textContent = (x.j && x.j.message) || "Giriş başarısız — adres ve şifreyi kontrol edin.";
+        $id("loginErr").textContent = (x.j && x.j.message) || "Giriş yapılamadı. E-posta ve şifreyi kontrol edin.";
         return;
       }
       localStorage.setItem(K, x.j.data.token);
       showPanel();
     })
-    .catch(function (e) { $id("loginErr").textContent = "Bağlantı hatası: " + e; });
+    .catch(function () { $id("loginErr").textContent = "Şu an bağlanılamıyor. Daha sonra deneyin."; });
   };
 
   function loadSant() {
@@ -133,7 +145,7 @@
     .then(function (x) {
       if (!x.r.ok) { $id("loadErr").textContent = (x.j && x.j.message) || "Liste alınamadı"; $id("tableWrap").innerHTML = ""; return; }
       var rows = (x.j.data && x.j.data) || [];
-      if (!Array.isArray(rows)) { $id("loadErr").textContent = "Beklenmeyen cevap"; return; }
+      if (!Array.isArray(rows)) { $id("loadErr").textContent = "Yanıt beklenenden farklı"; return; }
       $id("loadErr").textContent = rows.length + " şantiye";
       $id("loadErr").className = "ok";
       var h = "<table><thead><tr><th>Ad</th><th>İl</th><th>Durum</th></tr></thead><tbody>";
@@ -144,7 +156,7 @@
       h += "</tbody></table>";
       $id("tableWrap").innerHTML = h;
     })
-    .catch(function (e) { $id("loadErr").textContent = String(e); });
+    .catch(function (e) { $id("loadErr").textContent = "Bağlantı sorunu."; });
   }
   function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
