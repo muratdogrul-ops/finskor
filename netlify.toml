@@ -118,6 +118,12 @@
   force = true
 
 [[redirects]]
+  from = "/finnakitflow"
+  to = "/finnakitflow.html"
+  status = 302
+  force = true
+
+[[redirects]]
   from = "/favicon.ico"
   to = "/favicon.svg"
   status = 200

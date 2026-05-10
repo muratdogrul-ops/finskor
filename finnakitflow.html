@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FinSkor · NakitFlow</title>
+<style>
+html,body{height:100%;margin:0;overflow:hidden;background:#060810;font-family:system-ui,sans-serif}
+.shell{display:flex;flex-direction:column;height:100%}
+.bar{flex-shrink:0;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;background:#0c0f1a;border-bottom:1px solid #1e2d4a}
+.bar-title{font-size:14px;font-weight:700;color:#e2e8f0}
+.bar-links{display:flex;flex-wrap:wrap;gap:12px}
+.bar a{color:#34d399;text-decoration:none;font-size:13px;font-weight:600}
+.bar a:hover{text-decoration:underline}
+iframe{border:none;flex:1;width:100%;min-height:0}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="bar">
+    <span class="bar-title">📊 FinSkor · NakitFlow</span>
+    <nav class="bar-links">
+      <a href="index.html">Ana sayfa</a>
+      <a href="app.html">Kredi analizi</a>
+      <a href="nakit_akis.html" target="_blank" rel="noopener">NakitFlow tam sekme</a>
+    </nav>
+  </header>
+  <iframe title="NakitFlow" src="nakit_akis.html"></iframe>
+</div>
+</body>
+</html>

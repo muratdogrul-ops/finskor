@@ -685,6 +685,7 @@ tbody td { padding:8px 13px; color:var(--text); }
   <!-- TAB BAR -->
   <div class="tab-bar">
     <button class="tab active" id="tab-btn-bilgi"  onclick="showTab('tab-bilgi',this)">📋 Firma & Mali Veriler</button>
+    <button class="tab"        id="tab-btn-kredi"  onclick="showTab('tab-kredi',this)">🏦 Krediler</button>
     <button class="tab"        id="tab-btn-subj"   onclick="showTab('tab-subj',this)">🎯 Subjektif Faktörler</button>
     <button class="tab"        id="tab-btn-sonuc"  onclick="showTab('tab-sonuc',this)">📈 Analiz Sonucu</button>
   </div>
@@ -846,6 +847,25 @@ tbody td { padding:8px 13px; color:var(--text); }
   </div>
   </div>
 
+  <!-- TAB: KREDİLER — NakitFlow (nakit akış projeksiyonu) -->
+  <div id="tab-kredi" style="display:none">
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">🏦 Nakit akışı — NakitFlow</div>
+      <div style="font-size:13px;color:var(--text-muted);line-height:1.65;margin-bottom:14px">
+        Mali tablodaki KV/UV borç ve özet verilerle <strong style="color:var(--text)">120 aya kadar</strong> nakit akış projeksiyonu oluşturun.
+        Paket erişiminiz varsa aşağıdaki düğme ile NakitFlow açılır; kredi taksitleri ve limitleri <strong>Krediler</strong> ekranından yönetilir.
+      </div>
+      <button type="button" id="nakitAkisBtn" onclick="openNakitAkis()"
+        style="display:none;padding:12px 22px;border-radius:10px;border:1px solid rgba(16,185,129,0.5);cursor:pointer;font-weight:600;font-size:14px;
+        background:linear-gradient(135deg,rgba(16,185,129,0.18),rgba(5,150,105,0.18));color:#34d399">
+        📊 NakitFlow’u Aç
+      </button>
+      <p id="nakitAkisKilitMsg" style="margin-top:12px;font-size:12px;color:var(--text-muted);line-height:1.5;display:none">
+        NakitFlow için hesabınızda <strong>Nakit Akış paketi</strong> veya yetkili erişim kodu gerekir. Satın alım ve bilgi: <a href="odeme.html?paket=nakitflow" style="color:#34d399">NakitFlow paketi</a>
+      </p>
+    </div>
+  </div>
+
   <!-- TAB 2: SUBJEKTİF FAKTÖRLER -->
   <div id="tab-subj" style="display:none">
     <div class="card" style="margin-bottom:14px">
@@ -927,10 +947,6 @@ tbody td { padding:8px 13px; color:var(--text); }
           🎯 FinSkor Otomatik Senaryo Önerisi
         </button>
         <button class="action-btn pdf-btn" onclick="generatePDF()">📄 PDF Rapor</button>
-        <button id="nakitAkisBtn" onclick="openNakitAkis()"
-          style="display:none;background:linear-gradient(135deg,rgba(16,185,129,0.18),rgba(5,150,105,0.18));border-color:rgba(16,185,129,0.5);color:#34d399;font-weight:600">
-          📊 NakitFlow
-        </button>
       </div>
 
       <!-- KREDİ ANALİZ ASISTANI -->
@@ -1305,7 +1321,7 @@ tbody td { padding:8px 13px; color:var(--text); }
 // TAB YÖNETİMİ
 // ══════════════════════════════════════════
 function showTab(tabId, btn) {
-  ['tab-bilgi','tab-subj','tab-sonuc'].forEach(id => {
+  ['tab-bilgi','tab-kredi','tab-subj','tab-sonuc'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
@@ -1318,7 +1334,7 @@ function showTab(tabId, btn) {
   }
   if (btn) btn.classList.add('active');
   else {
-    const map = {'tab-bilgi':'tab-btn-bilgi','tab-subj':'tab-btn-subj','tab-sonuc':'tab-btn-sonuc'};
+    const map = {'tab-bilgi':'tab-btn-bilgi','tab-kredi':'tab-btn-kredi','tab-subj':'tab-btn-subj','tab-sonuc':'tab-btn-sonuc'};
     const b = document.getElementById(map[tabId]);
     if (b) b.classList.add('active');
   }
@@ -2716,10 +2732,15 @@ function loginSuccess(userData) {
   const ab = document.getElementById('avatarBtn');
   if (ab) ab.style.display = 'flex';
 
-  // NakitFlow butonu — sadece yetkili kullanıcılara göster (sonuç sekmesi)
+  // NakitFlow — Krediler sekmesi: yetkili kullanıcıda düğme; değilse bilgi metni
+  const nakitBtn = document.getElementById('nakitAkisBtn');
+  const nakitKilit = document.getElementById('nakitAkisKilitMsg');
   if (localStorage.getItem('kas_nakit_akis') === '1') {
-    const nb = document.getElementById('nakitAkisBtn');
-    if (nb) nb.style.display = 'flex';
+    if (nakitBtn) nakitBtn.style.display = 'inline-flex';
+    if (nakitKilit) nakitKilit.style.display = 'none';
+  } else {
+    if (nakitBtn) nakitBtn.style.display = 'none';
+    if (nakitKilit) nakitKilit.style.display = 'block';
   }
 
   // Tanıtım slaytları (her giriş). Baykuş ayrı: kullanıcı sol alttaki düğmeye basarak isterse açar — zorla açılmaz.

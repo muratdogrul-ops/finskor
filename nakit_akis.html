@@ -688,7 +688,9 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
       <div class="card">
         <div class="card-header"><div class="card-icon">📂</div><div class="card-title">Excel / PDF'den Kredi Yükle</div></div>
         <div class="notice" style="margin-bottom:12px">Excel (.xlsx/.xls/.csv) veya PDF dosyasından kredi verilerini içe aktarın.<br>
-          Sütunlar: <b>Tip | Banka | Döviz | Anapara | Kullanım Tarihi | Vade (ay) | Faiz %</b> &nbsp;—&nbsp; Tip: <i>taksitli / spot / bch</i></div>
+          <b>Şablon satırı:</b> Tip | Banka | Döviz | Anapara | Kullanım Tarihi | Vade (ay) | Faiz % — Tip: <i>taksitli / spot / bch</i><br>
+          <b>Banka ödeme planı (.xls/.xlsx):</b> ilk sayfada kredi tutarı ve taksit tablosu varsa otomatik özet çıkarılır.<br>
+          <span style="opacity:.85;font-size:.72rem">«XML formatı okunamadı» görürseniz tarayıcıda <strong>Ctrl+F5</strong> ile önbelleği atın — eski sayfa sürümündür.</span></div>
         <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
           <input type="file" id="loan-file-input" accept=".xlsx,.xls,.csv,.pdf" style="display:none" onchange="handleLoanFile(event)">
           <button class="btn btn-secondary" onclick="document.getElementById('loan-file-input').click()">📁 Dosya Seç</button>
@@ -1064,6 +1066,16 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
 </div>
 
 <script>
+// Netlify dışında (file:// veya basit sunucu): kayıt için localStorage
+(function () {
+  if (window.storage && typeof window.storage.get === 'function') return;
+  window.storage = {
+    get: async function (k) {
+      try { var v = localStorage.getItem(k); return v != null ? { value: v } : null; } catch (e) { return null; }
+    },
+    set: async function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  };
+})();
 // ══════════════════════════════════════════════
 // GLOBAL STATE
 // ══════════════════════════════════════════════
@@ -2101,6 +2113,31 @@ function amortSched(principal, annualRate, termMonths, bsmvRate = BSMV_RATE){
   }
   return rows;
 }
+
+/** Sabit taksit tutarından NakitFlow yıllık nominal faiz (%) — amortSched ile aynı PMT */
+function solveAnnualRateForPayment(principal, termMonths, targetPayment) {
+  const P = Math.max(0, principal);
+  const n = Math.max(1, termMonths);
+  const tgt = Math.max(0, targetPayment);
+  if (P <= 0 || n <= 0 || tgt <= 0) return 0;
+  function pmtAt(annual) {
+    const r = annual / 100 / 12;
+    const rInc = r * (1 + BSMV_RATE);
+    if (rInc <= 0) return P / n;
+    return P * rInc / (1 - Math.pow(1 + rInc, -n));
+  }
+  let lo = 0.01, hi = 220;
+  if (pmtAt(hi) < tgt) hi = 600;
+  for (let i = 0; i < 96; i++) {
+    const mid = (lo + hi) / 2;
+    const diff = pmtAt(mid) - tgt;
+    if (Math.abs(diff) < 0.05) return mid;
+    if (diff < 0) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
 function getFxRate(fx,ccy,t){
   if(!ccy||ccy==='TL')return 1;
   const monthly=fx?.monthly||[];
@@ -3671,6 +3708,82 @@ function download(text,filename){
 // ══════════════════════════════════════════════
 let loanPreviewData = [];
 
+/** Excel hücresi → Date veya null (seri gün / metin) */
+function cellToLoanDate(c) {
+  if (c == null || c === '') return null;
+  if (c instanceof Date && !isNaN(+c)) return c;
+  if (typeof c === 'number' && isFinite(c)) {
+    const utcMs = (c - 25569) * 86400 * 1000;
+    const d = new Date(utcMs);
+    if (!isNaN(+d)) return d;
+  }
+  const s = String(c).trim().replace(/\./g, '-');
+  return parseDate(s);
+}
+
+function cellStr_(c) {
+  if (c == null || c === '') return '';
+  if (c instanceof Date && !isNaN(+c)) return fmtDate(c);
+  return String(c).trim();
+}
+
+/**
+ * Banka ödeme planı (.xls): Kredi Tutarı / (36 AY) / 1. taksit satırından tek satır NakitFlow şablonu üretir.
+ */
+function inferLoanFromBankSchedule(rows) {
+  if (!rows || !rows.length) return null;
+  let principal = 0;
+  let term = 0;
+  let bankLabel = 'Banka kredi özeti (Excel)';
+  let firstPay = null;
+  let firstPmt = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (!Array.isArray(r)) continue;
+    const joined = r.map(cellStr_).join(' ').toLowerCase();
+    if (/müşteri|unvan|ünvan/.test(joined)) {
+      const nameCell = r.map(cellStr_).find(function (x) {
+        return x && x.length > 3 && !/^\d[\d.,]*$/.test(x) && !/no|kod|şube/i.test(x);
+      });
+      if (nameCell) bankLabel = nameCell.slice(0, 80);
+    }
+    if (/kredi\s*tutar|kredi tutarı/i.test(joined)) {
+      for (let j = 0; j < r.length; j++) {
+        const n = fnum(r[j]);
+        if (n >= 5000 && n <= 5e12) principal = Math.max(principal, n);
+      }
+    }
+    const mj = joined.match(/(\d{1,3})\s*ay\b/i);
+    if (mj && !term) term = parseInt(mj[1], 10);
+    const c0 = r[0];
+    const n0 = typeof c0 === 'number' ? c0 : parseFloat(String(c0).replace(',', '.'));
+    if (n0 === 1 || String(c0).trim() === '1') {
+      const d1 = cellToLoanDate(r[1]);
+      const p2 = fnum(r[2]);
+      if (d1 && p2 > 1000) {
+        firstPay = d1;
+        firstPmt = p2;
+        break;
+      }
+    }
+  }
+
+  if (principal <= 0 || term <= 0) return null;
+
+  let usageStr = '';
+  if (firstPay) {
+    const u = new Date(firstPay);
+    u.setMonth(u.getMonth() - 1);
+    usageStr = fmtDate(u);
+  }
+  let rate = 0;
+  if (firstPmt > 0) rate = solveAnnualRateForPayment(principal, term, firstPmt);
+  if (!rate || rate < 0.1) rate = 55;
+
+  return ['taksitli', bankLabel, 'TL', String(principal), usageStr || fmtDate(new Date()), String(term), String(Math.round(rate * 1000) / 1000)];
+}
+
 function handleLoanFile(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -3717,32 +3830,31 @@ function parseCSVRows(text) {
 }
 
 function parseXLSXRows(buffer) {
-  // Minimal XLSX reader — extracts shared strings + sheet data
-  // Uses JSZip-style approach via raw zip parsing of xlsx
-  // Since we have no external libs, we'll parse CSV export of xlsx via FileReader
-  // Fall back: try to read as text (works for CSV saved as xls)
-  const text = new TextDecoder('utf-8').decode(buffer);
-  if (text.includes('<') && text.includes('>')) {
-    // Might be XML-based xlsx/xls — try to extract cell values via regex
-    return parseXMLSheet(text);
+  if (typeof XLSX === 'undefined' || !XLSX.read) {
+    throw new Error('Excel kütüphanesi yüklenmedi (CDN). İnternet bağlantısı kontrol edin veya sayfayı yenileyin (Ctrl+F5).');
   }
-  return parseCSVRows(text);
-}
-
-function parseXMLSheet(xml) {
-  // Very basic: extract row/cell data from xl/worksheets/sheet1.xml or similar
-  const cellRe = /<c r="[A-Z]+(\d+)"[^>]*(?:t="s")?[^>]*>(?:<v>(\d+)<\/v>)?/g;
-  // Simpler: just find all <v> tags row by row
-  const rowRe = /<row[^>]*>([\s\S]*?)<\/row>/g;
-  const valRe = /<v>([^<]*)<\/v>/g;
-  const rows = []; let rm;
-  while ((rm = rowRe.exec(xml)) !== null) {
-    const cells = []; let vm;
-    while ((vm = valRe.exec(rm[1])) !== null) cells.push(vm[1]);
-    if (cells.length) rows.push(cells);
+  const u8 = new Uint8Array(buffer);
+  let wb;
+  try {
+    wb = XLSX.read(u8, { type: 'array', cellDates: true });
+  } catch (e1) {
+    try {
+      wb = XLSX.read(u8, { type: 'array', cellDates: false });
+    } catch (e2) {
+      throw new Error(
+        'Excel dosyası okunamadı. Dosyayı Excel’de «Farklı Kaydet» ile .xlsx olarak kaydedip tekrar deneyin. ' +
+        ((e1 && e1.message) || e1)
+      );
+    }
   }
-  if (rows.length > 1) return rows.slice(1); // skip header
-  throw new Error('XML formatı okunamadı. Lütfen CSV olarak kaydedin.');
+  if (!wb.SheetNames || !wb.SheetNames.length) throw new Error('Çalışma sayfası bulunamadı.');
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: '' });
+  return rows.filter(function (r) {
+    return Array.isArray(r) && r.some(function (c) {
+      return c !== '' && c !== null && c !== undefined;
+    });
+  });
 }
 
 function readPdfLoans(file) {
@@ -3789,6 +3901,9 @@ function parsePdfTextLoans(text) {
 function parseLoanRow(cols) {
   // cols: [tip, banka, döviz, anapara, tarih, vade, faiz] — flexible order/count
   if (cols.length < 2) return null;
+  const fc = String(cols[0] ?? '').trim();
+  // Banka ödeme planındaki taksit no (1,2,3…) satırlarını şablon sanma
+  if (/^\d+(\.\d+)?$/.test(fc)) return null;
   const tipRaw = (cols[0] || '').toLowerCase().trim();
   const type = tipRaw.includes('bch') ? 'bch_existing' : 'installment';
   const bank = cols[1] || 'Belirtilmemiş';
@@ -3835,7 +3950,32 @@ function buildLoanPreview(rows) {
       '</tr>';
   }
   if (!loanPreviewData.length) {
-    document.getElementById('loan-import-status').textContent = '⚠ Tanınabilir kredi satırı bulunamadı.';
+    const inferred = inferLoanFromBankSchedule(rows);
+    if (inferred) {
+      const L = parseLoanRow(inferred);
+      if (L && L.principal > 0) {
+        const errors = [];
+        if (!L.bank) errors.push('Banka?');
+        if (L.type === 'installment' && !L.startDate) errors.push('Tarih?');
+        if (L.type === 'installment' && L.term <= 0) errors.push('Vade?');
+        const ok = errors.length === 0;
+        loanPreviewData.push({ ...L, _ok: ok });
+        const ccyBadge = L.ccy === 'USD' ? 'badge-green' : L.ccy === 'EUR' ? 'badge-pur' : 'badge-blue';
+        html = '<tr>' +
+          '<td><span class="badge badge-blue">Taksitli</span></td>' +
+          '<td style="text-align:left">' + esc(L.bank) + '</td>' +
+          '<td><span class="badge ' + ccyBadge + '">' + L.ccy + '</span></td>' +
+          '<td>' + tr(L.principal) + '</td>' +
+          '<td>' + (L.startDate ? fmtDate(new Date(L.startDate)) : '—') + '</td>' +
+          '<td>' + (L.term || '—') + '</td>' +
+          '<td>' + (L.rate ? '%' + L.rate : '—') + '</td>' +
+          '<td>' + (ok ? '<span class="pos">✓</span> <small>(banka planından çıkarıldı)</small>' : '<span class="neg">⚠ ' + errors.join(', ') + '</span>') + '</td>' +
+          '</tr>';
+      }
+    }
+  }
+  if (!loanPreviewData.length) {
+    document.getElementById('loan-import-status').textContent = '⚠ Tanınabilir kredi satırı bulunamadı. Şablon: Tip;Banka;TL;anapara;tarih;vade;faiz veya banka ödeme planı (.xls/.xlsx).';
     document.getElementById('loan-preview').style.display = 'none';
     return;
   }
