@@ -3774,7 +3774,7 @@ function cellStr_(c) {
   return String(c).trim();
 }
 
-/** Excel üstündeki «Tarih :» = rapor alınışı; bu tarihte tablo kesildiği için çıkarılan kullanım tarihi bundan sonra olamaz. */
+/** Excel üstündeki «Tarih :» = rapor kesildiği gün (nakit akışta gelecekte olamaz). */
 function extractBankReportDate(rows) {
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
@@ -3783,7 +3783,12 @@ function extractBankReportDate(rows) {
     if (!/tarih\s*:/i.test(joined)) continue;
     for (let j = 0; j < r.length; j++) {
       const dt = cellToLoanDate(r[j]);
-      if (dt && !isNaN(+dt)) return dt;
+      if (dt && !isNaN(+dt)) return dateOnly(dt);
+    }
+    for (let j = 0; j < r.length; j++) {
+      const s = String(r[j] || '').trim().replace(/\./g, '-');
+      const dt = parseDate(s);
+      if (dt && !isNaN(+dt)) return dateOnly(dt);
     }
   }
   return null;
@@ -3894,17 +3899,17 @@ function inferLoanFromBankSchedule(rows) {
 
   if (principal <= 0 || term <= 0) return null;
 
-  // Kullanım = ödeme tablosundaki 1. taksitin tarihi (TAKSİT TAR). «−1 ay» nakit kullanımını yanlış gösteriyordu.
-  let usageStr = '';
-  let usageFromSchedule = null;
-  if (firstPay) {
-    usageFromSchedule = dateOnly(firstPay);
-    usageStr = fmtDate(usageFromSchedule);
-  }
+  // Kullanım = min(ilk_taksit_tarihi, rapor_tarihi). Raporda kredi henüz tam «gelecek» taksitler için geçerli değil:
+  // örn. rapor 28.04.2026 iken ilk taksit 10.06.2026 ise kullanım 28.04.2026 olmalı, 10.06.2026 olamaz.
   const reportDt = extractBankReportDate(rows);
-  if (reportDt && usageFromSchedule && dateOnly(usageFromSchedule).getTime() > dateOnly(reportDt).getTime()) {
-    usageStr = fmtDate(dateOnly(reportDt));
+  let usageDay = null;
+  if (firstPay) usageDay = dateOnly(firstPay);
+  if (reportDt) {
+    const rpd = dateOnly(reportDt);
+    if (!usageDay) usageDay = rpd;
+    else if (usageDay.getTime() > rpd.getTime()) usageDay = rpd;
   }
+  const usageStr = usageDay ? fmtDate(usageDay) : fmtDate(new Date());
   let rate = 0;
   const mPct = extractBankMonthlyRatePercent(rows);
   if (mPct != null) {
