@@ -11,6 +11,7 @@ const navGroups = [
     label: null,
     items: [
       { path: '/dashboard', label: 'Genel Bakış', icon: 'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z' },
+      { path: '/fininsaat-erp', label: 'Fininsaat ERP', icon: 'M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z' },
     ],
   },
   {
@@ -60,7 +61,7 @@ const allNavItems = navGroups.flatMap(g => g.items)
 
 // Mobil alt çubuk: en sık kullanılan 4 + menü
 const bottomNavItems = [
-  { path: '/dashboard',  label: 'Fininsaat ERP',  icon: 'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z' },
+  { path: '/fininsaat-erp',  label: 'Fininsaat ERP',  icon: 'M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z' },
   { path: '/santiyeler', label: 'Şantiyeler', icon: 'M12 3L2 12h3v9h6v-6h2v6h6v-9h3L12 3z' },
   { path: '/hakedisler', label: 'Hakedişler', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z' },
   { path: '/mesajlar',   label: 'Mesajlar',   icon: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z' },
@@ -129,12 +130,12 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         </div>
 
         {!collapsed && (
-          <Link to="/dashboard" className="sidebar-finerp-strip" title="Fininsaat ERP — Ana sayfa">
+          <Link to="/fininsaat-erp" className="sidebar-finerp-strip" title="Fininsaat ERP paneli">
             Fininsaat ERP
           </Link>
         )}
         {collapsed && (
-          <Link to="/dashboard" className="sidebar-finerp-collapsed" title="Fininsaat ERP — Ana sayfa">
+          <Link to="/fininsaat-erp" className="sidebar-finerp-collapsed" title="Fininsaat ERP paneli">
             Fi
           </Link>
         )}
@@ -227,8 +228,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <button
             type="button"
             className="finerp-top-btn"
-            onClick={() => navigate('/dashboard')}
-            title="Fininsaat ERP — Genel bakış"
+            onClick={() => navigate('/fininsaat-erp')}
+            title="Fininsaat ERP paneli (/fininsaat-erp)"
           >
             Fininsaat ERP
           </button>
