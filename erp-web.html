@@ -66,9 +66,12 @@
   var B = "insaatErpApiBase";
 
   function $id(id) { return document.getElementById(id); }
+  /** Canlı Netlify (prod + branch preview): sunucu adresi kutusu yok; API kökü ortamda INSAAT_ERP_API_URL */
   function useNetlifyProxy() {
     var h = (location.hostname || "").toLowerCase();
-    return h === "finskor.tr" || h === "www.finskor.tr";
+    if (h === "finskor.tr" || h === "www.finskor.tr") return true;
+    if (h.endsWith(".netlify.app")) return true;
+    return false;
   }
   /** /api/v1 sonrası yol; ör. /auth/login veya /santiyeler?limit=50 */
   function apiUrl(rel) {
@@ -131,7 +134,7 @@
     } else {
       $id("setupOnce").style.display = "block";
       $id("loginCard").style.display = "block";
-      $id("leadMain").textContent = "ERP sunucu adresi tanımlı değil. Aşağıya adresi yazıp Kaydet'e basın veya FinSkor'a bildirin.";
+      $id("leadMain").textContent = "ERP adresi bu ortamda tanımlı değil. Netlify → Environment variables → INSAAT_ERP_API_URL (örn. https://api.firmaniz.com, sonda / yok) kaydedip yeniden deploy edin — veya aşağıya adres yazıp Kaydet'e basın.";
     }
   }
 
@@ -175,11 +178,13 @@
         body: JSON.stringify(body)
       }).then(function (r) { return r.json().then(function (j) { return { r: r, j: j }; }); })
       .then(function (x) {
-        if (!x.r.ok || !x.j.success || !x.j.data || !x.j.data.token) {
+        var d = x.j && x.j.data;
+        var tok = d && (d.token || d.accessToken);
+        if (!x.r.ok || !x.j.success || !d || !tok) {
           $id("loginErr").textContent = (x.j && x.j.message) || "Giriş yapılamadı. Bilgileri kontrol edin.";
           return;
         }
-        localStorage.setItem(K, x.j.data.token);
+        localStorage.setItem(K, tok);
         refreshUI();
       })
       .catch(function () { $id("loginErr").textContent = "Şu an bağlanılamıyor. Sunucu adresini kontrol edin."; });
