@@ -4764,6 +4764,49 @@ function makeSheet(headers, rows) {
   return ws;
 }
 
+/** Excel «Aylık Özet»: girişler vs ödemeler (kur farkı nakit dışı — basit görünüm). */
+function buildMonthlyExcelSummaryRows(rows) {
+  const hdrs = [
+    'Ay',
+    'Tarih',
+    'Nakit girişleri (TL)',
+    'Nakit ödemeleri (TL)',
+    'Net nakit (giriş − ödeme)',
+    'Dönem sonu likidite (kasa+mevduat)',
+    'Durum'
+  ];
+  const dataRows = [];
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const gir =
+      (r['Tahsilat'] || 0) +
+      (r['Mevduat Faiz'] || 0) +
+      (r['Taksit Kullanım'] || 0) +
+      (r['Spot Kullanım'] || 0) +
+      (r['Sermaye Artışı'] || 0) +
+      (r['BCH Kullanım'] || 0) +
+      Math.max(0, r['Manuel'] || 0);
+    const cik =
+      (r['Tedarikçi Öd.'] || 0) +
+      (r['Faaliyet Gid.'] || 0) +
+      (r['Taksit Öd.'] || 0) +
+      (r['Spot Anapara Öd.'] || 0) +
+      (r['Spot Faiz Öd.'] || 0) +
+      (r['BCH Faiz Öd.'] || 0) +
+      (r['K.Vergisi'] || 0) +
+      (r['BCH Geri Öd.'] || 0) +
+      Math.max(0, -(r['Manuel'] || 0)) +
+      Math.max(0, -(r['Yatırım'] || 0));
+    const net = gir - cik;
+    const lik = (r['Son.Nakit'] || 0) + (r['Son.Mevduat'] || 0);
+    let durum = 'Dengede';
+    if (net > 1e-6) durum = 'Nakit fazlası';
+    else if (net < -1e-6) durum = 'Ödeme baskısı / nakit ihtiyacı';
+    dataRows.push([r['Ay'], r['Tarih'] || '', gir, cik, net, lik, durum]);
+  }
+  return { hdrs, dataRows };
+}
+
 function exportRaporExcel() {
   const f = curFirm(); if (!f) return;
   let proj; try { proj = buildProjection(state.currentFirmId); } catch(e) { showAlert(e.message, 'err'); return; }
@@ -4773,13 +4816,18 @@ function exportRaporExcel() {
 
   const wb = XLSX.utils.book_new();
 
-  // === SHEET 1: NAKİT AKIŞ ===
+  // === SHEET 1: AYLIK ÖZET (basit) ===
+  const mo = buildMonthlyExcelSummaryRows(rows);
+  const ws0 = makeSheet(mo.hdrs, mo.dataRows);
+  XLSX.utils.book_append_sheet(wb, ws0, 'Aylık Özet');
+
+  // === SHEET 2: NAKİT AKIŞ (detay) ===
   const hdrs = Object.keys(rows[0]);
   const dataRows = rows.map(r => hdrs.map(h => r[h]));
   const ws1 = makeSheet(hdrs, dataRows);
   XLSX.utils.book_append_sheet(wb, ws1, 'Nakit Akış');
 
-  // === SHEET 2: GELİR TABLOSU ===
+  // === GELİR TABLOSU ===
   const sy = new Date(f.startDate).getFullYear();
   const { years, inc, bal } = annual5Y(rows, sy, (f.opening || {}).mdv || 0, openingBalAdjFromOpening(f.opening));
   const gelirHdrs = ['Kalem', ...years.map(String)];
@@ -4812,7 +4860,7 @@ function exportRaporExcel() {
   ];
   XLSX.utils.book_append_sheet(wb, makeSheet(gelirHdrs, gelirRows), 'Gelir Tablosu');
 
-  // === SHEET 3: BİLANÇO ===
+  // === BİLANÇO ===
   const ret = computeRetained(years, inc, openingRetainedFromSnapshot(f.finskorBilancoSnapshot));
   const c0 = (f.opening || {}).capital || 0;
   const realPasifRapor = {};
@@ -4849,7 +4897,7 @@ function exportRaporExcel() {
   ];
   XLSX.utils.book_append_sheet(wb, makeSheet(bilHdrs, bilRows), 'Bilanço');
 
-  // === SHEET 4: İNA (kayıtlı parametreler) ===
+  // === İNA (kayıtlı parametreler) ===
   const inaP = inaParamsFromSavedFirm(f);
   const inaRes = computeInaValuation(proj, inaP);
   const inaModeLbl = inaP.waccMode === 'constant' ? 'Sabit WACC' : (inaP.waccMode === 'staged' ? 'Aşamalı (5 yıl)' : 'Dinamik WACC');
