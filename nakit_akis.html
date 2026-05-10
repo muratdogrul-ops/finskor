@@ -3774,6 +3774,26 @@ function cellStr_(c) {
   return String(c).trim();
 }
 
+/** Excel üstündeki «Tarih :» = rapor alınışı; bu tarihte tablo kesildiği için çıkarılan kullanım tarihi bundan sonra olamaz. */
+function extractBankReportDate(rows) {
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (!Array.isArray(r)) continue;
+    const joined = r.map(cellStr_).join(' ');
+    if (!/tarih\s*:/i.test(joined)) continue;
+    for (let j = 0; j < r.length; j++) {
+      const dt = cellToLoanDate(r[j]);
+      if (dt && !isNaN(+dt)) return dt;
+    }
+  }
+  return null;
+}
+
+function dateOnly(d) {
+  const x = new Date(d);
+  return new Date(x.getFullYear(), x.getMonth(), x.getDate());
+}
+
 /**
  * Banka ödeme planı (.xls): Kredi Tutarı / (36 AY) / 1. taksit satırından tek satır NakitFlow şablonu üretir.
  */
@@ -3860,10 +3880,16 @@ function inferLoanFromBankSchedule(rows) {
   if (principal <= 0 || term <= 0) return null;
 
   let usageStr = '';
+  let usageFromSchedule = null;
   if (firstPay) {
     const u = new Date(firstPay);
     u.setMonth(u.getMonth() - 1);
-    usageStr = fmtDate(u);
+    usageFromSchedule = dateOnly(u);
+    usageStr = fmtDate(usageFromSchedule);
+  }
+  const reportDt = extractBankReportDate(rows);
+  if (reportDt && usageFromSchedule && dateOnly(usageFromSchedule).getTime() > dateOnly(reportDt).getTime()) {
+    usageStr = fmtDate(dateOnly(reportDt));
   }
   let rate = 0;
   if (firstPmt > 0) rate = solveAnnualRateForPayment(principal, term, firstPmt);
