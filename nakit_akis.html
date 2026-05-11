@@ -3947,6 +3947,34 @@ function _looksLikeCustomerUnvan(s) {
   if (t.length < 18) return false;
   return /(limited|ltd\.?|şirket|ticaret|sanayi|restoran|restaurant|otel|hotel|holding|a\.?\s*ş\.?|anoni|anonim|grup)/i.test(t);
 }
+/** KAET vb. çıktılarda tam banka adı olmayabilir; «Şube Kodu / Adı» satırından şube adı + kod okunur. */
+function extractSubeLabelFromSchedule(rows) {
+  for (let i = 0; i < Math.min(rows.length, 35); i++) {
+    const r = rows[i];
+    if (!Array.isArray(r)) continue;
+    const cells = r.map(cellStr_);
+    const joined = cells.join(' ').toLowerCase();
+    if (/müşteri|unvan|ünvan|musteri/i.test(joined)) continue;
+    if (!/şube|ube\s*kodu|ube\s*ad|ubekodu|ubeadi/i.test(joined)) continue;
+    const code = cells[2] != null ? String(cells[2]).trim() : '';
+    let name = '';
+    for (let k = 3; k < Math.min(cells.length, 10); k++) {
+      const t = String(cells[k] || '').trim();
+      if (!t) continue;
+      if (/^\d[\d.,\s]*$/.test(t)) continue;
+      if (_looksLikeCustomerUnvan(t)) continue;
+      if (/faiz|tutar|oran|kredi\s*tür|kredi\s*tutar|toplam|komisyon|taksit|anapara/i.test(t)) continue;
+      name = t;
+      break;
+    }
+    if (name) {
+      const withCode = code && /^\d{1,8}$/.test(code) ? name + ' (Şube ' + code + ')' : name;
+      return ('Şube: ' + withCode).slice(0, 80);
+    }
+    if (code && /^\d{1,8}$/.test(code)) return ('Şube kodu: ' + code).slice(0, 80);
+  }
+  return null;
+}
 function extractBankNameFromSchedule(rows, sheetName, fileBase) {
   const bankHints =
     /vak[iı]fbank|z[iı]raat|iş\s*bank|garanti|yap[iı]\s*kredi|akbank|qnb|denizbank|teb|halkbank|şekerbank|kuveyt|enpara|fibabanka|odea|hsbc|ing\s|citibank|alternatif|burgan|finansbank|aktifbank|bank|kredi\s*kur|leasing|faktoring|kat[iı]l[iı]m/i;
@@ -4009,6 +4037,8 @@ function extractBankNameFromSchedule(rows, sheetName, fileBase) {
       }
     }
   }
+  const sube = extractSubeLabelFromSchedule(rows);
+  if (sube) return sube;
   return null;
 }
 
