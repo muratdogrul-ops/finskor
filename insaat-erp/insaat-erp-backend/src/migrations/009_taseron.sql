@@ -4,7 +4,7 @@
 
 -- ─── TAŞERONLAR ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS taseronlar (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   ad              VARCHAR(200) NOT NULL,
   vergi_no        VARCHAR(20),
@@ -25,7 +25,7 @@ CREATE INDEX IF NOT EXISTS idx_taseronlar_tenant ON taseronlar(tenant_id);
 
 -- ─── TAŞERON SÖZLEŞMELERİ ────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS taseron_sozlesmeler (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   taseron_id      UUID NOT NULL REFERENCES taseronlar(id) ON DELETE CASCADE,
   santiye_id      UUID NOT NULL REFERENCES santiyeler(id) ON DELETE CASCADE,
@@ -55,7 +55,7 @@ CREATE INDEX IF NOT EXISTS idx_ts_sozlesme_taseron   ON taseron_sozlesmeler(tase
 
 -- ─── TAŞERON HAKEDİŞLERİ ─────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS taseron_hakedis (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   sozlesme_id     UUID NOT NULL REFERENCES taseron_sozlesmeler(id) ON DELETE CASCADE,
   donem_no        SMALLINT NOT NULL DEFAULT 1,
@@ -113,7 +113,7 @@ $$;
 
 -- ─── EKİPMAN MALİYET GÜNLÜĞÜ — varsa tabloyu oluştur ─────────────────────────
 CREATE TABLE IF NOT EXISTS ekipman_maliyet (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   ekipman_id      UUID NOT NULL REFERENCES ekipmanlar(id) ON DELETE CASCADE,
   santiye_id      UUID REFERENCES santiyeler(id),

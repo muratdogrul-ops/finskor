@@ -17,6 +17,14 @@
 
 Not: Ücretsiz Web “uyku” moduna geçer; ilk istek 30–60 sn sürebilir. Üretim için ücretli plan veya sabit sunucu düşünün.
 
+--- Yerel Docker (bilgisayarda API) ---
+  insaat-erp klasöründe:  docker compose up --build
+  Sağlık: http://127.0.0.1:3000/health
+  Statik FinSkor + erp-web (dist gerekir): repo kökünde npm run build, sonra
+    docker compose --profile site up --build
+  Tarayıcı: http://127.0.0.1:8888/erp-web.html — girişte API kökü http://127.0.0.1:3000
+  Postgres host portu varsayılan 5433 (5432 çakışmasını önlemek için); değiştirmek için DB_PUBLISH_PORT
+
 --- Supabase ile ne olur, ne olmaz? ---
 
 Supabase hesabınızı şu şekilde KULLANABİLİRSİNİZ:

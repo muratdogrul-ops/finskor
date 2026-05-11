@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { query, withTransaction } from '../config/database';
-import { logger } from '../utils/logger';
+import logger from '../utils/logger';
 
 // ── YARDIMCI ─────────────────────────────────────────────────────────────────
 const nextFisNo = async (tenantId: string): Promise<string> => {
@@ -159,7 +159,7 @@ export const getFis = async (req: Request, res: Response): Promise<void> => {
 
 export const createFis = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { tenantId, id: userId } = req.user!;
+    const { tenantId, userId } = req.user!;
     const { tarih, aciklama, santiye_id, kaynak_tip, kaynak_id, satirlar } = req.body;
 
     if (!tarih || !satirlar?.length) {

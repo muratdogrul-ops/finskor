@@ -1,43 +1,60 @@
-# Yerel FinSkor + İnşaat ERP API + PostgreSQL
-# Kullanım: insaat-erp klasöründe .env oluştur (.env.example kopyası), sonra:
+# İnşaat ERP — PostgreSQL + API (+ isteğe bağlı statik FinSkor dist)
+# .env ZORUNLU DEĞİL: varsayılanlar ile ayağa kalkar.
+#
+#   cd insaat-erp
 #   docker compose up --build
+#
+# API: http://127.0.0.1:3000/health  |  Giriş HTML (dist gerekir): aşağıdaki "site" profili
+#
+# Statik site + ERP sayfası:
+#   (repo kökünde) npm install && npm run build
+#   cd insaat-erp && docker compose --profile site up --build
+
 services:
   db:
     image: postgres:16-alpine
-    env_file:
-      - .env
     environment:
       POSTGRES_USER: ${DB_USER:-erp_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-localdev_insaat_erp}
       POSTGRES_DB: ${DB_NAME:-insaat_erp}
     ports:
-      - "${DB_PUBLISH_PORT:-5432}:5432"
+      # 5432 sık dolu olur (yerel Postgres / eski konteyner); host tarafı varsayılan 5433
+      - "${DB_PUBLISH_PORT:-5433}:5432"
     volumes:
       - insaat_erp_pg:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-erp_user} -d ${DB_NAME:-insaat_erp}"]
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\" || exit 1"]
       interval: 3s
       timeout: 5s
-      retries: 8
-      start_period: 10s
+      retries: 12
+      start_period: 15s
 
   api:
     build:
       context: ./insaat-erp-backend
       dockerfile: Dockerfile
-    env_file:
-      - .env
     environment:
-      DB_HOST: db
-      DB_PORT: "5432"
       NODE_ENV: production
-      # Tarayıcı / Netlify proxy / Vite — virgülle (compose .env içinden genişletilebilir)
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000,https://finskor.tr,https://www.finskor.tr}
+      PORT: "3000"
+      DB_SSL: "0"
+      JWT_SECRET: ${JWT_SECRET:-insaat-erp-yerel-docker-jwt-256-bit-gizli-anahtar}
+      DATABASE_URL: postgres://${DB_USER:-erp_user}:${DB_PASSWORD:-localdev_insaat_erp}@db:5432/${DB_NAME:-insaat_erp}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000,http://localhost:8888,http://127.0.0.1:8888,https://finskor.tr,https://www.finskor.tr}
     ports:
       - "${PORT:-3000}:3000"
     depends_on:
       db:
         condition: service_healthy
+    restart: unless-stopped
+
+  finskor-site:
+    image: nginx:alpine
+    profiles:
+      - site
+    ports:
+      - "${FINSKOR_WEB_PORT:-8888}:80"
+    volumes:
+      - ../dist:/usr/share/nginx/html:ro
     restart: unless-stopped
 
 volumes:

@@ -34,7 +34,7 @@ export const getHakedisler = async (req: Request, res: Response): Promise<void> 
         o.ad || ' ' || o.soyad as onaylayan_adi
        FROM hakedisler h
        JOIN santiyeler s ON s.id = h.santiye_id
-       JOIN kullanicilar k ON k.id = h.hazırlayan_id
+       JOIN kullanicilar k ON k.id = h.hazirlayan_id
        LEFT JOIN kullanicilar o ON o.id = h.onaylayan_id
        ${where}
        ORDER BY h.olusturuldu DESC
@@ -66,7 +66,7 @@ export const getHakedis = async (req: Request, res: Response): Promise<void> => 
         (SELECT json_agg(hk ORDER BY hk.sira) FROM hakedis_kalemleri hk WHERE hk.hakedis_id = h.id) as kalemler
        FROM hakedisler h
        JOIN santiyeler s ON s.id = h.santiye_id
-       JOIN kullanicilar k ON k.id = h.hazırlayan_id
+       JOIN kullanicilar k ON k.id = h.hazirlayan_id
        LEFT JOIN kullanicilar o ON o.id = h.onaylayan_id
        WHERE h.id = $1 AND h.tenant_id = $2`,
       [id, tenantId]
@@ -121,7 +121,7 @@ export const createHakedis = async (req: Request, res: Response): Promise<void> 
       const hakRes = await client.query(
         `INSERT INTO hakedisler
           (tenant_id, santiye_id, no, tip, donem_baslangic, donem_bitis,
-           tutar, kdv_orani, kdv_tutari, toplam_tutar, notlar, hazırlayan_id,
+           tutar, kdv_orani, kdv_tutari, toplam_tutar, notlar, hazirlayan_id,
            avans_tutari, kesinti_tutari, cari_id, dis_fatura_ref, fatura_uuid)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
          RETURNING *`,

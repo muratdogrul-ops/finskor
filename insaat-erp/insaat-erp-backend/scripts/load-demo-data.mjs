@@ -312,7 +312,7 @@ async function createDemo(client, tenantId, userId) {
       client,
       `INSERT INTO hakedisler
         (tenant_id, santiye_id, no, tip, donem_baslangic, donem_bitis, tutar, kdv_orani,
-         kdv_tutari, toplam_tutar, durum, hazırlayan_id, odeme_tarihi, notlar)
+         kdv_tutari, toplam_tutar, durum, hazirlayan_id, odeme_tarihi, notlar)
        VALUES ($1,$2,$3,'ara',$4,$5,$6,20,$7,$8,$9,$10,$11,$12)
        RETURNING *`,
       [tenantId, santiye[h.s].id, h.no, h.bas, h.bit, h.tutar, kdv, h.tutar + kdv, h.durum, userId, h.durum === 'odendi' ? '2025-04-18' : null, 'Demo hakediş kaydı'],
