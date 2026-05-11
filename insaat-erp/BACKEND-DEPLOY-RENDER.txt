@@ -1,0 +1,18 @@
+İnşaat ERP backend için HTTPS adresi (ör. https://insaat-erp-api.onrender.com) almak — kısa yol: Render.com
+
+1) GitHub’da insaat-erp (veya bu backend’i içeren) repo’yu hazırlayın; kökte render.yaml + insaat-erp-backend/ klasörü olsun.
+
+2) https://render.com — kayıt / giriş — “New” → “Blueprint” → repo seçin → render.yaml onaylansın.
+
+3) Render panosunda servise girin → Environment:
+   - DATABASE_URL = Render PostgreSQL oluşturup “External Database URL” yapıştırın (veya Internal + aynı VPC; genelde External URL yeterli).
+   - JWT_SECRET = uzun rastgele bir metin (üretici kullanın).
+
+4) Deploy bitince üstte görünen URL örnektir:
+   https://insaat-erp-api.onrender.com
+   Bu metnin SONUNA /api/v1 EKLEMEYİN. FinSkor Netlify’da:
+   INSAAT_ERP_API_URL = https://insaat-erp-api.onrender.com
+
+5) Tarayıcıda test: https://…onrender.com/health
+
+Not: Ücretsiz Web “uyku” moduna geçer; ilk istek 30–60 sn sürebilir. Üretim için ücretli plan veya sabit sunucu düşünün.

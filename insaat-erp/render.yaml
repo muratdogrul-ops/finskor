@@ -1,0 +1,21 @@
+# Render.com Blueprint — https://render.com/docs/blueprint-spec
+# Repo kökünde bu dosya olmalı; deploy sonrası adres: https://<service-name>.onrender.com
+version: "1"
+services:
+  - type: web
+    name: insaat-erp-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./insaat-erp-backend/Dockerfile
+    dockerContext: ./insaat-erp-backend
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ALLOWED_ORIGINS
+        value: https://finskor.tr,https://www.finskor.tr
+      - key: JWT_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false

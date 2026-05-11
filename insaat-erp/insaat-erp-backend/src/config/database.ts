@@ -1,20 +1,39 @@
-import { Pool, PoolClient } from 'pg';
+import { Pool, PoolClient, PoolConfig } from 'pg';
 import dotenv from 'dotenv';
 import logger from '../utils/logger';
 
 dotenv.config();
 
-const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432', 10),
-  database: process.env.DB_NAME || 'insaat_erp',
-  user: process.env.DB_USER || 'erp_user',
-  password: process.env.DB_PASSWORD,
-  min: parseInt(process.env.DB_POOL_MIN || '2', 10),
-  max: parseInt(process.env.DB_POOL_MAX || '20', 10),
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-});
+function buildPoolConfig(): PoolConfig {
+  const conn = (process.env.DATABASE_URL || '').trim();
+  const min = parseInt(process.env.DB_POOL_MIN || '2', 10);
+  const max = parseInt(process.env.DB_POOL_MAX || '20', 10);
+  if (conn) {
+    const sslOff = process.env.DB_SSL === '0' || process.env.DB_SSL === 'false';
+    const cfg: PoolConfig = {
+      connectionString: conn,
+      min,
+      max,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 8000,
+    };
+    if (!sslOff) cfg.ssl = { rejectUnauthorized: false };
+    return cfg;
+  }
+  return {
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT || '5432', 10),
+    database: process.env.DB_NAME || 'insaat_erp',
+    user: process.env.DB_USER || 'erp_user',
+    password: process.env.DB_PASSWORD,
+    min,
+    max,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+  };
+}
+
+const pool = new Pool(buildPoolConfig());
 
 pool.on('error', (err) => {
   logger.error('Veritabanı bağlantı hatası:', err);
