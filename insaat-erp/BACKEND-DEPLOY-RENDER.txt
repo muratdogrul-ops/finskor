@@ -25,7 +25,7 @@ Not: Ücretsiz Web “uyku” moduna geçer; ilk istek 30–60 sn sürebilir. Ü
   Sağlık: http://127.0.0.1:3000/health
   ERP web (dist gerekir): repo kökünde npm run build, sonra BASLAT-DOCKER / docker compose.
   Tarayıcı: http://127.0.0.1:3000/erp-web.html (dist, API konteynerine bagli; ayni port)
-  Demo hesap (migration 011 sonrasi, eposta yoksa): info@finerp.tr — sifre: Demo12345!
+  Demo hesap (migration 011 sonrasi, eposta yoksa): info@finerp.tr — sifre: 1234
   Istege bagli ayri port: docker compose --profile site veya npx serve dist -l 8888
   Postgres host portu varsayılan 5433 (5432 çakışmasını önlemek için); değiştirmek için DB_PUBLISH_PORT
 

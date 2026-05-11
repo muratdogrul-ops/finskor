@@ -1,4 +1,4 @@
--- Yerel / ilk kurulum: demo firma + admin (sifre: Demo12345!)
+-- Yerel / ilk kurulum: demo firma + admin (sifre: 1234)
 -- E-posta info@finerp.tr yoksa eklenir; varsa dokunulmaz.
 
 INSERT INTO tenants (id, ad, plan, max_santiye, aktif)
@@ -19,7 +19,7 @@ SELECT
   'Demo',
   'Yönetici',
   'admin',
-  '$2a$12$um.f9aFOl4WM6fS4C1p.2OhFL5cnbODQ6yBe0rZsRGgPNFWHiwMGG',
+  '$2a$12$vSOH0mX1LxfYAgJTdWfAkehh7I6IUTJMbGXgs.7TITircYrsxutgu',
   true
 WHERE NOT EXISTS (
   SELECT 1 FROM kullanicilar k WHERE LOWER(TRIM(k.email)) = LOWER(TRIM('info@finerp.tr'))
