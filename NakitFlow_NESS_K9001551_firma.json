@@ -1,0 +1,712 @@
+{
+  "version": 3,
+  "firma": {
+    "id": "f_k9001551_ness",
+    "name": "NESS GROUP RESTORAN OTEL — K9001551 Ordu",
+    "startDate": "2025-04-01T12:00:00Z",
+    "createdAt": "2026-05-10T16:58:54.832449Z",
+    "opening": {
+      "cash": 0,
+      "bank": 0,
+      "ar": 0,
+      "ap": 0,
+      "inventory": 0,
+      "capital": 0,
+      "otherAssets": 0,
+      "otherLiab": 0
+    },
+    "incomeStmt": {
+      "revenue": 0,
+      "cogs": 0
+    },
+    "ciro": {
+      "mode": "uniform",
+      "monthly": [
+        8.333333333333334,
+        8.333333333333334,
+        8.333333333333334,
+        8.333333333333334,
+        8.333333333333334,
+        8.333333333333334,
+        8.333333333333334,
+        8.333333333333334,
+        8.333333333333334,
+        8.333333333333334,
+        8.333333333333334,
+        8.333333333333334
+      ]
+    },
+    "assumptions": {
+      "months": 120,
+      "growth": 0,
+      "expGrowth": 0,
+      "bchLimit": 0,
+      "bchRate": 0,
+      "bch1": 0,
+      "bch2": 0,
+      "bch3": 0,
+      "bch4": 0,
+      "bch5": 0,
+      "dep1": 0,
+      "dep2": 0,
+      "dep3": 0,
+      "dep4": 0,
+      "dep5": 0,
+      "taxRate": 25,
+      "taxMonths": "3,6,9,12"
+    },
+    "expenses": [
+      {
+        "group": "Operasyon Giderleri",
+        "name": "Sorunlu Alacak",
+        "amount": 0
+      },
+      {
+        "group": "Operasyon Giderleri",
+        "name": "Fire % Kayıp",
+        "amount": 0
+      },
+      {
+        "group": "Operasyon Giderleri",
+        "name": "Personel Yemek",
+        "amount": 0
+      },
+      {
+        "group": "Operasyon Giderleri",
+        "name": "Banka Genel Gider ve TM Kom.",
+        "amount": 0
+      },
+      {
+        "group": "Operasyon Giderleri",
+        "name": "Telefon İnternet Gideri",
+        "amount": 0
+      },
+      {
+        "group": "Operasyon Giderleri",
+        "name": "Elektrik & Isınma & Su",
+        "amount": 0
+      },
+      {
+        "group": "Operasyon Giderleri",
+        "name": "Güvenlik Gideri",
+        "amount": 0
+      },
+      {
+        "group": "Operasyon Giderleri",
+        "name": "Bakım Onarım",
+        "amount": 0
+      },
+      {
+        "group": "Operasyon Giderleri",
+        "name": "Profesyonel Ücretler",
+        "amount": 0
+      },
+      {
+        "group": "Operasyon Giderleri",
+        "name": "Kira",
+        "amount": 0
+      },
+      {
+        "group": "Operasyon Giderleri",
+        "name": "Vergi Resim Harç",
+        "amount": 0
+      },
+      {
+        "group": "Operasyon Giderleri",
+        "name": "Kargo Logistics",
+        "amount": 0
+      },
+      {
+        "group": "Operasyon Giderleri",
+        "name": "Diğer",
+        "amount": 0
+      },
+      {
+        "group": "Personel",
+        "name": "Ücret ve Faydalar",
+        "amount": 0
+      },
+      {
+        "group": "Personel",
+        "name": "Resmi Yükümlülükler",
+        "amount": 0
+      },
+      {
+        "group": "Personel",
+        "name": "Personel Maliyeti Düzeltme",
+        "amount": 0
+      },
+      {
+        "group": "Personel",
+        "name": "Sosyal Giderler",
+        "amount": 0
+      },
+      {
+        "group": "Pazarlama ve Satış",
+        "name": "Toplantı gideri & temsil",
+        "amount": 0
+      },
+      {
+        "group": "Pazarlama ve Satış",
+        "name": "Seyahat Konaklama",
+        "amount": 0
+      },
+      {
+        "group": "Pazarlama ve Satış",
+        "name": "Satış Destek Giderleri + İhracat Gid.",
+        "amount": 0
+      },
+      {
+        "group": "Pazarlama ve Satış",
+        "name": "Reklam Giderleri",
+        "amount": 0
+      },
+      {
+        "group": "Sigorta",
+        "name": "Sorumluluk Sigortası",
+        "amount": 0
+      },
+      {
+        "group": "Sigorta",
+        "name": "Diğer Sigorta",
+        "amount": 0
+      },
+      {
+        "group": "Taşıma",
+        "name": "Araç Kiralama",
+        "amount": 0
+      },
+      {
+        "group": "Taşıma",
+        "name": "Araç Yakıtları",
+        "amount": 0
+      },
+      {
+        "group": "Üretim",
+        "name": "AR & GE",
+        "amount": 0
+      }
+    ],
+    "loans": [
+      {
+        "type": "installment",
+        "bank": "Ordu Şb. K9001551 — KOBİ Avantaj Taksitli 36 ay",
+        "ccy": "TL",
+        "principal": 5000000,
+        "startDate": "2025-04-26T12:00:00Z",
+        "term": 36,
+        "rate": 55
+      }
+    ],
+    "manualCf": [],
+    "fxRates": {
+      "usdOpen": 0,
+      "eurOpen": 0,
+      "usdPrevBeforeProj": 0,
+      "eurPrevBeforeProj": 0,
+      "monthly": [
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        },
+        {
+          "usd": 0.0,
+          "eur": 0.0
+        }
+      ]
+    },
+    "ina": {
+      "wacc": 15,
+      "terminalGrowth": 2,
+      "firstFcfYear": null,
+      "explicitYears": null,
+      "waccMode": "constant",
+      "waccStaged": [
+        15,
+        15,
+        15,
+        15,
+        15
+      ],
+      "waccDynamicBase": 15,
+      "dynamicRisk": {
+        "currentRatio": null,
+        "netDebtEbitda": null,
+        "ebitdaMargin": null,
+        "marginTrend": null
+      }
+    }
+  }
+}

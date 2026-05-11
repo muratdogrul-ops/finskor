@@ -1,0 +1,3508 @@
+
+
+==================== C:\insaat-erp\insaat-erp-backend\src\controllers\finansAsama4Controller.ts ====================
+
+import type { Request, Response } from 'express';
+import { query, withTransaction } from '../config/database';
+import logger from '../utils/logger';
+import { fetchTcmbTodayRates } from '../services/tcmbKurService';
+import { genisSantiyeRol, santiyeKapsamSql, userCanAccessSantiye } from '../utils/santiyeAccess';
+
+const num = (v: unknown): number => {
+  const n = typeof v === 'string' ? parseFloat(v) : Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+/** GET /finans/kpi-hedefleri */
+export const getFinansKpiHedefleri = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.user!;
+    const yil = parseInt(String(req.query.yil ?? new Date().getFullYear()), 10);
+    const r = await query(
+      `SELECT * FROM finans_kpi_hedefleri WHERE tenant_id = $1 AND yil = $2`,
+      [tenantId, yil]
+    );
+    if (!r.rows[0]) {
+      res.json({
+        success: true,
+        data: {
+          yil,
+          cari_oran_target: 1.5,
+          nakit_donusum_gun_target: 60,
+          dso_gun_target: 45,
+          dpo_gun_target: 45,
+          roe_yuzde_target: 12,
+          varsayilan: true,
+        },
+      });
+      return;
+    }
+    res.json({ success: true, data: { ...r.rows[0], varsayilan: false } });
+  } catch (e) {
+    logger.error('getFinansKpiHedefleri', e);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+/** PUT /finans/kpi-hedefleri */
+export const putFinansKpiHedefleri = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.user!;
+    const yil = parseInt(String(req.body.yil ?? new Date().getFullYear()), 10);
+    const {
+      cari_oran_target = 1.5,
+      nakit_donusum_gun_target = 60,
+      dso_gun_target = 45,
+      dpo_gun_target = 45,
+      roe_yuzde_target = 12,
+    } = req.body as Record<string, unknown>;
+
+    await query(
+      `INSERT INTO finans_kpi_hedefleri
+        (tenant_id, yil, cari_oran_target, nakit_donusum_gun_target, dso_gun_target, dpo_gun_target, roe_yuzde_target)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       ON CONFLICT (tenant_id, yil) DO UPDATE SET
+         cari_oran_target = EXCLUDED.cari_oran_target,
+         nakit_donusum_gun_target = EXCLUDED.nakit_donusum_gun_target,
+         dso_gun_target = EXCLUDED.dso_gun_target,
+         dpo_gun_target = EXCLUDED.dpo_gun_target,
+         roe_yuzde_target = EXCLUDED.roe_yuzde_target`,
+      [
+        tenantId,
+        yil,
+        num(cari_oran_target),
+        Math.round(num(nakit_donusum_gun_target)),
+        Math.round(num(dso_gun_target)),
+        Math.round(num(dpo_gun_target)),
+        num(roe_yuzde_target),
+      ]
+    );
+    res.json({ success: true });
+  } catch (e) {
+    logger.error('putFinansKpiHedefleri', e);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+/** GET /finans/senaryo-finansal — baz vs senaryo */
+export const getFinansSenaryo = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId, userId, rol } = req.user!;
+    const broad = genisSantiyeRol(rol!);
+    const maliyetArtis = num(req.query.maliyet_artis_pct ?? 0);
+    const kurDegisim = num(req.query.kur_degisim_pct ?? 0);
+    const tahsilGecikme = Math.round(num(req.query.tahsilat_gecikme_gun ?? 0));
+
+    const sc = santiyeKapsamSql(rol!, userId, 's.id', 2);
+    const sParams: unknown[] = [tenantId];
+    if (sc.sql) sParams.push(sc.param);
+    const sScope = broad ? '' : sc.sql;
+
+    const sant = await query(
+      `SELECT COALESCE(SUM(s.sozlesme_bedel),0)::bigint AS taahhut,
+              COALESCE(SUM(s.gerceklesen),0)::bigint AS gercek,
+              COALESCE(AVG(s.fiziksel_ilerleme),0)::numeric AS ort_ilerleme
+       FROM santiyeler s WHERE s.tenant_id = $1 AND s.aktif = true ${sScope}`,
+      sParams,
+    );
+    const nhParams: unknown[] = [tenantId, new Date().getFullYear()];
+    let nhScope = '';
+    if (!broad) {
+      nhScope = ' AND n.santiye_id IN (SELECT sk.santiye_id FROM santiye_kullanicilar sk WHERE sk.kullanici_id = $3)';
+      nhParams.push(userId);
+    }
+    const nak = await query(
+      `SELECT COALESCE(SUM(tutar_try) FILTER(WHERE tip='giris'),0)::bigint AS giris,
+              COALESCE(SUM(tutar_try) FILTER(WHERE tip='cikis'),0)::bigint AS cikis
+       FROM nakit_hareketleri n WHERE n.tenant_id = $1 AND EXTRACT(YEAR FROM tarih)=$2 ${nhScope}`,
+      nhParams,
+    );
+    const rowS = sant.rows[0] as Record<string, unknown>;
+    const rowN = nak.rows[0] as Record<string, unknown>;
+    const taahhut = num(rowS.taahhut);
+    const gercek = num(rowS.gercek);
+    const ortIler = num(rowS.ort_ilerleme);
+    const giris = num(rowN.giris);
+    const cikis = num(rowN.cikis);
+    const net = giris - cikis;
+
+    const carpanMal = 1 + maliyetArtis / 100;
+    const gercekSen = Math.round(gercek * carpanMal);
+    const eacBaz = ortIler > 0 ? Math.round(gercek / (ortIler / 100)) : taahhut;
+    const eacSen = ortIler > 0 ? Math.round(gercekSen / (ortIler / 100)) : taahhut;
+
+    const kurEtksi = net * (kurDegisim / 100);
+    const gecikmeEtksi = -Math.round((taahhut * 0.0002) * tahsilGecikme);
+
+    res.json({
+      success: true,
+      data: {
+        parametreler: {
+          maliyet_artis_pct: maliyetArtis,
+          kur_degisim_pct: kurDegisim,
+          tahsilat_gecikme_gun: tahsilGecikme,
+        },
+        baz: {
+          taahhut_toplam: taahhut,
+          gerceklesen_toplam: gercek,
+          ort_fiziksel_ilerleme: ortIler,
+          nakit_yil_net: net,
+          eac_tahmini: eacBaz,
+        },
+        senaryo: {
+          gerceklesen_toplam: gercekSen,
+          nakit_yil_net_tahmini: Math.round(net + kurEtksi + gecikmeEtksi),
+          eac_tahmini: eacSen,
+          kur_etkisi_try: Math.round(kurEtksi),
+          tahsil_gecikme_etkisi_try: gecikmeEtksi,
+        },
+        meta: {
+          aciklama:
+            'Senaryo sonuçları gösterge amaçlıdır; TMS/TFRS uyumu için muhasebe kuralları ile doğrulanmalıdır.',
+        },
+      },
+    });
+  } catch (e) {
+    logger.error('getFinansSenaryo', e);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+/** POST /finans/tcmb-kur-sync */
+export const postTcmbKurSync = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const pack = await fetchTcmbTodayRates();
+    if (!pack?.satirlar.length) {
+      res.status(502).json({ success: false, message: 'TCMB kurları alınamadı (ağ veya format).' });
+      return;
+    }
+    const tarih = pack.tarih;
+    let n = 0;
+    for (const s of pack.satirlar) {
+      await query(
+        `INSERT INTO tcmb_kurlar (tarih, kod, birim_try)
+         VALUES ($1::date,$2,$3)
+         ON CONFLICT (tarih, kod) DO UPDATE SET birim_try = EXCLUDED.birim_try`,
+        [tarih, s.kod, s.birim_try]
+      );
+      n++;
+    }
+    res.json({ success: true, data: { tarih, eklenen: n } });
+  } catch (e) {
+    logger.error('postTcmbKurSync', e);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+/** GET /finans/kurlar */
+export const getTcmbKurlar = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const tarih = typeof req.query.tarih === 'string' ? req.query.tarih : null;
+    const r = tarih
+      ? await query(`SELECT * FROM tcmb_kurlar WHERE tarih = $1::date ORDER BY kod`, [tarih])
+      : await query(`SELECT * FROM tcmb_kurlar ORDER BY tarih DESC, kod LIMIT 30`);
+    res.json({ success: true, data: r.rows });
+  } catch (e) {
+    logger.error('getTcmbKurlar', e);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+/** GET /finans/doviz-pozisyon */
+export const getDovizPozisyon = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId, userId, rol } = req.user!;
+    const broad = genisSantiyeRol(rol!);
+    const nhParams: unknown[] = [tenantId];
+    let nhScope = '';
+    if (!broad) {
+      nhScope = ' AND n.santiye_id IN (SELECT sk.santiye_id FROM santiye_kullanicilar sk WHERE sk.kullanici_id = $2)';
+      nhParams.push(userId);
+    }
+    const r = await query(
+      `SELECT COALESCE(n.para_birimi,'TRY') AS kod,
+              COUNT(*)::int AS hareket_adet,
+              COALESCE(SUM(n.tutar_try),0)::bigint AS toplam_try_cinsi,
+              COALESCE(SUM(CASE WHEN n.para_birimi IS NULL OR n.para_birimi='TRY' THEN n.tutar_try ELSE 0 END),0)::bigint AS try_net
+       FROM nakit_hareketleri n WHERE n.tenant_id = $1 ${nhScope}
+       GROUP BY COALESCE(n.para_birimi,'TRY')`,
+      nhParams
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (e) {
+    logger.error('getDovizPozisyon', e);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+/** GET /finans/kur-farki-ozet */
+export const getKurFarkiOzet = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId, userId, rol } = req.user!;
+    const broad = genisSantiyeRol(rol!);
+    const nhParams: unknown[] = [tenantId];
+    let nhScope = '';
+    if (!broad) {
+      nhScope = ' AND n.santiye_id IN (SELECT sk.santiye_id FROM santiye_kullanicilar sk WHERE sk.kullanici_id = $2)';
+      nhParams.push(userId);
+    }
+    const fx = await query(
+      `SELECT COALESCE(para_birimi,'TRY') AS kod,
+              COALESCE(SUM(CASE WHEN tip='giris' THEN tutar_try ELSE 0 END),0)::bigint AS giris_try,
+              COALESCE(SUM(CASE WHEN tip='cikis' THEN tutar_try ELSE 0 END),0)::bigint AS cikis_try
+       FROM nakit_hareketleri n
+       WHERE n.tenant_id = $1 AND COALESCE(n.para_birimi,'TRY') <> 'TRY' ${nhScope}
+       GROUP BY COALESCE(para_birimi,'TRY')`,
+      nhParams
+    );
+    const kur = await query(`SELECT kod, birim_try FROM tcmb_kurlar ORDER BY tarih DESC LIMIT 12`);
+    res.json({
+      success: true,
+      data: {
+        nakit_doviz_netleri: fx.rows,
+        son_tcmb: kur.rows,
+        aciklama:
+          'Kur farkı gelir/gideri TMS için fiş işlenmelidir; burada dövizli nakit özet ve güncel TCMB referansı gösterilir.',
+      },
+    });
+  } catch (e) {
+    logger.error('getKurFarkiOzet', e);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+/** POST /finans/gelir-tahakkudu — TFRS15 / TMS11 benzeri dönem geliri (fiziksel ilerleme) */
+export const postGelirTahakkudu = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId, userId, rol } = req.user!;
+    const donem = String((req.body as { donem?: string }).donem ?? '').trim();
+    if (!/^\d{4}-\d{2}$/.test(donem)) {
+      res.status(400).json({ success: false, message: 'donem YYYY-MM olmalı' });
+      return;
+    }
+
+    const broad = genisSantiyeRol(rol!);
+    const sc = santiyeKapsamSql(rol!, userId, 's.id', 2);
+    const sp: unknown[] = [tenantId];
+    if (sc.sql) sp.push(sc.param);
+    const scope = broad ? '' : sc.sql;
+
+    const rows = await query(
+      `SELECT s.id, s.ad,
+              COALESCE(s.sozlesme_bedel,0)::bigint AS sozlesme_bedel,
+              COALESCE(s.fiziksel_ilerleme,0)::numeric AS fiziksel_ilerleme
+       FROM santiyeler s
+       WHERE s.tenant_id = $1 AND s.aktif = true ${scope}`,
+      sp
+    );
+
+    const sonuc: unknown[] = [];
+    await withTransaction(async (c) => {
+      for (const raw of rows.rows) {
+        const s = raw as { id: string; ad: string; sozlesme_bedel: string; fiziksel_ilerleme: string };
+        if (!(await userCanAccessSantiye({ tenantId, userId, rol: rol! }, s.id))) continue;
+
+        const bedel = num(s.sozlesme_bedel);
+        const iler = num(s.fiziksel_ilerleme);
+        const kumulatifHedef = Math.round((bedel * iler) / 100);
+
+        const prev = await c.query(
+          `SELECT COALESCE(MAX(kumulatif_toplam_try),0)::bigint AS k FROM gelir_tahakkuku_donem
+           WHERE tenant_id = $1 AND santiye_id = $2 AND donem < $3`,
+          [tenantId, s.id, donem]
+        );
+        const onceki = num(prev.rows[0]?.k);
+        const donemGeliri = Math.max(0, kumulatifHedef - onceki);
+
+        await c.query(
+          `INSERT INTO gelir_tahakkuku_donem
+            (tenant_id, santiye_id, donem, donem_geliri_try, kumulatif_toplam_try, olusturan_id)
+           VALUES ($1,$2,$3,$4,$5,$6)
+           ON CONFLICT (tenant_id, santiye_id, donem) DO UPDATE SET
+             donem_geliri_try = EXCLUDED.donem_geliri_try,
+             kumulatif_toplam_try = EXCLUDED.kumulatif_toplam_try,
+             olusturan_id = EXCLUDED.olusturan_id`,
+          [tenantId, s.id, donem, donemGeliri, kumulatifHedef, userId]
+        );
+        sonuc.push({
+          santiye_id: s.id,
+          ad: s.ad,
+          donem_geliri_try: donemGeliri,
+          kumulatif_toplam_try: kumulatifHedef,
+        });
+      }
+    });
+
+    res.json({ success: true, data: { donem, satirlar: sonuc } });
+  } catch (e) {
+    logger.error('postGelirTahakkudu', e);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+/** GET /finans/gelir-tahakkudu */
+export const getGelirTahakkudu = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.user!;
+    const donem = typeof req.query.donem === 'string' ? req.query.donem : null;
+    const p: unknown[] = [tenantId];
+    let w = 'WHERE g.tenant_id = $1';
+    if (donem && /^\d{4}-\d{2}$/.test(donem)) {
+      w += ' AND g.donem = $2';
+      p.push(donem);
+    }
+    const r = await query(
+      `SELECT g.*, s.ad AS santiye_ad FROM gelir_tahakkuku_donem g
+       JOIN santiyeler s ON s.id = g.santiye_id ${w}
+       ORDER BY g.donem DESC, s.ad`,
+      p
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (e) {
+    logger.error('getGelirTahakkudu', e);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+type KolonKey = 'santiye_ad' | 'sozlesme_bedel' | 'gerceklesen' | 'fiziksel_ilerleme' | 'eac' | 'sapma_yuzde';
+const ALLOWED_KOLONLAR: KolonKey[] = ['santiye_ad', 'sozlesme_bedel', 'gerceklesen', 'fiziksel_ilerleme', 'eac', 'sapma_yuzde'];
+
+const normalizeKolonlar = (raw: unknown): KolonKey[] => {
+  if (!Array.isArray(raw)) return ['santiye_ad', 'sozlesme_bedel'];
+  const seen = new Set<KolonKey>();
+  const out: KolonKey[] = [];
+  for (const k of raw) {
+    const s = String(k) as KolonKey;
+    if (!ALLOWED_KOLONLAR.includes(s) || seen.has(s)) continue;
+    seen.add(s);
+    out.push(s);
+  }
+  return out.length > 0 ? out : ['santiye_ad', 'sozlesme_bedel'];
+};
+
+const normalizeCron = (raw: unknown): string | null => {
+  const s = String(raw ?? '').trim();
+  if (!s) return null;
+  const parts = s.split(/\s+/);
+  if (parts.length !== 5) return null;
+  return s.slice(0, 80);
+};
+
+const normalizeEmailList = (raw: unknown): string | null => {
+  const s = String(raw ?? '').trim();
+  if (!s) return null;
+  const list = s
+    .split(/[;,]/)
+    .map((x) => x.trim().toLowerCase())
+    .filter((x) => x.length > 3 && x.includes('@'));
+  return list.length ? list.join(',') : null;
+};
+
+/** POST /finans/rapor-sablon */
+export const postRaporSablon = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.user!;
+    const { ad, kolonlar, zamanlama_cron, email_hedef } = req.body as {
+      ad?: string;
+      kolonlar?: KolonKey[];
+      zamanlama_cron?: string;
+      email_hedef?: string;
+    };
+    if (!ad?.trim()) {
+      res.status(400).json({ success: false, message: 'ad zorunlu' });
+      return;
+    }
+    const kols = normalizeKolonlar(kolonlar);
+    const cron = normalizeCron(zamanlama_cron);
+    const emails = normalizeEmailList(email_hedef);
+    const ins = await query(
+      `INSERT INTO rapor_sablonlari (tenant_id, ad, kolonlar, zamanlama_cron, email_hedef)
+       VALUES ($1,$2,$3::jsonb,$4,$5) RETURNING id`,
+      [
+        tenantId,
+        ad.trim(),
+        JSON.stringify(kols),
+        cron,
+        emails,
+      ]
+    );
+    res.status(201).json({ success: true, data: ins.rows[0] });
+  } catch (e) {
+    logger.error('postRaporSablon', e);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+/** PUT /finans/rapor-sablon/:id */
+export const putRaporSablon = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.user!;
+    const { id } = req.params as { id: string };
+    const { ad, kolonlar, zamanlama_cron, email_hedef } = req.body as {
+      ad?: string;
+      kolonlar?: KolonKey[];
+      zamanlama_cron?: string;
+      email_hedef?: string;
+    };
+    if (!ad?.trim()) {
+      res.status(400).json({ success: false, message: 'ad zorunlu' });
+      return;
+    }
+    const kols = normalizeKolonlar(kolonlar);
+    const cron = normalizeCron(zamanlama_cron);
+    const emails = normalizeEmailList(email_hedef);
+    const upd = await query(
+      `UPDATE rapor_sablonlari
+       SET ad = $1, kolonlar = $2::jsonb, zamanlama_cron = $3, email_hedef = $4
+       WHERE tenant_id = $5 AND id = $6
+       RETURNING id`,
+      [ad.trim(), JSON.stringify(kols), cron, emails, tenantId, id],
+    );
+    if (!upd.rows[0]) {
+      res.status(404).json({ success: false, message: 'Şablon bulunamadı' });
+      return;
+    }
+    res.json({ success: true, data: upd.rows[0] });
+  } catch (e) {
+    logger.error('putRaporSablon', e);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+/** GET /finans/rapor-sablonlari */
+export const getRaporSablonlari = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.user!;
+    const r = await query(`SELECT * FROM rapor_sablonlari WHERE tenant_id = $1 ORDER BY olusturuldu DESC`, [tenantId]);
+    res.json({ success: true, data: r.rows });
+  } catch (e) {
+    logger.error('getRaporSablonlari', e);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+async function raporVerisiSatirlari(tenantId: string, userId: string, rol: string): Promise<
+  {
+    santiye_ad: string;
+    sozlesme_bedel: number;
+    gerceklesen: number;
+    fiziksel_ilerleme: number;
+    eac: number;
+    sapma_yuzde: number;
+  }[]
+> {
+  const broad = genisSantiyeRol(rol);
+  const sc = santiyeKapsamSql(rol, userId, 's.id', 2);
+  const params: unknown[] = [tenantId];
+  if (sc.sql) params.push(sc.param);
+  const scope = broad ? '' : sc.sql;
+  const rows = await query(
+    `SELECT s.ad, COALESCE(s.sozlesme_bedel,0)::bigint AS sozlesme_bedel,
+            COALESCE(s.gerceklesen,0)::bigint AS gerceklesen,
+            COALESCE(s.fiziksel_ilerleme,0)::numeric AS fiziksel_ilerleme
+     FROM santiyeler s WHERE s.tenant_id = $1 AND s.aktif = true ${scope}`,
+    params
+  );
+  return rows.rows.map((r) => {
+    const rec = r as Record<string, unknown>;
+    const sozlesme = num(rec.sozlesme_bedel);
+    const gercek = num(rec.gerceklesen);
+    const iler = num(rec.fiziksel_ilerleme);
+    const eac = iler > 0 ? Math.round(gercek / (iler / 100)) : sozlesme;
+    const sapmaYuzde = sozlesme > 0 ? Number((((eac - sozlesme) / sozlesme) * 100).toFixed(1)) : 0;
+    return {
+      santiye_ad: String(rec.ad ?? ''),
+      sozlesme_bedel: sozlesme,
+      gerceklesen: gercek,
+      fiziksel_ilerleme: iler,
+      eac,
+      sapma_yuzde: sapmaYuzde,
+    };
+  });
+}
+
+/** POST /finans/rapor-calistir */
+export const postRaporCalistir = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId, userId, rol } = req.user!;
+    const { sablon_id, format = 'json' } = req.body as { sablon_id?: string; format?: string };
+    let kolonlar: KolonKey[] = ['santiye_ad', 'sozlesme_bedel', 'gerceklesen', 'fiziksel_ilerleme', 'eac', 'sapma_yuzde'];
+    if (sablon_id) {
+      const s = await query(`SELECT kolonlar FROM rapor_sablonlari WHERE tenant_id = $1 AND id = $2`, [
+        tenantId,
+        sablon_id,
+      ]);
+      if (s.rows[0]?.kolonlar) kolonlar = s.rows[0].kolonlar as KolonKey[];
+    }
+
+    const satirlar = await raporVerisiSatirlari(tenantId, userId, rol);
+    const rows = satirlar.map((row) => {
+      const o: Record<string, unknown> = {};
+      for (const k of kolonlar) o[k] = row[k];
+      return o;
+    });
+
+    const baslik = `Finans şantiye özeti ${new Date().toISOString().slice(0, 10)}`;
+    const ins = await query(
+      `INSERT INTO rapor_arsivi (tenant_id, sablon_id, baslik, dosya_tipi, satir_sayisi, ozet_json, olusturan_id)
+       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7) RETURNING id`,
+      [
+        tenantId,
+        sablon_id ?? null,
+        baslik,
+        format === 'csv' ? 'csv' : 'json',
+        rows.length,
+        JSON.stringify({ kolonlar, satirlar: rows }),
+        userId,
+      ]
+    );
+
+    if (format === 'csv') {
+      const hdr = kolonlar.join(';');
+      const lines = rows.map((r) => kolonlar.map((k) => String(r[k] ?? '')).join(';')).join('\n');
+      const csv = `${hdr}\n${lines}`;
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="finans-rapor-${String(ins.rows[0]?.id).slice(0, 8)}.csv"`);
+      res.send('\uFEFF' + csv);
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        arsiv_id: ins.rows[0]?.id,
+        kolonlar,
+        satirlar: rows,
+      },
+    });
+  } catch (e) {
+    logger.error('postRaporCalistir', e);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+/** GET /finans/rapor-arsivi */
+export const getRaporArsivi = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.user!;
+    const r = await query(
+      `SELECT id, sablon_id, baslik, dosya_tipi, satir_sayisi, olusturuldu
+       FROM rapor_arsivi WHERE tenant_id = $1 ORDER BY olusturuldu DESC LIMIT 50`,
+      [tenantId]
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (e) {
+    logger.error('getRaporArsivi', e);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+
+==================== C:\insaat-erp\insaat-erp-backend\src\controllers\finansController.ts ====================
+
+import { Request, Response } from 'express';
+import { query } from '../config/database';
+import logger from '../utils/logger';
+import { genisSantiyeRol, santiyeKapsamSql, userCanAccessSantiye } from '../utils/santiyeAccess';
+
+const num = (v: unknown): number => {
+  const n = typeof v === 'string' ? parseFloat(v) : Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const tahminiKapanisTarihi = (kalanAvans: number, son90KesintiToplam: number): string | null => {
+  if (kalanAvans <= 0) return new Date().toISOString().slice(0, 10);
+  if (son90KesintiToplam <= 0) return null;
+  const gunluk = son90KesintiToplam / 90;
+  if (!Number.isFinite(gunluk) || gunluk <= 0) return null;
+  const gunSayisi = Math.ceil(kalanAvans / gunluk);
+  const d = new Date();
+  d.setDate(d.getDate() + gunSayisi);
+  return d.toISOString().slice(0, 10);
+};
+
+/**
+ * Kiracı kapsamında özet mali göstergeler (şantiye üyeliği daraltması dahil).
+ */
+export const getFinansOzet = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId, userId, rol } = req.user!;
+    const broad = genisSantiyeRol(rol!);
+
+    const scSantiye = santiyeKapsamSql(rol!, userId, 's.id', 2);
+    const sParams: unknown[] = [tenantId];
+    if (scSantiye.sql) sParams.push(scSantiye.param);
+    const sFilter = 'WHERE s.tenant_id = $1 AND s.aktif = true' + (broad ? '' : scSantiye.sql);
+
+    const santiyeler = await query(
+      `SELECT
+         COALESCE(SUM(s.sozlesme_bedel), 0) AS toplam_taahhut,
+         COALESCE(SUM(s.gerceklesen), 0) AS toplam_gerceklesen
+       FROM santiyeler s ${sFilter}`,
+      sParams,
+    );
+
+    const scH = santiyeKapsamSql(rol!, userId, 'h.santiye_id', 2);
+    const hParams: unknown[] = [tenantId];
+    if (scH.sql) hParams.push(scH.param);
+    const hScope = broad ? '' : scH.sql;
+
+    /** Nakit projeksiyonu ile aynı: ödeme tarihi yoksa dönem bitişi / başlangıcı (Sprint 3 yaşlandırma ile uyumlu). */
+    const planVade = `COALESCE(h.odeme_tarihi, h.donem_bitis, h.donem_baslangic)`;
+
+    const hakedis = await query(
+      `SELECT
+         COALESCE(SUM(h.toplam_tutar) FILTER (WHERE h.durum = 'odendi'), 0) AS tahsil_edilen,
+         COALESCE(SUM(h.toplam_tutar) FILTER (WHERE h.durum NOT IN ('odendi','iptal')), 0) AS hakedis_acik,
+         COALESCE(SUM(h.toplam_tutar) FILTER (
+           WHERE h.durum NOT IN ('odendi','iptal')
+             AND (${planVade}) IS NOT NULL
+             AND (${planVade}) < CURRENT_DATE
+         ), 0) AS vadesi_gecen_tutar,
+         COUNT(*) FILTER (
+           WHERE h.durum NOT IN ('odendi','iptal')
+             AND (${planVade}) IS NOT NULL
+             AND (${planVade}) < CURRENT_DATE
+         )::int AS vadesi_gecen_adet
+       FROM hakedisler h
+       WHERE h.tenant_id = $1 ${hScope}`,
+      hParams,
+    );
+
+    const scSt = santiyeKapsamSql(rol!, userId, 'st.santiye_id', 2);
+    const stParams: unknown[] = [tenantId];
+    if (scSt.sql) {
+      stParams.push(scSt.param);
+    }
+    const stScope = broad ? '' : scSt.sql;
+
+    const satinalma = await query(
+      `SELECT
+         COALESCE(SUM(st.gercek_toplam) FILTER (WHERE st.durum = 'teslim_edildi'), 0) AS malzeme_harcama,
+         COALESCE(SUM(st.toplam_tahmini) FILTER (WHERE st.durum NOT IN ('iptal','teslim_edildi')), 0) AS satinalma_acik_tahmin
+       FROM satinalma_talepleri st
+       WHERE st.tenant_id = $1 ${stScope}`,
+      stParams,
+    );
+
+    const yil = new Date().getFullYear();
+    const nScope = broad ? '' : ` AND n.santiye_id IN (SELECT sk.santiye_id FROM santiye_kullanicilar sk WHERE sk.kullanici_id = $3)`;
+    const nakitWhere = broad
+      ? `WHERE n.tenant_id = $1 AND EXTRACT(YEAR FROM n.tarih) = $2`
+      : `WHERE n.tenant_id = $1 AND EXTRACT(YEAR FROM n.tarih) = $2${nScope}`;
+
+    const nakitParams = broad ? [tenantId, yil] : [tenantId, yil, userId];
+    const nakit = await query(
+      `SELECT
+         COALESCE(SUM(n.tutar_try) FILTER (WHERE n.tip = 'giris'), 0) AS yil_giris,
+         COALESCE(SUM(n.tutar_try) FILTER (WHERE n.tip = 'cikis'), 0) AS yil_cikis
+       FROM nakit_hareketleri n
+       ${nakitWhere}`,
+      nakitParams,
+    );
+
+    const rowS = santiyeler.rows[0] as Record<string, unknown>;
+    const rowH = hakedis.rows[0] as Record<string, unknown>;
+    const rowSt = satinalma.rows[0] as Record<string, unknown>;
+    const rowN = nakit.rows[0] as Record<string, unknown>;
+
+    const yilGiris = num(rowN.yil_giris);
+    const yilCikis = num(rowN.yil_cikis);
+
+    res.json({
+      success: true,
+      data: {
+        yil,
+        toplam_taahhut: num(rowS.toplam_taahhut),
+        toplam_gerceklesen: num(rowS.toplam_gerceklesen),
+        tahsil_edilen_hakedis: num(rowH.tahsil_edilen),
+        hakedis_acik_toplam: num(rowH.hakedis_acik),
+        vadesi_gecen: {
+          adet: Math.round(num(rowH.vadesi_gecen_adet)),
+          tutar: num(rowH.vadesi_gecen_tutar),
+        },
+        malzeme_harcama: num(rowSt.malzeme_harcama),
+        satinalma_acik_tahmin: num(rowSt.satinalma_acik_tahmin),
+        nakit_yil: {
+          giris: yilGiris,
+          cikis: yilCikis,
+          net: yilGiris - yilCikis,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error('getFinansOzet hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+/**
+ * Sprint 2: Şantiye bazında bütçe/gerçekleşme, EAC ve sapma.
+ * EAC (basit): gerceklesen / (fiziksel_ilerleme/100) ; ilerleme 0 ise sozlesme_bedel fallback.
+ */
+export const getFinansSantiyeMaliyet = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId, userId, rol } = req.user!;
+    const broad = genisSantiyeRol(rol!);
+    const santiye_id =
+      typeof req.query.santiye_id === 'string' && req.query.santiye_id.length > 0
+        ? req.query.santiye_id
+        : undefined;
+
+    if (santiye_id && !(await userCanAccessSantiye({ tenantId, userId, rol: rol! }, santiye_id))) {
+      res.status(403).json({ success: false, message: 'Bu şantiye için maliyet özeti görüntülenemez' });
+      return;
+    }
+
+    const sc = santiyeKapsamSql(rol!, userId, 's.id', 2);
+    const params: unknown[] = [tenantId];
+    if (santiye_id) params.push(santiye_id);
+    else if (sc.sql) params.push(sc.param);
+
+    const scope = santiye_id ? ' AND s.id = $2' : broad ? '' : sc.sql;
+    const rows = await query(
+      `SELECT
+         s.id, s.ad, s.il, s.durum,
+         COALESCE(s.sozlesme_bedel, 0)::bigint AS sozlesme_bedel,
+         COALESCE(s.gerceklesen, 0)::bigint AS gerceklesen,
+         COALESCE(s.fiziksel_ilerleme, 0)::numeric AS fiziksel_ilerleme
+       FROM santiyeler s
+       WHERE s.tenant_id = $1 AND s.aktif = true
+         ${scope}
+       ORDER BY s.ad`,
+      params,
+    );
+
+    const data = rows.rows.map((r) => {
+      const sozlesme = num((r as Record<string, unknown>).sozlesme_bedel);
+      const gercek = num((r as Record<string, unknown>).gerceklesen);
+      const ilerleme = num((r as Record<string, unknown>).fiziksel_ilerleme);
+      const eac = ilerleme > 0 ? Math.round(gercek / (ilerleme / 100)) : sozlesme;
+      const sapmaTutar = eac - sozlesme;
+      const sapmaYuzde = sozlesme > 0 ? (sapmaTutar / sozlesme) * 100 : 0;
+      return {
+        ...r,
+        kalan_butce: sozlesme - gercek,
+        eac,
+        sapma_tutar: sapmaTutar,
+        sapma_yuzde: Number(sapmaYuzde.toFixed(1)),
+        risk_seviyesi: sapmaYuzde >= 15 ? 'kritik' : sapmaYuzde >= 10 ? 'uyari' : 'normal',
+      };
+    });
+
+    const toplam = data.reduce(
+      (a, r) => {
+        const rr = r as Record<string, unknown>;
+        a.sozlesme += num(rr.sozlesme_bedel);
+        a.gercek += num(rr.gerceklesen);
+        a.eac += num(rr.eac);
+        return a;
+      },
+      { sozlesme: 0, gercek: 0, eac: 0 },
+    );
+    const toplamSapma = toplam.eac - toplam.sozlesme;
+    const toplamSapmaYuzde = toplam.sozlesme > 0 ? (toplamSapma / toplam.sozlesme) * 100 : 0;
+
+    res.json({
+      success: true,
+      data: {
+        satirlar: data,
+        ozet: {
+          sozlesme_toplam: toplam.sozlesme,
+          gerceklesen_toplam: toplam.gercek,
+          eac_toplam: toplam.eac,
+          sapma_tutar_toplam: toplamSapma,
+          sapma_yuzde_toplam: Number(toplamSapmaYuzde.toFixed(1)),
+        },
+        meta: {
+          uyari_esik_yuzde: 10,
+          kritik_esik_yuzde: 15,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error('getFinansSantiyeMaliyet hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+/**
+ * Sprint 4: İşveren + taşeron avans/kesinti tek bakış özeti.
+ * - İşveren: hakedisler.avans_tutari / kesinti_tutari
+ * - Taşeron: taseron_sozlesmeler.avans_tutari / taseron_hakedis.avans_kesinti
+ */
+export const getFinansAvansOzet = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId, userId, rol } = req.user!;
+    const broad = genisSantiyeRol(rol!);
+    const santiye_id =
+      typeof req.query.santiye_id === 'string' && req.query.santiye_id.length > 0
+        ? req.query.santiye_id
+        : undefined;
+
+    if (santiye_id && !(await userCanAccessSantiye({ tenantId, userId, rol: rol! }, santiye_id))) {
+      res.status(403).json({ success: false, message: 'Bu şantiye için avans özeti görüntülenemez' });
+      return;
+    }
+
+    const scH = santiyeKapsamSql(rol!, userId, 'h.santiye_id', 2);
+    const hParams: unknown[] = [tenantId];
+    if (santiye_id) hParams.push(santiye_id);
+    else if (scH.sql) hParams.push(scH.param);
+    const hScope = santiye_id ? ' AND h.santiye_id = $2' : broad ? '' : scH.sql;
+
+    const isveren = await query(
+      `SELECT
+         COALESCE(SUM(h.avans_tutari), 0)::bigint AS avans_toplam,
+         COALESCE(SUM(h.kesinti_tutari), 0)::bigint AS kesinti_toplam,
+         COALESCE(SUM(h.kesinti_tutari) FILTER (
+           WHERE COALESCE(h.odeme_tarihi, h.donem_bitis, h.donem_baslangic) >= (CURRENT_DATE - INTERVAL '90 day')
+         ), 0)::bigint AS kesinti_90gun_toplam
+       FROM hakedisler h
+       WHERE h.tenant_id = $1
+         AND h.durum <> 'iptal'
+         ${hScope}`,
+      hParams,
+    );
+
+    const scS = santiyeKapsamSql(rol!, userId, 's.id', 2);
+    const sParams: unknown[] = [tenantId];
+    if (santiye_id) sParams.push(santiye_id);
+    else if (scS.sql) sParams.push(scS.param);
+    const sScope = santiye_id ? ' AND s.id = $2' : broad ? '' : scS.sql;
+    const isverenTeminat = await query(
+      `SELECT COALESCE(SUM(s.isveren_teminat_mektup_tutari), 0)::bigint AS teminat_toplam
+       FROM santiyeler s
+       WHERE s.tenant_id = $1 AND s.aktif = true ${sScope}`,
+      sParams,
+    );
+
+    const scTs = santiyeKapsamSql(rol!, userId, 'ts.santiye_id', 2);
+    const tsParams: unknown[] = [tenantId];
+    if (santiye_id) tsParams.push(santiye_id);
+    else if (scTs.sql) tsParams.push(scTs.param);
+    const tsScope = santiye_id ? ' AND ts.santiye_id = $2' : broad ? '' : scTs.sql;
+
+    const taseron = await query(
+      `SELECT
+         COALESCE(SUM(ts.avans_tutari), 0)::bigint AS sozlesme_avans_toplam,
+         COALESCE(SUM(th.avans_kesinti), 0)::bigint AS hakedis_avans_kesinti_toplam,
+         COALESCE(SUM(ts.teminat_mektup_tutari), 0)::bigint AS teminat_toplam,
+         COALESCE(SUM(th.avans_kesinti) FILTER (
+           WHERE COALESCE(th.odeme_tarihi, th.tarih) >= (CURRENT_DATE - INTERVAL '90 day')
+         ), 0)::bigint AS kesinti_90gun_toplam
+       FROM taseron_sozlesmeler ts
+       LEFT JOIN taseron_hakedis th ON th.sozlesme_id = ts.id AND th.tenant_id = ts.tenant_id
+       WHERE ts.tenant_id = $1
+         ${tsScope}`,
+      tsParams,
+    );
+
+    const rowI = isveren.rows[0] as Record<string, unknown>;
+    const rowT = taseron.rows[0] as Record<string, unknown>;
+    const rowIT = isverenTeminat.rows[0] as Record<string, unknown>;
+    const iAvans = num(rowI.avans_toplam);
+    const iKesinti = num(rowI.kesinti_toplam);
+    const iKalan = Math.max(0, iAvans - iKesinti);
+    const iTeminat = num(rowIT.teminat_toplam);
+    const iKesinti90 = num(rowI.kesinti_90gun_toplam);
+    const tAvans = num(rowT.sozlesme_avans_toplam);
+    const tKesinti = num(rowT.hakedis_avans_kesinti_toplam);
+    const tKalan = Math.max(0, tAvans - tKesinti);
+    const tTeminat = num(rowT.teminat_toplam);
+    const tKesinti90 = num(rowT.kesinti_90gun_toplam);
+
+    res.json({
+      success: true,
+      data: {
+        santiye_id: santiye_id ?? null,
+        isveren: {
+          avans_toplam: iAvans,
+          kesinti_toplam: iKesinti,
+          kalan_avans: iKalan,
+          teminat_mektup_toplam: iTeminat,
+          teminat_karsilama_orani: iKalan > 0 ? Number(((iTeminat / iKalan) * 100).toFixed(1)) : 0,
+          son_90_gun_kesinti: iKesinti90,
+          tahmini_kapanis_tarihi: tahminiKapanisTarihi(iKalan, iKesinti90),
+        },
+        taseron: {
+          sozlesme_avans_toplam: tAvans,
+          hakedis_avans_kesinti_toplam: tKesinti,
+          kalan_avans: tKalan,
+          teminat_mektup_toplam: tTeminat,
+          teminat_karsilama_orani: tKalan > 0 ? Number(((tTeminat / tKalan) * 100).toFixed(1)) : 0,
+          son_90_gun_kesinti: tKesinti90,
+          tahmini_kapanis_tarihi: tahminiKapanisTarihi(tKalan, tKesinti90),
+        },
+        meta: {
+          kapanis_hesap_metodu:
+            'Kapanış tarihi = bugün + ceil(kalan avans / (son 90 gün kesinti toplamı / 90)). Son 90 gün kesinti yoksa null.',
+        },
+      },
+    });
+  } catch (error) {
+    logger.error('getFinansAvansOzet hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+/**
+ * Açık hakediş alacakları — planlı vadeye göre yaşlandırma (Sprint 3).
+ * Planlı vade = COALESCE(ödeme, dönem bitişi, dönem başlangıcı); nakit projeksiyonu ile uyumlu.
+ * Kovalar: vadesiz | vadesi_gelmedi | gun_1_30 | gun_31_60 | gun_61_90 | gun_90_plus
+ */
+export const getFinansAlacakYaslandirma = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId, userId, rol } = req.user!;
+    const santiye_id =
+      typeof req.query.santiye_id === 'string' && req.query.santiye_id.length > 0
+        ? req.query.santiye_id
+        : undefined;
+
+    if (santiye_id && !(await userCanAccessSantiye({ tenantId, userId, rol: rol! }, santiye_id))) {
+      res.status(403).json({ success: false, message: 'Bu şantiye için rapor görüntülenemez' });
+      return;
+    }
+
+    let where = `h.tenant_id = $1 AND h.durum NOT IN ('odendi','iptal')`;
+    const params: unknown[] = [tenantId];
+    let idx = 2;
+
+    if (santiye_id) {
+      where += ` AND h.santiye_id = $${idx++}`;
+      params.push(santiye_id);
+    } else if (!genisSantiyeRol(rol!)) {
+      where += ` AND h.santiye_id IN (SELECT sk.santiye_id FROM santiye_kullanicilar sk WHERE sk.kullanici_id = $${idx++})`;
+      params.push(userId);
+    }
+
+    const planVade = `COALESCE(h.odeme_tarihi, h.donem_bitis, h.donem_baslangic)`;
+    const kovaExpr = `CASE
+      WHEN (${planVade}) IS NULL THEN 'vadesiz'
+      WHEN (${planVade}) >= CURRENT_DATE THEN 'vadesi_gelmedi'
+      WHEN (CURRENT_DATE - (${planVade})) BETWEEN 1 AND 30 THEN 'gun_1_30'
+      WHEN (CURRENT_DATE - (${planVade})) BETWEEN 31 AND 60 THEN 'gun_31_60'
+      WHEN (CURRENT_DATE - (${planVade})) BETWEEN 61 AND 90 THEN 'gun_61_90'
+      ELSE 'gun_90_plus'
+    END`;
+
+    const ozet = await query(
+      `SELECT ${kovaExpr} AS kova,
+              COUNT(*)::int AS adet,
+              COALESCE(SUM(h.toplam_tutar), 0)::bigint AS tutar
+       FROM hakedisler h
+       WHERE ${where}
+       GROUP BY 1
+       ORDER BY 1`,
+      params,
+    );
+
+    const limit = Math.min(500, Math.max(20, parseInt(String(req.query.limit ?? '200'), 10) || 200));
+    const paramsSatir = [...params, limit];
+    const pLim = idx;
+    const satirlar = await query(
+      `SELECT h.id, h.no, h.toplam_tutar, h.durum, h.odeme_tarihi,
+              h.donem_baslangic, h.donem_bitis,
+              (${planVade}) AS vade_tarihi,
+              h.santiye_id, s.ad AS santiye_adi,
+              ${kovaExpr} AS kova,
+              CASE
+                WHEN (${planVade}) IS NOT NULL AND (${planVade}) < CURRENT_DATE
+                THEN (CURRENT_DATE - (${planVade}))::int
+                ELSE 0
+              END AS gun_gecikme
+       FROM hakedisler h
+       JOIN santiyeler s ON s.id = h.santiye_id
+       WHERE ${where}
+       ORDER BY gun_gecikme DESC NULLS LAST, vade_tarihi ASC NULLS LAST
+       LIMIT $${pLim}`,
+      paramsSatir,
+    );
+
+    const rows = ozet.rows as Array<{ kova: string; adet: number; tutar: string }>;
+    const tumu: Record<string, { adet: number; tutar: number }> = {};
+    for (const r of rows) {
+      tumu[r.kova] = { adet: r.adet, tutar: num(r.tutar) };
+    }
+
+    res.json({
+      success: true,
+      data: {
+        referans_tarihi: new Date().toISOString().slice(0, 10),
+        ozet: tumu,
+        satirlar: satirlar.rows,
+        meta: {
+          limit,
+          aciklama:
+            'Kapsam: ödenmemiş ve iptal olmayan hakedişler. Planlı vade: ödeme tarihi; yoksa dönem bitişi / başlangıcı (nakit projeksiyonu ile aynı). Vadesi gelmemiş = vade bugün veya gelecek. E-posta hatırlatma ayrı entegrasyon gerektirir.',
+        },
+      },
+    });
+  } catch (error) {
+    logger.error('getFinansAlacakYaslandirma hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+/**
+ * Aşama 3: Maliyet merkezi görünümü (şantiye + iş grubu kırılımı)
+ */
+export const getFinansMaliyetMerkezi = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId, userId, rol } = req.user!;
+    const broad = genisSantiyeRol(rol!);
+    const sc = santiyeKapsamSql(rol!, userId, 's.id', 2);
+    const params: unknown[] = [tenantId];
+    if (sc.sql) params.push(sc.param);
+    const sScope = broad ? '' : sc.sql;
+
+    const santiyeRows = await query(
+      `SELECT
+         s.id, s.ad, s.il,
+         COALESCE(s.sozlesme_bedel,0)::bigint AS sozlesme_bedel,
+         COALESCE(s.gerceklesen,0)::bigint AS gerceklesen
+       FROM santiyeler s
+       WHERE s.tenant_id = $1
+         AND s.aktif = true
+         ${sScope}
+       ORDER BY s.ad`,
+      params,
+    );
+
+    const grupRows = await query(
+      `SELECT
+         COALESCE(NULLIF(TRIM(ts.is_grubu), ''), 'Tanımsız') AS is_grubu,
+         COALESCE(SUM(ts.sozlesme_bedeli), 0)::bigint AS sozlesme_toplam,
+         COALESCE(SUM(th.net_odeme), 0)::bigint AS odeme_toplam
+       FROM taseron_sozlesmeler ts
+       LEFT JOIN taseron_hakedis th ON th.sozlesme_id = ts.id AND th.tenant_id = ts.tenant_id
+       WHERE ts.tenant_id = $1
+         ${broad ? '' : `AND ts.santiye_id IN (SELECT sk.santiye_id FROM santiye_kullanicilar sk WHERE sk.kullanici_id = $2)`}
+       GROUP BY 1
+       ORDER BY 1`,
+      broad ? [tenantId] : [tenantId, userId],
+    );
+
+    res.json({
+      success: true,
+      data: {
+        santiye_merkezleri: santiyeRows.rows.map((r) => {
+          const x = r as Record<string, unknown>;
+          const sozlesme = num(x.sozlesme_bedel);
+          const gercek = num(x.gerceklesen);
+          return {
+            ...x,
+            kalan: sozlesme - gercek,
+            kar_zarar: gercek - sozlesme,
+          };
+        }),
+        is_grubu_dagilim: grupRows.rows.map((r) => {
+          const x = r as Record<string, unknown>;
+          return {
+            ...x,
+            acik_pozisyon: num(x.sozlesme_toplam) - num(x.odeme_toplam),
+          };
+        }),
+      },
+    });
+  } catch (error) {
+    logger.error('getFinansMaliyetMerkezi hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+/**
+ * Aşama 3: Genel gider dağıtım anahtarı (ciro / gerçekleşen / eşit)
+ */
+export const getFinansGiderDagitim = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId, userId, rol } = req.user!;
+    const broad = genisSantiyeRol(rol!);
+    const anahtarRaw = String(req.query.anahtar ?? 'ciro').toLowerCase();
+    const anahtar: 'ciro' | 'gerceklesen' | 'esit' | 'manuel' =
+      anahtarRaw === 'gerceklesen' || anahtarRaw === 'esit' || anahtarRaw === 'manuel'
+        ? (anahtarRaw as 'gerceklesen' | 'esit' | 'manuel')
+        : 'ciro';
+
+    const sc = santiyeKapsamSql(rol!, userId, 's.id', 2);
+    const sParams: unknown[] = [tenantId];
+    if (sc.sql) sParams.push(sc.param);
+    const sScope = broad ? '' : sc.sql;
+
+    const santiyeler = await query(
+      `SELECT s.id, s.ad, COALESCE(s.sozlesme_bedel,0)::bigint AS sozlesme_bedel, COALESCE(s.gerceklesen,0)::bigint AS gerceklesen
+       FROM santiyeler s
+       WHERE s.tenant_id = $1 AND s.aktif = true ${sScope}
+       ORDER BY s.ad`,
+      sParams,
+    );
+
+    const giderRes = await query(
+      `SELECT COALESCE(SUM(n.tutar_try),0)::bigint AS genel_gider_toplam
+       FROM nakit_hareketleri n
+       WHERE n.tenant_id = $1
+         AND n.tip = 'cikis'
+         AND n.santiye_id IS NULL`,
+      [tenantId],
+    );
+    const toplamGider = num((giderRes.rows[0] as Record<string, unknown>)?.genel_gider_toplam);
+
+    const rows = santiyeler.rows as Array<Record<string, unknown>>;
+    let agirlikli = rows.map((r) => {
+      const w =
+        anahtar === 'esit' ? 1 : anahtar === 'gerceklesen' ? Math.max(0, num(r.gerceklesen)) : Math.max(0, num(r.sozlesme_bedel));
+      return { ...r, w };
+    });
+    if (anahtar === 'manuel') {
+      const m = await query(
+        `SELECT santiye_id, oran_yuzde
+         FROM finans_gider_dagitim_agirliklari
+         WHERE tenant_id = $1`,
+        [tenantId],
+      );
+      const bySantiye = new Map<string, number>();
+      for (const row of m.rows as Array<Record<string, unknown>>) {
+        bySantiye.set(String(row.santiye_id), num(row.oran_yuzde));
+      }
+      agirlikli = rows.map((r) => {
+        const id = String(r.id ?? '');
+        return { ...r, w: Math.max(0, bySantiye.get(id) ?? 0) };
+      });
+    }
+    const wToplam = Math.max(1, agirlikli.reduce((a, r) => a + num((r as Record<string, unknown>).w), 0));
+
+    const dagitim = agirlikli.map((r) => {
+      const rx = r as Record<string, unknown>;
+      const w = num((r as Record<string, unknown>).w);
+      const pay = wToplam > 0 ? w / wToplam : 0;
+      return {
+        id: rx.id,
+        ad: rx.ad,
+        agirlik: Number(pay.toFixed(4)),
+        oran_yuzde: Number((pay * 100).toFixed(1)),
+        dagitilan_gider: Math.round(toplamGider * pay),
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        anahtar,
+        genel_gider_toplam: toplamGider,
+        dagitim,
+      },
+    });
+  } catch (error) {
+    logger.error('getFinansGiderDagitim hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const putFinansGiderDagitimAgirlik = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId, userId } = req.user!;
+    const satirlar = Array.isArray((req.body as { satirlar?: unknown[] })?.satirlar)
+      ? ((req.body as { satirlar: Array<{ santiye_id?: string; oran_yuzde?: number }> }).satirlar ?? [])
+      : [];
+    if (satirlar.length === 0) {
+      res.status(400).json({ success: false, message: 'satirlar zorunlu' });
+      return;
+    }
+    let toplam = 0;
+    for (const s of satirlar) {
+      const sid = String(s.santiye_id ?? '');
+      if (!sid) {
+        res.status(400).json({ success: false, message: 'santiye_id zorunlu' });
+        return;
+      }
+      if (!(await userCanAccessSantiye(req.user!, sid))) {
+        res.status(403).json({ success: false, message: 'Şantiye yetkisi yok' });
+        return;
+      }
+      toplam += num(s.oran_yuzde);
+    }
+    if (Math.abs(toplam - 100) > 0.5) {
+      res.status(400).json({ success: false, message: 'Toplam oran %100 olmalı (±0.5)' });
+      return;
+    }
+    for (const s of satirlar) {
+      await query(
+        `INSERT INTO finans_gider_dagitim_agirliklari (tenant_id, santiye_id, oran_yuzde, guncelleyen_id, guncellendi)
+         VALUES ($1, $2, $3, $4, NOW())
+         ON CONFLICT (tenant_id, santiye_id)
+         DO UPDATE SET oran_yuzde = EXCLUDED.oran_yuzde, guncelleyen_id = EXCLUDED.guncelleyen_id, guncellendi = NOW()`,
+        [tenantId, s.santiye_id, num(s.oran_yuzde), userId],
+      );
+    }
+    res.json({ success: true, data: { kaydedilen: satirlar.length } });
+  } catch (error) {
+    logger.error('putFinansGiderDagitimAgirlik hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const getFinansGiderDagitimCsv = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId, userId, rol } = req.user!;
+    const broad = genisSantiyeRol(rol!);
+    const anahtarRaw = String(req.query.anahtar ?? 'ciro').toLowerCase();
+    const anahtar: 'ciro' | 'gerceklesen' | 'esit' | 'manuel' =
+      anahtarRaw === 'gerceklesen' || anahtarRaw === 'esit' || anahtarRaw === 'manuel'
+        ? (anahtarRaw as 'gerceklesen' | 'esit' | 'manuel')
+        : 'ciro';
+    const sc = santiyeKapsamSql(rol!, userId, 's.id', 2);
+    const sParams: unknown[] = [tenantId];
+    if (sc.sql) sParams.push(sc.param);
+    const sScope = broad ? '' : sc.sql;
+    const santiyeler = await query(
+      `SELECT s.id, s.ad, COALESCE(s.sozlesme_bedel,0)::bigint AS sozlesme_bedel, COALESCE(s.gerceklesen,0)::bigint AS gerceklesen
+       FROM santiyeler s
+       WHERE s.tenant_id = $1 AND s.aktif = true ${sScope}
+       ORDER BY s.ad`,
+      sParams,
+    );
+    const giderRes = await query(
+      `SELECT COALESCE(SUM(n.tutar_try),0)::bigint AS genel_gider_toplam
+       FROM nakit_hareketleri n
+       WHERE n.tenant_id = $1
+         AND n.tip = 'cikis'
+         AND n.santiye_id IS NULL`,
+      [tenantId],
+    );
+    const toplamGider = num((giderRes.rows[0] as Record<string, unknown>)?.genel_gider_toplam);
+    const rowsSrc = santiyeler.rows as Array<Record<string, unknown>>;
+    let agirlikli = rowsSrc.map((r) => {
+      const w =
+        anahtar === 'esit' ? 1 : anahtar === 'gerceklesen' ? Math.max(0, num(r.gerceklesen)) : Math.max(0, num(r.sozlesme_bedel));
+      return { ...r, w };
+    });
+    if (anahtar === 'manuel') {
+      const m = await query(
+        `SELECT santiye_id, oran_yuzde
+         FROM finans_gider_dagitim_agirliklari
+         WHERE tenant_id = $1`,
+        [tenantId],
+      );
+      const bySantiye = new Map<string, number>();
+      for (const row of m.rows as Array<Record<string, unknown>>) bySantiye.set(String(row.santiye_id), num(row.oran_yuzde));
+      agirlikli = rowsSrc.map((r) => ({ ...r, w: Math.max(0, bySantiye.get(String(r.id ?? '')) ?? 0) }));
+    }
+    const wToplam = Math.max(1, agirlikli.reduce((a, r) => a + num((r as Record<string, unknown>).w), 0));
+    const rows = agirlikli.map((r) => {
+      const rx = r as Record<string, unknown>;
+      const pay = wToplam > 0 ? num(rx.w) / wToplam : 0;
+      return {
+        id: String(rx.id ?? ''),
+        ad: String(rx.ad ?? ''),
+        oran_yuzde: Number((pay * 100).toFixed(1)),
+        dagitilan_gider: Math.round(toplamGider * pay),
+      };
+    });
+    const lines = ['santiye_id,santiye_ad,oran_yuzde,dagitilan_gider'];
+    for (const r of rows) {
+      lines.push(
+        `${String(r.id ?? '')},"${String(r.ad ?? '').replace(/"/g, '""')}",${Number(r.oran_yuzde ?? 0)},${Number(r.dagitilan_gider ?? 0)}`,
+      );
+    }
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="gider-dagitim.csv"');
+    res.send(lines.join('\n'));
+  } catch (error) {
+    logger.error('getFinansGiderDagitimCsv hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+/**
+ * Aşama 3: Holding konsolidasyonu (tenant içi proje/il bazlı birleşik görünüm)
+ */
+export const getFinansHoldingKonsolidasyon = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId, userId, rol } = req.user!;
+    const broad = genisSantiyeRol(rol!);
+    const kapsam = String(req.query.kapsam ?? 'tenant').toLowerCase();
+    let tenantIds: string[] = [tenantId];
+    let holdingAd: string | null = null;
+
+    if (kapsam === 'holding') {
+      const hm = await query(
+        `SELECT hg.id, hg.ad
+         FROM holding_tenantleri ht
+         JOIN holding_gruplari hg ON hg.id = ht.holding_id AND hg.aktif = true
+         WHERE ht.tenant_id = $1
+         LIMIT 1`,
+        [tenantId],
+      );
+      const h = hm.rows[0] as { id?: string; ad?: string } | undefined;
+      if (h?.id) {
+        holdingAd = h.ad ?? null;
+        const ts = await query(`SELECT tenant_id FROM holding_tenantleri WHERE holding_id = $1`, [h.id]);
+        tenantIds = ts.rows.map((r) => String((r as { tenant_id?: string }).tenant_id ?? '')).filter(Boolean);
+      }
+    }
+    const tenantArraySql = tenantIds.map((_, i) => `$${i + 1}`).join(',');
+
+    const sc = santiyeKapsamSql(rol!, userId, 's.id', 2);
+    const sParams: unknown[] = [...tenantIds];
+    if (sc.sql && !broad) sParams.push(sc.param);
+    const sScope = broad ? '' : sc.sql;
+
+    const ilBazli = await query(
+      `SELECT
+         COALESCE(NULLIF(TRIM(s.il), ''), 'Tanımsız') AS il,
+         COUNT(*)::int AS proje_adet,
+         COALESCE(SUM(s.sozlesme_bedel),0)::bigint AS taahhut_toplam,
+         COALESCE(SUM(s.gerceklesen),0)::bigint AS gerceklesen_toplam
+       FROM santiyeler s
+       WHERE s.tenant_id IN (${tenantArraySql}) AND s.aktif = true ${sScope}
+       GROUP BY 1
+       ORDER BY taahhut_toplam DESC`,
+      sParams,
+    );
+
+    const genel = await query(
+      `SELECT
+         COUNT(*)::int AS proje_adet,
+         COALESCE(SUM(s.sozlesme_bedel),0)::bigint AS taahhut_toplam,
+         COALESCE(SUM(s.gerceklesen),0)::bigint AS gerceklesen_toplam
+       FROM santiyeler s
+       WHERE s.tenant_id IN (${tenantArraySql}) AND s.aktif = true ${sScope}`,
+      sParams,
+    );
+
+    const nakit = await query(
+      `SELECT
+         COALESCE(SUM(n.tutar_try) FILTER (WHERE n.tip = 'giris'),0)::bigint AS giris,
+         COALESCE(SUM(n.tutar_try) FILTER (WHERE n.tip = 'cikis'),0)::bigint AS cikis
+       FROM nakit_hareketleri n
+       WHERE n.tenant_id IN (${tenantArraySql})`,
+      tenantIds,
+    );
+
+    const rowG = genel.rows[0] as Record<string, unknown>;
+    const rowN = nakit.rows[0] as Record<string, unknown>;
+    const giris = num(rowN.giris);
+    const cikis = num(rowN.cikis);
+    res.json({
+      success: true,
+      data: {
+        kapsam: kapsam === 'holding' ? 'holding' : 'tenant',
+        holding_ad: holdingAd,
+        sirket_sayisi: tenantIds.length,
+        proje_adet: num(rowG.proje_adet),
+        taahhut_toplam: num(rowG.taahhut_toplam),
+        gerceklesen_toplam: num(rowG.gerceklesen_toplam),
+        net_nakit: giris - cikis,
+        il_bazli: ilBazli.rows,
+      },
+    });
+  } catch (error) {
+    logger.error('getFinansHoldingKonsolidasyon hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const listFinansTeminatlar = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId, userId, rol } = req.user!;
+    const broad = genisSantiyeRol(rol!);
+    const params: unknown[] = [tenantId];
+    let idx = 2;
+    let where = 'WHERE t.tenant_id = $1';
+    const durum = typeof req.query.iade_durum === 'string' ? req.query.iade_durum : '';
+    if (durum) {
+      where += ` AND t.iade_durum = $${idx++}`;
+      params.push(durum);
+    }
+    if (!broad) {
+      where += ` AND (t.santiye_id IS NULL OR t.santiye_id IN (SELECT sk.santiye_id FROM santiye_kullanicilar sk WHERE sk.kullanici_id = $${idx++}))`;
+      params.push(userId);
+    }
+    const r = await query(
+      `SELECT
+         t.*, s.ad AS santiye_ad, ts.sozlesme_no, tr.ad AS taseron_ad,
+         (t.vade_tarihi - CURRENT_DATE)::int AS gun_kaldi
+       FROM finans_teminat_kayitlari t
+       LEFT JOIN santiyeler s ON s.id = t.santiye_id
+       LEFT JOIN taseron_sozlesmeler ts ON ts.id = t.taseron_sozlesme_id
+       LEFT JOIN taseronlar tr ON tr.id = ts.taseron_id
+       ${where}
+       ORDER BY t.vade_tarihi ASC`,
+      params,
+    );
+    const ozet = await query(
+      `SELECT
+         COUNT(*)::int AS adet,
+         COUNT(*) FILTER (WHERE vade_tarihi <= (CURRENT_DATE + INTERVAL '30 day') AND iade_durum NOT IN ('iade_edildi','reddedildi'))::int AS vade_30_gun_uyari,
+         COALESCE(SUM(tutar),0)::bigint AS toplam_tutar
+       FROM finans_teminat_kayitlari
+       WHERE tenant_id = $1`,
+      [tenantId],
+    );
+    res.json({ success: true, data: { satirlar: r.rows, ozet: ozet.rows[0] } });
+  } catch (error) {
+    logger.error('listFinansTeminatlar hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const createFinansTeminat = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId, userId } = req.user!;
+    const body = req.body as Record<string, unknown>;
+    const vade = String(body.vade_tarihi ?? '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(vade)) {
+      res.status(400).json({ success: false, message: 'vade_tarihi zorunlu (YYYY-MM-DD)' });
+      return;
+    }
+    const ins = await query(
+      `INSERT INTO finans_teminat_kayitlari
+        (tenant_id, santiye_id, taseron_sozlesme_id, kaynak_turu, teminat_turu, tutar, para_birimi, baslangic_tarihi, vade_tarihi, iade_durum, iade_notu, olusturan_id, guncelleyen_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'aktif',$10,$11,$11)
+       RETURNING id`,
+      [
+        tenantId,
+        body.santiye_id ?? null,
+        body.taseron_sozlesme_id ?? null,
+        String(body.kaynak_turu ?? 'isveren'),
+        String(body.teminat_turu ?? 'mektup'),
+        Math.round(num(body.tutar)),
+        String(body.para_birimi ?? 'TRY'),
+        body.baslangic_tarihi ? String(body.baslangic_tarihi) : null,
+        vade,
+        body.iade_notu ? String(body.iade_notu) : null,
+        userId,
+      ],
+    );
+    res.status(201).json({ success: true, data: ins.rows[0] });
+  } catch (error) {
+    logger.error('createFinansTeminat hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const putFinansTeminatIadeDurum = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId, userId } = req.user!;
+    const { id } = req.params as { id: string };
+    const { iade_durum, iade_notu } = req.body as Record<string, unknown>;
+    const durum = String(iade_durum ?? '');
+    const allowed = ['aktif', 'iade_talep', 'onay_bekliyor', 'onaylandi', 'iade_edildi', 'reddedildi'];
+    if (!allowed.includes(durum)) {
+      res.status(400).json({ success: false, message: 'Geçersiz iade_durum' });
+      return;
+    }
+    const upd = await query(
+      `UPDATE finans_teminat_kayitlari
+       SET iade_durum = $1, iade_notu = $2, guncelleyen_id = $3, guncellendi = NOW()
+       WHERE tenant_id = $4 AND id = $5
+       RETURNING id`,
+      [durum, iade_notu ? String(iade_notu) : null, userId, tenantId, id],
+    );
+    if (!upd.rows[0]) {
+      res.status(404).json({ success: false, message: 'Kayıt bulunamadı' });
+      return;
+    }
+    res.json({ success: true, data: upd.rows[0] });
+  } catch (error) {
+    logger.error('putFinansTeminatIadeDurum hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const getFinansFiyatFarkiEskalasyon = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId, userId, rol } = req.user!;
+    const broad = genisSantiyeRol(rol!);
+    const sc = santiyeKapsamSql(rol!, userId, 's.id', 2);
+    const params: unknown[] = [tenantId];
+    if (sc.sql) params.push(sc.param);
+    const scope = broad ? '' : sc.sql;
+    const k = await query(
+      `SELECT
+         (SELECT AVG(birim_try)::numeric FROM tcmb_kurlar WHERE kod = 'USD' AND tarih >= (CURRENT_DATE - INTERVAL '30 day')) AS usd_yeni,
+         (SELECT AVG(birim_try)::numeric FROM tcmb_kurlar WHERE kod = 'USD' AND tarih >= (CURRENT_DATE - INTERVAL '120 day') AND tarih < (CURRENT_DATE - INTERVAL '90 day')) AS usd_eski`,
+    );
+    const usdYeni = num((k.rows[0] as Record<string, unknown>)?.usd_yeni);
+    const usdEski = num((k.rows[0] as Record<string, unknown>)?.usd_eski);
+    const kurDegisim = usdEski > 0 ? (usdYeni - usdEski) / usdEski : 0;
+    const oranOverride = typeof req.query.kur_degisim_pct === 'string' ? num(req.query.kur_degisim_pct) / 100 : null;
+    const oran = oranOverride ?? kurDegisim;
+    const rows = await query(
+      `SELECT s.id, s.ad, COALESCE(s.sozlesme_bedel,0)::bigint AS sozlesme_bedel, COALESCE(s.gerceklesen,0)::bigint AS gerceklesen
+       FROM santiyeler s
+       WHERE s.tenant_id = $1 AND s.aktif = true ${scope}
+       ORDER BY s.ad`,
+      params,
+    );
+    const satirlar = rows.rows.map((r) => {
+      const x = r as Record<string, unknown>;
+      const sozlesme = num(x.sozlesme_bedel);
+      const gercek = num(x.gerceklesen);
+      const kalan = Math.max(0, sozlesme - gercek);
+      const etki = Math.round(kalan * oran * 0.35);
+      return {
+        ...x,
+        kalan_taahhut: kalan,
+        eskalasyon_oran_yuzde: Number((oran * 100).toFixed(2)),
+        fiyat_farki_tutar: etki,
+        revize_butce: sozlesme + etki,
+      };
+    });
+    const toplam = satirlar.reduce((a, r) => {
+      const rr = r as Record<string, unknown>;
+      a.fiyat_farki_tutar += num(rr.fiyat_farki_tutar);
+      a.revize_butce += num(rr.revize_butce);
+      return a;
+    }, { fiyat_farki_tutar: 0, revize_butce: 0 });
+    res.json({
+      success: true,
+      data: {
+        ozet: toplam,
+        parametreler: {
+          usd_eski: usdEski,
+          usd_yeni: usdYeni,
+          eskalasyon_oran_yuzde: Number((oran * 100).toFixed(2)),
+          hesap_notu: 'Fiyat farkı = kalan taahhüt x kur değişimi x 0.35 (kalibrasyon parametresi).',
+        },
+        satirlar,
+      },
+    });
+  } catch (error) {
+    logger.error('getFinansFiyatFarkiEskalasyon hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const getFinansCokluParaZincir = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId, userId, rol } = req.user!;
+    const broad = genisSantiyeRol(rol!);
+    const doviz = typeof req.query.doviz === 'string' ? String(req.query.doviz).toUpperCase() : '';
+    const sc = santiyeKapsamSql(rol!, userId, 's.id', 2);
+    const params: unknown[] = [tenantId];
+    if (sc.sql) params.push(sc.param);
+    const scopeS = broad ? '' : sc.sql;
+    const dovizWhere = doviz && doviz !== 'ALL' ? ` AND COALESCE(ts.doviz,'TRY') = '${doviz.replace(/'/g, '')}'` : '';
+
+    const sozlesme = await query(
+      `SELECT
+         COALESCE(ts.doviz,'TRY') AS doviz,
+         COUNT(*)::int AS adet,
+         COALESCE(SUM(ts.sozlesme_bedeli_doviz),0)::numeric AS toplam_doviz,
+         COALESCE(SUM(ts.sozlesme_bedeli),0)::bigint AS toplam_try
+       FROM taseron_sozlesmeler ts
+       JOIN santiyeler s ON s.id = ts.santiye_id
+       WHERE ts.tenant_id = $1 ${scopeS} ${dovizWhere}
+       GROUP BY 1
+       ORDER BY 1`,
+      params,
+    );
+
+    const scopeH = broad ? '' : ` AND h.santiye_id IN (SELECT sk.santiye_id FROM santiye_kullanicilar sk WHERE sk.kullanici_id = $2)`;
+    const hParams = broad ? [tenantId] : [tenantId, userId];
+    const hDovizWhere = doviz && doviz !== 'ALL' ? ` AND COALESCE(h.doviz,'TRY') = '${doviz.replace(/'/g, '')}'` : '';
+    const hakedis = await query(
+      `SELECT
+         COALESCE(h.doviz,'TRY') AS doviz,
+         COUNT(*)::int AS adet,
+         COALESCE(SUM(h.toplam_tutar_doviz),0)::numeric AS toplam_doviz,
+         COALESCE(SUM(h.toplam_tutar),0)::bigint AS toplam_try
+       FROM hakedisler h
+       WHERE h.tenant_id = $1
+         AND h.durum <> 'iptal'
+         ${scopeH}
+         ${hDovizWhere}
+       GROUP BY 1
+       ORDER BY 1`,
+      hParams,
+    );
+
+    const fScope = broad ? '' : ` AND f.santiye_id IN (SELECT sk.santiye_id FROM santiye_kullanicilar sk WHERE sk.kullanici_id = $2)`;
+    const fParams = broad ? [tenantId] : [tenantId, userId];
+    const fDovizWhere = doviz && doviz !== 'ALL' ? ` AND COALESCE(f.doviz,'TRY') = '${doviz.replace(/'/g, '')}'` : '';
+    const fatura = await query(
+      `SELECT
+         COALESCE(f.doviz,'TRY') AS doviz,
+         COUNT(*)::int AS adet,
+         COALESCE(SUM(f.genel_toplam),0)::numeric AS toplam_doviz,
+         COALESCE(SUM(f.genel_toplam * COALESCE(NULLIF(f.kur,0),1)),0)::bigint AS toplam_try
+       FROM faturalar f
+       WHERE f.tenant_id = $1
+         ${fScope}
+         ${fDovizWhere}
+       GROUP BY 1
+       ORDER BY 1`,
+      fParams,
+    );
+
+    const odeme = await query(
+      `SELECT
+         COALESCE(n.para_birimi,'TRY') AS doviz,
+         COUNT(*)::int AS adet,
+         COALESCE(SUM(n.tutar),0)::numeric AS toplam_doviz,
+         COALESCE(SUM(n.tutar_try),0)::bigint AS toplam_try
+       FROM nakit_hareketleri n
+       WHERE n.tenant_id = $1
+         AND n.tip = 'giris'
+         ${broad ? '' : `AND n.santiye_id IN (SELECT sk.santiye_id FROM santiye_kullanicilar sk WHERE sk.kullanici_id = $2)`}
+         ${doviz && doviz !== 'ALL' ? `AND COALESCE(n.para_birimi,'TRY') = '${doviz.replace(/'/g, '')}'` : ''}
+       GROUP BY 1
+       ORDER BY 1`,
+      broad ? [tenantId] : [tenantId, userId],
+    );
+
+    const recent = await query(
+      `SELECT
+         ts.sozlesme_no, t.ad AS taseron_ad, s.ad AS santiye_ad,
+         COALESCE(ts.doviz,'TRY') AS sozlesme_doviz, COALESCE(ts.sozlesme_bedeli_doviz,0)::numeric AS sozlesme_doviz_tutar,
+         COALESCE(h.doviz,'TRY') AS hakedis_doviz, COALESCE(h.toplam_tutar_doviz,0)::numeric AS hakedis_doviz_tutar,
+         COALESCE(f.doviz,'TRY') AS fatura_doviz, COALESCE(f.genel_toplam,0)::numeric AS fatura_doviz_tutar,
+         COALESCE(n.para_birimi,'TRY') AS odeme_doviz, COALESCE(n.tutar,0)::numeric AS odeme_doviz_tutar
+       FROM taseron_sozlesmeler ts
+       JOIN taseronlar t ON t.id = ts.taseron_id
+       JOIN santiyeler s ON s.id = ts.santiye_id
+       LEFT JOIN LATERAL (
+         SELECT h1.*
+         FROM hakedisler h1
+         WHERE h1.tenant_id = ts.tenant_id AND h1.santiye_id = ts.santiye_id
+         ORDER BY h1.olusturuldu DESC NULLS LAST
+         LIMIT 1
+       ) h ON true
+       LEFT JOIN LATERAL (
+         SELECT f1.*
+         FROM faturalar f1
+         WHERE f1.tenant_id = ts.tenant_id AND f1.santiye_id = ts.santiye_id
+         ORDER BY f1.olusturuldu DESC
+         LIMIT 1
+       ) f ON true
+       LEFT JOIN LATERAL (
+         SELECT n1.*
+         FROM nakit_hareketleri n1
+         WHERE n1.tenant_id = ts.tenant_id AND n1.santiye_id = ts.santiye_id AND n1.tip = 'giris'
+         ORDER BY n1.tarih DESC
+         LIMIT 1
+       ) n ON true
+       WHERE ts.tenant_id = $1
+         ${broad ? '' : `AND ts.santiye_id IN (SELECT sk.santiye_id FROM santiye_kullanicilar sk WHERE sk.kullanici_id = $2)`}
+       ORDER BY ts.olusturuldu DESC
+       LIMIT 100`,
+      broad ? [tenantId] : [tenantId, userId],
+    );
+
+    res.json({
+      success: true,
+      data: {
+        sozlesme: sozlesme.rows,
+        hakedis: hakedis.rows,
+        fatura: fatura.rows,
+        odeme: odeme.rows,
+        zincir_satirlari: recent.rows,
+        meta: {
+          aciklama:
+            'Uçtan uca döviz zinciri: sözleşme -> hakediş -> fatura -> ödeme. TRY karşılıklar ilgili kur alanlarıyla hesaplanır.',
+        },
+      },
+    });
+  } catch (error) {
+    logger.error('getFinansCokluParaZincir hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+
+==================== C:\insaat-erp\insaat-erp-backend\src\controllers\taseronController.ts ====================
+
+import { Request, Response } from 'express';
+import { query, withTransaction } from '../config/database';
+import logger from '../utils/logger';
+import PDFDocument from 'pdfkit';
+
+// ════════════════════════════════════════════════════════════════
+// TAŞERONLAR
+// ════════════════════════════════════════════════════════════════
+
+export const getTaseronlar = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.user!;
+    const result = await query(
+      `SELECT t.*,
+        COUNT(DISTINCT ts.id)  as sozlesme_sayisi,
+        COALESCE(SUM(ts.sozlesme_bedeli), 0) as toplam_sozlesme,
+        COALESCE(SUM(CASE WHEN ts.durum = 'devam' THEN ts.sozlesme_bedeli END), 0) as aktif_sozlesme
+       FROM taseronlar t
+       LEFT JOIN taseron_sozlesmeler ts ON ts.taseron_id = t.id
+       WHERE t.tenant_id = $1 AND t.aktif = true
+       GROUP BY t.id
+       ORDER BY t.ad`,
+      [tenantId]
+    );
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    logger.error('getTaseronlar:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const getTaseron = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.user!;
+    const { id } = req.params;
+    const result = await query(
+      `SELECT t.*,
+        (SELECT json_agg(ts ORDER BY ts.sozlesme_tarihi DESC)
+         FROM taseron_sozlesmeler ts WHERE ts.taseron_id = t.id) as sozlesmeler
+       FROM taseronlar t
+       WHERE t.id = $1 AND t.tenant_id = $2`,
+      [id, tenantId]
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ success: false, message: 'Taşeron bulunamadı' });
+      return;
+    }
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    logger.error('getTaseron:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const createTaseron = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.user!;
+    const { ad, vergi_no, telefon, email, adres, yetkili, banka_adi, iban, notlar } = req.body;
+    if (!ad?.trim()) {
+      res.status(400).json({ success: false, message: 'Taşeron adı zorunlu' });
+      return;
+    }
+    const result = await query(
+      `INSERT INTO taseronlar (tenant_id, ad, vergi_no, telefon, email, adres, yetkili, banka_adi, iban, notlar)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [tenantId, ad, vergi_no, telefon, email, adres, yetkili, banka_adi, iban, notlar]
+    );
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    logger.error('createTaseron:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const updateTaseron = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.user!;
+    const { id } = req.params;
+    const { ad, telefon, email, adres, yetkili, banka_adi, iban, puan, aktif, notlar } = req.body;
+    const result = await query(
+      `UPDATE taseronlar SET
+        ad = COALESCE($3, ad), telefon = COALESCE($4, telefon),
+        email = COALESCE($5, email), adres = COALESCE($6, adres),
+        yetkili = COALESCE($7, yetkili), banka_adi = COALESCE($8, banka_adi),
+        iban = COALESCE($9, iban), puan = COALESCE($10, puan),
+        aktif = COALESCE($11, aktif), notlar = COALESCE($12, notlar),
+        guncellendi = NOW()
+       WHERE id = $1 AND tenant_id = $2 RETURNING *`,
+      [id, tenantId, ad, telefon, email, adres, yetkili, banka_adi, iban, puan, aktif, notlar]
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ success: false, message: 'Taşeron bulunamadı' });
+      return;
+    }
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    logger.error('updateTaseron:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// ════════════════════════════════════════════════════════════════
+// TAŞERON SÖZLEŞMELERİ
+// ════════════════════════════════════════════════════════════════
+
+export const getSozlesmeler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.user!;
+    const { santiye_id, taseron_id, durum } = req.query;
+
+    let where = 'WHERE ts.tenant_id = $1';
+    const params: unknown[] = [tenantId];
+    let idx = 2;
+
+    if (santiye_id) { where += ` AND ts.santiye_id = $${idx++}`; params.push(santiye_id); }
+    if (taseron_id) { where += ` AND ts.taseron_id = $${idx++}`; params.push(taseron_id); }
+    if (durum)      { where += ` AND ts.durum = $${idx++}`; params.push(durum); }
+
+    const result = await query(
+      `SELECT ts.*,
+        t.ad as taseron_adi, t.vergi_no, t.telefon as taseron_tel,
+        s.ad as santiye_adi, s.il,
+        COALESCE((
+          SELECT SUM(th.net_odeme) FROM taseron_hakedis th
+          WHERE th.sozlesme_id = ts.id AND th.durum = 'odendi'
+        ), 0) as odenen_toplam,
+        COALESCE((
+          SELECT SUM(th.net_odeme) FROM taseron_hakedis th
+          WHERE th.sozlesme_id = ts.id
+        ), 0) as hakedis_toplam,
+        (SELECT COUNT(*) FROM taseron_hakedis th WHERE th.sozlesme_id = ts.id) as hakedis_sayisi
+       FROM taseron_sozlesmeler ts
+       JOIN taseronlar t ON t.id = ts.taseron_id
+       JOIN santiyeler s ON s.id = ts.santiye_id
+       ${where}
+       ORDER BY ts.sozlesme_tarihi DESC`,
+      params
+    );
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    logger.error('getSozlesmeler:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const getSozlesme = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.user!;
+    const { id } = req.params;
+    const result = await query(
+      `SELECT ts.*,
+        t.ad as taseron_adi, t.telefon as taseron_tel, t.email as taseron_email,
+        t.iban, t.banka_adi,
+        s.ad as santiye_adi, s.il,
+        (SELECT json_agg(th ORDER BY th.donem_no)
+         FROM taseron_hakedis th WHERE th.sozlesme_id = ts.id) as hakedisler
+       FROM taseron_sozlesmeler ts
+       JOIN taseronlar t ON t.id = ts.taseron_id
+       JOIN santiyeler s ON s.id = ts.santiye_id
+       WHERE ts.id = $1 AND ts.tenant_id = $2`,
+      [id, tenantId]
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ success: false, message: 'Sözleşme bulunamadı' });
+      return;
+    }
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    logger.error('getSozlesme:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const createSozlesme = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.user!;
+    const {
+      taseron_id, santiye_id, sozlesme_no, is_tanimi, is_grubu,
+      sozlesme_bedeli, sozlesme_tarihi, baslangic, bitis,
+      odeme_vadesi, avans_tutari, kdv_orani, stopaj_orani, sgk_kesinti_oran, notlar
+    } = req.body;
+
+    if (!taseron_id || !santiye_id || !is_tanimi || !sozlesme_bedeli) {
+      res.status(400).json({ success: false, message: 'Zorunlu alanlar eksik' });
+      return;
+    }
+
+    // Taşeron ve şantiye bu tenant'a ait mi?
+    const checks = await Promise.all([
+      query('SELECT id FROM taseronlar WHERE id = $1 AND tenant_id = $2', [taseron_id, tenantId]),
+      query('SELECT id FROM santiyeler WHERE id = $1 AND tenant_id = $2', [santiye_id, tenantId]),
+    ]);
+    if (!checks[0].rows[0] || !checks[1].rows[0]) {
+      res.status(403).json({ success: false, message: 'Geçersiz taşeron veya şantiye' });
+      return;
+    }
+
+    const result = await query(
+      `INSERT INTO taseron_sozlesmeler
+        (tenant_id, taseron_id, santiye_id, sozlesme_no, is_tanimi, is_grubu,
+         sozlesme_bedeli, sozlesme_tarihi, baslangic, bitis,
+         odeme_vadesi, avans_tutari, kdv_orani, stopaj_orani, sgk_kesinti_oran, notlar)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+       RETURNING *`,
+      [tenantId, taseron_id, santiye_id, sozlesme_no, is_tanimi, is_grubu,
+       sozlesme_bedeli, sozlesme_tarihi, baslangic, bitis,
+       odeme_vadesi || 30, avans_tutari || 0, kdv_orani ?? 20, stopaj_orani || 0, sgk_kesinti_oran || 0, notlar]
+    );
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    logger.error('createSozlesme:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const updateSozlesme = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.user!;
+    const { id } = req.params;
+    const { durum, bitis, notlar } = req.body;
+    const result = await query(
+      `UPDATE taseron_sozlesmeler SET
+        durum = COALESCE($3, durum),
+        bitis = COALESCE($4, bitis),
+        notlar = COALESCE($5, notlar),
+        guncellendi = NOW()
+       WHERE id = $1 AND tenant_id = $2 RETURNING *`,
+      [id, tenantId, durum, bitis, notlar]
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ success: false, message: 'Sözleşme bulunamadı' });
+      return;
+    }
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    logger.error('updateSozlesme:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// ════════════════════════════════════════════════════════════════
+// TAŞERON HAKEDİŞLERİ
+// ════════════════════════════════════════════════════════════════
+
+export const getHakedisler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.user!;
+    const { sozlesme_id } = req.params;
+
+    // Sözleşmenin bu tenant'a ait olduğunu doğrula
+    const check = await query(
+      'SELECT id, sozlesme_bedeli, kdv_orani, stopaj_orani, sgk_kesinti_oran FROM taseron_sozlesmeler WHERE id = $1 AND tenant_id = $2',
+      [sozlesme_id, tenantId]
+    );
+    if (!check.rows[0]) {
+      res.status(404).json({ success: false, message: 'Sözleşme bulunamadı' });
+      return;
+    }
+
+    const result = await query(
+      `SELECT * FROM taseron_hakedis WHERE sozlesme_id = $1 ORDER BY donem_no`,
+      [sozlesme_id]
+    );
+    res.json({ success: true, data: result.rows, sozlesme: check.rows[0] });
+  } catch (error) {
+    logger.error('getHakedisler:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const createHakedis = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId, userId } = req.user!;
+    const { sozlesme_id } = req.params;
+    const { tarih, sozlesme_is, diger_kesinti, notlar } = req.body;
+
+    // Sözleşme bilgilerini çek
+    const sozlesme = await query(
+      `SELECT ts.*, t.id as taseron_db_id, s.id as santiye_db_id
+       FROM taseron_sozlesmeler ts
+       JOIN taseronlar t ON t.id = ts.taseron_id
+       JOIN santiyeler s ON s.id = ts.santiye_id
+       WHERE ts.id = $1 AND ts.tenant_id = $2`,
+      [sozlesme_id, tenantId]
+    );
+    if (!sozlesme.rows[0]) {
+      res.status(404).json({ success: false, message: 'Sözleşme bulunamadı' });
+      return;
+    }
+    const sz = sozlesme.rows[0];
+
+    // Son dönem numarasını bul
+    const lastDonem = await query(
+      'SELECT MAX(donem_no) as son FROM taseron_hakedis WHERE sozlesme_id = $1',
+      [sozlesme_id]
+    );
+    const donem_no = (lastDonem.rows[0].son || 0) + 1;
+
+    // Geçmiş toplamı hesapla
+    const gecmisResult = await query(
+      'SELECT COALESCE(SUM(sozlesme_is), 0) as toplam FROM taseron_hakedis WHERE sozlesme_id = $1',
+      [sozlesme_id]
+    );
+    const gecmis_toplam = parseInt(gecmisResult.rows[0].toplam);
+    const donem_toplam = gecmis_toplam + parseInt(sozlesme_is || 0);
+
+    // Avans kesintisi (avans tutarını dönem sayısına böl)
+    const avans_kesinti = sz.avans_tutari > 0 && !sz.avans_odendi
+      ? Math.round(sz.avans_tutari * 0.25) // Her hakediş %25 geri al
+      : 0;
+
+    // Kesintiler
+    const sgk_kesinti = Math.round(parseInt(sozlesme_is || 0) * (sz.sgk_kesinti_oran / 100));
+    const stopaj_kesinti = Math.round(parseInt(sozlesme_is || 0) * (sz.stopaj_orani / 100));
+
+    // KDV ve net ödeme
+    const toplam_kesinti = avans_kesinti + sgk_kesinti + stopaj_kesinti + parseInt(diger_kesinti || 0);
+    const kdv_tutari = Math.round((parseInt(sozlesme_is || 0) - toplam_kesinti) * (sz.kdv_orani / 100));
+    const net_odeme = parseInt(sozlesme_is || 0) - toplam_kesinti + kdv_tutari;
+
+    const result = await query(
+      `INSERT INTO taseron_hakedis
+        (tenant_id, sozlesme_id, donem_no, tarih, sozlesme_is, gecmis_toplam, donem_toplam,
+         avans_kesinti, sgk_kesinti, stopaj_kesinti, diger_kesinti, kdv_tutari, net_odeme, notlar)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+       RETURNING *`,
+      [tenantId, sozlesme_id, donem_no, tarih || new Date().toISOString().split('T')[0],
+       sozlesme_is, gecmis_toplam, donem_toplam,
+       avans_kesinti, sgk_kesinti, stopaj_kesinti, diger_kesinti || 0, kdv_tutari, net_odeme, notlar]
+    );
+
+    // Nakit çıkışı kaydı oluştur (onaylandığında)
+    // addNakitHareketAsync - şimdilik hazır bırakıyoruz
+
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    logger.error('createHakedis:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const onaylaHakedis = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId, userId } = req.user!;
+    const { id } = req.params;
+    const { odeme_tarihi } = req.body;
+
+    // Hakediş bu tenant'a ait mi?
+    const hakedis = await query(
+      `SELECT th.*, ts.santiye_id, ts.sozlesme_no,
+        t.ad as taseron_adi
+       FROM taseron_hakedis th
+       JOIN taseron_sozlesmeler ts ON ts.id = th.sozlesme_id
+       JOIN taseronlar t ON t.id = ts.taseron_id
+       WHERE th.id = $1 AND th.tenant_id = $2`,
+      [id, tenantId]
+    );
+    if (!hakedis.rows[0]) {
+      res.status(404).json({ success: false, message: 'Hakediş bulunamadı' });
+      return;
+    }
+    const h = hakedis.rows[0];
+
+    const yeniDurum = h.durum === 'taslak' ? 'onaylandi' : 'odendi';
+    const odemeGun =
+      (odeme_tarihi && String(odeme_tarihi).slice(0, 10)) || new Date().toISOString().split('T')[0];
+
+    await withTransaction(async (client) => {
+      const up = await client.query(
+        `UPDATE taseron_hakedis SET durum = $2, odeme_tarihi = COALESCE($3::date, odeme_tarihi)
+         WHERE id = $1 AND tenant_id = $4`,
+        [id, yeniDurum, odeme_tarihi || null, tenantId],
+      );
+      if (!up.rowCount) {
+        throw new Error('taseron_hakedis_guncellenemedi');
+      }
+
+      if (yeniDurum === 'odendi') {
+        await client.query(
+          `INSERT INTO nakit_hareketleri
+            (tenant_id, santiye_id, tarih, tip, kategori, aciklama, tutar, tutar_try, kaydeden_id, onaylandi)
+           VALUES ($1,$2,$3::date,'cikis','taseron',$4,$5,$5,$6,true)`,
+          [
+            tenantId,
+            h.santiye_id,
+            odemeGun,
+            `${h.taseron_adi} - ${h.sozlesme_no || ''} ${h.donem_no}. Hakediş`,
+            h.net_odeme,
+            userId,
+          ],
+        );
+      }
+    });
+
+    res.json({ success: true, mesaj: `Hakediş ${yeniDurum} durumuna getirildi` });
+  } catch (error) {
+    logger.error('onaylaHakedis:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// ════════════════════════════════════════════════════════════════
+// EKİPMAN MALİYET
+// ════════════════════════════════════════════════════════════════
+
+export const getEkipmanMaliyet = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.user!;
+    const { santiye_id, ekipman_id, yil, ay } = req.query;
+
+    let where = 'WHERE em.tenant_id = $1';
+    const params: unknown[] = [tenantId];
+    let idx = 2;
+
+    if (santiye_id) { where += ` AND em.santiye_id = $${idx++}`; params.push(santiye_id); }
+    if (ekipman_id) { where += ` AND em.ekipman_id = $${idx++}`; params.push(ekipman_id); }
+    if (yil)        { where += ` AND EXTRACT(YEAR FROM em.tarih) = $${idx++}`; params.push(yil); }
+    if (ay)         { where += ` AND EXTRACT(MONTH FROM em.tarih) = $${idx++}`; params.push(ay); }
+
+    const result = await query(
+      `SELECT em.*,
+        e.ad as ekipman_adi, e.plaka, e.tip as ekipman_tip,
+        s.ad as santiye_adi
+       FROM ekipman_maliyet em
+       JOIN ekipmanlar e ON e.id = em.ekipman_id
+       LEFT JOIN santiyeler s ON s.id = em.santiye_id
+       ${where}
+       ORDER BY em.tarih DESC`,
+      params
+    );
+
+    // Özet
+    const ozet = await query(
+      `SELECT
+        tip,
+        COUNT(*) as kayit_sayisi,
+        SUM(tutar) as toplam
+       FROM ekipman_maliyet em ${where}
+       GROUP BY tip`,
+      params
+    );
+
+    res.json({ success: true, data: result.rows, ozet: ozet.rows });
+  } catch (error) {
+    logger.error('getEkipmanMaliyet:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const addEkipmanMaliyet = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId, userId } = req.user!;
+    const { ekipman_id, santiye_id, tarih, tip, tutar, aciklama } = req.body;
+
+    // Ekipman bu tenant'a ait mi?
+    const check = await query(
+      'SELECT id FROM ekipmanlar WHERE id = $1 AND tenant_id = $2',
+      [ekipman_id, tenantId]
+    );
+    if (!check.rows[0]) {
+      res.status(404).json({ success: false, message: 'Ekipman bulunamadı' });
+      return;
+    }
+
+    const result = await query(
+      `INSERT INTO ekipman_maliyet (tenant_id, ekipman_id, santiye_id, tarih, tip, tutar, aciklama, kaydeden_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [tenantId, ekipman_id, santiye_id, tarih, tip || 'kira', tutar, aciklama, userId]
+    );
+
+    // Nakit çıkışı
+    if (santiye_id && tutar > 0) {
+      const ekipman = await query('SELECT ad FROM ekipmanlar WHERE id = $1', [ekipman_id]);
+      await query(
+        `INSERT INTO nakit_hareketleri
+          (tenant_id, santiye_id, tarih, tip, kategori, aciklama, tutar, tutar_try, kaydeden_id, onaylandi)
+         VALUES ($1,$2,$3,'cikis','ekipman',$4,$5,$5,$6,true)`,
+        [tenantId, santiye_id, tarih,
+         `${ekipman.rows[0]?.ad || 'Ekipman'} - ${tip}`, tutar, userId]
+      );
+    }
+
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    logger.error('addEkipmanMaliyet:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// ════════════════════════════════════════════════════════════════
+// PUANTAJ — şantiye bazında toplu giriş
+// ════════════════════════════════════════════════════════════════
+
+export const getPuantajGrid = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.user!;
+    const { santiye_id, yil, ay } = req.query;
+
+    if (!santiye_id) {
+      res.status(400).json({ success: false, message: 'santiye_id gerekli' });
+      return;
+    }
+
+    // Şantiye bu tenant'a ait mi?
+    const check = await query('SELECT id FROM santiyeler WHERE id = $1 AND tenant_id = $2', [santiye_id, tenantId]);
+    if (!check.rows[0]) {
+      res.status(403).json({ success: false, message: 'Erişim yok' });
+      return;
+    }
+
+    const now = new Date();
+    const y = parseInt(yil as string || String(now.getFullYear()));
+    const m = parseInt(ay as string || String(now.getMonth() + 1));
+    const gunSayisi = new Date(y, m, 0).getDate();
+
+    // Personel listesi
+    const personeller = await query(
+      `SELECT p.id, p.ad, p.soyad, p.gorev, p.maas, p.maas_turu
+       FROM personel p
+       WHERE p.santiye_id = $1 AND p.tenant_id = $2 AND p.aktif = true
+       ORDER BY p.ad, p.soyad`,
+      [santiye_id, tenantId]
+    );
+
+    // O ay puantajları
+    const puantajlar = await query(
+      `SELECT personel_id, tarih, calisma_saat, fazla_mesai, tatil_mi, yevmiye
+       FROM puantaj
+       WHERE santiye_id = $1 AND tenant_id = $2
+         AND EXTRACT(YEAR FROM tarih) = $3
+         AND EXTRACT(MONTH FROM tarih) = $4`,
+      [santiye_id, tenantId, y, m]
+    );
+
+    // Puantaj map
+    const map: Record<string, Record<number, any>> = {};
+    for (const p of puantajlar.rows) {
+      const gun = new Date(p.tarih).getDate();
+      if (!map[p.personel_id]) map[p.personel_id] = {};
+      map[p.personel_id][gun] = p;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        personeller: personeller.rows,
+        puantajlar: map,
+        meta: { yil: y, ay: m, gun_sayisi: gunSayisi }
+      }
+    });
+  } catch (error) {
+    logger.error('getPuantajGrid:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const savePuantajGrid = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.user!;
+    const { santiye_id, kayitlar } = req.body;
+    // kayitlar: [{personel_id, tarih, calisma_saat, fazla_mesai, tatil_mi}]
+
+    if (!santiye_id || !Array.isArray(kayitlar)) {
+      res.status(400).json({ success: false, message: 'Geçersiz veri' });
+      return;
+    }
+
+    const check = await query('SELECT id FROM santiyeler WHERE id = $1 AND tenant_id = $2', [santiye_id, tenantId]);
+    if (!check.rows[0]) {
+      res.status(403).json({ success: false, message: 'Erişim yok' });
+      return;
+    }
+
+    let eklenen = 0;
+    for (const k of kayitlar) {
+      await query(
+        `INSERT INTO puantaj (tenant_id, personel_id, santiye_id, tarih, calisma_saat, fazla_mesai, tatil_mi, yevmiye)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+         ON CONFLICT (personel_id, tarih, santiye_id) DO UPDATE SET
+           calisma_saat = EXCLUDED.calisma_saat,
+           fazla_mesai = EXCLUDED.fazla_mesai,
+           tatil_mi = EXCLUDED.tatil_mi,
+           yevmiye = EXCLUDED.yevmiye`,
+        [tenantId, k.personel_id, santiye_id, k.tarih,
+         k.calisma_saat ?? 8, k.fazla_mesai ?? 0, k.tatil_mi ?? false, k.yevmiye ?? 0]
+      );
+      eklenen++;
+    }
+
+    res.json({ success: true, eklenen });
+  } catch (error) {
+    logger.error('savePuantajGrid:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// ════════════════════════════════════════════════════════════════
+// TAŞERON CARİ HESAP (Tam Paket)
+// ════════════════════════════════════════════════════════════════
+
+const n = (v: unknown): number => {
+  const x = typeof v === 'string' ? parseFloat(v) : Number(v);
+  return Number.isFinite(x) ? x : 0;
+};
+
+export const getTaseronCariOzet = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.user!;
+    const { santiye_id, taseron_id, baslangic_tarih, bitis_tarih } = req.query as Record<string, string | undefined>;
+    const params: unknown[] = [tenantId];
+    let idx = 2;
+    let where = 'WHERE ts.tenant_id = $1';
+    if (santiye_id) {
+      where += ` AND ts.santiye_id = $${idx++}`;
+      params.push(santiye_id);
+    }
+    if (taseron_id) {
+      where += ` AND ts.taseron_id = $${idx++}`;
+      params.push(taseron_id);
+    }
+
+    let hakedisTarihKosul = '';
+    if (baslangic_tarih) {
+      hakedisTarihKosul += ` AND COALESCE(th.odeme_tarihi, th.tarih) >= '${String(baslangic_tarih).replace(/'/g, '')}'::date`;
+    }
+    if (bitis_tarih) {
+      hakedisTarihKosul += ` AND COALESCE(th.odeme_tarihi, th.tarih) <= '${String(bitis_tarih).replace(/'/g, '')}'::date`;
+    }
+
+    const result = await query(
+      `SELECT
+         ts.id AS sozlesme_id,
+         ts.sozlesme_no,
+         ts.is_tanimi,
+         ts.sozlesme_bedeli,
+         ts.avans_tutari,
+         ts.stopaj_orani,
+         ts.sgk_kesinti_oran,
+         ts.durum,
+         t.id AS taseron_id,
+         t.ad AS taseron_adi,
+         s.id AS santiye_id,
+         s.ad AS santiye_adi,
+         COALESCE(SUM(th.sozlesme_is), 0)::bigint AS hakedis_brut_toplam,
+         COALESCE(SUM(th.avans_kesinti), 0)::bigint AS avans_kesinti_toplam,
+         COALESCE(SUM(th.sgk_kesinti), 0)::bigint AS sgk_kesinti_toplam,
+         COALESCE(SUM(th.stopaj_kesinti), 0)::bigint AS stopaj_kesinti_toplam,
+         COALESCE(SUM(th.net_odeme), 0)::bigint AS net_hakedis_toplam,
+         COALESCE(SUM(th.net_odeme) FILTER (WHERE th.durum = 'odendi'), 0)::bigint AS odenen_toplam
+       FROM taseron_sozlesmeler ts
+       JOIN taseronlar t ON t.id = ts.taseron_id
+       JOIN santiyeler s ON s.id = ts.santiye_id
+       LEFT JOIN taseron_hakedis th ON th.sozlesme_id = ts.id AND th.tenant_id = ts.tenant_id ${hakedisTarihKosul}
+       ${where}
+       GROUP BY ts.id, t.id, s.id
+       ORDER BY s.ad, t.ad, ts.sozlesme_tarihi DESC`,
+      params,
+    );
+
+    let uyWhereDate = '';
+    if (baslangic_tarih) uyWhereDate += ` AND u.kayit_tarihi >= '${String(baslangic_tarih).replace(/'/g, '')}'::date`;
+    if (bitis_tarih) uyWhereDate += ` AND u.kayit_tarihi <= '${String(bitis_tarih).replace(/'/g, '')}'::date`;
+    const uyusmazlik = await query(
+      `SELECT
+         u.id, u.sozlesme_id, u.hakedis_id, u.kayit_tarihi, u.tip, u.seviye, u.aciklama, u.olusturuldu,
+         k.ad AS kaydeden_ad, k.soyad AS kaydeden_soyad
+       FROM taseron_uyusmazlik_gecmisi u
+       LEFT JOIN kullanicilar k ON k.id = u.kaydeden_id
+       WHERE u.tenant_id = $1 ${uyWhereDate}
+       ORDER BY u.olusturuldu DESC
+       LIMIT 200`,
+      [tenantId],
+    );
+    const uyBySoz = new Map<string, Array<Record<string, unknown>>>();
+    for (const row of uyusmazlik.rows as Array<Record<string, unknown>>) {
+      const sid = String(row.sozlesme_id ?? '');
+      const arr = uyBySoz.get(sid) ?? [];
+      arr.push(row);
+      uyBySoz.set(sid, arr);
+    }
+
+    const satirlar = (result.rows as Array<Record<string, unknown>>).map((r) => {
+      const sozlesmeBedeli = n(r.sozlesme_bedeli);
+      const brut = n(r.hakedis_brut_toplam);
+      const net = n(r.net_hakedis_toplam);
+      const odenen = n(r.odenen_toplam);
+      const kesinHesapBakiye = sozlesmeBedeli - brut;
+      const odemeBakiye = net - odenen;
+      const uy = uyBySoz.get(String(r.sozlesme_id ?? '')) ?? [];
+      return {
+        ...r,
+        kesin_hesap_bakiye: kesinHesapBakiye,
+        odeme_bakiye: odemeBakiye,
+        borc_alacak_durum: odemeBakiye > 0 ? 'borc' : 'kapali',
+        uyusmazlik_sayisi: uy.length,
+        uyusmazlik_gecmisi: uy.slice(0, 10),
+      };
+    });
+
+    const ozet = satirlar.reduce(
+      (a, r) => {
+        const x = r as Record<string, unknown>;
+        a.sozlesme += n(x.sozlesme_bedeli);
+        a.net += n(x.net_hakedis_toplam);
+        a.odenen += n(x.odenen_toplam);
+        a.stopaj += n(x.stopaj_kesinti_toplam);
+        a.sgk += n(x.sgk_kesinti_toplam);
+        a.kesin += n(x.kesin_hesap_bakiye);
+        a.bakiye += n(x.odeme_bakiye);
+        a.uyusmazlik += Number(x.uyusmazlik_sayisi ?? 0);
+        return a;
+      },
+      { sozlesme: 0, net: 0, odenen: 0, stopaj: 0, sgk: 0, kesin: 0, bakiye: 0, uyusmazlik: 0 },
+    );
+
+    res.json({
+      success: true,
+      data: {
+        satirlar,
+        ozet: {
+          sozlesme_toplam: ozet.sozlesme,
+          net_hakedis_toplam: ozet.net,
+          odenen_toplam: ozet.odenen,
+          stopaj_toplam: ozet.stopaj,
+          sgk_toplam: ozet.sgk,
+          kesin_hesap_bakiye_toplam: ozet.kesin,
+          odeme_bakiye_toplam: ozet.bakiye,
+          uyusmazlik_adet: ozet.uyusmazlik,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error('getTaseronCariOzet:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const listTaseronUyusmazlik = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.user!;
+    const { sozlesme_id, santiye_id, baslangic_tarih, bitis_tarih, limit } = req.query as Record<string, string | undefined>;
+    const params: unknown[] = [tenantId];
+    let idx = 2;
+    let where = 'WHERE u.tenant_id = $1';
+    if (sozlesme_id) {
+      where += ` AND u.sozlesme_id = $${idx++}`;
+      params.push(sozlesme_id);
+    }
+    if (santiye_id) {
+      where += ` AND ts.santiye_id = $${idx++}`;
+      params.push(santiye_id);
+    }
+    if (baslangic_tarih) {
+      where += ` AND u.kayit_tarihi >= $${idx++}::date`;
+      params.push(baslangic_tarih);
+    }
+    if (bitis_tarih) {
+      where += ` AND u.kayit_tarihi <= $${idx++}::date`;
+      params.push(bitis_tarih);
+    }
+    const lim = Math.min(500, Math.max(20, parseInt(limit || '200', 10) || 200));
+    params.push(lim);
+    const pLim = idx;
+    const r = await query(
+      `SELECT
+         u.id, u.sozlesme_id, u.hakedis_id, u.kayit_tarihi, u.tip, u.seviye, u.aciklama, u.olusturuldu,
+         ts.sozlesme_no, ts.santiye_id, s.ad AS santiye_adi, t.ad AS taseron_adi,
+         k.ad AS kaydeden_ad, k.soyad AS kaydeden_soyad
+       FROM taseron_uyusmazlik_gecmisi u
+       JOIN taseron_sozlesmeler ts ON ts.id = u.sozlesme_id
+       JOIN taseronlar t ON t.id = ts.taseron_id
+       JOIN santiyeler s ON s.id = ts.santiye_id
+       LEFT JOIN kullanicilar k ON k.id = u.kaydeden_id
+       ${where}
+       ORDER BY u.kayit_tarihi DESC, u.olusturuldu DESC
+       LIMIT $${pLim}`,
+      params,
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (error) {
+    logger.error('listTaseronUyusmazlik:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const exportTaseronUyusmazlikCsv = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.user!;
+    const { sozlesme_id, santiye_id, baslangic_tarih, bitis_tarih } = req.query as Record<string, string | undefined>;
+    const params: unknown[] = [tenantId];
+    let idx = 2;
+    let where = 'WHERE u.tenant_id = $1';
+    if (sozlesme_id) {
+      where += ` AND u.sozlesme_id = $${idx++}`;
+      params.push(sozlesme_id);
+    }
+    if (santiye_id) {
+      where += ` AND ts.santiye_id = $${idx++}`;
+      params.push(santiye_id);
+    }
+    if (baslangic_tarih) {
+      where += ` AND u.kayit_tarihi >= $${idx++}::date`;
+      params.push(baslangic_tarih);
+    }
+    if (bitis_tarih) {
+      where += ` AND u.kayit_tarihi <= $${idx++}::date`;
+      params.push(bitis_tarih);
+    }
+    const r = await query(
+      `SELECT
+         u.kayit_tarihi, u.tip, u.seviye, u.aciklama,
+         ts.sozlesme_no, s.ad AS santiye_adi, t.ad AS taseron_adi
+       FROM taseron_uyusmazlik_gecmisi u
+       JOIN taseron_sozlesmeler ts ON ts.id = u.sozlesme_id
+       JOIN taseronlar t ON t.id = ts.taseron_id
+       JOIN santiyeler s ON s.id = ts.santiye_id
+       ${where}
+       ORDER BY u.kayit_tarihi DESC`,
+      params,
+    );
+    const lines = ['kayit_tarihi,tip,seviye,taseron,santiye,sozlesme_no,aciklama'];
+    for (const row of r.rows as Array<Record<string, unknown>>) {
+      lines.push(
+        `${String(row.kayit_tarihi ?? '')},${String(row.tip ?? '')},${String(row.seviye ?? '')},"${String(row.taseron_adi ?? '').replace(/"/g, '""')}","${String(row.santiye_adi ?? '').replace(/"/g, '""')}","${String(row.sozlesme_no ?? '').replace(/"/g, '""')}","${String(row.aciklama ?? '').replace(/"/g, '""')}"`,
+      );
+    }
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="taseron-uyusmazlik-${new Date().toISOString().slice(0, 10)}.csv"`);
+    res.send(lines.join('\n'));
+  } catch (error) {
+    logger.error('exportTaseronUyusmazlikCsv:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const exportTaseronUyusmazlikPdf = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.user!;
+    const { sozlesme_id, santiye_id, baslangic_tarih, bitis_tarih } = req.query as Record<string, string | undefined>;
+    const params: unknown[] = [tenantId];
+    let idx = 2;
+    let where = 'WHERE u.tenant_id = $1';
+    if (sozlesme_id) {
+      where += ` AND u.sozlesme_id = $${idx++}`;
+      params.push(sozlesme_id);
+    }
+    if (santiye_id) {
+      where += ` AND ts.santiye_id = $${idx++}`;
+      params.push(santiye_id);
+    }
+    if (baslangic_tarih) {
+      where += ` AND u.kayit_tarihi >= $${idx++}::date`;
+      params.push(baslangic_tarih);
+    }
+    if (bitis_tarih) {
+      where += ` AND u.kayit_tarihi <= $${idx++}::date`;
+      params.push(bitis_tarih);
+    }
+    const r = await query(
+      `SELECT
+         u.kayit_tarihi, u.tip, u.seviye, u.aciklama,
+         ts.sozlesme_no, s.ad AS santiye_adi, t.ad AS taseron_adi
+       FROM taseron_uyusmazlik_gecmisi u
+       JOIN taseron_sozlesmeler ts ON ts.id = u.sozlesme_id
+       JOIN taseronlar t ON t.id = ts.taseron_id
+       JOIN santiyeler s ON s.id = ts.santiye_id
+       ${where}
+       ORDER BY u.kayit_tarihi DESC
+       LIMIT 500`,
+      params,
+    );
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="taseron-uyusmazlik-${new Date().toISOString().slice(0, 10)}.pdf"`);
+    const doc = new PDFDocument({ margin: 40, size: 'A4' });
+    doc.pipe(res);
+    doc.fontSize(14).text('Taşeron Uyuşmazlık Geçmişi', { align: 'left' });
+    doc.moveDown(0.7);
+    doc.fontSize(10).text(`Tarih: ${new Date().toISOString().slice(0, 10)}`);
+    doc.moveDown(0.6);
+    for (const row of r.rows as Array<Record<string, unknown>>) {
+      const line = `${String(row.kayit_tarihi ?? '')} | ${String(row.tip ?? '')}/${String(row.seviye ?? '')} | ${String(row.taseron_adi ?? '')} | ${String(row.santiye_adi ?? '')} | ${String(row.sozlesme_no ?? '')}`;
+      doc.fontSize(9).text(line);
+      doc.fontSize(9).fillColor('#374151').text(String(row.aciklama ?? ''), { indent: 10 });
+      doc.fillColor('#111827');
+      doc.moveDown(0.5);
+    }
+    doc.end();
+  } catch (error) {
+    logger.error('exportTaseronUyusmazlikPdf:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const createTaseronUyusmazlikKaydi = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tenantId, userId } = req.user!;
+    const { sozlesme_id, hakedis_id, tip, seviye, aciklama, kayit_tarihi } = req.body as Record<string, unknown>;
+    if (!sozlesme_id || !aciklama) {
+      res.status(400).json({ success: false, message: 'sozlesme_id ve aciklama zorunlu' });
+      return;
+    }
+    const check = await query(
+      'SELECT id FROM taseron_sozlesmeler WHERE id = $1 AND tenant_id = $2',
+      [sozlesme_id, tenantId],
+    );
+    if (!check.rows[0]) {
+      res.status(404).json({ success: false, message: 'Sözleşme bulunamadı' });
+      return;
+    }
+    const insert = await query(
+      `INSERT INTO taseron_uyusmazlik_gecmisi
+        (tenant_id, sozlesme_id, hakedis_id, kayit_tarihi, tip, seviye, aciklama, kaydeden_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       RETURNING *`,
+      [
+        tenantId,
+        sozlesme_id,
+        hakedis_id ?? null,
+        kayit_tarihi || new Date().toISOString().slice(0, 10),
+        tip || 'uyusmazlik',
+        seviye || 'acik',
+        aciklama,
+        userId,
+      ],
+    );
+    res.status(201).json({ success: true, data: insert.rows[0] });
+  } catch (error) {
+    logger.error('createTaseronUyusmazlikKaydi:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+
+==================== C:\insaat-erp\insaat-erp-frontend\src\components\modules\Muhasebe.tsx ====================
+
+import React, { useState, useMemo } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { apiClient } from '@/services/api'
+import toast from 'react-hot-toast'
+import { para } from '@/utils/format'
+
+// ── TYPES ─────────────────────────────────────────────────────────────────────
+interface Hesap { id: string; kod: string; ad: string; tip: string; ust_hesap_id?: string; aktif: boolean }
+interface FisOzet { id: string; fis_no: string; tarih: string; aciklama: string; durum: string; toplam_borc: string; toplam_alacak: string; satir_sayisi: string; santiye_ad?: string; kaynak_tip: string }
+interface FisSatir { id?: string; hesap_id: string; hesap_kod?: string; hesap_ad?: string; borc: number; alacak: number; aciklama: string }
+interface MizanRow { kod: string; ad: string; tip: string; donem_borc: string; donem_alacak: string; borc_bakiye: string; alacak_bakiye: string }
+interface GelirGiderOzet { toplam_gelir: number; toplam_gider: number; net_kar: number; kar_marji: string }
+
+// ── API ──────────────────────────────────────────────────────────────────────
+const api = {
+  getHesapPlani:  () => apiClient.get('/muhasebe/hesap-plani').then((r: any) => r.data.data as Hesap[]),
+  getFisler:      (p: Record<string, unknown>) => apiClient.get('/muhasebe/fisler', { params: p }).then((r: any) => r.data),
+  getFis:         (id: string) => apiClient.get(`/muhasebe/fisler/${id}`).then((r: any) => r.data.data),
+  createFis:      (d: Record<string, unknown>) => apiClient.post('/muhasebe/fisler', d).then((r: any) => r.data),
+  onaylaFis:      (id: string) => apiClient.post(`/muhasebe/fisler/${id}/onayla`).then((r: any) => r.data),
+  iptalFis:       (id: string) => apiClient.post(`/muhasebe/fisler/${id}/iptal`).then((r: any) => r.data),
+  getMizan:       (p: Record<string, unknown>) => apiClient.get('/muhasebe/mizan', { params: p }).then((r: any) => r.data),
+  getMuavin:      (id: string, p: Record<string, unknown>) => apiClient.get(`/muhasebe/muavin/${id}`, { params: p }).then((r: any) => r.data),
+  getGelirGider:  (p: Record<string, unknown>) => apiClient.get('/muhasebe/gelir-gider', { params: p }).then((r: any) => r.data),
+  seedHesapPlani: () => apiClient.post('/muhasebe/hesap-plani/seed').then((r: any) => r.data),
+}
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+const fmt = (v: any) => para(v).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const TL  = (v: any) => `₺${fmt(v)}`
+
+const DURUM_BADGE: Record<string, string> = {
+  taslak:    '#f59e0b',
+  onaylandi: '#10b981',
+  iptal:     '#ef4444',
+}
+const DURUM_TR: Record<string, string> = {
+  taslak:    'Taslak',
+  onaylandi: 'Onaylı',
+  iptal:     'İptal',
+}
+
+const TIP_RENKLER: Record<string, string> = {
+  aktif:     '#3b82f6',
+  pasif:     '#8b5cf6',
+  gelir:     '#10b981',
+  gider:     '#ef4444',
+  oz_sermaye:'#f59e0b',
+}
+const TIP_TR: Record<string, string> = {
+  aktif: 'Aktif', pasif: 'Pasif', gelir: 'Gelir',
+  gider: 'Gider', oz_sermaye: 'Öz Sermaye',
+}
+
+// ── ANA COMPONENT ─────────────────────────────────────────────────────────────
+export const Muhasebe: React.FC = () => {
+  const [tab, setTab] = useState<'hesaplar' | 'fisler' | 'mizan' | 'muavin' | 'gelir-gider'>('fisler')
+
+  const tabs = [
+    { id: 'fisler',      label: 'Yevmiye Fişleri' },
+    { id: 'mizan',       label: 'Mizan' },
+    { id: 'gelir-gider', label: 'Gelir/Gider' },
+    { id: 'muavin',      label: 'Muavin Defteri' },
+    { id: 'hesaplar',    label: 'Hesap Planı' },
+  ] as const
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, background: '#ffffff', color: '#0f172a', minHeight: '100%' }}>
+      {/* Başlık */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', margin: 0 }}>Muhasebe</h1>
+          <p style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>Tekdüzen Muhasebe Sistemi (TMS) uyumlu</p>
+        </div>
+      </div>
+
+      {/* Sekmeler */}
+      <div style={{ display: 'flex', gap: 2, background: '#f1f5f9', borderRadius: 10, padding: 4, overflowX: 'auto', border: '1px solid #e2e8f0' }}>
+        {tabs.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            style={{
+              padding: '8px 16px', borderRadius: 7, border: 'none', cursor: 'pointer',
+              fontWeight: 600, fontSize: 12, whiteSpace: 'nowrap',
+              background: tab === t.id ? '#ffffff' : 'transparent',
+              color: tab === t.id ? '#1d4ed8' : '#64748b',
+              transition: 'all .15s',
+              boxShadow: tab === t.id ? '0 1px 3px rgba(15,23,42,.08)' : 'none',
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* İçerik */}
+      {tab === 'fisler'      && <FislerTab />}
+      {tab === 'mizan'       && <MizanTab />}
+      {tab === 'gelir-gider' && <GelirGiderTab />}
+      {tab === 'muavin'      && <MuavinTab />}
+      {tab === 'hesaplar'    && <HesaplarTab />}
+    </div>
+  )
+}
+
+// ── YEVMİYE FİŞLERİ SEKMESI ──────────────────────────────────────────────────
+const FislerTab: React.FC = () => {
+  const qc = useQueryClient()
+  const [filtre, setFiltre] = useState({ durum: '', q: '', tarih_bas: '', tarih_bit: '' })
+  const [showCreate, setShowCreate] = useState(false)
+  const [detayId, setDetayId] = useState<string | null>(null)
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['muhasebe-fisler', filtre],
+    queryFn: () => api.getFisler(filtre),
+  })
+
+  const onayla = useMutation({
+    mutationFn: api.onaylaFis,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['muhasebe-fisler'] }); toast.success('Fiş onaylandı') },
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Hata'),
+  })
+
+  const iptal = useMutation({
+    mutationFn: api.iptalFis,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['muhasebe-fisler'] }); toast.success('Fiş iptal edildi') },
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Hata'),
+  })
+
+  const fisler: FisOzet[] = data?.data || []
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Filtre + Yeni */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input
+          placeholder="Fiş no veya açıklama ara..."
+          value={filtre.q}
+          onChange={e => setFiltre(f => ({ ...f, q: e.target.value }))}
+          style={inputSt}
+        />
+        <select value={filtre.durum} onChange={e => setFiltre(f => ({ ...f, durum: e.target.value }))} style={selectSt}>
+          <option value="">Tüm Durumlar</option>
+          <option value="taslak">Taslak</option>
+          <option value="onaylandi">Onaylı</option>
+          <option value="iptal">İptal</option>
+        </select>
+        <input type="date" value={filtre.tarih_bas} onChange={e => setFiltre(f => ({ ...f, tarih_bas: e.target.value }))} style={{ ...inputSt, width: 140 }} />
+        <input type="date" value={filtre.tarih_bit} onChange={e => setFiltre(f => ({ ...f, tarih_bit: e.target.value }))} style={{ ...inputSt, width: 140 }} />
+        <button onClick={() => setShowCreate(true)} style={btnPrimary}>+ Yeni Fiş</button>
+      </div>
+
+      {isLoading ? <Spinner /> : (
+        <div style={cardSt}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                {['Fiş No', 'Tarih', 'Açıklama', 'Kaynak', 'Borç', 'Alacak', 'Durum', ''].map(h => (
+                  <th key={h} style={thSt}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {fisler.length === 0 && (
+                <tr><td colSpan={8} style={{ textAlign: 'center', padding: 40, color: '#4b5563' }}>Kayıt bulunamadı</td></tr>
+              )}
+              {fisler.map(f => (
+                <tr key={f.id} style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
+                    onClick={() => setDetayId(f.id)}>
+                  <td style={tdSt}><span style={{ color: '#60a5fa', fontWeight: 700 }}>{f.fis_no}</span></td>
+                  <td style={tdSt}>{new Date(f.tarih).toLocaleDateString('tr-TR')}</td>
+                  <td style={{ ...tdSt, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.aciklama || '—'}</td>
+                  <td style={tdSt}><span style={{ fontSize: 10, color: '#475569', background: '#f1f5f9', padding: '2px 6px', borderRadius: 4, border: '1px solid #e2e8f0' }}>{f.kaynak_tip}</span></td>
+                  <td style={{ ...tdSt, textAlign: 'right', color: '#3b82f6' }}>{TL(f.toplam_borc)}</td>
+                  <td style={{ ...tdSt, textAlign: 'right', color: '#8b5cf6' }}>{TL(f.toplam_alacak)}</td>
+                  <td style={tdSt}>
+                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 12, fontWeight: 700,
+                      background: `${DURUM_BADGE[f.durum]}22`, color: DURUM_BADGE[f.durum] }}>
+                      {DURUM_TR[f.durum]}
+                    </span>
+                  </td>
+                  <td style={tdSt} onClick={e => e.stopPropagation()}>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {f.durum === 'taslak' && (
+                        <button onClick={() => onayla.mutate(f.id)} style={{ ...btnSmSt, background: '#10b98122', color: '#10b981' }}>Onayla</button>
+                      )}
+                      {f.durum !== 'iptal' && (
+                        <button onClick={() => { if (confirm('Fişi iptal etmek istediğinize emin misiniz?')) iptal.mutate(f.id) }}
+                          style={{ ...btnSmSt, background: '#ef444422', color: '#ef4444' }}>İptal</button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {data?.total > fisler.length && (
+            <div style={{ padding: '12px 16px', fontSize: 11, color: '#6b7280', textAlign: 'center' }}>
+              Toplam {data.total} kayıt — Daha fazla için filtre kullanın
+            </div>
+          )}
+        </div>
+      )}
+
+      {showCreate && <FisOlusturModal onClose={() => setShowCreate(false)} />}
+      {detayId && <FisDetayModal id={detayId} onClose={() => setDetayId(null)} />}
+    </div>
+  )
+}
+
+// ── FİŞ OLUŞTUR MODAL ─────────────────────────────────────────────────────────
+const FisOlusturModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const qc = useQueryClient()
+  const { data: hesaplar = [] } = useQuery({ queryKey: ['hesap-plani'], queryFn: () => api.getHesapPlani() })
+
+  const [tarih, setTarih] = useState(new Date().toISOString().split('T')[0])
+  const [aciklama, setAciklama] = useState('')
+  const [satirlar, setSatirlar] = useState<FisSatir[]>([
+    { hesap_id: '', borc: 0, alacak: 0, aciklama: '' },
+    { hesap_id: '', borc: 0, alacak: 0, aciklama: '' },
+  ])
+
+  const addSatir = () => setSatirlar(s => [...s, { hesap_id: '', borc: 0, alacak: 0, aciklama: '' }])
+  const removeSatir = (i: number) => setSatirlar(s => s.filter((_, idx) => idx !== i))
+  const setSatir = (i: number, field: keyof FisSatir, value: any) =>
+    setSatirlar(s => s.map((r, idx) => idx === i ? { ...r, [field]: value } : r))
+
+  const toplamBorc   = satirlar.reduce((s, r) => s + para(r.borc), 0)
+  const toplamAlacak = satirlar.reduce((s, r) => s + para(r.alacak), 0)
+  const dengeli = Math.abs(toplamBorc - toplamAlacak) < 0.01
+
+  const create = useMutation({
+    mutationFn: () => api.createFis({ tarih, aciklama, satirlar }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['muhasebe-fisler'] })
+      toast.success('Fiş oluşturuldu')
+      onClose()
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Hata'),
+  })
+
+  const altHesaplar: Hesap[] = useMemo(() =>
+    hesaplar.filter((h: Hesap) => h.aktif && /^\d{3,}/.test(h.kod)),
+    [hesaplar]
+  )
+
+  return (
+    <div style={modalOverlaySt} onClick={onClose}>
+      <div style={{ ...modalSt, maxWidth: 780, width: '95%' }} onClick={e => e.stopPropagation()}>
+        <div style={modalHeaderSt}>
+          <span style={{ fontWeight: 800, fontSize: 15 }}>Yeni Yevmiye Fişi</span>
+          <button onClick={onClose} style={closeBtnSt}>✕</button>
+        </div>
+
+        <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14, overflow: 'auto', maxHeight: '70vh' }}>
+          {/* Başlık */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12 }}>
+            <div>
+              <label style={labelSt}>Tarih</label>
+              <input type="date" value={tarih} onChange={e => setTarih(e.target.value)} style={inputSt} />
+            </div>
+            <div>
+              <label style={labelSt}>Açıklama</label>
+              <input value={aciklama} onChange={e => setAciklama(e.target.value)} placeholder="Fiş açıklaması" style={inputSt} />
+            </div>
+          </div>
+
+          {/* Satırlar */}
+          <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead style={{ background: '#f8fafc' }}>
+                <tr>
+                  <th style={thSt}>Hesap</th>
+                  <th style={{ ...thSt, textAlign: 'right', width: 120 }}>Borç (₺)</th>
+                  <th style={{ ...thSt, textAlign: 'right', width: 120 }}>Alacak (₺)</th>
+                  <th style={thSt}>Açıklama</th>
+                  <th style={{ ...thSt, width: 32 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {satirlar.map((s, i) => (
+                  <tr key={i} style={{ borderTop: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '6px 8px' }}>
+                      <select value={s.hesap_id} onChange={e => setSatir(i, 'hesap_id', e.target.value)} style={selectSt}>
+                        <option value="">— Hesap seçin —</option>
+                        {altHesaplar.map((h: Hesap) => (
+                          <option key={h.id} value={h.id}>{h.kod} — {h.ad}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td style={{ padding: '6px 8px' }}>
+                      <input type="number" min="0" step="0.01" value={s.borc || ''}
+                        onChange={e => setSatir(i, 'borc', para(e.target.value))}
+                        style={{ ...inputSt, textAlign: 'right' }} placeholder="0.00" />
+                    </td>
+                    <td style={{ padding: '6px 8px' }}>
+                      <input type="number" min="0" step="0.01" value={s.alacak || ''}
+                        onChange={e => setSatir(i, 'alacak', para(e.target.value))}
+                        style={{ ...inputSt, textAlign: 'right' }} placeholder="0.00" />
+                    </td>
+                    <td style={{ padding: '6px 8px' }}>
+                      <input value={s.aciklama} onChange={e => setSatir(i, 'aciklama', e.target.value)}
+                        style={inputSt} placeholder="Açıklama (isteğe bağlı)" />
+                    </td>
+                    <td style={{ padding: '6px 4px', textAlign: 'center' }}>
+                      {satirlar.length > 2 && (
+                        <button onClick={() => removeSatir(i)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 14 }}>✕</button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {/* Toplam satırı */}
+                <tr style={{ background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+                  <td style={{ ...tdSt, fontWeight: 700 }}>TOPLAM</td>
+                  <td style={{ ...tdSt, textAlign: 'right', color: '#3b82f6', fontWeight: 700 }}>{TL(toplamBorc)}</td>
+                  <td style={{ ...tdSt, textAlign: 'right', color: '#8b5cf6', fontWeight: 700 }}>{TL(toplamAlacak)}</td>
+                  <td colSpan={2} style={tdSt}>
+                    {dengeli
+                      ? <span style={{ color: '#10b981', fontSize: 11, fontWeight: 700 }}>✓ Dengeli</span>
+                      : <span style={{ color: '#ef4444', fontSize: 11, fontWeight: 700 }}>✗ Fark: {TL(Math.abs(toplamBorc - toplamAlacak))}</span>
+                    }
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <button onClick={addSatir} style={{ ...btnSt, alignSelf: 'flex-start', background: '#f1f5f9', color: '#9ca3af' }}>
+            + Satır Ekle
+          </button>
+        </div>
+
+        <div style={{ padding: '12px 20px', display: 'flex', justifyContent: 'flex-end', gap: 10, borderTop: '1px solid #e2e8f0' }}>
+          <button onClick={onClose} style={btnSt}>İptal</button>
+          <button
+            onClick={() => create.mutate()}
+            disabled={!dengeli || create.isPending}
+            style={{ ...btnPrimary, opacity: (!dengeli || create.isPending) ? .5 : 1 }}
+          >
+            {create.isPending ? 'Kaydediliyor...' : 'Fişi Kaydet'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── FİŞ DETAY MODAL ───────────────────────────────────────────────────────────
+const FisDetayModal: React.FC<{ id: string; onClose: () => void }> = ({ id, onClose }) => {
+  const { data: fis, isLoading } = useQuery({ queryKey: ['fis-detay', id], queryFn: () => api.getFis(id) })
+
+  if (isLoading) return (
+    <div style={modalOverlaySt}><div style={{ ...modalSt, padding: 40, textAlign: 'center' }}><Spinner /></div></div>
+  )
+
+  return (
+    <div style={modalOverlaySt} onClick={onClose}>
+      <div style={{ ...modalSt, maxWidth: 700, width: '95%' }} onClick={e => e.stopPropagation()}>
+        <div style={modalHeaderSt}>
+          <div>
+            <span style={{ fontWeight: 800, fontSize: 15 }}>{fis?.fis_no}</span>
+            <span style={{ marginLeft: 10, fontSize: 10, padding: '2px 8px', borderRadius: 10,
+              background: `${DURUM_BADGE[fis?.durum]}22`, color: DURUM_BADGE[fis?.durum] }}>
+              {DURUM_TR[fis?.durum]}
+            </span>
+          </div>
+          <button onClick={onClose} style={closeBtnSt}>✕</button>
+        </div>
+        <div style={{ padding: '16px 20px', overflow: 'auto', maxHeight: '70vh' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
+            <InfoBox label="Tarih" value={new Date(fis?.tarih).toLocaleDateString('tr-TR')} />
+            <InfoBox label="Kaynak" value={fis?.kaynak_tip} />
+            <InfoBox label="Şantiye" value={fis?.santiye_ad || '—'} />
+          </div>
+          {fis?.aciklama && <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 14 }}>{fis.aciklama}</p>}
+
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead><tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+              {['Hesap Kodu', 'Hesap Adı', 'Açıklama', 'Borç', 'Alacak'].map(h =>
+                <th key={h} style={thSt}>{h}</th>)}
+            </tr></thead>
+            <tbody>
+              {fis?.satirlar?.map((s: any) => (
+                <tr key={s.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <td style={{ ...tdSt, color: '#60a5fa', fontWeight: 600 }}>{s.hesap_kod}</td>
+                  <td style={tdSt}>{s.hesap_ad}</td>
+                  <td style={{ ...tdSt, color: '#6b7280' }}>{s.aciklama || '—'}</td>
+                  <td style={{ ...tdSt, textAlign: 'right', color: '#3b82f6' }}>{s.borc > 0 ? TL(s.borc) : ''}</td>
+                  <td style={{ ...tdSt, textAlign: 'right', color: '#8b5cf6' }}>{s.alacak > 0 ? TL(s.alacak) : ''}</td>
+                </tr>
+              ))}
+              <tr style={{ borderTop: '2px solid #e2e8f0', fontWeight: 700 }}>
+                <td colSpan={3} style={{ ...tdSt }}>TOPLAM</td>
+                <td style={{ ...tdSt, textAlign: 'right', color: '#3b82f6' }}>
+                  {TL(fis?.satirlar?.reduce((s: number, r: any) => s + para(r.borc), 0))}
+                </td>
+                <td style={{ ...tdSt, textAlign: 'right', color: '#8b5cf6' }}>
+                  {TL(fis?.satirlar?.reduce((s: number, r: any) => s + para(r.alacak), 0))}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── MİZAN SEKMESI ─────────────────────────────────────────────────────────────
+const MizanTab: React.FC = () => {
+  const yil = new Date().getFullYear()
+  const [filtre, setFiltre] = useState({ tarih_bas: `${yil}-01-01`, tarih_bit: `${yil}-12-31` })
+  const { data, isLoading } = useQuery({
+    queryKey: ['mizan', filtre],
+    queryFn: () => api.getMizan(filtre),
+  })
+
+  const rows: MizanRow[] = data?.data || []
+  const toplam = data?.toplam
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <label style={{ fontSize: 11, color: '#6b7280' }}>Dönem:</label>
+        <input type="date" value={filtre.tarih_bas} onChange={e => setFiltre(f => ({ ...f, tarih_bas: e.target.value }))} style={{ ...inputSt, width: 140 }} />
+        <span style={{ color: '#6b7280' }}>—</span>
+        <input type="date" value={filtre.tarih_bit} onChange={e => setFiltre(f => ({ ...f, tarih_bit: e.target.value }))} style={{ ...inputSt, width: 140 }} />
+      </div>
+
+      {isLoading ? <Spinner /> : rows.length === 0 ? (
+        <EmptyMsg text="Seçili dönemde onaylanmış fiş bulunmuyor" />
+      ) : (
+        <div style={cardSt}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                <th style={thSt}>Kod</th>
+                <th style={thSt}>Hesap Adı</th>
+                <th style={thSt}>Tip</th>
+                <th style={{ ...thSt, textAlign: 'right' }}>Dönem Borç</th>
+                <th style={{ ...thSt, textAlign: 'right' }}>Dönem Alacak</th>
+                <th style={{ ...thSt, textAlign: 'right' }}>Borç Bakiye</th>
+                <th style={{ ...thSt, textAlign: 'right' }}>Alacak Bakiye</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <td style={{ ...tdSt, color: '#60a5fa', fontWeight: 600 }}>{r.kod}</td>
+                  <td style={tdSt}>{r.ad}</td>
+                  <td style={tdSt}>
+                    <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 10, fontWeight: 600,
+                      background: `${TIP_RENKLER[r.tip]}22`, color: TIP_RENKLER[r.tip] }}>
+                      {TIP_TR[r.tip]}
+                    </span>
+                  </td>
+                  <td style={{ ...tdSt, textAlign: 'right' }}>{TL(r.donem_borc)}</td>
+                  <td style={{ ...tdSt, textAlign: 'right' }}>{TL(r.donem_alacak)}</td>
+                  <td style={{ ...tdSt, textAlign: 'right', color: '#3b82f6', fontWeight: 600 }}>
+                    {para(r.borc_bakiye) > 0 ? TL(r.borc_bakiye) : ''}
+                  </td>
+                  <td style={{ ...tdSt, textAlign: 'right', color: '#8b5cf6', fontWeight: 600 }}>
+                    {para(r.alacak_bakiye) > 0 ? TL(r.alacak_bakiye) : ''}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            {toplam && (
+              <tfoot>
+                <tr style={{ borderTop: '2px solid #cbd5e1', fontWeight: 800, background: '#f8fafc' }}>
+                  <td colSpan={3} style={{ ...tdSt, fontSize: 13 }}>GENEL TOPLAM</td>
+                  <td style={{ ...tdSt, textAlign: 'right', color: '#3b82f6' }}>{TL(toplam.donem_borc)}</td>
+                  <td style={{ ...tdSt, textAlign: 'right', color: '#8b5cf6' }}>{TL(toplam.donem_alacak)}</td>
+                  <td style={{ ...tdSt, textAlign: 'right', color: '#3b82f6' }}>{TL(toplam.borc_bakiye)}</td>
+                  <td style={{ ...tdSt, textAlign: 'right', color: '#8b5cf6' }}>{TL(toplam.alacak_bakiye)}</td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── GELİR-GİDER SEKMESI ──────────────────────────────────────────────────────
+const GelirGiderTab: React.FC = () => {
+  const yil = new Date().getFullYear()
+  const [seciliYil, setSeciliYil] = useState(String(yil))
+  const { data, isLoading } = useQuery({
+    queryKey: ['gelir-gider', seciliYil],
+    queryFn: () => api.getGelirGider({ yil: seciliYil }),
+  })
+
+  const ozet: GelirGiderOzet = data?.ozet || { toplam_gelir: 0, toplam_gider: 0, net_kar: 0, kar_marji: '0' }
+  const gelirler = data?.data?.gelirler || []
+  const giderler = data?.data?.giderler || []
+  const aylik: any[] = data?.data?.aylik || []
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Yıl seçici */}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <label style={{ fontSize: 11, color: '#6b7280' }}>Yıl:</label>
+        <select value={seciliYil} onChange={e => setSeciliYil(e.target.value)} style={{ ...selectSt, width: 100 }}>
+          {[yil - 1, yil, yil + 1].map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+      </div>
+
+      {isLoading ? <Spinner /> : (
+        <>
+          {/* KPI Kartları */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: 14 }}>
+            <KpiBox label="Toplam Gelir" value={TL(ozet.toplam_gelir)} color="#10b981" />
+            <KpiBox label="Toplam Gider" value={TL(ozet.toplam_gider)} color="#ef4444" />
+            <KpiBox label="Net Kar/Zarar" value={TL(ozet.net_kar)} color={ozet.net_kar >= 0 ? '#10b981' : '#ef4444'} />
+            <KpiBox label="Kar Marjı" value={`%${ozet.kar_marji}`} color="#3b82f6" />
+          </div>
+
+          {/* Aylık Grafik (basit bar) */}
+          {aylik.length > 0 && (
+            <div style={cardSt}>
+              <h3 style={cardTitleSt}>Aylık Gelir / Gider</h3>
+              <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: 120, padding: '0 8px' }}>
+                {aylik.map((a) => {
+                  const maxVal = Math.max(...aylik.map(x => Math.max(para(x.gelir), para(x.gider))))
+                  const gelirH = maxVal > 0 ? (para(a.gelir) / maxVal * 100) : 0
+                  const giderH = maxVal > 0 ? (para(a.gider) / maxVal * 100) : 0
+                  return (
+                    <div key={a.ay} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                      <div style={{ display: 'flex', gap: 1, alignItems: 'flex-end', height: 100 }}>
+                        <div style={{ width: 8, height: `${gelirH}%`, background: '#10b981', borderRadius: '2px 2px 0 0', minHeight: 2 }} title={`Gelir: ${TL(a.gelir)}`} />
+                        <div style={{ width: 8, height: `${giderH}%`, background: '#ef4444', borderRadius: '2px 2px 0 0', minHeight: 2 }} title={`Gider: ${TL(a.gider)}`} />
+                      </div>
+                      <span style={{ fontSize: 9, color: '#4b5563' }}>{a.ay.slice(5)}</span>
+                    </div>
+                  )
+                })}
+              </div>
+              <div style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 8 }}>
+                <span style={{ fontSize: 10, color: '#10b981' }}>█ Gelir</span>
+                <span style={{ fontSize: 10, color: '#ef4444' }}>█ Gider</span>
+              </div>
+            </div>
+          )}
+
+          {/* Detay Tablolar */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div style={cardSt}>
+              <h3 style={{ ...cardTitleSt, color: '#10b981' }}>Gelir Kalemleri</h3>
+              <HesapDetayTablosu rows={gelirler} renk="#10b981" />
+            </div>
+            <div style={cardSt}>
+              <h3 style={{ ...cardTitleSt, color: '#ef4444' }}>Gider Kalemleri</h3>
+              <HesapDetayTablosu rows={giderler} renk="#ef4444" />
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+const HesapDetayTablosu: React.FC<{ rows: Record<string,unknown>[]; renk: string }> = ({ rows, renk }) => (
+  rows.length === 0
+    ? <p style={{ fontSize: 12, color: '#4b5563', padding: 12 }}>Kayıt yok</p>
+    : <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+        <thead><tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+          <th style={thSt}>Kod</th>
+          <th style={thSt}>Hesap</th>
+          <th style={{ ...thSt, textAlign: 'right' }}>Tutar</th>
+        </tr></thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+              <td style={{ ...tdSt, color: '#60a5fa', fontWeight: 600 }}>{r.kod as string}</td>
+              <td style={tdSt}>{r.ad as string}</td>
+              <td style={{ ...tdSt, textAlign: 'right', color: renk, fontWeight: 600 }}>{TL(r.net_tutar)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+)
+
+// ── MUAVİN DEFTERİ SEKMESI ───────────────────────────────────────────────────
+const MuavinTab: React.FC = () => {
+  const { data: hesaplar = [] } = useQuery({ queryKey: ['hesap-plani'], queryFn: () => api.getHesapPlani() })
+  const [hesapId, setHesapId] = useState('')
+  const yil = new Date().getFullYear()
+  const [filtre, setFiltre] = useState({ tarih_bas: `${yil}-01-01`, tarih_bit: `${yil}-12-31` })
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['muavin', hesapId, filtre],
+    queryFn: () => api.getMuavin(hesapId, filtre),
+    enabled: !!hesapId,
+  })
+
+  const altHesaplar: Hesap[] = useMemo(() => hesaplar.filter((h: Hesap) => h.aktif && /^\d{3,}/.test(h.kod)), [hesaplar])
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <select value={hesapId} onChange={e => setHesapId(e.target.value)} style={{ ...selectSt, minWidth: 260 }}>
+          <option value="">— Hesap Seçin —</option>
+          {altHesaplar.map((h: Hesap) => <option key={h.id} value={h.id}>{h.kod} — {h.ad}</option>)}
+        </select>
+        <input type="date" value={filtre.tarih_bas} onChange={e => setFiltre(f => ({ ...f, tarih_bas: e.target.value }))} style={{ ...inputSt, width: 140 }} />
+        <span style={{ color: '#6b7280' }}>—</span>
+        <input type="date" value={filtre.tarih_bit} onChange={e => setFiltre(f => ({ ...f, tarih_bit: e.target.value }))} style={{ ...inputSt, width: 140 }} />
+      </div>
+
+      {!hesapId && <EmptyMsg text="Muavin defteri görmek için bir hesap seçin" />}
+      {hesapId && isLoading && <Spinner />}
+      {hesapId && !isLoading && data && (
+        <>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <InfoBox label="Hesap" value={`${data.hesap?.kod} — ${data.hesap?.ad}`} />
+            <InfoBox label="Toplam Borç" value={TL(data.toplam?.borc)} />
+            <InfoBox label="Toplam Alacak" value={TL(data.toplam?.alacak)} />
+            <InfoBox label="Net Bakiye" value={TL((data.toplam?.borc || 0) - (data.toplam?.alacak || 0))} />
+          </div>
+          {data.data?.length === 0
+            ? <EmptyMsg text="Bu hesapta seçili dönemde hareket yok" />
+            : (
+              <div style={cardSt}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead><tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                    {['Tarih', 'Fiş No', 'Açıklama', 'Borç', 'Alacak', 'Kümülatif Bakiye'].map(h =>
+                      <th key={h} style={thSt}>{h}</th>)}
+                  </tr></thead>
+                  <tbody>
+                    {data.data.map((r: any, i: number) => (
+                      <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={tdSt}>{new Date(r.tarih).toLocaleDateString('tr-TR')}</td>
+                        <td style={{ ...tdSt, color: '#60a5fa' }}>{r.fis_no}</td>
+                        <td style={{ ...tdSt, color: '#9ca3af', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {r.aciklama || r.fis_aciklama || '—'}
+                        </td>
+                        <td style={{ ...tdSt, textAlign: 'right', color: r.borc > 0 ? '#3b82f6' : '#374151' }}>
+                          {r.borc > 0 ? TL(r.borc) : ''}
+                        </td>
+                        <td style={{ ...tdSt, textAlign: 'right', color: r.alacak > 0 ? '#8b5cf6' : '#374151' }}>
+                          {r.alacak > 0 ? TL(r.alacak) : ''}
+                        </td>
+                        <td style={{ ...tdSt, textAlign: 'right', fontWeight: 600,
+                          color: para(r.kumulatif_bakiye) >= 0 ? '#10b981' : '#ef4444' }}>
+                          {TL(r.kumulatif_bakiye)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          }
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── HESAP PLANI SEKMESI ───────────────────────────────────────────────────────
+const HesaplarTab: React.FC = () => {
+  const qc = useQueryClient()
+  const [showCreate, setShowCreate] = useState(false)
+  const [yeniHesap, setYeniHesap] = useState({ kod: '', ad: '', tip: 'aktif', ust_hesap_id: '', aciklama: '' })
+
+  const { data: hesaplar = [], isLoading } = useQuery({
+    queryKey: ['hesap-plani'],
+    queryFn: () => api.getHesapPlani(),
+  })
+
+  const seed = useMutation({
+    mutationFn: api.seedHesapPlani,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['hesap-plani'] }); toast.success('Standart hesap planı yüklendi') },
+    onError:   (e: any) => toast.error(e.response?.data?.message || 'Hata'),
+  })
+
+  const createHesap = useMutation({
+    mutationFn: () => apiClient.post('/muhasebe/hesap-plani', yeniHesap).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['hesap-plani'] })
+      toast.success('Hesap eklendi')
+      setShowCreate(false)
+      setYeniHesap({ kod: '', ad: '', tip: 'aktif', ust_hesap_id: '', aciklama: '' })
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Hata'),
+  })
+
+  const grouped = useMemo(() => {
+    const map: Record<string, Hesap[]> = {}
+    hesaplar.filter((h: Hesap) => h.kod.length === 1).forEach((h: Hesap) => {
+      map[h.kod] = hesaplar.filter((c: Hesap) => c.kod.startsWith(h.kod) && c.kod !== h.kod)
+    })
+    return hesaplar.filter((h: Hesap) => h.kod.length === 1).map((h: Hesap) => ({ grup: h, alt: map[h.kod] || [] }))
+  }, [hesaplar])
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+        {hesaplar.length === 0 && (
+          <button onClick={() => seed.mutate()} disabled={seed.isPending} style={btnPrimary}>
+            {seed.isPending ? 'Yükleniyor...' : '📥 Standart Hesap Planını Yükle'}
+          </button>
+        )}
+        <button onClick={() => setShowCreate(s => !s)} style={btnSt}>+ Hesap Ekle</button>
+      </div>
+
+      {showCreate && (
+        <div style={{ ...cardSt, padding: 16 }}>
+          <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: '#0f172a' }}>Yeni Hesap</h4>
+          <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={labelSt}>Kod</label>
+              <input value={yeniHesap.kod} onChange={e => setYeniHesap(h => ({ ...h, kod: e.target.value }))} style={inputSt} placeholder="120.01" />
+            </div>
+            <div>
+              <label style={labelSt}>Hesap Adı</label>
+              <input value={yeniHesap.ad} onChange={e => setYeniHesap(h => ({ ...h, ad: e.target.value }))} style={inputSt} placeholder="Hesap adı" />
+            </div>
+            <div>
+              <label style={labelSt}>Tip</label>
+              <select value={yeniHesap.tip} onChange={e => setYeniHesap(h => ({ ...h, tip: e.target.value }))} style={selectSt}>
+                <option value="aktif">Aktif</option>
+                <option value="pasif">Pasif</option>
+                <option value="gelir">Gelir</option>
+                <option value="gider">Gider</option>
+                <option value="oz_sermaye">Öz Sermaye</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 12, justifyContent: 'flex-end' }}>
+            <button onClick={() => setShowCreate(false)} style={btnSt}>İptal</button>
+            <button onClick={() => createHesap.mutate()} disabled={createHesap.isPending || !yeniHesap.kod || !yeniHesap.ad} style={btnPrimary}>
+              Ekle
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isLoading ? <Spinner /> : hesaplar.length === 0 ? (
+        <EmptyMsg text="Hesap planı boş. Standart planı yükleyin veya manuel ekleyin." />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {grouped.map(({ grup, alt }: { grup: Hesap; alt: Hesap[] }) => (
+            <div key={grup.id} style={cardSt}>
+              <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: alt.length ? '1px solid #e2e8f0' : 'none' }}>
+                <span style={{ fontSize: 14, fontWeight: 800, color: TIP_RENKLER[grup.tip] }}>{grup.kod}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{grup.ad}</span>
+                <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 10, background: `${TIP_RENKLER[grup.tip]}22`, color: TIP_RENKLER[grup.tip], marginLeft: 'auto' }}>
+                  {TIP_TR[grup.tip]}
+                </span>
+                <span style={{ fontSize: 11, color: '#4b5563' }}>{alt.length} alt hesap</span>
+              </div>
+                {alt.length > 0 && (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <tbody>
+                    {alt.map((h: Hesap) => (
+                      <tr key={h.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '7px 14px 7px 28px', color: '#60a5fa', fontWeight: 600, width: 100 }}>{h.kod}</td>
+                        <td style={{ padding: '7px 8px', color: h.aktif ? '#334155' : '#4b5563' }}>{h.ad}</td>
+                        <td style={{ padding: '7px 8px' }}>
+                          <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 8, background: `${TIP_RENKLER[h.tip]}15`, color: TIP_RENKLER[h.tip] }}>
+                            {TIP_TR[h.tip]}
+                          </span>
+                        </td>
+                        {!h.aktif && <td style={{ padding: '7px 8px' }}><span style={{ fontSize: 9, color: '#6b7280' }}>Pasif</span></td>}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── YARDIMCI COMPONENTLER ─────────────────────────────────────────────────────
+const InfoBox: React.FC<{ label: string; value: any }> = ({ label, value }) => (
+  <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 14px', minWidth: 100 }}>
+    <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: .5 }}>{label}</div>
+    <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginTop: 2 }}>{value}</div>
+  </div>
+)
+
+const KpiBox: React.FC<{ label: string; value: string; color: string }> = ({ label, value, color }) => (
+  <div style={{ background: '#ffffff', border: `1px solid ${color}33`, borderRadius: 10, padding: '14px 18px' }}>
+    <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, marginBottom: 6 }}>{label}</div>
+    <div style={{ fontSize: 20, fontWeight: 800, color }}>{value}</div>
+  </div>
+)
+
+const Spinner: React.FC = () => (
+  <div style={{ textAlign: 'center', padding: 40 }}>
+    <div style={{ width: 32, height: 32, border: '3px solid #e2e8f0', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto' }} />
+    <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+  </div>
+)
+
+const EmptyMsg: React.FC<{ text: string }> = ({ text }) => (
+  <div style={{ textAlign: 'center', padding: '40px 20px', color: '#4b5563', fontSize: 13 }}>{text}</div>
+)
+
+// ── ORTAK STİLLER ─────────────────────────────────────────────────────────────
+const inputSt: React.CSSProperties = {
+  background: '#ffffff', border: '1px solid #e2e8f0',
+  borderRadius: 7, padding: '8px 12px', color: '#0f172a', fontSize: 12, width: '100%',
+}
+const selectSt: React.CSSProperties = {
+  ...inputSt, cursor: 'pointer',
+}
+const labelSt: React.CSSProperties = {
+  display: 'block', fontSize: 11, color: '#6b7280', fontWeight: 600, marginBottom: 4,
+}
+const thSt: React.CSSProperties = {
+  padding: '9px 12px', textAlign: 'left', fontSize: 10, fontWeight: 700,
+  color: '#6b7280', textTransform: 'uppercase', letterSpacing: .5, whiteSpace: 'nowrap',
+}
+const tdSt: React.CSSProperties = {
+  padding: '9px 12px', color: '#334155',
+}
+const cardSt: React.CSSProperties = {
+  background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden',
+}
+const cardTitleSt: React.CSSProperties = {
+  fontSize: 13, fontWeight: 700, color: '#0f172a', padding: '12px 16px', borderBottom: '1px solid #e2e8f0', margin: 0,
+}
+const btnPrimary: React.CSSProperties = {
+  background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 7,
+  padding: '9px 18px', cursor: 'pointer', fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap',
+}
+const btnSt: React.CSSProperties = {
+  background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0',
+  borderRadius: 7, padding: '9px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 12, whiteSpace: 'nowrap',
+}
+const btnSmSt: React.CSSProperties = {
+  border: 'none', borderRadius: 5, padding: '4px 10px', cursor: 'pointer', fontSize: 11, fontWeight: 700,
+}
+const modalOverlaySt: React.CSSProperties = {
+  position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 16,
+}
+const modalSt: React.CSSProperties = {
+  background: '#ffffff', border: '1px solid #e2e8f0',
+  borderRadius: 14, width: '100%', boxShadow: '0 24px 64px rgba(15,23,42,.12)',
+}
+const modalHeaderSt: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+  padding: '14px 20px', borderBottom: '1px solid #e2e8f0',
+}
+const closeBtnSt: React.CSSProperties = {
+  background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', fontSize: 16, padding: 4,
+}
