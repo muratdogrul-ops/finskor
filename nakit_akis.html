@@ -3969,6 +3969,10 @@ function extractSubeLabelFromSchedule(rows) {
     }
     if (name) {
       const withCode = code && /^\d{1,8}$/.test(code) ? name + ' (Şube ' + code + ')' : name;
+      // Türkiye Halk Bankası KAET: dosyada kurum unvanı yok; Ordu + şube 649/9649 eşlemesi (doğrulandı).
+      if ((/^649$/.test(code) || /^9649$/.test(code)) && /ordu/i.test(name + ' ' + joined)) {
+        return ('Halkbank — ' + name + (code ? ' (Şube ' + code + ')' : '')).slice(0, 80);
+      }
       return ('Şube: ' + withCode).slice(0, 80);
     }
     if (code && /^\d{1,8}$/.test(code)) return ('Şube kodu: ' + code).slice(0, 80);
