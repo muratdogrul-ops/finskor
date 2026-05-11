@@ -7,6 +7,7 @@ import compression from 'compression';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -129,6 +130,37 @@ const healthHandler = async (_req: express.Request, res: express.Response): Prom
 };
 app.get(['/health', '/health/', '/ready', '/ready/'], healthHandler);
 
+/** Docker / yerel: repo dist → web_dist (aynı portta erp-web.html; index kapalı ki GET / API kalsın) */
+const webDistPath = path.join(process.cwd(), 'web_dist');
+if (fs.existsSync(webDistPath)) {
+  app.use(express.static(webDistPath, { index: false }));
+  logger.info(`Statik web_dist: ${webDistPath} (ornek: /erp-web.html)`);
+} else {
+  logger.warn(`web_dist yok (${webDistPath}) — dist baglanti veya klasor olusturun`);
+}
+
+/** React ERP (Vite build: npm run build:docker) → http://127.0.0.1:3000/app/ */
+const webErpPath = path.join(process.cwd(), 'web_erp');
+if (fs.existsSync(webErpPath) && fs.existsSync(path.join(webErpPath, 'index.html'))) {
+  app.use(
+    '/app',
+    express.static(webErpPath, {
+      index: 'index.html',
+      fallthrough: true,
+    } as Parameters<typeof express.static>[1]),
+  );
+  app.use('/app', (req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      next();
+      return;
+    }
+    res.sendFile(path.join(webErpPath, 'index.html'), (err) => {
+      if (err) next(err);
+    });
+  });
+  logger.info(`Statik web_erp: ${webErpPath} → /app/`);
+}
+
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
@@ -176,6 +208,21 @@ const ERP_WEB_PUBLIC = (process.env.PUBLIC_ERP_WEB_URL || 'https://finskor.tr').
 app.get('/', (req, res) => {
   const tarayiciSekmesi = req.get('Sec-Fetch-Dest') === 'document';
   if (tarayiciSekmesi) {
+    const host = req.get('host') || '127.0.0.1:3000';
+    const proto =
+      req.secure || String(req.get('x-forwarded-proto') || '').split(',')[0].trim() === 'https'
+        ? 'https'
+        : 'http';
+    const yerelAyniPort = `${proto}://${host}/erp-web.html`;
+    const tamErpUrl = `${proto}://${host}/app/`;
+    const erpHazir = fs.existsSync(path.join(webDistPath, 'erp-web.html'));
+    const tamErpHazir = fs.existsSync(path.join(webErpPath, 'index.html'));
+    const tamErpLi = tamErpHazir
+      ? `<li><strong>Tam ERP (sol menü, modüller):</strong> <a href="${tamErpUrl}">${tamErpUrl}</a></li>`
+      : `<li><strong>Tam ERP:</strong> <code>cd insaat-erp\\insaat-erp-frontend</code> → <code>npm install</code> → <code>npm run build:docker</code> → <code>docker compose up --build -d</code> (ust klasorde)</li>`;
+    const yerelSatir = erpHazir
+      ? `<li><strong>Yerel (bu makine, API ile aynı port):</strong> <a href="${yerelAyniPort}">${yerelAyniPort}</a> — kisa HTML test; asil arayuz yukaridaki <strong>/app/</strong></li>`
+      : `<li><strong>Yerel HTML:</strong> Once repo kokunde <code>npm run build</code>, sonra API konteynerini yeniden baslatin. Sonra <a href="${yerelAyniPort}">${yerelAyniPort}</a> dene.</li><li><strong>Alternatif:</strong> <code>npx serve dist -l 8888</code> → <code>http://127.0.0.1:8888/erp-web.html</code></li>`;
     res.type('html').send(`<!DOCTYPE html>
 <html lang="tr"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>İnşaat ERP — API</title>
@@ -183,32 +230,57 @@ app.get('/', (req, res) => {
 code{background:#f1f5f9;padding:0.15rem 0.35rem;border-radius:4px;font-size:0.9em}
 a{color:#4f46e5;font-weight:600}</style></head><body>
 <h1>Bu adres API sunucusudur</h1>
-<p>Burada sadece <strong>JSON</strong> üretilir; giriş formu ve listeler <strong>HTML sayfasında</strong> açılır.</p>
+<p><strong>Asil program</strong> React arayüzüdür (<code>/app/</code>). <code>erp-web.html</code> sadece hafif test sayfasıdır.</p>
 <ul>
-  <li><strong>Canlı:</strong> <a href="${ERP_WEB_PUBLIC}/erp-web.html">${ERP_WEB_PUBLIC}/erp-web.html</a></li>
-  <li><strong>Yerel (dist sunucusu):</strong> <code>http://127.0.0.1:8888/erp-web.html</code> — önce repo kökünde <code>npm run build</code>, sonra <code>docker compose --profile site up</code> veya <code>npx serve dist -l 8888</code></li>
+  ${tamErpLi}
+  ${yerelSatir}
+  <li><strong>Canlı (internet):</strong> <a href="${ERP_WEB_PUBLIC}/erp-web.html">${ERP_WEB_PUBLIC}/erp-web.html</a> — baglanmazsa ag / VPN / site kontrolu</li>
 </ul>
-<p>API denemesi için: <a href="/meta">/meta</a> · <a href="/health">/health</a> · <code>POST /api/v1/auth/login</code></p>
+<p>API: <a href="/meta">/meta</a> · <a href="/health">/health</a> · <code>POST /api/v1/auth/login</code> — Girişte API kökü: <code>${proto}://${host}</code></p>
 <p style="font-size:0.9rem;color:#64748b">Sürüm ${API_SEMA}</p>
 </body></html>`);
     return;
   }
+  const erpHtmlHazir = fs.existsSync(path.join(webDistPath, 'erp-web.html'));
+  const erpReactHazir = fs.existsSync(path.join(webErpPath, 'index.html'));
   res.json({
     success: true,
     service: 'Insaat ERP API',
     surum: API_SEMA,
     message: 'REST: /api/v1. Sağlık: GET /health. Tarayıcıda kök açtıysanız HTML bilgi sayfası görünür; curl/izleme için JSON.',
-    endpoints: { health: '/health', ready: '/ready', v1: '/api/v1', meta: '/meta', erpWebOrnek: `${ERP_WEB_PUBLIC}/erp-web.html` },
+    endpoints: {
+      health: '/health',
+      ready: '/ready',
+      v1: '/api/v1',
+      meta: '/meta',
+      erpReact: '/app/',
+      erpWebYerel: '/erp-web.html',
+      erpWebCanliOrnek: `${ERP_WEB_PUBLIC}/erp-web.html`,
+    },
+    webDist: { path: webDistPath, erpWebHtmlHazir: erpHtmlHazir },
+    webErp: { path: webErpPath, indexHazir: erpReactHazir },
   });
 });
 
 /** Hangi API süreci çalışıyor testi: tarayıcıda açın */
 app.get('/meta', (_req, res) => {
+  const erpHtmlHazir = fs.existsSync(path.join(webDistPath, 'erp-web.html'));
+  const erpReactHazir = fs.existsSync(path.join(webErpPath, 'index.html'));
   res.json({
     uygulama: 'insaat-erp-backend',
     surum: API_SEMA,
     zaman: new Date().toISOString(),
-    uclar: { health: '/health', ready: '/ready', apiV1: '/api/v1', login: 'POST /api/v1/auth/login' },
+    uclar: {
+      health: '/health',
+      ready: '/ready',
+      apiV1: '/api/v1',
+      login: 'POST /api/v1/auth/login',
+      erpWebHtml: '/erp-web.html',
+      erpReact: '/app/',
+    },
+    webDist: { path: webDistPath, erpWebHtmlHazir: erpHtmlHazir },
+    webErp: { path: webErpPath, indexHazir: erpReactHazir },
+    erpWebCanliOrnek: `${ERP_WEB_PUBLIC}/erp-web.html`,
   });
 });
 

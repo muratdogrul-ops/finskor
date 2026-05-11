@@ -6,7 +6,7 @@ import { Fatura, FaturaOzet, FaturaKalem } from '@/types'
 import { fmtTL, fmtTarih as fmtDate } from '@/utils/format'
 
 // ─── GİB DURUM BADGE ─────────────────────────────────────────────────────────
-const GibDurumBadge: React.FC<{ durum: Fatura['gib_durum'] }> = ({ durum }) => {
+const GibDurumBadge: React.FC<{ durum: string | undefined }> = ({ durum }) => {
   const cfg: Record<string, { label: string; color: string }> = {
     taslak:     { label: 'Taslak',     color: '#64748b' },
     gonderildi: { label: 'Gönderildi', color: '#f59e0b' },

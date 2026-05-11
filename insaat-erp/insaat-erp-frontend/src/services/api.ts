@@ -26,9 +26,10 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !error.config?._retry) {
       error.config._retry = true
       useAuthStore.getState().logout()
-      // zaten giriş sayfasındaysak döngü oluşmasın
-      if (window.location.pathname !== '/giris') {
-        window.location.href = '/giris'
+      const base = import.meta.env.BASE_URL || '/'
+      const giris = `${base.endsWith('/') ? base : `${base}/`}giris`.replace(/([^:]\/)\/+/g, '$1')
+      if (!window.location.pathname.endsWith('/giris')) {
+        window.location.href = giris
       }
       return Promise.reject(error)
     }

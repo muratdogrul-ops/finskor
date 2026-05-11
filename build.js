@@ -11,9 +11,11 @@ const DIST = path.join(__dirname, 'dist');
 const OUT  = path.join(DIST, 'app.html');
 
 (async () => {
+  console.log('[build] Basladi. app.html minify 1-2 dk surebilir; kapanmayin.');
   if (!fs.existsSync(DIST)) fs.mkdirSync(DIST);
 
   // Tüm proje dosyalarını dist'e kopyala (app.html hariç)
+  console.log('[build] dist klasorune kopyalaniyor...');
   const skipFiles = new Set(['app.html', 'build.js', 'node_modules', 'dist', '.git']);
   for (const item of fs.readdirSync(__dirname)) {
     if (skipFiles.has(item)) continue;
@@ -23,6 +25,7 @@ const OUT  = path.join(DIST, 'app.html');
   }
 
   // app.html'i oku ve script bloklarını minify et
+  console.log('[build] Terser minify calisiyor (sessiz donem normal)...');
   let html = fs.readFileSync(SRC, 'utf8');
 
   // <script> ... </script> bloklarını bul ve minify et
@@ -31,6 +34,7 @@ const OUT  = path.join(DIST, 'app.html');
   let lastIndex = 0;
   let match;
 
+  let minifyNo = 0;
   while ((match = scriptRegex.exec(html)) !== null) {
     const [full, openTag, code, closeTag] = match;
     // Dış kaynak script'leri atla (src= içerenler)
@@ -43,6 +47,9 @@ const OUT  = path.join(DIST, 'app.html');
       parts.push({ start: match.index, end: match.index + full.length, replacement: full });
       continue;
     }
+
+    minifyNo += 1;
+    console.log('[build] Script blogu ' + minifyNo + ' minify (' + Math.round(code.length / 1024) + ' KB)...');
 
     try {
       const result = await minify(code, {

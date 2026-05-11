@@ -6,8 +6,10 @@
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
-    "build:web": "tsc && vite build",
+    "build": "vite build",
+    "build:docker": "vite build --base /app/",
+    "build:check": "tsc --noEmit && vite build",
+    "build:web": "vite build",
     "build:desktop": "tsc && vite build --mode electron",
     "electron": "electron .",
     "electron:dev": "concurrently -k \"vite --port 5173\" \"wait-on http://127.0.0.1:5173 && electron .\"",
@@ -15,8 +17,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.62.0",
+    "axios": "^1.7.9",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-hot-toast": "^2.4.1",
+    "react-router-dom": "^6.28.0",
+    "zustand": "^5.0.2"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",

@@ -549,7 +549,7 @@ const PuantajSekme: React.FC = () => {
     if (!santiyeId || Object.keys(degisiklikler).length === 0) return
     setKaydediliyor(true)
     try {
-      const kayitlar = []
+      const kayitlar: Record<string, unknown>[] = []
       for (const [personelId, gunler] of Object.entries(degisiklikler)) {
         for (const [gun, vals] of Object.entries(gunler)) {
           const tarih = `${yil}-${String(ay).padStart(2, '0')}-${String(gun).padStart(2, '0')}`

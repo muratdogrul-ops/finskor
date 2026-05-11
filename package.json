@@ -14,6 +14,8 @@
   "scripts": {
     "erp:up": "cd insaat-erp && docker compose up --build -d",
     "erp:down": "cd insaat-erp && docker compose down",
+    "erp:dev": "cd insaat-erp/insaat-erp-frontend && npm run dev",
+    "erp:build-ui": "cd insaat-erp/insaat-erp-frontend && npm run build:docker",
     "build": "node build.js",
     "test:mpi": "node scripts/mpi-enroll-local.js",
     "test:baykus": "node scripts/baykus-intent-selftest.mjs"

@@ -23,9 +23,10 @@ Not: Ücretsiz Web “uyku” moduna geçer; ilk istek 30–60 sn sürebilir. Ü
     veya repo kökünde:  npm run erp:up
   insaat-erp klasöründe elle:  docker compose up --build
   Sağlık: http://127.0.0.1:3000/health
-  Statik FinSkor + erp-web (dist gerekir): repo kökünde npm run build, sonra
-    docker compose --profile site up --build
-  Tarayıcı: http://127.0.0.1:8888/erp-web.html — girişte API kökü http://127.0.0.1:3000
+  ERP web (dist gerekir): repo kökünde npm run build, sonra BASLAT-DOCKER / docker compose.
+  Tarayıcı: http://127.0.0.1:3000/erp-web.html (dist, API konteynerine bagli; ayni port)
+  Demo hesap (migration 011 sonrasi, eposta yoksa): info@finerp.tr — sifre: Demo12345!
+  Istege bagli ayri port: docker compose --profile site veya npx serve dist -l 8888
   Postgres host portu varsayılan 5433 (5432 çakışmasını önlemek için); değiştirmek için DB_PUBLISH_PORT
 
 --- Supabase ile ne olur, ne olmaz? ---

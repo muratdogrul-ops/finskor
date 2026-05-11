@@ -7,17 +7,17 @@ import { Layout } from '@/components/layout/Layout'
 import { LoginPage } from '@/components/modules/LoginPage'
 import { Spinner } from '@/components/ui'
 
-// Lazy load modules
+// Lazy load modules (Santiyeler…Finans tek dosyada: Modules.tsx)
 const Dashboard    = lazy(() => import('@/components/modules/Dashboard').then(m => ({ default: m.Dashboard })))
-const Santiyeler   = lazy(() => import('@/components/modules/Santiyeler').then(m => ({ default: m.Santiyeler })))
-const SantiyeDetay = lazy(() => import('@/components/modules/SantiyeDetay').then(m => ({ default: m.SantiyeDetay })))
+const Santiyeler   = lazy(() => import('@/components/modules/Modules').then(m => ({ default: m.Santiyeler })))
+const SantiyeDetay = lazy(() => import('@/components/modules/Modules').then(m => ({ default: m.SantiyeDetay })))
 const Mesajlar     = lazy(() => import('@/components/modules/Mesajlar').then(m => ({ default: m.Mesajlar })))
-const Hakedisler   = lazy(() => import('@/components/modules/Hakedisler').then(m => ({ default: m.Hakedisler })))
-const Satinalma    = lazy(() => import('@/components/modules/Satinalma').then(m => ({ default: m.Satinalma })))
-const Ekipmanlar   = lazy(() => import('@/components/modules/Ekipmanlar').then(m => ({ default: m.Ekipmanlar })))
-const Personel     = lazy(() => import('@/components/modules/Personel').then(m => ({ default: m.Personel })))
+const Hakedisler   = lazy(() => import('@/components/modules/Modules').then(m => ({ default: m.Hakedisler })))
+const Satinalma    = lazy(() => import('@/components/modules/Modules').then(m => ({ default: m.Satinalma })))
+const Ekipmanlar   = lazy(() => import('@/components/modules/Modules').then(m => ({ default: m.Ekipmanlar })))
+const Personel     = lazy(() => import('@/components/modules/Modules').then(m => ({ default: m.Personel })))
 const NakitAkis    = lazy(() => import('@/components/modules/NakitAkis').then(m => ({ default: m.NakitAkis })))
-const Finans       = lazy(() => import('@/components/modules/Finans').then(m => ({ default: m.Finans })))
+const Finans       = lazy(() => import('@/components/modules/Modules').then(m => ({ default: m.Finans })))
 const Faturalar    = lazy(() => import('@/components/modules/Faturalar').then(m => ({ default: m.Faturalar })))
 const MusteriRaporu = lazy(() => import('@/components/modules/MusteriRaporu').then(m => ({ default: m.MusteriRaporu })))
 const IhaleImport   = lazy(() => import('@/components/modules/IhaleImport'))
@@ -51,10 +51,12 @@ const LoadingScreen: React.FC = () => (
   </div>
 )
 
+const routerBasename = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '') || undefined
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <BrowserRouter basename={routerBasename}>
         <Routes>
           <Route path="/giris" element={<LoginPage />} />
           {/* PUBLIC — login gerektirmez */}

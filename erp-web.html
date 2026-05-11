@@ -89,6 +89,15 @@
     if (h.endsWith(".netlify.app")) return true;
     return false;
   }
+  /** Yerel Docker / Vite: Netlify değilse ve adres kayıtlı değilse otomatik API kökü (Kaydet tıklamadan giriş). */
+  function defaultLocalApiBase() {
+    if (useNetlifyProxy()) return "";
+    var h = (location.hostname || "").toLowerCase();
+    if (h !== "127.0.0.1" && h !== "localhost" && h !== "::1") return "";
+    var p = String(location.port || "");
+    if (p === "3000") return location.origin.replace(/\/+$/, "");
+    return "http://127.0.0.1:3000";
+  }
   function apiUrl(rel) {
     var p = rel.indexOf("/") === 0 ? rel : "/" + rel;
     var b = (getBase() || "").replace(/\/+$/, "");
@@ -262,11 +271,20 @@
   }
 
   function boot() {
+    var hn = (location.hostname || "").toLowerCase();
+    if (hn === "127.0.0.1" || hn === "localhost" || hn === "::1") {
+      var hf = document.querySelector(".helpfoot");
+      if (hf) {
+        hf.innerHTML = '<p class="muted" style="text-align:center;line-height:1.55">Tam menülü ERP: <a href="/app/"><strong>' + location.origin + '/app/</strong></a><br/><span style="font-size:0.82rem;color:#94a3b8">Geliştirme: repo kökünde <code>npm run erp:dev</code> → http://127.0.0.1:5173</span></p>';
+      }
+    }
     var DEF = typeof window.__INSAAT_ERP_API_DEFAULT === "string" ? window.__INSAAT_ERP_API_DEFAULT.trim() : "";
     var stored = (localStorage.getItem(B) || "").trim();
-    var resolved = DEF || stored;
+    var autoLocal = defaultLocalApiBase();
+    var resolved = DEF || stored || autoLocal;
 
     if (DEF) localStorage.setItem(B, DEF);
+    else if (!stored && autoLocal) localStorage.setItem(B, autoLocal);
 
     if (stored && !DEF) $id("apiVisible").value = stored;
     if (resolved) $id("apiBase").value = resolved;
