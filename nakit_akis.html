@@ -3912,10 +3912,15 @@ function dateOnly(d) {
   return new Date(x.getFullYear(), x.getMonth(), x.getDate());
 }
 
-/** Takvim ayı ekle/çıkar (ör. ilk taksit − 1 ay = kredi kullanımı). */
+/** Takvim ayı ekle/çıkar (ör. ilk taksit − 1 ay = kredi kullanımı). Ay sonu taşmalarını düzeltir. */
 function addCalendarMonthsDate(d, deltaM) {
   const base = dateOnly(d);
-  return new Date(base.getFullYear(), base.getMonth() + deltaM, base.getDate());
+  const y = base.getFullYear();
+  const m = base.getMonth() + deltaM;
+  const day = base.getDate();
+  let t = new Date(y, m, day);
+  if (t.getDate() !== day) t = new Date(y, m + 1, 0);
+  return t;
 }
 
 /** «Faiz Oranı :» yanındaki değer (ör. 4,5833) — banka aylık %; NakitFlow yıllık % = aylık×12 (gösterim) */
