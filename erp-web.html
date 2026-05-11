@@ -38,7 +38,7 @@
 
   <div id="setupOnce" class="card" style="display:none">
     <strong style="color:#312e81;display:block;margin-bottom:0.35rem">Bağlantı adresi</strong>
-    <p class="muted">FinSkor size bir adres verdiyse aynen yapıştırın (sonda / olmadan). Bilginiz yoksa aşağıdaki e-postadan yazın; size ayarlarız.</p>
+    <p class="muted">ERP’nizin kök adresi (ör. <code>https://api.sizin-erp.com</code>, sonda <code>/</code> yok). Netlify yöneticisi için: ortam değişkeni <strong>INSAAT_ERP_API_URL</strong> aynı adres olabilir — böylece bu kutuya gerek kalmaz.</p>
     <label for="apiVisible">Adres</label>
     <input type="url" id="apiVisible" placeholder="https://..." autocomplete="url" />
     <button type="button" class="secondary" id="saveBase">Kaydet</button>
@@ -100,9 +100,12 @@
   }
   function getBase() { return ($id("apiBase").value || "").trim(); }
   function token() { return localStorage.getItem(K) || ""; }
+  /** null = henüz ölçülmedi; true = proxy veya doğrudan adres ile çağrı yapılabilir; false = Netlify'da ERP adresi yok, kullanıcı adres girmeli */
+  window.__INSAAT_ERP_PROXY_OK = null;
   function hasApiBase() {
-    if (useNetlifyProxy()) return true;
-    return !!getBase().trim();
+    if (getBase().trim()) return true;
+    if (useNetlifyProxy() && window.__INSAAT_ERP_PROXY_OK === true) return true;
+    return false;
   }
   function friendlyErr(msg) {
     var m = (msg || "").trim();
@@ -154,7 +157,16 @@
     }
     $id("panel").style.display = "none";
     $id("leadMain").style.display = "block";
-    if (proxy || base) {
+    if (proxy && !base && window.__INSAAT_ERP_PROXY_OK === false) {
+      $id("setupOnce").style.display = "block";
+      $id("loginCard").style.display = "block";
+      $id("leadMain").textContent =
+        "Sunucuda ERP kök adresi tanımlı değil (Netlify: INSAAT_ERP_API_URL). Aşağıya kendi ERP adresinizi yazıp Kaydedin veya info@finskor.tr ile ayar isteyin. Adres kayıtlıysa giriş yapın.";
+    } else if (proxy && !base && window.__INSAAT_ERP_PROXY_OK === null) {
+      $id("setupOnce").style.display = "none";
+      $id("loginCard").style.display = "none";
+      $id("leadMain").textContent = "Bağlantı kontrol ediliyor…";
+    } else if (proxy || base) {
       $id("setupOnce").style.display = "none";
       $id("loginCard").style.display = "block";
       $id("leadMain").textContent = "İş e-postanız ve şifrenizle giriş yapın.";
@@ -184,6 +196,7 @@
       if (!v) { $id("setupMsg").textContent = "Lütfen adresi yazın."; $id("setupMsg").className = "err"; return; }
       localStorage.setItem(B, v);
       $id("apiBase").value = v;
+      window.__INSAAT_ERP_PROXY_OK = true;
       $id("setupMsg").textContent = "Kaydedildi. Şimdi giriş yapabilirsiniz.";
       $id("setupMsg").className = "ok";
       refreshUI();
@@ -264,13 +277,59 @@
       refreshUI();
     }
 
+    function probeProxyThen(next) {
+      if (!useNetlifyProxy()) {
+        window.__INSAAT_ERP_PROXY_OK = true;
+        next();
+        return;
+      }
+      if (getBase().trim()) {
+        window.__INSAAT_ERP_PROXY_OK = true;
+        next();
+        return;
+      }
+      fetch("/.netlify/functions/insaat-erp-proxy?p=" + encodeURIComponent("/santiyeler?limit=1"), {
+        headers: { Authorization: "Bearer " },
+      })
+        .then(function (r) {
+          return r
+            .json()
+            .then(function (j) {
+              return { r: r, j: j };
+            })
+            .catch(function () {
+              return { r: r, j: {} };
+            });
+        })
+        .then(function (x) {
+          var msg = (x.j && x.j.message) || "";
+          if (x.r.status === 503 && (/tamamlanmadı|INSAAT_ERP/i.test(msg) || /henüz/i.test(msg)))
+            window.__INSAAT_ERP_PROXY_OK = false;
+          else window.__INSAAT_ERP_PROXY_OK = true;
+        })
+        .catch(function () {
+          window.__INSAAT_ERP_PROXY_OK = false;
+        })
+        .then(next);
+    }
+
     if (!getBase()) {
       fetch("/insaat-erp-api.json", { cache: "no-store" })
-        .then(function (r) { return r.ok ? r.json() : {}; })
-        .then(function (j) { applyJsonBase(j); })
+        .then(function (r) {
+          return r.ok ? r.json() : {};
+        })
+        .then(function (j) {
+          applyJsonBase(j);
+        })
         .catch(function () {})
+        .then(function () {
+          return new Promise(function (res) {
+            probeProxyThen(res);
+          });
+        })
         .then(finish);
     } else {
+      window.__INSAAT_ERP_PROXY_OK = true;
       finish();
     }
   }
