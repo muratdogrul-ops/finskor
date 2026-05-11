@@ -115,6 +115,20 @@ io.on('connection', (socket) => {
 
 app.set('trust proxy', 1);
 
+/** Sağlık: middleware zincirinden önce — proxy/trailing-slash yönlendirme döngüsü riski yok */
+const healthHandler = async (_req: express.Request, res: express.Response): Promise<void> => {
+  const dbOk = await checkDbConnection();
+  res.status(dbOk ? 200 : 503).json({
+    status: dbOk ? 'ok' : 'degraded',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0',
+    surum: API_SEMA,
+    uygulama: 'insaat-erp-backend',
+    db: dbOk ? 'connected' : 'error',
+  });
+};
+app.get(['/health', '/health/', '/ready', '/ready/'], healthHandler);
+
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
@@ -163,7 +177,7 @@ app.get('/', (_req, res) => {
     service: 'Insaat ERP API',
     surum: API_SEMA,
     message: 'REST: /api/v1. Sağlık: GET /health. Masaüstü uygulama API ayrı çalışır; burası sadece sunucu.',
-    endpoints: { health: '/health', v1: '/api/v1', meta: '/meta' },
+    endpoints: { health: '/health', ready: '/ready', v1: '/api/v1', meta: '/meta' },
   });
 });
 
@@ -173,7 +187,7 @@ app.get('/meta', (_req, res) => {
     uygulama: 'insaat-erp-backend',
     surum: API_SEMA,
     zaman: new Date().toISOString(),
-    uclar: { health: '/health', apiV1: '/api/v1', login: 'POST /api/v1/auth/login' },
+    uclar: { health: '/health', ready: '/ready', apiV1: '/api/v1', login: 'POST /api/v1/auth/login' },
   });
 });
 
@@ -189,26 +203,16 @@ app.get('/api/v1', (_req, res) => {
   });
 });
 
-// Sondaki / ile gelen API kökü (301 health için kullanma — proxy/tarayıcı /health <-> /health/ döngüsü)
-app.get('/api/v1/', (req, res) => {
-  const p = req.path.replace(/\/+$/, '') || '/';
-  res.redirect(301, p);
+// /api/v1/ için 301 kullanma (bazı proxy’lerde yönlendirme zinciri oluşabiliyor)
+app.get('/api/v1/', (_req, res) => {
+  res.json({
+    success: true,
+    service: 'API v1',
+    ornek: 'POST /api/v1/auth/login',
+  });
 });
 
 app.use('/api/v1', router);
-
-const healthHandler = async (_req: express.Request, res: express.Response): Promise<void> => {
-  const dbOk = await checkDbConnection();
-  res.status(dbOk ? 200 : 503).json({
-    status: dbOk ? 'ok' : 'degraded',
-    timestamp: new Date().toISOString(),
-    version: '1.0.0',
-    surum: API_SEMA,
-    uygulama: 'insaat-erp-backend',
-    db: dbOk ? 'connected' : 'error',
-  });
-};
-app.get(['/health', '/health/'], healthHandler);
 
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logger.error('Unhandled error:', err);
