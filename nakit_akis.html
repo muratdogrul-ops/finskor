@@ -3912,6 +3912,12 @@ function dateOnly(d) {
   return new Date(x.getFullYear(), x.getMonth(), x.getDate());
 }
 
+/** Takvim ayı ekle/çıkar (ör. ilk taksit − 1 ay = kredi kullanımı). */
+function addCalendarMonthsDate(d, deltaM) {
+  const base = dateOnly(d);
+  return new Date(base.getFullYear(), base.getMonth() + deltaM, base.getDate());
+}
+
 /** «Faiz Oranı :» yanındaki değer (ör. 4,5833) — banka aylık %; NakitFlow yıllık % = aylık×12 (gösterim) */
 function extractBankMonthlyRatePercent(rows) {
   for (let i = 0; i < rows.length; i++) {
@@ -3936,9 +3942,33 @@ function _looksLikeCustomerUnvan(s) {
   if (t.length < 18) return false;
   return /(limited|ltd\.?|şirket|ticaret|sanayi|restoran|restaurant|otel|hotel|holding|a\.?\s*ş\.?|anoni|anonim|grup)/i.test(t);
 }
-function extractBankNameFromSchedule(rows) {
+function extractBankNameFromSchedule(rows, sheetName, fileBase) {
   const bankHints =
     /vak[iı]fbank|z[iı]raat|iş\s*bank|garanti|yap[iı]\s*kredi|akbank|qnb|denizbank|teb|halkbank|şekerbank|kuveyt|enpara|fibabanka|odea|hsbc|ing\s|citibank|alternatif|burgan|finansbank|aktifbank|bank|kredi\s*kur|leasing|faktoring|kat[iı]l[iı]m/i;
+  function tryBankTitle(s) {
+    const t = String(s || '').trim();
+    if (t.length < 3 || t.length > 72) return null;
+    if (_looksLikeCustomerUnvan(t)) return null;
+    if (!bankHints.test(t)) return null;
+    return t.slice(0, 80);
+  }
+  let hit = tryBankTitle(sheetName);
+  if (hit) return hit;
+  const stem = String(fileBase || '')
+    .replace(/\.(xlsx?|csv|xlx)$/i, '')
+    .replace(/[_-]+/g, ' ')
+    .trim();
+  hit = tryBankTitle(stem);
+  if (hit) return hit;
+  for (let i = 0; i < Math.min(rows.length, 16); i++) {
+    const r = rows[i];
+    if (!Array.isArray(r)) continue;
+    const nonempty = r.map(cellStr_).filter(Boolean);
+    if (nonempty.length === 1) {
+      hit = tryBankTitle(nonempty[0]);
+      if (hit) return hit;
+    }
+  }
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
     if (!Array.isArray(r)) continue;
@@ -3952,6 +3982,14 @@ function extractBankNameFromSchedule(rows) {
         if (bankHints.test(v) || v.length <= 42) return v.slice(0, 80);
       }
     }
+    if (/finansman|kredi\s*veren|iş\s*lemi\s*kanal|işlem\s*kanal|kuruluş|kurulus/i.test(joined)) {
+      for (let j = 0; j < cells.length - 1; j++) {
+        const lab = String(cells[j]).trim();
+        const val = String(cells[j + 1]).trim();
+        if (!val || val.length > 80 || _looksLikeCustomerUnvan(val)) continue;
+        if (/finansman|kredi\s*veren|kanal|kuruluş|kurulus/i.test(lab) && (bankHints.test(val) || val.length <= 40)) return val.slice(0, 80);
+      }
+    }
     if (/banka\s*[:：]/i.test(joined)) {
       for (let j = 0; j < cells.length; j++) {
         const after = String(cells[j]).replace(/^.*banka\s*ad[ıi]?\s*[:：]\s*/i, '').replace(/^.*banka\s*[:：]\s*/i, '').trim();
@@ -3962,18 +4000,18 @@ function extractBankNameFromSchedule(rows) {
       const ji = cells.findIndex(function (x) { return /^banka$/i.test(String(x).trim()); });
       if (ji >= 0 && cells[ji + 1]) {
         const v = String(cells[ji + 1]).trim();
-        if (v.length >= 2 && v.length <= 80 && !_looksLikeCustomerUnvan(v) && bankHints.test(v)) return v.slice(0, 80);
+        if (v.length >= 2 && v.length <= 80 && !_looksLikeCustomerUnvan(v) && (bankHints.test(v) || v.length <= 34)) return v.slice(0, 80);
       }
     }
   }
   return null;
 }
 
-function inferLoanFromBankSchedule(rows) {
+function inferLoanFromBankSchedule(rows, sheetName, fileBase) {
   if (!rows || !rows.length) return null;
   let principal = 0;
   let term = 0;
-  let bankLabel = extractBankNameFromSchedule(rows) || 'Banka kredi özeti (Excel)';
+  let bankLabel = extractBankNameFromSchedule(rows, sheetName, fileBase) || 'Banka kredi özeti (Excel)';
   let firstPay = null;
   let firstPmt = 0;
 
@@ -4041,11 +4079,11 @@ function inferLoanFromBankSchedule(rows) {
 
   if (principal <= 0 || term <= 0) return null;
 
-  // Kullanım = min(ilk_taksit_tarihi, rapor_tarihi). Raporda kredi henüz tam «gelecek» taksitler için geçerli değil:
-  // örn. rapor 28.04.2026 iken ilk taksit 10.06.2026 ise kullanım 28.04.2026 olmalı, 10.06.2026 olamaz.
+  // Kullanım (kredi çekilişi): genelde ilk taksitten 1 takvim ayı öncesi — ilk taksit tarihini kullanım yazmayız.
+  // Rapor «Tarih:» kesim tarihi, kullanım bu tarihten sonra olamaz (geriye çekilir).
   const reportDt = extractBankReportDate(rows);
   let usageDay = null;
-  if (firstPay) usageDay = dateOnly(firstPay);
+  if (firstPay) usageDay = dateOnly(addCalendarMonthsDate(firstPay, -1));
   if (reportDt) {
     const rpd = dateOnly(reportDt);
     if (!usageDay) usageDay = rpd;
@@ -4081,11 +4119,12 @@ function handleLoanFile(event) {
 
 function readExcelCsvLoans(file, ext) {
   const reader = new FileReader();
+  const fileStem = (file && file.name) ? file.name.replace(/\.[^.]+$/, '') : '';
   reader.onload = function(e) {
     try {
       if (ext === 'csv') {
         const text = new TextDecoder('utf-8').decode(e.target.result);
-        buildLoanPreview(parseCSVRows(text));
+        buildLoanPreview(parseCSVRows(text), '', fileStem);
       } else {
         const sheets = parseWorkbookSheets(e.target.result);
         if (!sheets.length) throw new Error('Çalışma sayfası boş.');
@@ -4093,7 +4132,7 @@ function readExcelCsvLoans(file, ext) {
         let bestScore = -1;
         for (let si = 0; si < sheets.length; si++) {
           const pack = sheets[si];
-          buildLoanPreview(pack.rows);
+          buildLoanPreview(pack.rows, pack.name || '', fileStem);
           const okc = loanPreviewData.filter(function (x) { return x._ok; }).length;
           const total = loanPreviewData.length;
           const hint = scoreLoanSheetHint(pack.name, pack.rows);
@@ -4103,7 +4142,7 @@ function readExcelCsvLoans(file, ext) {
             bestSi = si;
           }
         }
-        buildLoanPreview(sheets[bestSi].rows);
+        buildLoanPreview(sheets[bestSi].rows, sheets[bestSi].name || '', fileStem);
       }
     } catch(err) {
       document.getElementById('loan-import-status').textContent = '⚠ Hata: ' + err.message;
@@ -4182,13 +4221,14 @@ function parseXLSXRows(buffer) {
 
 function readPdfLoans(file) {
   const reader = new FileReader();
+  const fileStem = (file && file.name) ? file.name.replace(/\.[^.]+$/, '') : '';
   reader.onload = function(e) {
     try {
       // Try to extract text from PDF bytes
       const bytes = new Uint8Array(e.target.result);
       const text = extractPdfText(bytes);
       const rows = parsePdfTextLoans(text);
-      buildLoanPreview(rows);
+      buildLoanPreview(rows, '', fileStem);
     } catch(err) {
       document.getElementById('loan-import-status').textContent = '⚠ PDF okunamadı: ' + err.message + '. Lütfen CSV olarak kaydedin.';
     }
@@ -4257,7 +4297,9 @@ function parseLoanRow(cols) {
   return out;
 }
 
-function buildLoanPreview(rows) {
+function buildLoanPreview(rows, sheetName, fileStem) {
+  sheetName = sheetName || '';
+  fileStem = fileStem || '';
   loanPreviewData = [];
   const tbody = document.getElementById('loan-preview-body');
   let html = '';
@@ -4284,7 +4326,7 @@ function buildLoanPreview(rows) {
   }
   const anyOk = loanPreviewData.some(function (x) { return x._ok; });
   function applyInferredLoanRow() {
-    const inferred = inferLoanFromBankSchedule(rows);
+    const inferred = inferLoanFromBankSchedule(rows, sheetName, fileStem);
     if (!inferred) return false;
     const L = parseLoanRow(inferred);
     if (!L || L.principal <= 0) return false;
