@@ -18,7 +18,10 @@
 Not: Ücretsiz Web “uyku” moduna geçer; ilk istek 30–60 sn sürebilir. Üretim için ücretli plan veya sabit sunucu düşünün.
 
 --- Yerel Docker (bilgisayarda API) ---
-  insaat-erp klasöründe:  docker compose up --build
+  “127.0.0.1 bağlanmayı reddetti” = Docker/API çalışmıyor. Docker Desktop açık olsun; sonra:
+    insaat-erp\BASLAT-DOCKER.bat  çift tık
+    veya repo kökünde:  npm run erp:up
+  insaat-erp klasöründe elle:  docker compose up --build
   Sağlık: http://127.0.0.1:3000/health
   Statik FinSkor + erp-web (dist gerekir): repo kökünde npm run build, sonra
     docker compose --profile site up --build
