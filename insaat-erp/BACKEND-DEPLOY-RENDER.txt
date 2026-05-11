@@ -16,3 +16,14 @@
 5) Tarayıcıda test: https://…onrender.com/health
 
 Not: Ücretsiz Web “uyku” moduna geçer; ilk istek 30–60 sn sürebilir. Üretim için ücretli plan veya sabit sunucu düşünün.
+
+--- Supabase ile ne olur, ne olmaz? ---
+
+Supabase hesabınızı şu şekilde KULLANABİLİRSİNİZ:
+  • Sadece VERİTABANI: Supabase → Project → Settings → Database → “Connection string” (URI, genelde “Transaction” veya “Session” pooler). Bunu Render’daki (veya başka bir yerdeki) Node backend’in ortam değişkeni DATABASE_URL olarak yapıştırın. Kod tarafında DATABASE_URL zaten destekleniyor.
+
+Supabase TEK BAŞINA Render’ın yerini ALMAZ:
+  • Supabase, sizin Express + /api/v1 + Socket.io backend’inizi “olduğu gibi” host etmez. API sunucusu yine bir yerde çalışmalı (Render, Fly.io, küçük VPS…).
+  • FinSkor’daki INSAAT_ERP_API_URL hâlâ o Node API’nin HTTPS kök adresidir; Supabase proje URL’si (xxx.supabase.co) bunun yerine geçmez.
+
+Özet: Supabase = çoğu senaryoda PostgreSQL (ve isterseniz ileride Auth/Storage). “Render yerine sadece Supabase” = veriyi Supabase’e taşırsınız, API’yi yine başka bir host’ta çalıştırırsınız.
