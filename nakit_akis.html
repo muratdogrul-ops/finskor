@@ -3929,12 +3929,51 @@ function extractBankMonthlyRatePercent(rows) {
 
 /**
  * Banka ödeme planı (.xls): Kredi Tutarı / (36 AY) / 1. taksit satırından tek satır NakitFlow şablonu üretir.
+ * Müşteri ünvanı «Banka» sütununa yazılmaz; yalnızca gerçek banka/kurum adı veya genel özet etiketi kullanılır.
  */
+function _looksLikeCustomerUnvan(s) {
+  const t = String(s || '').trim();
+  if (t.length < 18) return false;
+  return /(limited|ltd\.?|şirket|ticaret|sanayi|restoran|restaurant|otel|hotel|holding|a\.?\s*ş\.?|anoni|anonim|grup)/i.test(t);
+}
+function extractBankNameFromSchedule(rows) {
+  const bankHints =
+    /vak[iı]fbank|z[iı]raat|iş\s*bank|garanti|yap[iı]\s*kredi|akbank|qnb|denizbank|teb|halkbank|şekerbank|kuveyt|enpara|fibabanka|odea|hsbc|ing\s|citibank|alternatif|burgan|finansbank|aktifbank|bank|kredi\s*kur|leasing|faktoring|kat[iı]l[iı]m/i;
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (!Array.isArray(r)) continue;
+    const cells = r.map(cellStr_);
+    const joined = cells.join(' ');
+    for (let j = 0; j < cells.length; j++) {
+      const m = String(cells[j]).match(/banka(?:\s*ad[ıi])?\s*[:：]\s*(.+)/i);
+      if (m && m[1]) {
+        const v = m[1].trim();
+        if (v.length < 2 || v.length > 80 || _looksLikeCustomerUnvan(v)) continue;
+        if (bankHints.test(v) || v.length <= 42) return v.slice(0, 80);
+      }
+    }
+    if (/banka\s*[:：]/i.test(joined)) {
+      for (let j = 0; j < cells.length; j++) {
+        const after = String(cells[j]).replace(/^.*banka\s*ad[ıi]?\s*[:：]\s*/i, '').replace(/^.*banka\s*[:：]\s*/i, '').trim();
+        if (!after || after === String(cells[j]).trim() || after.length < 2 || after.length > 80) continue;
+        if (_looksLikeCustomerUnvan(after)) continue;
+        if (bankHints.test(after)) return after.slice(0, 80);
+      }
+      const ji = cells.findIndex(function (x) { return /^banka$/i.test(String(x).trim()); });
+      if (ji >= 0 && cells[ji + 1]) {
+        const v = String(cells[ji + 1]).trim();
+        if (v.length >= 2 && v.length <= 80 && !_looksLikeCustomerUnvan(v) && bankHints.test(v)) return v.slice(0, 80);
+      }
+    }
+  }
+  return null;
+}
+
 function inferLoanFromBankSchedule(rows) {
   if (!rows || !rows.length) return null;
   let principal = 0;
   let term = 0;
-  let bankLabel = 'Banka kredi özeti (Excel)';
+  let bankLabel = extractBankNameFromSchedule(rows) || 'Banka kredi özeti (Excel)';
   let firstPay = null;
   let firstPmt = 0;
 
@@ -3942,16 +3981,6 @@ function inferLoanFromBankSchedule(rows) {
     const r = rows[i];
     if (!Array.isArray(r)) continue;
     const joined = r.map(cellStr_).join(' ').toLowerCase();
-    if (/müşteri|unvan|ünvan/.test(joined)) {
-      const nameCell = r.map(cellStr_).find(function (x) {
-        const t = (x || '').trim();
-        if (t.length < 4) return false;
-        if (/^\d[\d.,\s]*$/.test(t)) return false;
-        if (/no|kod|şube|toplam|genel|özet|geri\s*ödeme|faiz\s*oran|komisyon|taksit\s*no|ana\s*para|bsmv|kkdf|kalan/i.test(t)) return false;
-        return true;
-      });
-      if (nameCell) bankLabel = nameCell.slice(0, 80);
-    }
     if (/kredi\s*tutar|kredi tutarı/i.test(joined)) {
       for (let j = 0; j < r.length; j++) {
         const n = fnum(r[j]);
