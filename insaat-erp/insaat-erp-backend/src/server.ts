@@ -189,15 +189,15 @@ app.get('/api/v1', (_req, res) => {
   });
 });
 
-// Sondaki / ile gelen (tarayıcı / proxy) 404 olmasın
-app.get(['/api/v1/', '/health/'], (req, res) => {
+// Sondaki / ile gelen API kökü (301 health için kullanma — proxy/tarayıcı /health <-> /health/ döngüsü)
+app.get('/api/v1/', (req, res) => {
   const p = req.path.replace(/\/+$/, '') || '/';
   res.redirect(301, p);
 });
 
 app.use('/api/v1', router);
 
-app.get('/health', async (_req, res) => {
+const healthHandler = async (_req: express.Request, res: express.Response): Promise<void> => {
   const dbOk = await checkDbConnection();
   res.status(dbOk ? 200 : 503).json({
     status: dbOk ? 'ok' : 'degraded',
@@ -207,7 +207,8 @@ app.get('/health', async (_req, res) => {
     uygulama: 'insaat-erp-backend',
     db: dbOk ? 'connected' : 'error',
   });
-});
+};
+app.get(['/health', '/health/'], healthHandler);
 
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logger.error('Unhandled error:', err);
