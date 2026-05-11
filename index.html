@@ -1472,7 +1472,20 @@ footer {
 }
 
 @media (max-width: 768px) {
-  nav { padding: 0 20px; }
+  /* Üç CTA yan yana sığmaz; Fininsaat ERP taşmadan ikinci satıra insin */
+  nav {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 72px;
+    padding: 12px 20px;
+    row-gap: 10px;
+  }
+  .nav-cta {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
   .nav-links { display: none; }
   .hero { padding: 90px 20px 50px; }
   .section-inner { padding: 0 20px; }
@@ -1517,7 +1530,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   </ul>
   <div class="nav-cta">
     <a href="nakitflow.html" class="btn-nakitflow" title="Nakit akış projeksiyonu — NakitFlow (kod gerektirmez)">📊 NakitFlow</a>
-    <a href="fininsaat-erp.html" class="btn-fininsaat-erp" title="İnşaat ERP — FinSkor çerçevesi (içeride giriş)">🏗️ Fininsaat ERP</a>
+    <a href="/fininsaat-erp.html" class="btn-fininsaat-erp" title="İnşaat ERP — FinSkor çerçevesi (içeride giriş)">🏗️ Fininsaat ERP</a>
     <a href="app.html" class="btn-primary">FinSkor'a giriş →</a>
   </div>
 </nav>
