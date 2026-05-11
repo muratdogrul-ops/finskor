@@ -170,14 +170,35 @@ app.use('/api/v1/auth/login', authLimiter);
 
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
-// Kısayol (http://127.0.0.1:3000) ve yarım yollar: router'dan önce, yoksa 404
-app.get('/', (_req, res) => {
+// Kök: tarayıcıda sekme açılınca (Sec-Fetch-Dest: document) HTML bilgi; aksi halde JSON (izleme/curl)
+const ERP_WEB_PUBLIC = (process.env.PUBLIC_ERP_WEB_URL || 'https://finskor.tr').replace(/\/+$/, '');
+
+app.get('/', (req, res) => {
+  const tarayiciSekmesi = req.get('Sec-Fetch-Dest') === 'document';
+  if (tarayiciSekmesi) {
+    res.type('html').send(`<!DOCTYPE html>
+<html lang="tr"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>İnşaat ERP — API</title>
+<style>body{font-family:system-ui,sans-serif;max-width:36rem;margin:2rem auto;padding:0 1rem;line-height:1.5;color:#1e293b}
+code{background:#f1f5f9;padding:0.15rem 0.35rem;border-radius:4px;font-size:0.9em}
+a{color:#4f46e5;font-weight:600}</style></head><body>
+<h1>Bu adres API sunucusudur</h1>
+<p>Burada sadece <strong>JSON</strong> üretilir; giriş formu ve listeler <strong>HTML sayfasında</strong> açılır.</p>
+<ul>
+  <li><strong>Canlı:</strong> <a href="${ERP_WEB_PUBLIC}/erp-web.html">${ERP_WEB_PUBLIC}/erp-web.html</a></li>
+  <li><strong>Yerel (dist sunucusu):</strong> <code>http://127.0.0.1:8888/erp-web.html</code> — önce repo kökünde <code>npm run build</code>, sonra <code>docker compose --profile site up</code> veya <code>npx serve dist -l 8888</code></li>
+</ul>
+<p>API denemesi için: <a href="/meta">/meta</a> · <a href="/health">/health</a> · <code>POST /api/v1/auth/login</code></p>
+<p style="font-size:0.9rem;color:#64748b">Sürüm ${API_SEMA}</p>
+</body></html>`);
+    return;
+  }
   res.json({
     success: true,
     service: 'Insaat ERP API',
     surum: API_SEMA,
-    message: 'REST: /api/v1. Sağlık: GET /health. Masaüstü uygulama API ayrı çalışır; burası sadece sunucu.',
-    endpoints: { health: '/health', ready: '/ready', v1: '/api/v1', meta: '/meta' },
+    message: 'REST: /api/v1. Sağlık: GET /health. Tarayıcıda kök açtıysanız HTML bilgi sayfası görünür; curl/izleme için JSON.',
+    endpoints: { health: '/health', ready: '/ready', v1: '/api/v1', meta: '/meta', erpWebOrnek: `${ERP_WEB_PUBLIC}/erp-web.html` },
   });
 });
 
