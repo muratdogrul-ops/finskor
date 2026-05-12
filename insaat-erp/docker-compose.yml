@@ -35,8 +35,10 @@ services:
       dockerfile: Dockerfile
     # FinSkor dist (erp-web.html) + React ERP (tam menü) — web_erp: insaat-erp-frontend icinde npm run build:docker
     volumes:
+      # Repo kok: finskor/ — ../dist = FinSkor build ciktisi
       - ../dist:/app/web_dist:ro
-      - ../insaat-erp/insaat-erp-frontend/dist:/app/web_erp:ro
+      # Bu dosya finskor/insaat-erp/ altinda; frontend dist buradan baglanir
+      - ./insaat-erp-frontend/dist:/app/web_erp:ro
     environment:
       NODE_ENV: production
       PORT: "3000"
