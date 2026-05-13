@@ -1,151 +1,16 @@
 <!DOCTYPE html>
-<html lang="tr" translate="no">
+<html lang="tr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<title>FinSkor — Fininsaat ERP</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-:root {
-  --bg: #07080f; --surface: #0e1119; --border: #1c2436;
-  --indigo: #818cf8; --indigo2: #a5b4fc;
-  --text: #edf0f7; --text-dim: #8896b3; --text-muted: #556080;
-}
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { height: 100%; overflow: hidden; }
-body {
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  background: var(--bg);
-  color: var(--text);
-}
-body::before {
-  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
-  background-image: linear-gradient(rgba(129,140,248,0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(129,140,248,0.05) 1px, transparent 1px);
-  background-size: 48px 48px;
-}
-#wrap {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-header {
-  flex-shrink: 0;
-  background: rgba(7,8,15,0.96);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border);
-  padding: 0 22px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 62px;
-  gap: 12px;
-}
-.header-brand {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.header-logo-row {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.logo-main {
-  font-family: 'Syne', sans-serif;
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  background: linear-gradient(135deg, var(--indigo), var(--indigo2));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-decoration: none;
-}
-.logo-sub {
-  font-family: 'Syne', sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--indigo);
-  letter-spacing: 0.06em;
-}
-.header-note {
-  font-size: 11px;
-  color: var(--text-muted);
-  max-width: 520px;
-  line-height: 1.35;
-}
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-  flex-wrap: wrap;
-}
-.nav-btn {
-  padding: 7px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text-dim);
-  font-family: inherit;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.nav-btn:hover { border-color: var(--indigo); color: var(--indigo2); }
-.nav-btn.active {
-  background: rgba(129, 140, 248, 0.15);
-  border-color: rgba(129, 140, 248, 0.55);
-  color: var(--indigo2);
-}
-main {
-  flex: 1;
-  min-height: 0;
-  position: relative;
-}
-#iframe-fe {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: none;
-  background: #060810;
-}
-@media (max-width: 720px) {
-  .header-note { display: none; }
-  header { flex-wrap: wrap; padding: 10px 14px; }
-}
-</style>
+<meta http-equiv="refresh" content="0;url=http://127.0.0.1/dashboard">
+<title>Yönlendiriliyor…</title>
+<script>
+  window.location.replace('http://127.0.0.1/dashboard');
+</script>
 </head>
 <body>
-<div id="wrap">
-  <header>
-    <div class="header-brand">
-      <div class="header-logo-row">
-        <a class="logo-main" href="/index.html">FinSkor</a>
-        <span class="logo-sub">Fininsaat ERP</span>
-      </div>
-      <div class="header-note">Aşağıda giriş formu açılır. Liste yüklenmiyorsa Netlify’da <strong>INSAAT_ERP_API_URL</strong> veya build’de <strong>insaat-erp-api.json</strong> gerekir — yoksa sayfada «Bağlantı adresi» ile kayıt yapın.</div>
-    </div>
-    <div class="header-right">
-      <span class="nav-btn active" aria-current="page">🏗️ Fininsaat ERP</span>
-      <a class="nav-btn" href="/nakitflow.html">📊 NakitFlow</a>
-      <a class="nav-btn" href="/app.html">📈 Kredi analizi</a>
-      <a class="nav-btn" href="/index.html">🏠 Ana sayfa</a>
-    </div>
-  </header>
-  <main>
-    <iframe id="iframe-fe" title="Fininsaat ERP giriş" src="/erp-web.html"></iframe>
-  </main>
-</div>
+<p style="font-family:system-ui,sans-serif;padding:1rem;">Yerel ERP açılıyor… <a href="http://127.0.0.1/dashboard">http://127.0.0.1/dashboard</a></p>
 </body>
 </html>
