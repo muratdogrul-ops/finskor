@@ -38,6 +38,10 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html { scroll-behavior: smooth; }
+/* Scrollbar geç çıkınca genişlik oynayıp 768 breakpoint / flex layout saniyeliğine zıplatıyordu */
+@supports (scrollbar-gutter: stable) {
+  html { scrollbar-gutter: stable; }
+}
 
 body {
   font-family: var(--sans);
@@ -69,9 +73,12 @@ nav {
   z-index: 100;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 60px;
-  height: 72px;
+  justify-content: flex-start;
+  gap: clamp(14px, 2.5vw, 28px);
+  padding: 10px 60px 14px;
+  min-height: 78px;
+  height: auto;
+  box-sizing: border-box;
   background: rgba(7,18,33,0.92);
   backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
@@ -87,6 +94,7 @@ nav {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;
 }
 .nav-logo span {
   display: inline-block;
@@ -118,6 +126,23 @@ nav {
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+
+/* Orta bağlantılar + CTAlar: yan yana, logodan sonra kalan genişlik; dikey kaydırma nav-slot ile (tek blok) */
+.nav-slot {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(12px, 2.8vw, 36px);
+  min-width: 0;
+}
+
+@media (min-width: 769px) {
+  nav .nav-slot {
+    margin-top: 10px !important;
+  }
+}
+
 .btn-outline {
   padding: 9px 22px;
   border: 1px solid var(--border);
@@ -1460,7 +1485,7 @@ footer {
 
 /* ── RESPONSIVE ── */
 @media (max-width: 1024px) {
-  nav { padding: 0 30px; }
+  nav { padding: 10px 30px 14px; }
   .hero { padding: 100px 30px 60px; }
   .hero-inner { grid-template-columns: 1fr; gap: 50px; }
   .section-inner { padding: 0 30px; }
@@ -1479,6 +1504,15 @@ footer {
     min-height: 72px;
     padding: 12px 20px;
     row-gap: 10px;
+    gap: 10px;
+  }
+  .nav-slot {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    min-width: 0;
+    gap: 10px;
+    margin-top: 0 !important;
   }
   .nav-cta {
     flex: 1 1 100%;
@@ -1517,21 +1551,23 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <span></span>
     FinSkor
   </a>
-  <ul class="nav-links">
-    <li><a href="#guven">Güven</a></li>
-    <li><a href="#senaryo">Senaryo Analizi</a></li>
-    <li><a href="#kosgeb">KOSGEB</a></li>
-    <li><a href="#baykus">Baykuş AI</a></li>
-    <li><a href="#nasil">Nasıl Çalışır</a></li>
-    <li><a href="#fiyat">Fiyatlar</a></li>
-    <li><a href="#referanslar">Referanslar</a></li>
-    <li><a href="#sss">SSS</a></li>
-    <li><a href="kgf.html" title="Kredi Garanti Fonu paketleri — genel bilgi">KGF rehberi</a></li>
-  </ul>
-  <div class="nav-cta">
-    <a href="nakitflow.html" class="btn-nakitflow" title="Nakit akış projeksiyonu — NakitFlow (kod gerektirmez)">📊 NakitFlow</a>
-    <a href="/fininsaat-erp.html" class="btn-fininsaat-erp" title="İnşaat ERP — FinSkor çerçevesi (içeride giriş)">🏗️ Fininsaat ERP</a>
-    <a href="app.html" class="btn-primary">FinSkor'a giriş →</a>
+  <div class="nav-slot">
+    <ul class="nav-links">
+      <li><a href="#guven">Güven</a></li>
+      <li><a href="#senaryo">Senaryo Analizi</a></li>
+      <li><a href="#kosgeb">KOSGEB</a></li>
+      <li><a href="#baykus">Baykuş AI</a></li>
+      <li><a href="#nasil">Nasıl Çalışır</a></li>
+      <li><a href="#fiyat">Fiyatlar</a></li>
+      <li><a href="#referanslar">Referanslar</a></li>
+      <li><a href="#sss">SSS</a></li>
+      <li><a href="kgf.html" title="Kredi Garanti Fonu paketleri — genel bilgi">KGF rehberi</a></li>
+    </ul>
+    <div class="nav-cta">
+      <a href="nakitflow.html" class="btn-nakitflow" title="Nakit akış projeksiyonu — NakitFlow (kod gerektirmez)">📊 NakitFlow</a>
+      <a href="/fininsaat-erp.html" class="btn-fininsaat-erp" title="İnşaat ERP — FinSkor çerçevesi (içeride giriş)">🏗️ Fininsaat ERP</a>
+      <a href="app.html" class="btn-primary">FinSkor'a giriş →</a>
+    </div>
   </div>
 </nav>
 
@@ -2461,16 +2497,18 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 // Scroll reveal
 const observer = new IntersectionObserver((entries) => {
   entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      entry.target.style.opacity = '1';
-      entry.target.style.transform = 'translateY(0)';
-    }
+    if (!entry.isIntersecting) return;
+    const el = entry.target;
+    if (el.closest && el.closest('nav')) return;
+    el.style.opacity = '1';
+    el.style.transform = 'translateY(0)';
   });
 }, { threshold: 0.1 });
 
 /* Fiyat kartları: opacity 0 + observer bazen tetiklenmez → NakitFlow görünmez kalıyordu; vitrin her zaman görünür */
 /* hero-tier-card çıkarıldı: hero üstte; IO bazen tetiklenmeyince “Kredi Notu Gelişimi” vitrini görünmez kalıyordu */
 document.querySelectorAll('.feature-card, .how-step, .scenario-card, .rating-row, .flow-step, .banka-karari-card, .landing-kimler-item, .landing-cozum-card, .landing-problem-card').forEach(el => {
+  if (el.closest && el.closest('nav')) return;
   el.style.opacity = '0';
   el.style.transform = 'translateY(16px)';
   el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
@@ -2737,6 +2775,41 @@ try {
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
   else wire();
+})();
+</script>
+
+<script>
+/* Nav-slot dikey kaydırma: scrollbar / breakpoint / üçüncü parti style değişiminde ~1sn sonra kaçmayı kes */
+(function () {
+  var slot = document.querySelector('nav .nav-slot');
+  if (!slot) return;
+  function narrow() {
+    try { return window.matchMedia('(max-width: 768px)').matches; }
+    catch (e) { return (window.innerWidth || 9999) <= 768; }
+  }
+  function enforce() {
+    if (narrow()) {
+      slot.style.removeProperty('margin-top');
+      return;
+    }
+    var v = (slot.style.getPropertyValue('margin-top') || '').trim();
+    var p = slot.style.getPropertyPriority('margin-top');
+    if (v !== '10px' || p !== 'important') slot.style.setProperty('margin-top', '10px', 'important');
+  }
+  enforce();
+  try {
+    var mo = new MutationObserver(function () { setTimeout(enforce, 0); });
+    mo.observe(slot, { attributes: true, attributeFilter: ['style'] });
+  } catch (e) {}
+  window.addEventListener('load', enforce);
+  ['resize', 'orientationchange'].forEach(function (ev) {
+    window.addEventListener(ev, enforce, { passive: true });
+  });
+  var ticks = 0;
+  var pol = window.setInterval(function () {
+    enforce();
+    if (++ticks >= 30) window.clearInterval(pol);
+  }, 167);
 })();
 </script>
 
