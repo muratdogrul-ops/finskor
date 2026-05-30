@@ -49,7 +49,18 @@
     );
   }
 
-  /** Mizan/FinSkor mali borç → Krediler (BCH mevcut); önceki otomatik satırları günceller */
+  /** Varsayımlar → TL BCH Y1 (2026); UV taksitli faiz */
+  window.maliUvInstallmentRate = function (f) {
+    const ass = (f && f.assumptions) || {};
+    if (Number(ass.bch1) > 0) return Number(ass.bch1);
+    if (Number(ass.bchRate) > 0) return Number(ass.bchRate);
+    return 40;
+  };
+
+  window.UV_MALI_INSTALL_TERM = 24;
+  window.UV_MALI_FIRST_PAYMENT = '2026-02-01T00:00:00.000Z';
+
+  /** KV → BCH mevcut; UV → 24 ay taksitli (ilk ödeme 01.02.2026, faiz = BCH Y1) */
   window.syncLoansFromMaliBorc = function (f, d) {
     if (!f) return { kv: 0, uv: 0 };
     const kv = Math.round(nkmNum(d.kvMaliBorclar));
@@ -66,13 +77,21 @@
       });
     }
     if (uv > 0) {
+      const rate = maliUvInstallmentRate(f);
       f.loans.push({
-        type: 'bch_existing',
+        type: 'installment',
         bank: 'UV Mali Borç (mizan/FinSkor)',
         ccy: 'TL',
         principal: uv,
+        term: UV_MALI_INSTALL_TERM,
+        rate,
+        existing: true,
+        firstPaymentDate: UV_MALI_FIRST_PAYMENT,
+        startDate: UV_MALI_FIRST_PAYMENT,
         _maliAuto: 'uv',
       });
+      const last = f.loans[f.loans.length - 1];
+      if (typeof normalizeInstallmentLoan === 'function') normalizeInstallmentLoan(last);
     }
     if (!f.opening) f.opening = {};
     f.opening.kvMaliBorclar = kv;
@@ -260,6 +279,14 @@
     const snap = f && f.maliParsedSnapshot;
     if (!snap || (!snap.bilancoRows?.length && !snap.gelirRows?.length)) {
       card.style.display = 'none';
+      const bar = document.getElementById('opening-mali-balance-bar');
+      if (bar) bar.innerHTML = '';
+      const metaEl = document.getElementById('opening-mali-preview-meta');
+      if (metaEl) metaEl.textContent = '';
+      ['opening-mali-bilanco-body', 'opening-mali-gelir-body'].forEach((id) => {
+        const body = document.getElementById(id);
+        if (body) body.innerHTML = '';
+      });
       return;
     }
     card.style.display = 'block';
@@ -372,7 +399,7 @@
     const synced = syncLoansFromMaliBorc(f, parsed);
     if (synced.kv > 0 || synced.uv > 0) {
       importLog(
-        `🏦 Krediler: KV mali borç <b>${synced.kv.toLocaleString('tr-TR')}</b> · UV mali borç <b>${synced.uv.toLocaleString('tr-TR')}</b> TL (BCH mevcut) — vade/faiz için <b>Krediler</b> sekmesi`,
+        `🏦 Krediler: KV <b>${synced.kv.toLocaleString('tr-TR')}</b> TL (BCH) · UV <b>${synced.uv.toLocaleString('tr-TR')}</b> TL (24 ay taksit, ilk ödeme 01.02.2026, faiz %${maliUvInstallmentRate(f)})`,
         'ok',
       );
     }

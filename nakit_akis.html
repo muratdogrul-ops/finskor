@@ -436,7 +436,7 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
           <div class="field"><label>🏭 Duran Varlıklar Toplamı</label><input id="ob-mdv" type="number" placeholder="0"></div>
           <div class="field"><label>💼 Sermaye (Özkaynak)</label><input id="ob-capital" type="number" placeholder="0"></div>
           <div class="field"><label>🏦 KV banka borcu (30 mali borç)</label><input id="ob-kv-mali" type="number" placeholder="0" title="FinSkor/mizan 30. Mali Borçlar. Kayıtta Krediler → BCH (mevcut) olarak yansır."></div>
-          <div class="field"><label>🏦 UV banka borcu (40 mali borç)</label><input id="ob-uv-mali" type="number" placeholder="0" title="FinSkor/mizan 40. Mali Borçlar. Kayıtta Krediler → BCH (mevcut) olarak yansır."></div>
+          <div class="field"><label>🏦 UV banka borcu (40 mali borç)</label><input id="ob-uv-mali" type="number" placeholder="0" title="FinSkor/mizan 40. Mali Borçlar. Kayıtta Krediler → 24 ay taksitli (ilk ödeme 01.02.2026, faiz = Varsayımlar TL BCH Y1). Likidite özetine girmez."></div>
           <div class="field"><label>📎 Diğer alacak + diğer dönen (FinSkor dengesi)</label><input id="ob-other-assets" type="number" placeholder="0" title="Nakit akışta ve DSO’da kullanılmaz; 5Y bilanço aktifine eklenir."></div>
           <div class="field"><label>📎 Diğer borç + alınan avans (FinSkor dengesi)</label><input id="ob-other-liab" type="number" placeholder="0" title="Nakit akışta ayrı ödeme yok; 5Y bilanço yükümlülüğüne eklenir."></div>
         </div>
@@ -1147,6 +1147,8 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
 // GLOBAL STATE
 // ══════════════════════════════════════════════
 let state = { firms: {}, currentFirmId: null };
+/** Açılış sayfası UI hangi firmaya bağlı (firma değişince önceki firmanın tabloları kalmasın) */
+let _openingUiBoundFirmId = null;
 
 const AY_ADI = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
 
@@ -1171,8 +1173,14 @@ async function saveState(){
 async function loadState(){
   try{
     const r = await window.storage.get('nakit-state-v3');
-    if(r && r.value){const s=JSON.parse(r.value);state.firms=s.firms||{};}
+    if(r && r.value){
+      const s=JSON.parse(r.value);
+      state.firms=s.firms||{};
+      if(s.currentFirmId&&state.firms[s.currentFirmId]) state.currentFirmId=s.currentFirmId;
+      else state.currentFirmId=null;
+    }
   }catch(e){}
+  _openingUiBoundFirmId=null;
 }
 
 // ══════════════════════════════════════════════
@@ -1299,6 +1307,34 @@ function migrateLegacyLoanRates(){
   }
   return dirty;
 }
+/** Eski UV BCH satırlarını 24 ay taksitliye çevir; mevcut UV taksit faizini BCH Y1 ile güncelle */
+function migrateUvMaliToInstallment(){
+  let dirty=false;
+  for(const id of Object.keys(state.firms||{})){
+    const f=state.firms[id];
+    if(!f)continue;
+    const o=f.opening||{};
+    const uvBch=(f.loans||[]).find(L=>L._maliAuto==='uv'&&L.type==='bch_existing');
+    const hasUvBch=!!uvBch;
+    const uvInst=(f.loans||[]).find(L=>L._maliAuto==='uv'&&L.type==='installment');
+    let uvAmt=Math.round(o.uvMaliBorclar||0);
+    if(!uvAmt&&hasUvBch) uvAmt=Math.round(uvBch.principal||0);
+    if(hasUvBch||(uvAmt>0&&!uvInst)){
+      if(typeof syncLoansFromMaliBorc==='function'){
+        syncLoansFromMaliBorc(f,{kvMaliBorclar:o.kvMaliBorclar||0,uvMaliBorclar:uvAmt});
+        dirty=true;
+      }
+    }else if(uvInst&&typeof maliUvInstallmentRate==='function'){
+      const rate=maliUvInstallmentRate(f);
+      if(Math.abs((uvInst.rate||0)-rate)>0.009){
+        uvInst.rate=rate;
+        normalizeInstallmentLoan(uvInst);
+        dirty=true;
+      }
+    }
+  }
+  return dirty;
+}
 function addMonths(date,n){const d=new Date(date);d.setMonth(d.getMonth()+n);return d;}
 function tr(x,d=2){if(x===null||x===undefined||x==='')return '';const n=Number(x);if(isNaN(n))return String(x);return n.toLocaleString('tr-TR',{minimumFractionDigits:d,maximumFractionDigits:d});}
 function parseIntList(s){return(s||'').split(',').map(x=>parseInt(x.trim())).filter(x=>!isNaN(x));}
@@ -1314,7 +1350,7 @@ function openNewFirmModal(){
 }
 function closeModal(id){$(id).classList.remove('open');}
 
-function createFirm(){
+async function createFirm(){
   const name=($('nf-name').value||'').trim();
   const dt=parseDate($('nf-date').value);
   if(!name){showAlert('Firma adı gerekli.','err');return;}
@@ -1324,29 +1360,39 @@ function createFirm(){
   for(const{group,items}of EXPENSE_GROUPS)for(const item of items)defExp[i++]={group,name:item,amount:0};
   const fxRates={usdOpen:0,eurOpen:0,usdPrevBeforeProj:0,eurPrevBeforeProj:0,monthly:Array.from({length:FX_TABLE_MONTHS},()=>({usd:0,eur:0}))};
   state.firms[id]={id,name,startDate:dt.toISOString(),createdAt:new Date().toISOString(),
-    opening:{cash:0,bank:0,ar:0,ap:0,inventory:0,capital:0,otherAssets:0,otherLiab:0},
+    opening:{cash:0,bank:0,ar:0,ap:0,inventory:0,capital:0,otherAssets:0,otherLiab:0,kvMaliBorclar:0,uvMaliBorclar:0},
     incomeStmt:{revenue:0,cogs:0},
     ciro:{mode:'uniform',monthly:new Array(12).fill(100/12)},
     assumptions:{months:120,growth:0,expGrowth:0,bchLimit:1e12,bchRate:0,
       bch1:0,bch2:0,bch3:0,bch4:0,bch5:0,dep1:0,dep2:0,dep3:0,dep4:0,dep5:0,taxRate:25,taxMonths:'3,6,9,12'},
     expenses:defExp,loans:[],manualCf:[],fxRates,
     ina:{wacc:15,terminalGrowth:2,firstFcfYear:null,explicitYears:null,waccMode:'constant',waccStaged:[15,15,15,15,15],waccDynamicBase:15,dynamicRisk:{currentRatio:null,netDebtEbitda:null,ebitdaMargin:null,marginTrend:null}}};
-  saveState();closeModal('new-firm-modal');renderFirmList();
-  showAlert('"'+name+'" oluşturuldu. Sol menü açıldı — adım adım ilerleyebilirsin.','ok');
-  // Firma oluşturulduktan hemen sonra otomatik seç → sol menü açılır, Açılış'a geçilir
-  selectFirm(id);
-}
-
-function selectFirm(id){
   state.currentFirmId=id;
+  _openingUiBoundFirmId=null;
+  await saveState();
+  closeModal('new-firm-modal');renderFirmList();
+  showAlert('"'+name+'" oluşturuldu. Sol menü açıldı — adım adım ilerleyebilirsin.','ok');
   $('firm-nav-label').style.display='';
   $('firm-nav-items').style.display='';
   navTo('opening');
 }
-function selectAndGo(id,page){
+
+function selectFirm(id){
+  if(!state.firms[id])return;
+  if(state.currentFirmId!==id)_openingUiBoundFirmId=null;
   state.currentFirmId=id;
   $('firm-nav-label').style.display='';
   $('firm-nav-items').style.display='';
+  saveState();
+  navTo('opening');
+}
+function selectAndGo(id,page){
+  if(!state.firms[id])return;
+  if(state.currentFirmId!==id)_openingUiBoundFirmId=null;
+  state.currentFirmId=id;
+  $('firm-nav-label').style.display='';
+  $('firm-nav-items').style.display='';
+  saveState();
   navTo(page);
 }
 function deleteFirm(id){
@@ -1355,6 +1401,7 @@ function deleteFirm(id){
   delete state.firms[id];
   if(state.currentFirmId===id){
     state.currentFirmId=null;
+    _openingUiBoundFirmId=null;
     $('firm-nav-label').style.display='none';
     $('firm-nav-items').style.display='none';
     navTo('home');
@@ -1384,14 +1431,33 @@ function curFirm(){
 // ══════════════════════════════════════════════
 // OPENING BALANCE
 // ══════════════════════════════════════════════
+function resetOpeningPageUi(){
+  if(typeof clearOpeningImportLog==='function')clearOpeningImportLog();
+  const card=$('opening-mali-preview-card');
+  if(card)card.style.display='none';
+  const bar=$('opening-mali-balance-bar');
+  if(bar)bar.innerHTML='';
+  const meta=$('opening-mali-preview-meta');
+  if(meta)meta.textContent='';
+  ['opening-mali-bilanco-body','opening-mali-gelir-body'].forEach(id=>{
+    const el=$(id);if(el)el.innerHTML='';
+  });
+  const fileIn=document.querySelector('#opening-mali-card input[type="file"]');
+  if(fileIn)fileIn.value='';
+}
 function populateOpening(){
-  const f=curFirm();if(!f)return;const o={...(f.opening||{})};
+  const f=curFirm();if(!f)return;
+  if(_openingUiBoundFirmId!==f.id){
+    resetOpeningPageUi();
+    _openingUiBoundFirmId=f.id;
+  }
+  const o={...(f.opening||{})};
   if(!(o.kvMaliBorclar||o.uvMaliBorclar) && (f.loans||[]).length){
     let kv=0, uv=0;
     for(const L of f.loans){
-      if(L.type!=='bch_existing') continue;
       const amt=Math.max(0,L.principal||0);
-      if(L._maliAuto==='uv'||/UV/i.test(L.bank||'')) uv+=amt; else kv+=amt;
+      if(L._maliAuto==='uv'||(L.type==='installment'&&/UV/i.test(L.bank||''))) uv+=amt;
+      else if(L.type==='bch_existing'&&(L._maliAuto==='kv'||/KV/i.test(L.bank||''))) kv+=amt;
     }
     if(kv||uv){ o.kvMaliBorclar=kv; o.uvMaliBorclar=uv; }
   }
@@ -1421,7 +1487,7 @@ function saveOpening(){
   saveState();
   if(typeof renderLoans==='function')renderLoans();
   if(typeof renderOpeningMaliPreview==='function')renderOpeningMaliPreview();
-  showAlert('Açılış bilanço kaydedildi.'+(kvMali||uvMali?' Banka borçları Krediler sekmesine işlendi.':''),'ok');
+  showAlert('Açılış bilanço kaydedildi.'+(kvMali||uvMali?' KV→BCH, UV→24 ay taksit (Krediler).':''),'ok');
 }
 
 // ══════════════════════════════════════════════
@@ -1622,6 +1688,11 @@ function saveAssumptions(){
     const raw=($('ass-gm-y'+yi)?.value||'').trim();
     if(raw==='')delete f.assumptions['gmY'+yi];
     else f.assumptions['gmY'+yi]=fnum(raw);
+  }
+  const uvAmt=f.opening?.uvMaliBorclar||0;
+  if(uvAmt>0&&typeof syncLoansFromMaliBorc==='function'){
+    syncLoansFromMaliBorc(f,{kvMaliBorclar:f.opening?.kvMaliBorclar||0,uvMaliBorclar:uvAmt});
+    if(typeof renderLoans==='function')renderLoans();
   }
   saveState();showAlert('Varsayımlar kaydedildi.','ok');
 }
@@ -2621,9 +2692,17 @@ function buildProjection(firmId){
       }
       installDisb[disbT] += principal * disbFxRate;
     }
-    // Mevcut kredi: ilk ödeme projeksiyon başından (ay 1) itibaren başlar.
+    // Mevcut kredi: varsayılan ay 1; firstPaymentDate varsa o aya hizala (UV mali borç: 01.02.2026).
     // Yeni kredi: kullanım ayının bir sonraki ayından başlar.
-    const firstPayMi = isExisting ? 1 : disburseMi + 1;
+    let firstPayMi;
+    if(isExisting){
+      if(L.firstPaymentDate){
+        const fpDt=new Date(L.firstPaymentDate);
+        if(!isNaN(+fpDt)){
+          firstPayMi=(fpDt.getFullYear()-startDt.getFullYear())*12+(fpDt.getMonth()-startDt.getMonth())+1;
+        }else firstPayMi=1;
+      }else firstPayMi=1;
+    }else firstPayMi=disburseMi+1;
     // BSMV: TL kredilerde faizin %5'i; EUR/USD kredilerde yoktur
     const loanBsmv = (ccy && ccy !== 'TL') ? 0 : BSMV_RATE;
     const sched=amortSched(principal, rate||0, term, loanBsmv);
@@ -5415,7 +5494,9 @@ async function importFromFinSkor(){
 
 async function init(){
   await loadState();
-  if(migrateLegacyLoanRates())await saveState();
+  let migrated=migrateLegacyLoanRates();
+  if(migrateUvMaliToInstallment())migrated=true;
+  if(migrated)await saveState();
   await importFromFinSkor();   // FinSkor'dan veri geldiyse önce oluştur
   renderFirmList();
   $('new-firm-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal('new-firm-modal');});
