@@ -631,6 +631,49 @@ function normTR(s) {
     .replace(/̇/g,'');       // combining dot kaldır
 }
 
+/** Excel mizan A sütunu: 100, 100.01, 100-01 → { kod, isAna } */
+function parseMizanHesapKodu(raw) {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw === 'number' && Number.isInteger(raw) && raw >= 100 && raw <= 699) {
+    return { kod: raw, isAna: true };
+  }
+  if (typeof raw === 'number' && raw >= 100 && raw <= 699 && Math.floor(raw) === raw) {
+    const k = Math.floor(raw);
+    return { kod: k, isAna: raw === k };
+  }
+  const s = String(raw).trim().replace(/\s+/g, '');
+  const m3 = s.match(/^(\d{3})$/);
+  if (m3) {
+    const n = parseInt(m3[1], 10);
+    if (n >= 100 && n <= 699) return { kod: n, isAna: true };
+  }
+  const mSub = s.match(/^(\d{3})[.\-]/);
+  if (mSub) {
+    const n = parseInt(mSub[1], 10);
+    if (n >= 100 && n <= 699) return { kod: n, isAna: false };
+  }
+  return null;
+}
+
+/** Borç/alacak bakiye + dönem toplamından imzalı tutar (PDF ile aynı hesapDeger) */
+function mizanKatkiFromBakiye(kod, borcBak, alacBak, borcTutar, alacTutar) {
+  let bb = borcBak || 0;
+  let ab = alacBak || 0;
+  if (bb === 0 && ab === 0 && (borcTutar > 0 || alacTutar > 0)) {
+    const net = borcTutar - alacTutar;
+    if (net > 0) bb = net;
+    else if (net < 0) ab = -net;
+  }
+  if (bb === 0 && ab === 0) return 0;
+  return hesapDeger(kod, bb, ab);
+}
+
+/** İki haneli grup → hesapDeger için temsilî 3 haneli kod (59: zarar/kar ayrımı) */
+function mizanKod2Temsil3(kod2, bb, ab) {
+  if (kod2 === 59) return bb > ab ? 591 : 590;
+  return kod2 * 10;
+}
+
 // Mizan satırlarını işle: hesap kodu tara, key'e topla
 function mizanRowlariIsle(rows) {
   // ── BAŞLIK SATIRI TESPİT ──────────────────────────────────────────
@@ -716,7 +759,6 @@ function mizanRowlariIsle(rows) {
   // Pasif (30-59): Alacak Bakiyesi - Borç Bakiyesi = net değer
   // Gelir (60-69): gider kodları borç bakiyeli, gelir kodları alacak bakiyeli
   // ══════════════════════════════════════════════════════════════════
-  const MINUS_GT = new Set([62,63,65,66,68,69]);
   const ikiHaneliOkundu = new Set();
 
   for (let r = startRow; r < rows.length; r++) {
@@ -752,13 +794,11 @@ function mizanRowlariIsle(rows) {
     }
     if (bb2 === 0 && ab2 === 0) continue;
 
-    let deger2 = 0;
-    if (kod2 >= 10 && kod2 <= 29)      deger2 = bb2 - ab2;
-    else if (kod2 >= 30 && kod2 <= 59) deger2 = ab2 - bb2;
-    else if (kod2 >= 60 && kod2 <= 69) deger2 = MINUS_GT.has(kod2) ? bb2 : ab2;
+    const temsil3 = mizanKod2Temsil3(kod2, bb2, ab2);
+    const deger2 = mizanKatkiFromBakiye(temsil3, bb2, ab2, borcT2, alacT2);
     if (deger2 === 0) continue;
 
-    result[key2] = (result[key2] || 0) + Math.abs(deger2);
+    result[key2] = (result[key2] || 0) + (key2 === 'gecmisZarar' ? Math.abs(deger2) : deger2);
     ikiHaneliOkundu.add(key2);
   }
 
@@ -767,61 +807,65 @@ function mizanRowlariIsle(rows) {
   }
 
   // ══════════════════════════════════════════════════════════════════
-  // AŞAMA 2: ÜÇ HANELİ KODLARI OKU
-  // Sadece iki haneli'de eksik kalan key'ler için alt hesapları topla
-  // Aktif (100-299): BorcBak - AlacBak → net (negatif = gruptan düş)
-  // Pasif (300-599): AlacBak - BorcBak → net
+  // AŞAMA 2: ÜÇ HANELİ + ALT HESAP (100.01) — hesapDeger; ana satır varsa alt toplanmaz
   // ══════════════════════════════════════════════════════════════════
+  const ucHaneli = new Map();
+
   for (let r = startRow; r < rows.length; r++) {
     const row = rows[r] || [];
     if (row.every(v => v === null || v === undefined || v === '')) continue;
 
-    let kod = null;
+    let parsed = null;
     for (const c of colKodList) {
-      const raw = row[c];
-      if (raw === null || raw === undefined) continue;
-      const s = String(raw).trim();
-      if (/^\d{3}$/.test(s)) { const n = parseInt(s); if (n >= 100 && n <= 699) { kod = n; break; } }
-      if (typeof raw === 'number' && Number.isInteger(raw) && raw >= 100 && raw <= 699) { kod = raw; break; }
-      if (typeof raw === 'number' && raw >= 100 && raw <= 699 && Math.floor(raw) === raw) { kod = Math.floor(raw); break; }
+      parsed = parseMizanHesapKodu(row[c]);
+      if (parsed) break;
     }
-    if (kod === null) continue;
-
-    const key = KOD_TO_KEY[kod];
-    if (!key) continue;
-    if (ikiHaneliOkundu.has(key)) continue;  // iki haneli'den okunduysa atla
+    if (!parsed) continue;
+    const { kod, isAna } = parsed;
 
     const borcTutar = colBorc >= 0 ? (parseImportNumber(row[colBorc]) ?? 0) : 0;
     const alacTutar = colAlac >= 0 ? (parseImportNumber(row[colAlac]) ?? 0) : 0;
-    let borcBak = colBorcBak >= 0 && colBorcBak < row.length ? (parseImportNumber(row[colBorcBak]) ?? 0) : 0;
-    let alacBak = colAlacBak >= 0 && colAlacBak < row.length ? (parseImportNumber(row[colAlacBak]) ?? 0) : 0;
+    const borcBak = colBorcBak >= 0 && colBorcBak < row.length ? (parseImportNumber(row[colBorcBak]) ?? 0) : 0;
+    const alacBak = colAlacBak >= 0 && colAlacBak < row.length ? (parseImportNumber(row[colAlacBak]) ?? 0) : 0;
 
-    if (borcBak === 0 && alacBak === 0 && (borcTutar > 0 || alacTutar > 0)) {
-      const net = borcTutar - alacTutar;
-      if (net > 0) borcBak = net; else if (net < 0) alacBak = -net;
-    }
-    if (borcBak === 0 && alacBak === 0) continue;
-
-    let katki = 0;
-    if (kod >= 100 && kod <= 299)      katki = borcBak - alacBak;
-    else if (kod >= 300 && kod <= 591) katki = alacBak - borcBak;
-    else if (kod >= 600 && kod <= 699) {
-      const isMinus = MINUS_KODLAR.has(kod);
-      katki = isMinus ? (borcBak > 0 ? borcBak : alacBak) : (alacBak > 0 ? alacBak : borcBak);
-    }
+    const katki = mizanKatkiFromBakiye(kod, borcBak, alacBak, borcTutar, alacTutar);
     if (katki === 0) continue;
 
-    // 131 Ortaklardan Alacaklar: analizde sıfırlanır, özkaynaktan ayrıca tenzil edilir.
+    let slot = ucHaneli.get(kod);
+    if (!slot) {
+      slot = { ana: null, altSum: 0 };
+      ucHaneli.set(kod, slot);
+    }
+    if (isAna) slot.ana = (slot.ana || 0) + katki;
+    else slot.altSum += katki;
+  }
+
+  for (const [kod, slot] of ucHaneli) {
+    const key = KOD_TO_KEY[kod];
+    if (!key) continue;
+    if (ikiHaneliOkundu.has(key)) continue;
+
+    const katki = slot.ana !== null ? slot.ana : slot.altSum;
+    if (katki === 0) continue;
+
     if (kod === 131) {
       result['ortakAlacak131'] = (result['ortakAlacak131'] || 0) + Math.max(0, katki);
       continue;
     }
-    // gecmisZarar daima pozitif kaydedilir — özkaynaktan düşülür ayrıca
     result[key] = (result[key] || 0) + (key === 'gecmisZarar' ? Math.abs(katki) : katki);
     if (kod === 601) result['ihracat'] = (result['ihracat'] || 0) + Math.abs(katki);
   }
 
   const n = Object.keys(result).filter(k => result[k] !== 0).length;
+  if (!result.donemNetKar && !result.donemKar && (result.brutSatis || result.satMaliyet)) {
+    result._mizan590591Eksik = true;
+    importLog(
+      'ℹ️ Mizanda 590/591 (dönem karı) satırı yok; dönem sonucu gelir tablosu (600–699) hesabından kapatılacak.',
+      'info',
+    );
+  } else if (result.donemNetKar || result.donemKar) {
+    result._mizan590591 = true;
+  }
   importLog(`✅ ${n} kalem eşleştirildi`, n > 0 ? 'ok' : 'warn');
   return result;
 }
@@ -1611,6 +1655,30 @@ function finalizeImport(data) {
   if (data._firmaAdi) importLog(`🏢 Firma: <b>${data._firmaAdi}</b>`, 'ok');
   importLog(`🎯 <b>${girilen.length}</b> kalem okundu (${importState._formatLabel || 'dosya'})`, 'ok');
 
+  if (typeof hesapToplamlarOnObject === 'function' && importState.year) {
+    const probe = { ...data };
+    hesapToplamlarOnObject(probe, importState.year);
+    const a = probe.aktifToplam || 0;
+    const p = probe.pasifToplam || 0;
+    const fark = a - p;
+    if (Math.abs(fark) >= 1) {
+      const dnk = probe.donemNetKar || probe.donemNetKarGelir || 0;
+      const gelirKapanis =
+        Math.abs(Math.abs(fark) - Math.abs(dnk)) < 1000 &&
+        Math.abs(dnk) >= 1 &&
+        !(probe._mizan590591 || probe.donemNetKarBilanco);
+      importLog(
+        `⚖️ Okunan bilanço özeti: Aktif <b>${a.toLocaleString('tr-TR')}</b> · Pasif <b>${p.toLocaleString('tr-TR')}</b> · Fark <b>${fark.toLocaleString('tr-TR')}</b> TL` +
+          (gelirKapanis
+            ? ' <span style="opacity:.85">(590/591 yok — gelir tablosu kapanışı özkaynağa işlenmeli; sayfayı yenileyin)</span>'
+            : ''),
+        'warn',
+      );
+    } else {
+      importLog(`⚖️ Bilanço dengesi: Aktif = Pasif (<b>${a.toLocaleString('tr-TR')}</b> TL)`, 'ok');
+    }
+  }
+
   importState.parsed = data;
 
   if (window._nfMaliImportResolve) {
@@ -1709,14 +1777,6 @@ function hesapToplamlar(year) {
   const uvAlt = sum('uvMaliBorclar','uvDigBorclar','uvAlinanAvans','uvBorcKarsilik','uvDigYK') + uvTicEff;
   d.uvYKToplam = uvAlt > 0 ? uvAlt : (d.uvYKToplam || 0);
 
-  // Öz Kaynak — alt kalemler varsa onlardan hesapla
-  const ortak131Tenzil = Math.max(0, d.ortakAlacak131 || 0);
-  const ozAlt = sum('odenmisSermaye','sermaYedek','karYedek','gecmisKar','donemNetKar') - (d.gecmisZarar||0) - ortak131Tenzil;
-  d.ozKaynak = Math.abs(ozAlt) > 0 ? ozAlt : (d.ozKaynak || 0);
-
-  // Pasif Toplam
-  d.pasifToplam = (d.kvYKToplam||0) + (d.uvYKToplam||0) + (d.ozKaynak||0);
-
   // Net Satışlar
   const netSatisYeni = (d.brutSatis||0) - (d.satisInd||0);
   if (!d.netSatis || netSatisYeni > 0) d.netSatis = netSatisYeni;
@@ -1743,6 +1803,7 @@ function hesapToplamlar(year) {
     }
   }
   d.donemNetKarGelir = d.donemNetKar;
+  if (typeof finSkorOzKaynakVePasif === 'function') finSkorOzKaynakVePasif(d);
 }
 
 

@@ -60,21 +60,251 @@
   window.UV_MALI_INSTALL_TERM = 24;
   window.UV_MALI_FIRST_PAYMENT = '2026-02-01T00:00:00.000Z';
 
+  /** Açılış USD/TL kuru (NakitFlow fx veya varsayılan spot) */
+  window.getMaliUsdOpenRate = function (f) {
+    const fx = (f && f.fx) || {};
+    const v = Number(fx.usdOpen);
+    if (v > 0) return v;
+    if (typeof FX_SPOT !== 'undefined' && Number(FX_SPOT.usd) > 0) return Number(FX_SPOT.usd);
+    return 42.9229;
+  };
+
+  /** Yurtdışı satış: mizan ihracat (601) > 0 */
+  window.firmHasYurtdisiSatis = function (f, parsed) {
+    return window.maliIhracatTutar(f, parsed) > 0;
+  };
+
+  window.applyMaliIhracatMeta = function (f, parsed, year) {
+    if (!f) return;
+    const ihr = Math.round(nkmNum(parsed && parsed.ihracat));
+    const rev =
+      nkmNum(parsed && parsed.netSatis) ||
+      Math.max(0, nkmNum(parsed && parsed.brutSatis) - nkmNum(parsed && parsed.satisInd)) ||
+      nkmNum(f.incomeStmt && f.incomeStmt.revenue);
+    f.maliIhracat = {
+      ihracat: ihr,
+      hasYurtdisiSatis: ihr > 0,
+      ihracatOrani: rev > 0 ? (ihr / rev) * 100 : 0,
+      year: year || null,
+    };
+  };
+
+  /** İhracatçı: KV BCH %50 TL + %50 USD (UV taksitli TL aynı) */
+  window.splitKvBchForExport = function (kvTl, f) {
+    const kv = Math.max(0, Math.round(nkmNum(kvTl)));
+    if (kv <= 0) return [];
+    const halfTl = Math.floor(kv / 2);
+    const halfTlUsdLeg = kv - halfTl;
+    const usdRate = window.getMaliUsdOpenRate(f);
+    const usdPrincipal = Math.round((halfTlUsdLeg / usdRate) * 100) / 100;
+    return [
+      {
+        type: 'bch_existing',
+        bank: 'KV Mali Borç — TL (%50)',
+        ccy: 'TL',
+        principal: halfTl,
+        _maliAuto: 'kv_tl',
+      },
+      {
+        type: 'bch_existing',
+        bank: 'KV Mali Borç — USD (%50)',
+        ccy: 'USD',
+        principal: usdPrincipal,
+        _maliAuto: 'kv_usd',
+      },
+    ];
+  };
+
+  /** BCH toplamında USD payı (TL karşılığı); EUR ihracat kuralına dahil değil */
+  window.bchUsdShareRatio = function (f, fx, monthIndex) {
+    const loans = (f && f.loans) || [];
+    const mi = monthIndex == null ? 0 : monthIndex;
+    let tl = 0;
+    let usdEq = 0;
+    for (const L of loans) {
+      if (L.type !== 'bch_existing') continue;
+      const p = Math.max(0, nkmNum(L.principal));
+      const ccy = L.ccy || 'TL';
+      if (ccy === 'USD') {
+        const r =
+          typeof getFxRate === 'function' ? getFxRate(fx || f.fx, 'USD', mi) : getMaliUsdOpenRate(f);
+        usdEq += p * (r > 0 ? r : getMaliUsdOpenRate(f));
+      } else if (ccy === 'TL') {
+        tl += p;
+      }
+    }
+    const tot = tl + usdEq;
+    return tot > 0 ? usdEq / tot : 0;
+  };
+
+  /**
+   * Likidite eksiği BCH çekimi — ihracatçıda USD payı ≥ %50 (TL karşılığı).
+   * Kalan kısım TL veya USD; EUR kullanılmaz.
+   */
+  window.splitBchDrawForExport = function (needTl, bbalTl, bbalUsdFc, fxUsd) {
+    const need = Math.max(0, needTl);
+    const fx = fxUsd > 0 ? fxUsd : 1;
+    const tl = Math.max(0, bbalTl);
+    const usdFc = Math.max(0, bbalUsdFc);
+    const totalEq = tl + usdFc * fx;
+    const usdEq = usdFc * fx;
+    if (need <= 0) return { drawTl: 0, drawUsdFc: 0 };
+    const targetUsdEq = 0.5 * (totalEq + need);
+    const minUsdEq = Math.max(0, targetUsdEq - usdEq);
+    const drawUsdEq = Math.min(need, minUsdEq);
+    const drawUsdFc = drawUsdEq / fx;
+    const drawTl = need - drawUsdEq;
+    return { drawTl, drawUsdFc };
+  };
+
+  /** Firma kaynağından ihracat tutarı (601) */
+  window.maliIhracatTutar = function (f, parsed) {
+    if (parsed && nkmNum(parsed.ihracat) > 0) return Math.round(nkmNum(parsed.ihracat));
+    if (f && f.maliIhracat && nkmNum(f.maliIhracat.ihracat) > 0) {
+      return Math.round(nkmNum(f.maliIhracat.ihracat));
+    }
+    if (f && f.maliSource && nkmNum(f.maliSource.ihracat) > 0) {
+      return Math.round(nkmNum(f.maliSource.ihracat));
+    }
+    const raw = f && f.maliParsedSnapshot && f.maliParsedSnapshot.raw;
+    if (raw && nkmNum(raw.ihracat) > 0) return Math.round(nkmNum(raw.ihracat));
+    if (f && f.openingMaliMeta && nkmNum(f.openingMaliMeta.ihracat) > 0) {
+      return Math.round(nkmNum(f.openingMaliMeta.ihracat));
+    }
+    if (f && f.incomeStmt && nkmNum(f.incomeStmt.ihracat) > 0) {
+      return Math.round(nkmNum(f.incomeStmt.ihracat));
+    }
+    try {
+      const pack = JSON.parse(localStorage.getItem('kas_autosave') || 'null');
+      const y =
+        (f && f.opening && f.opening.maliKapanisYili) ||
+        (f && f.maliIhracat && f.maliIhracat.year) ||
+        new Date().getFullYear() - 1;
+      const yd = pack && pack.yearData && pack.yearData[y];
+      if (yd && nkmNum(yd.ihracat) > 0) return Math.round(nkmNum(yd.ihracat));
+    } catch {
+      /* yoksay */
+    }
+    return 0;
+  };
+
+  /** syncLoansFromMaliBorc için tam payload (ihracat dahil) */
+  window.maliBorcSyncPayload = function (f, overrides) {
+    const o = overrides || {};
+    const ihr = window.maliIhracatTutar(f, o);
+    return {
+      kvMaliBorclar: Math.round(nkmNum(o.kvMaliBorclar != null ? o.kvMaliBorclar : f && f.opening && f.opening.kvMaliBorclar)),
+      uvMaliBorclar: Math.round(nkmNum(o.uvMaliBorclar != null ? o.uvMaliBorclar : f && f.opening && f.opening.uvMaliBorclar)),
+      ihracat: ihr,
+      brutSatis: nkmNum(o.brutSatis) || nkmNum(f && f.maliSource && f.maliSource.brutSatis),
+      netSatis: nkmNum(o.netSatis) || nkmNum(f && f.maliSource && f.maliSource.netSatis),
+    };
+  };
+
+  /** Kayıtlı meta eksikse ihracat alanlarını doldur */
+  window.backfillMaliIhracatMeta = function (f) {
+    if (!f) return false;
+    const ihr = window.maliIhracatTutar(f);
+    if (ihr <= 0) return false;
+    const year = (f.opening && f.opening.maliKapanisYili) || (f.maliIhracat && f.maliIhracat.year) || null;
+    window.applyMaliIhracatMeta(f, { ihracat: ihr, netSatis: nkmNum(f.incomeStmt && f.incomeStmt.revenue), brutSatis: nkmNum(f.maliSource && f.maliSource.brutSatis) }, year);
+    if (!f.maliSource) f.maliSource = { ihracat: ihr, year };
+    else if (!nkmNum(f.maliSource.ihracat)) f.maliSource.ihracat = ihr;
+    if (f.incomeStmt && !nkmNum(f.incomeStmt.ihracat)) f.incomeStmt.ihracat = ihr;
+    if (!f.openingMaliMeta) f.openingMaliMeta = {};
+    if (!nkmNum(f.openingMaliMeta.ihracat)) {
+      f.openingMaliMeta.ihracat = ihr;
+      f.openingMaliMeta.hasYurtdisiSatis = true;
+    }
+    const snap = f.maliParsedSnapshot;
+    if (snap) {
+      if (!snap.raw) snap.raw = {};
+      if (!nkmNum(snap.raw.ihracat)) snap.raw.ihracat = ihr;
+    }
+    return true;
+  };
+
+  /** İhracatçı KV BCH: tek TL → %50 TL + %50 USD (manuel ihracat ile de çalışır) */
+  window.reapplyExportKvBchLoans = function (f, ihrOverride) {
+    if (!f) return false;
+    const ihr =
+      ihrOverride != null && ihrOverride !== ''
+        ? Math.round(nkmNum(ihrOverride))
+        : window.maliIhracatTutar(f);
+    if (ihr <= 0) return false;
+    window.applyMaliIhracatMeta(
+      f,
+      {
+        ihracat: ihr,
+        netSatis: nkmNum(f.incomeStmt && f.incomeStmt.revenue),
+        brutSatis: nkmNum(f.maliSource && f.maliSource.brutSatis),
+      },
+      (f.opening && f.opening.maliKapanisYili) || null,
+    );
+    window.backfillMaliIhracatMeta(f);
+    const kv = Math.round(
+      nkmNum(f.opening && f.opening.kvMaliBorclar) ||
+        ((f.loans || []).find((L) => L._maliAuto && String(L._maliAuto).startsWith('kv')) || {}).principal ||
+        0,
+    );
+    if (kv <= 0) return false;
+    window.syncLoansFromMaliBorc(
+      f,
+      window.maliBorcSyncPayload(f, {
+        kvMaliBorclar: kv,
+        uvMaliBorclar: f.opening && f.opening.uvMaliBorclar,
+        ihracat: ihr,
+      }),
+    );
+    return true;
+  };
+
+  /** Eski tek TL KV BCH → ihracatçıda %50 TL + %50 USD */
+  window.migrateExportKvBchSplit = function (f) {
+    if (!f) return false;
+    window.backfillMaliIhracatMeta(f);
+    if (!window.firmHasYurtdisiSatis(f)) return false;
+    const kvLoans = (f.loans || []).filter(
+      (L) => L.type === 'bch_existing' && L._maliAuto && String(L._maliAuto).startsWith('kv'),
+    );
+    const alreadySplit =
+      kvLoans.some((L) => L._maliAuto === 'kv_tl') && kvLoans.some((L) => L._maliAuto === 'kv_usd');
+    if (alreadySplit) return false;
+    const legacySingle =
+      kvLoans.length === 1 && (kvLoans[0]._maliAuto === 'kv' || kvLoans[0].bank === 'KV Mali Borç (mizan/FinSkor)');
+    if (!legacySingle && kvLoans.length > 0) return false;
+    const kv = Math.round(
+      nkmNum(f.opening && f.opening.kvMaliBorclar) || (kvLoans[0] && kvLoans[0].principal) || 0,
+    );
+    if (kv <= 0) return false;
+    window.syncLoansFromMaliBorc(
+      f,
+      window.maliBorcSyncPayload(f, { kvMaliBorclar: kv, uvMaliBorclar: f.opening && f.opening.uvMaliBorclar }),
+    );
+    return true;
+  };
+
   /** KV → BCH mevcut; UV → 24 ay taksitli (ilk ödeme 01.02.2026, faiz = BCH Y1) */
   window.syncLoansFromMaliBorc = function (f, d) {
-    if (!f) return { kv: 0, uv: 0 };
+    if (!f) return { kv: 0, uv: 0, bchSplit: false };
     const kv = Math.round(nkmNum(d.kvMaliBorclar));
     const uv = Math.round(nkmNum(d.uvMaliBorclar));
     if (!f.loans) f.loans = [];
     f.loans = f.loans.filter((L) => !L._maliAuto);
+    let bchSplit = false;
     if (kv > 0) {
-      f.loans.push({
-        type: 'bch_existing',
-        bank: 'KV Mali Borç (mizan/FinSkor)',
-        ccy: 'TL',
-        principal: kv,
-        _maliAuto: 'kv',
-      });
+      if (window.firmHasYurtdisiSatis(f, d)) {
+        window.splitKvBchForExport(kv, f).forEach((loan) => f.loans.push(loan));
+        bchSplit = true;
+      } else {
+        f.loans.push({
+          type: 'bch_existing',
+          bank: 'KV Mali Borç (mizan/FinSkor)',
+          ccy: 'TL',
+          principal: kv,
+          _maliAuto: 'kv',
+        });
+      }
     }
     if (uv > 0) {
       const rate = maliUvInstallmentRate(f);
@@ -96,7 +326,7 @@
     if (!f.opening) f.opening = {};
     f.opening.kvMaliBorclar = kv;
     f.opening.uvMaliBorclar = uv;
-    return { kv, uv };
+    return { kv, uv, bchSplit };
   };
 
   function mapRetainedFromMizan(copy) {
@@ -168,6 +398,7 @@
         brutSatisKar: Math.round(nkmNum(copy.brutSatisKar)),
         finansmanGider: Math.round(nkmNum(copy.finansmanGider)),
         donemNetKar: Math.round(nkmNum(copy.donemNetKarGelir) || nkmNum(copy.donemNetKar)),
+        ihracat: Math.round(nkmNum(copy.ihracat)),
         sourceYear: y,
       };
     },
@@ -269,6 +500,11 @@
       totals: { aktifToplam, pasifToplam, fark: aktifToplam - pasifToplam },
       bilancoRows,
       gelirRows,
+      raw: {
+        ihracat: Math.round(nkmNum(parsed.ihracat)),
+        brutSatis: nkmNum(parsed.brutSatis),
+        netSatis: nkmNum(copy.netSatis),
+      },
     };
   }
 
@@ -347,6 +583,7 @@
       brutSatisKar: inc.brutSatisKar,
       finansmanGider: inc.finansmanGider,
       donemNetKar: inc.donemNetKar,
+      ihracat: inc.ihracat || 0,
       sourceYear: year,
     };
     if (inc.faalGider > 0 && typeof applyFaalGiderFromMali === 'function') {
@@ -396,11 +633,30 @@
         'ok',
       );
     }
-    const synced = syncLoansFromMaliBorc(f, parsed);
+    f.maliSource = {
+      ihracat: Math.round(nkmNum(parsed.ihracat)),
+      brutSatis: nkmNum(parsed.brutSatis),
+      netSatis: nkmNum(parsed.netSatis),
+      year,
+    };
+    window.applyMaliIhracatMeta(f, parsed, year);
+    const synced = window.syncLoansFromMaliBorc(f, window.maliBorcSyncPayload(f, parsed));
     if (synced.kv > 0 || synced.uv > 0) {
+      const bchTxt = synced.bchSplit
+        ? `KV <b>${synced.kv.toLocaleString('tr-TR')}</b> TL → BCH <b>%50 TL + %50 USD</b> (ihracat)`
+        : `KV <b>${synced.kv.toLocaleString('tr-TR')}</b> TL (BCH)`;
       importLog(
-        `🏦 Krediler: KV <b>${synced.kv.toLocaleString('tr-TR')}</b> TL (BCH) · UV <b>${synced.uv.toLocaleString('tr-TR')}</b> TL (24 ay taksit, ilk ödeme 01.02.2026, faiz %${maliUvInstallmentRate(f)})`,
+        `🏦 Krediler: ${bchTxt} · UV <b>${synced.uv.toLocaleString('tr-TR')}</b> TL (24 ay taksit, ilk ödeme 01.02.2026, faiz %${maliUvInstallmentRate(f)})`,
         'ok',
+      );
+    }
+    if (f.maliIhracat && f.maliIhracat.hasYurtdisiSatis) {
+      importLog(
+        `🌍 Yurtdışı satış <b>${f.maliIhracat.ihracat.toLocaleString('tr-TR')}</b> TL` +
+          (f.maliIhracat.ihracatOrani > 0
+            ? ` (ciro ~%${f.maliIhracat.ihracatOrani.toFixed(1)}) — BCH çekiminde min. %50 USD`
+            : ''),
+        'info',
       );
     }
     if (typeof renderLoans === 'function') renderLoans();
@@ -432,6 +688,8 @@
       year,
       fileName: meta?.fileName || '',
       at: new Date().toISOString(),
+      ihracat: f.maliIhracat?.ihracat || 0,
+      hasYurtdisiSatis: !!(f.maliIhracat && f.maliIhracat.hasYurtdisiSatis),
     };
     f.maliParsedSnapshot = buildMaliParsedSnapshot(parsed, year, meta);
     if (f.maliParsedSnapshot?.totals) {

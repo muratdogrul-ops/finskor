@@ -90,6 +90,26 @@ function ticBorclarEtkinKvUv(year, row) {
   if (year === 2025) return { kvTic: kv + uv, uvTic: 0 };
   return { kvTic: kv, uvTic: uv };
 }
+
+/** Öz kaynak + pasif toplam — dönem net kar (gelir tablosu) hesaplandıktan SONRA çağrılmalı */
+function finSkorOzKaynakVePasif(d) {
+  if (!d) return;
+  const sum = (...keys) => keys.reduce((t, k) => t + (Number(d[k]) || 0), 0);
+  const ortak131Tenzil = Math.max(0, d.ortakAlacak131 || 0);
+  const donemBilanco =
+    d.donemNetKar != null && d.donemNetKar !== 0 ? Number(d.donemNetKar) : 0;
+  const donemGelir =
+    d.donemNetKarGelir != null && d.donemNetKarGelir !== 0 ? Number(d.donemNetKarGelir) : 0;
+  const donemOz = donemBilanco !== 0 ? donemBilanco : donemGelir;
+  const ozAlt =
+    sum('odenmisSermaye', 'sermaYedek', 'karYedek', 'gecmisKar') +
+    donemOz -
+    (Number(d.gecmisZarar) || 0) -
+    ortak131Tenzil;
+  d.ozKaynak = Math.abs(ozAlt) > 0 ? ozAlt : d.ozKaynak || 0;
+  d.pasifToplam = (Number(d.kvYKToplam) || 0) + (Number(d.uvYKToplam) || 0) + (Number(d.ozKaynak) || 0);
+}
+
 function hesapToplamlarOnObject(d, year) {
   if (!d) return;
   const y = year || new Date().getFullYear();
@@ -133,13 +153,6 @@ function hesapToplamlarOnObject(d, year) {
   const uvAlt =
     sum('uvMaliBorclar', 'uvDigBorclar', 'uvAlinanAvans', 'uvBorcKarsilik', 'uvDigYK') + uvTicEff;
   d.uvYKToplam = uvAlt > 0 ? uvAlt : d.uvYKToplam || 0;
-  const ortak131Tenzil = Math.max(0, d.ortakAlacak131 || 0);
-  const ozAlt =
-    sum('odenmisSermaye', 'sermaYedek', 'karYedek', 'gecmisKar', 'donemNetKar') -
-    (d.gecmisZarar || 0) -
-    ortak131Tenzil;
-  d.ozKaynak = Math.abs(ozAlt) > 0 ? ozAlt : d.ozKaynak || 0;
-  d.pasifToplam = (d.kvYKToplam || 0) + (d.uvYKToplam || 0) + (d.ozKaynak || 0);
   const pdfDonemKar = d.donemKar;
   const pdfDonemNetKar = d.donemNetKar;
   const pdfDonemNetKarGelir = d.donemNetKarGelir;
@@ -156,6 +169,7 @@ function hesapToplamlarOnObject(d, year) {
       }
       if (pdfDonemNetKar == null || pdfDonemNetKar === 0) {
         d.donemNetKar = (d.donemKar || 0) - (d.vergiKarsilik || 0);
+        d.donemNetKarGelir = d.donemNetKar;
       }
     }
     if (pdfDonemKar != null && pdfDonemKar !== 0) d.donemKar = pdfDonemKar;
@@ -170,4 +184,5 @@ function hesapToplamlarOnObject(d, year) {
     d.donemNetKar = 0;
   }
   normalizeOrtakAlacak131(d);
+  finSkorOzKaynakVePasif(d);
 }
