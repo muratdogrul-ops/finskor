@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="google" content="notranslate">
+<meta http-equiv="Content-Language" content="tr">
 <title>NakitFlow v3 — 120 Aya Kadar Nakit Akış</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
@@ -93,6 +95,15 @@ hr.divider{border:none;border-top:1px solid var(--bd);margin:18px 0}
 }
 #proj-cash-summary .lik-row-eksi{animation:likEksiPulse 1.35s ease-in-out infinite}
 #proj-cash-summary .lik-row-eksi td:first-child{color:var(--red);font-weight:700}
+@keyframes likBriefBtnPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,.5);background:var(--bg2,#f8fafc);border-color:#f59e0b;color:#b45309;transform:scale(1)}
+  50%{box-shadow:0 0 0 7px rgba(245,158,11,.12),0 4px 18px rgba(245,158,11,.4);background:#fffbeb;border-color:#d97706;color:#92400e;transform:scale(1.05)}
+}
+#lik-brief-open-btn.lik-brief-btn-attn{
+  animation:likBriefBtnPulse 1.05s ease-in-out infinite;
+  font-weight:700;
+  position:relative;z-index:1;
+}
 /* Tam sayfa popup — beyaz arka plan (aksiyonlar yalnızca PDF’de) */
 .lik-brief-overlay{
   position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;
@@ -960,12 +971,13 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
       <div class="card glow">
         <div class="card-header"><div class="card-icon">💱</div><div class="card-title">Otomatik Kur Tahmini</div></div>
         <div class="notice" style="margin-bottom:12px">
-          Varsayılan yıllık artış oranları: <b>01.01.2026 – 31.03.2026</b> arası TCMB gösterge <b>satış</b> kurlarından hesaplanan bileşik yıllık ortalama (projeksiyon açılışı 31.12.2025 kapanışı ile hizalı; otomatik doldur / hesapla ile uygulanır). İsterseniz manuel değiştirirsiniz.
-          <br><b>Referans:</b> USD <span id="fx-ref-usd-range"></span> &nbsp;|&nbsp; EUR <span id="fx-ref-eur-range"></span>
+          Varsayılan yıllık artış: TCMB gösterge <b>döviz satış</b>, yılsonu <b>31.12.2024 → 31.12.2025</b>
+          (USD <span id="fx-ref-usd-range"></span> &nbsp;|&nbsp; EUR <span id="fx-ref-eur-range"></span>).
+          Projeksiyon açılışı 31.12.2025 kapanışı ile hizalı; otomatik doldur / hesapla ile uygulanır — elle değiştirebilirsiniz.
         </div>
         <div class="form-grid">
-          <div class="field"><label>USD Açılış Kuru (1 USD = ? TL)</label><input id="fx-usd-open" type="number" placeholder="42.9229" step="0.01"></div>
-          <div class="field"><label>EUR Açılış Kuru (1 EUR = ? TL)</label><input id="fx-eur-open" type="number" placeholder="50.3765" step="0.01"></div>
+          <div class="field"><label>USD Açılış Kuru (1 USD = ? TL)</label><input id="fx-usd-open" type="number" placeholder="42,9229" step="0.01"></div>
+          <div class="field"><label>EUR Açılış Kuru (1 EUR = ? TL)</label><input id="fx-eur-open" type="number" placeholder="50,3765" step="0.01"></div>
           <div class="field"><label>USD Yıllık Artış Tahmini (%)</label><input id="fx-usd-growth" type="number" value="" step="0.1" placeholder="Otomatik"></div>
           <div class="field"><label>EUR Yıllık Artış Tahmini (%)</label><input id="fx-eur-growth" type="number" value="" step="0.1" placeholder="Otomatik"></div>
           <div class="field"><label>Önceki iş günü USD/TL (kambiyo ref.)</label><input id="fx-usd-prev-gl" type="number" step="0.01" placeholder="TCMB veya elle" title="1. ay kambiyo karşılaştırması. 🌐 TCMB ile otomatik doldurulur; boşsa 1. ay kambiyo 0 kabul edilir."></div>
@@ -1213,8 +1225,8 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
       <div class="field"><label>Nakit Akış Başlangıç Tarihi (GG-AA-YYYY)</label><input id="nf-date" placeholder="01-03-2026"></div>
     </div>
     <div class="btn-group">
-      <button class="btn btn-primary" onclick="createFirm()">Oluştur</button>
-      <button class="btn btn-ghost"   onclick="closeModal('new-firm-modal')">İptal</button>
+      <button type="button" id="nf-create-btn" class="btn btn-primary" onclick="createFirm()">Oluştur</button>
+      <button type="button" class="btn btn-ghost"   onclick="cancelNewFirmModal()">İptal</button>
     </div>
     <div class="notice">GG.AA.YYYY / YYYY-AA-GG formatları da kabul edilir.</div>
   </div>
@@ -1263,6 +1275,41 @@ const EXPENSE_GROUPS = [
 function genId(){return 'f'+Date.now()+Math.random().toString(36).slice(2,6);}
 function $(id){return document.getElementById(id);}
 
+/** Aynı isim + başlangıç günü çift kayıt tespiti (Enter+Oluştur, çift sekme vb.) */
+function firmStartDayKey(iso){
+  const d=new Date(iso);
+  if(isNaN(+d))return '';
+  return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+}
+function firmIdentityKey(name,startIso){
+  return (name||'').toLowerCase().replace(/\s+/g,' ').trim()+'|'+firmStartDayKey(startIso);
+}
+function findFirmByNameAndStart(name,startIso){
+  const key=firmIdentityKey(name,startIso);
+  return Object.values(state.firms).find(f=>firmIdentityKey(f.name,f.startDate)===key)||null;
+}
+function dedupeFirmsOnLoad(){
+  const groups=new Map();
+  for(const[id,f]of Object.entries(state.firms||{})){
+    if(!f||!f.name)continue;
+    const k=firmIdentityKey(f.name,f.startDate);
+    if(!groups.has(k))groups.set(k,[]);
+    groups.get(k).push({id,f});
+  }
+  let removed=false;
+  for(const list of groups.values()){
+    if(list.length<2)continue;
+    list.sort((a,b)=>new Date(a.f.createdAt||0)-new Date(b.f.createdAt||0));
+    const keepId=list[0].id;
+    for(let i=1;i<list.length;i++){
+      if(state.currentFirmId===list[i].id)state.currentFirmId=keepId;
+      delete state.firms[list[i].id];
+      removed=true;
+    }
+  }
+  return removed;
+}
+
 // ══════════════════════════════════════════════
 // STORAGE
 // ══════════════════════════════════════════════
@@ -1277,6 +1324,7 @@ async function loadState(){
       state.firms=s.firms||{};
       if(s.currentFirmId&&state.firms[s.currentFirmId]) state.currentFirmId=s.currentFirmId;
       else state.currentFirmId=null;
+      if(dedupeFirmsOnLoad())await saveState();
     }
   }catch(e){}
   _openingUiBoundFirmId=null;
@@ -1448,41 +1496,125 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 // ══════════════════════════════════════════════
 function openNewFirmModal(){
   $('nf-name').value='';$('nf-date').value='';
+  const createBtn=$('nf-create-btn');
+  if(createBtn){
+    createBtn.disabled=false;
+    if(!createBtn.dataset.labelDefault)createBtn.dataset.labelDefault=createBtn.textContent;
+    createBtn.textContent=createBtn.dataset.labelDefault||'Oluştur';
+  }
   $('new-firm-modal').classList.add('open');
   setTimeout(()=>$('nf-name').focus(),100);
 }
 function closeModal(id){$(id).classList.remove('open');}
 
+let _createFirmBusy=false;
+let _createFirmPendingId=null;
+/** @type {{aborted:boolean}|null} */
+let _createFirmAbort=null;
+
+function _resetCreateFirmBtn(){
+  const createBtn=$('nf-create-btn');
+  if(!createBtn)return;
+  createBtn.disabled=false;
+  createBtn.textContent=createBtn.dataset.labelDefault||'Oluştur';
+}
+
+/** İptal / dış tık: devam eden oluşturmayı iptal et */
+function cancelNewFirmModal(){
+  if(_createFirmAbort)_createFirmAbort.aborted=true;
+  const pid=_createFirmPendingId;
+  _createFirmBusy=false;
+  _createFirmPendingId=null;
+  _createFirmAbort=null;
+  _resetCreateFirmBtn();
+  if(pid&&state.firms[pid]){
+    delete state.firms[pid];
+    if(state.currentFirmId===pid){
+      state.currentFirmId=null;
+      _openingUiBoundFirmId=null;
+    }
+    saveState();
+    renderFirmList();
+  }
+  closeModal('new-firm-modal');
+}
+
 async function createFirm(){
+  if(_createFirmBusy){
+    showAlert('Firma oluşturuluyor, lütfen bekleyin…','info');
+    return;
+  }
   const name=($('nf-name').value||'').trim();
   const dt=parseDate($('nf-date').value);
   if(!name){showAlert('Firma adı gerekli.','err');return;}
   if(!dt){showAlert('Geçersiz tarih. GG-AA-YYYY formatı kullanın.','err');return;}
+  const startIso=dt.toISOString();
+  const dup=findFirmByNameAndStart(name,startIso);
+  if(dup){
+    showAlert('"'+name+'" bu başlangıç tarihiyle zaten kayıtlı.','err');
+    closeModal('new-firm-modal');
+    selectFirm(dup.id);
+    renderFirmList();
+    return;
+  }
+  const abort={aborted:false};
+  _createFirmAbort=abort;
+  _createFirmBusy=true;
+  const createBtn=$('nf-create-btn');
+  if(createBtn){
+    if(!createBtn.dataset.labelDefault)createBtn.dataset.labelDefault=createBtn.textContent;
+    createBtn.disabled=true;
+    createBtn.textContent='Kaydediliyor…';
+  }
   const id=genId();
-  const defExp={};let i=0;
-  for(const{group,items}of EXPENSE_GROUPS)for(const item of items)defExp[i++]={group,name:item,amount:0};
-  const fxRates=typeof buildTcmbFxRatesObject==='function'
-    ?buildTcmbFxRatesObject(FX_SPOT.usd,FX_SPOT.eur)
-    :{usdOpen:FX_SPOT.usd,eurOpen:FX_SPOT.eur,usdPrevBeforeProj:0,eurPrevBeforeProj:0,usdGrowth:FX_HIST_GROWTH.usd,eurGrowth:FX_HIST_GROWTH.eur,monthly:Array.from({length:FX_TABLE_MONTHS},()=>({usd:FX_SPOT.usd,eur:FX_SPOT.eur}))};
-  state.firms[id]={id,name,startDate:dt.toISOString(),createdAt:new Date().toISOString(),finskorFirmType:'uretim',
-    opening:{cash:0,bank:0,ar:0,ap:0,inventory:0,capital:0,otherAssets:0,otherLiab:0,kvMaliBorclar:0,uvMaliBorclar:0},
-    incomeStmt:{revenue:0,cogs:0},
-    ciro:{mode:'uniform',monthly:new Array(12).fill(100/12)},
-    assumptions:Object.assign(
-      {months:120,growth:0,expGrowth:0,bchLimit:1e12,bchRate:0,
-        bch1:0,bch2:0,bch3:0,bch4:0,bch5:0,dep1:0,dep2:0,dep3:0,dep4:0,dep5:0,taxRate:25,taxMonths:'3,6,9,12'},
-      typeof buildTcmbAssumptionsForFirm==='function'?buildTcmbAssumptionsForFirm({startDate:dt.toISOString()}):{}),
-    expenses:defExp,loans:[],manualCf:[],fxRates,
-    ina:{wacc:15,terminalGrowth:2,firstFcfYear:null,explicitYears:null,waccMode:'constant',waccStaged:[15,15,15,15,15],waccDynamicBase:15,dynamicRisk:{currentRatio:null,netDebtEbitda:null,ebitdaMargin:null,marginTrend:null}}};
-  state.currentFirmId=id;
-  _openingUiBoundFirmId=null;
-  await saveState();
-  try{await ensureFirmTcmbDefaults(state.firms[id],{fetchTcmb:true});}catch(e){}
-  closeModal('new-firm-modal');renderFirmList();
-  showAlert('"'+name+'" oluşturuldu. Varsayımlar ve kurlar TCMB ile dolduruldu — istediğiniz alanı düzenleyebilirsiniz.','ok');
-  $('firm-nav-label').style.display='';
-  $('firm-nav-items').style.display='';
-  navTo('opening');
+  _createFirmPendingId=id;
+  try{
+    const defExp={};let i=0;
+    for(const{group,items}of EXPENSE_GROUPS)for(const item of items)defExp[i++]={group,name:item,amount:0};
+    const fxRates=typeof buildTcmbFxRatesObject==='function'
+      ?buildTcmbFxRatesObject(FX_SPOT.usd,FX_SPOT.eur)
+      :{usdOpen:FX_SPOT.usd,eurOpen:FX_SPOT.eur,usdPrevBeforeProj:0,eurPrevBeforeProj:0,usdGrowth:FX_HIST_GROWTH.usd,eurGrowth:FX_HIST_GROWTH.eur,monthly:Array.from({length:FX_TABLE_MONTHS},()=>({usd:FX_SPOT.usd,eur:FX_SPOT.eur}))};
+    state.firms[id]={id,name,startDate:startIso,createdAt:new Date().toISOString(),finskorFirmType:'uretim',
+      opening:{cash:0,bank:0,ar:0,ap:0,inventory:0,capital:0,otherAssets:0,otherLiab:0,kvMaliBorclar:0,uvMaliBorclar:0},
+      incomeStmt:{revenue:0,cogs:0},
+      ciro:{mode:'uniform',monthly:new Array(12).fill(100/12)},
+      assumptions:Object.assign(
+        {months:120,growth:0,expGrowth:0,bchLimit:1e12,bchRate:0,
+          bch1:0,bch2:0,bch3:0,bch4:0,bch5:0,dep1:0,dep2:0,dep3:0,dep4:0,dep5:0,taxRate:25,taxMonths:'3,6,9,12'},
+        typeof buildTcmbAssumptionsForFirm==='function'?buildTcmbAssumptionsForFirm({startDate:dt.toISOString()}):{}),
+      expenses:defExp,loans:[],manualCf:[],fxRates,
+      ina:{wacc:15,terminalGrowth:2,firstFcfYear:null,explicitYears:null,waccMode:'constant',waccStaged:[15,15,15,15,15],waccDynamicBase:15,dynamicRisk:{currentRatio:null,netDebtEbitda:null,ebitdaMargin:null,marginTrend:null}}};
+    state.currentFirmId=id;
+    _openingUiBoundFirmId=null;
+    await saveState();
+    if(abort.aborted){
+      delete state.firms[id];
+      if(state.currentFirmId===id)state.currentFirmId=null;
+      await saveState();
+      return;
+    }
+    _createFirmPendingId=null;
+    closeModal('new-firm-modal');
+    renderFirmList();
+    showAlert('"'+name+'" oluşturuldu. TCMB kurları arka planda güncelleniyor — varsayımları istediğiniz gibi düzenleyebilirsiniz.','ok');
+    $('firm-nav-label').style.display='';
+    $('firm-nav-items').style.display='';
+    navTo('opening');
+    const firmRef=state.firms[id];
+    if(firmRef){
+      ensureFirmTcmbDefaults(firmRef,{fetchTcmb:true}).catch(function(){});
+    }
+  }catch(e){
+    delete state.firms[id];
+    if(state.currentFirmId===id)state.currentFirmId=null;
+    _createFirmPendingId=null;
+    try{await saveState();}catch(e2){}
+    showAlert('Firma oluşturulamadı: '+(e&&e.message?e.message:String(e)),'err');
+  }finally{
+    _createFirmBusy=false;
+    _createFirmAbort=null;
+    _resetCreateFirmBtn();
+  }
 }
 
 function selectFirm(id){
@@ -2043,30 +2175,23 @@ function deleteLoan(i){
 // ══════════════════════════════════════════════
 // DÖVİZ KURLARI
 // ══════════════════════════════════════════════
-// Varsayılan spot: 01.01.2026 projeksiyon açılışı = 31.12.2025 TCMB gösterge satış (FinSkor yılsonu ile aynı); TCMB senkronu güncel günü yazar
-const FX_SPOT = { usd: 42.9229, eur: 50.3765 };
-const TCMB_TODAY_XML = 'https://www.tcmb.gov.tr/kurlar/today.xml';
-// 01.01.2026 – 31.03.2026 TCMB gösterge satış (açılış → Q1 sonu); gün sayısı yerel takvim farkı
-const FX_GROWTH_WINDOW = (function(){
-  const t0 = new Date(2026, 0, 1), t1 = new Date(2026, 2, 31);
-  const days = Math.max(1, Math.round((t1 - t0) / 864e5));
-  return {
-    days,
-    usdStart: 42.9229,
-    usdEnd: 44.4761,
-    eurStart: 50.3765,
-    eurEnd: 51.0212
-  };
-})();
-function fxAnnualizedGrowthPct(start, end, days){
-  if (!(start > 0 && end > 0 && days > 0)) return 0;
-  return (Math.pow(end / start, 365 / days) - 1) * 100;
-}
-// Varsayılan kur artış tahmini = bu dönem bileşik yıllık ortalama
-const FX_HIST_GROWTH = {
-  usd: fxAnnualizedGrowthPct(FX_GROWTH_WINDOW.usdStart, FX_GROWTH_WINDOW.usdEnd, FX_GROWTH_WINDOW.days),
-  eur: fxAnnualizedGrowthPct(FX_GROWTH_WINDOW.eurStart, FX_GROWTH_WINDOW.eurEnd, FX_GROWTH_WINDOW.days)
+// Varsayılan spot: projeksiyon açılışı = 31.12.2025 TCMB gösterge döviz satış
+const FX_YEAREND_TCMB = {
+  usd2024: 35.3438,
+  eur2024: 36.8024,
+  usd2025: 42.9229,
+  eur2025: 50.3765,
 };
+const FX_SPOT = { usd: FX_YEAREND_TCMB.usd2025, eur: FX_YEAREND_TCMB.eur2025 };
+const TCMB_TODAY_XML = 'https://www.tcmb.gov.tr/kurlar/today.xml';
+const FX_GROWTH_WINDOW = {
+  usdStart: FX_YEAREND_TCMB.usd2024,
+  usdEnd: FX_YEAREND_TCMB.usd2025,
+  eurStart: FX_YEAREND_TCMB.eur2024,
+  eurEnd: FX_YEAREND_TCMB.eur2025,
+};
+/** Varsayılan yıllık kur artış tahmini (%) — 31.12.2024→2025 referans */
+const FX_HIST_GROWTH = { usd: 20.45, eur: 34.14 };
 const FX_TABLE_MONTHS = 120; // Aylık kur tablosu ve projeksiyon ile uyumlu (max 120 ay)
 
 function _tcmbArchiveUrl(d) {
@@ -2224,8 +2349,9 @@ function updateFxGrowthRefLabels(){
   const us = document.getElementById('fx-ref-usd-range'), eu = document.getElementById('fx-ref-eur-range');
   if (!us || !eu) return;
   const w = FX_GROWTH_WINDOW;
-  us.textContent = w.usdStart + ' → ' + w.usdEnd + ' TL (' + w.days + ' gün; ~%' + FX_HIST_GROWTH.usd.toFixed(1) + ' yıllık bileşik)';
-  eu.textContent = w.eurStart + ' → ' + w.eurEnd + ' TL (~%' + FX_HIST_GROWTH.eur.toFixed(1) + ' yıllık bileşik)';
+  const fmt = function (v) { return Number(v).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 }); };
+  us.textContent = fmt(w.usdStart) + ' → ' + fmt(w.usdEnd) + ' TL (+%' + FX_HIST_GROWTH.usd.toFixed(2) + ')';
+  eu.textContent = fmt(w.eurStart) + ' → ' + fmt(w.eurEnd) + ' TL (+%' + FX_HIST_GROWTH.eur.toFixed(2) + ')';
 }
 
 function populateFx(){
@@ -2601,7 +2727,7 @@ function autoFillBchDep() {
 }
 
 // Varsayımlar sayfasındaki butondan çağrılır.
-// Döviz Kurları growth alanlarına FX_HIST_GROWTH (01.01.2026–31.03.2026 TCMB bileşik ortalama) yazar
+// Döviz Kurları growth alanlarına FX_HIST_GROWTH (31.12.2024→2025 TCMB yılsonu artışı) yazar
 // ve FX_TABLE_MONTHS aylık kur tablosunu hesaplayıp doldurur, ardından kaydeder.
 function autoFillFxGrowth() {
   const f = curFirm();
@@ -3416,7 +3542,7 @@ const PROJ_ROWS=[
   {key:'ar_bak',    label:'Ticari Alacak',       type:'val', field:'arBak'},
   {key:'ap_bak',    label:'Ticari Borç',         type:'val', field:'apBak'},
   {key:'stok',       label:'Stok Bakiyesi',        type:'val', field:'stokBak'},
-  {key:'ebt',       label:'VÖK / EBT',           type:'val', field:'ebt'},
+  {key:'ebt',       label:'Vergi Öncesi Kâr (VÖK)', type:'val', field:'ebt'},
 ];
 
 const AY_KISA=['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
@@ -4001,7 +4127,7 @@ function renderProjTable(yearData, firmName){
   const cols=months.length; // actual months in this year (may be <12)
   
   // Header row — month abbreviations
-  let headCells='<th class="lbl-col">'+(firmName||'')+'<br><span style="font-size:.6rem;color:var(--tx3)">'+year+' · TRY</span></th>';
+  let headCells='<th class="lbl-col">'+(firmName||'')+'<br><span style="font-size:.6rem;color:var(--tx3)">'+year+' · TL</span></th>';
   for(let i=0;i<cols;i++){
     const d=months[i].tarih.split('-');
     const mn=parseInt(d[1])-1;
@@ -4040,7 +4166,7 @@ function renderProjTable(yearData, firmName){
       '<div class="yr-num">'+year+'</div>'+
       '<div><div style="font-weight:700;font-size:.85rem">'+esc(firmName||'')+'</div>'+
        '<div class="yr-period">'+months[0]?.tarih+' – '+(months[months.length-1]?.tarih||'')+'</div></div>'+
-      '<div class="yr-try">TRY</div>'+
+      '<div class="yr-try">TL</div>'+
     '</div>'+
     '<div class="proj-tbl-wrap">'+
       '<table class="proj-tbl">'+
@@ -4510,20 +4636,25 @@ function closeLiquidityBrief(firmId){
   hideLiquidityBriefOverlay();
 }
 
+function stopLikBriefButtonAttention(){
+  const btn=document.getElementById('lik-brief-open-btn');
+  if(btn)btn.classList.remove('lik-brief-btn-attn');
+}
+
+function startLikBriefButtonAttention(){
+  stopLikBriefButtonAttention();
+  requestAnimationFrame(function(){
+    const btn=document.getElementById('lik-brief-open-btn');
+    if(btn)btn.classList.add('lik-brief-btn-attn');
+  });
+}
+
 function openLiquidityBriefFromButton(){
   const pack=lastLiquidityImprovementPack;
   const f=typeof curFirm==='function'?curFirm():null;
   if(!pack){showAlert('Önce likidite özetinin yüklendiğinden emin olun.','err');return;}
+  stopLikBriefButtonAttention();
   showLiquidityBriefOverlay(pack,f&&f.name, true);
-}
-
-function setupLiquidityBriefOnSummary(pack,f){
-  if(!pack)return;
-  const firmName=f&&f.name;
-  const fid=f&&(f.id||state.currentFirmId);
-  setTimeout(function(){
-    showLiquidityBriefOverlay(pack,firmName,false);
-  },400);
 }
 
 function likRatingRiskText(ratingPack){
@@ -4540,17 +4671,19 @@ function likRatingRiskText(ratingPack){
 function buildLiquidityTipsReportSection(pack){
   if(!pack)return '';
   const FT=window.FinSkorImprovementTips;
-  const plain=FT&&FT.tipHtmlToPlain?function(h){return FT.tipHtmlToPlain(h);}:function(h){return String(h).replace(/<[^>]+>/g,'');};
+  const plain=FT&&FT.tipHtmlToPlain
+    ?function(h){return trReportText(FT.tipHtmlToPlain(h));}
+    :function(h){return trReportText(String(h).replace(/<[^>]+>/g,''));};
   function colTips(items,title){
-    if(!items||!items.length)return '<h3 class="tips-col-h">'+esc(title)+'</h3><p class="tips-empty">Bu bölümde öneri yok.</p>';
-    let h='<h3 class="tips-col-h">'+esc(title)+'</h3><ol class="tips-list tips-list-num">';
+    if(!items||!items.length)return '<h3 class="tips-col-h">'+esc(trReportText(title))+'</h3><p class="tips-empty">Bu bölümde öneri yok.</p>';
+    let h='<h3 class="tips-col-h">'+esc(trReportText(title))+'</h3><ol class="tips-list tips-list-num">';
     let n=0;
     items.forEach(function(t){
       if(t.pri>=9)return;
       n++;
       h+='<li><span class="tips-madde-no">'+n+'.</span> <span class="tips-ico">'+t.icon+'</span> '+esc(plain(t.html))+'</li>';
     });
-    if(!n)return '<h3 class="tips-col-h">'+esc(title)+'</h3><p class="tips-empty">Bu bölümde öneri yok.</p>';
+    if(!n)return '<h3 class="tips-col-h">'+esc(trReportText(title))+'</h3><p class="tips-empty">Bu bölümde öneri yok.</p>';
     return h+'</ol>';
   }
   let ratingBlock='';
@@ -4566,11 +4699,11 @@ function buildLiquidityTipsReportSection(pack){
   let sitHtml='';
   if(pack.situation){
     const sit=pack.situation;
-    sitHtml='<h2 class="tips-h2">'+esc(sit.headline||'Finansal durum özeti')+'</h2>';
+    sitHtml='<h2 class="tips-h2">'+esc(trReportText(sit.headline||'Finansal durum özeti'))+'</h2>';
     if(sit.kpis&&sit.kpis.length){
       sitHtml+='<div class="tips-kpi-grid">';
       sit.kpis.forEach(function(k){
-        sitHtml+='<div class="tips-kpi-box"><div class="tips-kpi-lbl">'+esc(k.lbl)+'</div><div class="tips-kpi-val">'+esc(String(k.val))+'</div></div>';
+        sitHtml+='<div class="tips-kpi-box"><div class="tips-kpi-lbl">'+esc(trReportText(k.lbl))+'</div><div class="tips-kpi-val">'+esc(String(k.val))+'</div></div>';
       });
       sitHtml+='</div>';
     }
@@ -4588,7 +4721,7 @@ function buildLiquidityTipsReportSection(pack){
   if(pack.actions&&pack.actions.length){
     actionsHtml='<h2 class="tips-h2">Yapmanız gereken 5 madde (öncelik sırası)</h2><ol class="tips-top5 tips-actions tips-list-num">';
     pack.actions.forEach(function(a){
-      actionsHtml+='<li><span class="tips-madde-no">'+a.rank+'.</span> <strong>'+esc(a.title)+'</strong> — '+esc(a.detail)+'</li>';
+      actionsHtml+='<li><span class="tips-madde-no">'+a.rank+'.</span> <strong>'+esc(trReportText(a.title))+'</strong> — '+esc(trReportText(a.detail))+'</li>';
     });
     actionsHtml+='</ol>';
   }
@@ -4606,7 +4739,7 @@ function buildLiquidityTipsReportSection(pack){
   const page2=
     '<div class="tips-page tips-page-panel">'+
     '<div class="page-head"><span class="brand">NakitFlow — İyileştirme önerileri</span><span class="page-no">Sayfa 2 · Tam liste</span></div>'+
-    '<h2 class="tips-h2 tips-panel-title">Likidite ve rating iyileştirme önerileri</h2>'+
+    '<h2 class="tips-h2 tips-panel-title">Likidite ve kredi notu iyileştirme önerileri</h2>'+
     '<p class="tips-intro">Nakit Akış sayfasında gösterilmeyen tam liste — FinSkor mali kuralları ve likidite projeksiyonu önerileri.</p>'+
     ratingBlock+
     '<div class="tips-cols">'+
@@ -4631,12 +4764,12 @@ function renderProjectionCashSummary(proj){
   const data=buildMonthlyCashSummarySeries(proj);
   if(!data.series.length){
     hideLiquidityBriefOverlay();
+    stopLikBriefButtonAttention();
     box.innerHTML='';box.style.display='none';return;
   }
   const f=typeof curFirm==='function'?curFirm():null;
   const pack=prepareLiquidityImprovementPack(f,data,proj);
-  if(pack)setupLiquidityBriefOnSummary(pack,f);
-  else hideLiquidityBriefOverlay();
+  if(!pack)hideLiquidityBriefOverlay();
   box.style.display='block';
   const pendingEnd=(proj.summary&&proj.summary.depIntPendingEnd)||0;
   const pendingNote=pendingEnd>1
@@ -4668,11 +4801,13 @@ function renderProjectionCashSummary(proj){
     '<div class="card-icon">📋</div><div style="flex:1;min-width:200px"><div class="card-title">Aylık likidite özeti</div>'+
     '<div style="font-size:.72rem;color:var(--tx3);margin-top:4px"><strong>Dönem başı</strong> = ay başı kasa+mevduat. <strong>Faaliyet net</strong> = işletme nakit etkisi (eksi satır yanıp söner). '+
     '<strong>Likidite ay sonu</strong> = o ay BCH/mevduat hareketi tutarı. <strong>Mevduat konsolide</strong> = ay sonu mevduat bakiyesi.</div></div>'+
-    '<button type="button" class="btn btn-secondary btn-sm" onclick="openLiquidityBriefFromButton()">📊 Finansal özet</button></div>'+
+    '<button type="button" id="lik-brief-open-btn" class="btn btn-secondary btn-sm" onclick="openLiquidityBriefFromButton()">📊 Finansal özet</button></div>'+
     pendingNote+
     miniKpi+
     '<div class="tbl-scroll"><table><thead><tr><th>Ay</th><th>Tarih</th><th>Dönem başı</th><th>Faaliyet net</th><th>Likidite ay sonu</th><th>Likidite (BCH / mevduat)</th><th>Mevduat konsolide</th><th>BCH / taksit ay sonu</th><th>Durum</th></tr></thead><tbody>'+tbody+'</tbody></table></div>'+
     '<div class="btn-group" style="margin-top:12px;margin-bottom:0"><button type="button" class="btn btn-ghost btn-sm" onclick="exportCashSummaryCSV()">⬇ Özet CSV</button><button type="button" class="btn btn-secondary btn-sm" onclick="exportCashSummaryPDF()">📄 PDF Rapor</button></div>';
+  if(pack)startLikBriefButtonAttention();
+  else stopLikBriefButtonAttention();
 }
 
 function exportCashSummaryCSV(){
@@ -4699,22 +4834,204 @@ function liquidityDurumPdf(x){
   return 'Artıda — mevduat yapıldı';
 }
 
-/** Yazdır penceresi — FinSkor generatePDF ile aynı akış (PDF olarak kaydet). */
+function liqSeriesYear(x){
+  const parts=String(x.tarih||'').split('-');
+  if(parts.length>=3)return parseInt(parts[2],10);
+  return null;
+}
+
+/** Likidite özeti satırlarını takvim yılına göre grupla (PDF: sayfa başına bir yıl). */
+function groupLiquiditySeriesByYear(series){
+  const map=new Map();
+  for(const x of series){
+    const y=liqSeriesYear(x);
+    if(!y||isNaN(y))continue;
+    if(!map.has(y))map.set(y,[]);
+    map.get(y).push(x);
+  }
+  return Array.from(map.entries()).sort(function(a,b){return a[0]-b[0];})
+    .map(function(entry){return{year:entry[0],months:entry[1]};});
+}
+
+function getNakitFlowPrintToolbarHtml(){
+  return '<div class="nf-print-toolbar notranslate" translate="no" role="banner">'+
+    '<span class="nf-print-toolbar-title">NakitFlow — Rapor önizleme</span>'+
+    '<button type="button" class="nf-print-btn nf-print-btn-primary" onclick="window.print()">📄 PDF olarak kaydet / Yazdır</button>'+
+    '<button type="button" class="nf-print-btn nf-print-btn-ghost" onclick="window.close()">Kapat</button>'+
+    '<span class="nf-print-toolbar-hint">Hedef olarak <b>PDF olarak kaydet</b> seçin. Sayfa Türkçedir; tarayıcıda <b>Çevir</b> açıksa kapatın.</span>'+
+    '</div>';
+}
+
+/** Yazdır penceresi — FinSkor generatePDF ile aynı akış (document.write, otomatik çeviri kapalı). */
 function openNakitFlowPrintReport(reportHTML){
-  const printWin=window.open('','_blank','width=1100,height=800');
+  const printWin=window.open('','nakitflow_print','width=1100,height=860,scrollbars=yes,resizable=yes');
   if(!printWin){
     showAlert('Popup engellendi. Tarayıcıda bu site için popup iznini açın.','err');
     return false;
   }
-  printWin.document.open();
-  printWin.document.write(reportHTML);
-  printWin.document.close();
+  try{
+    printWin.document.open('text/html','replace');
+    printWin.document.write(reportHTML);
+    printWin.document.close();
+    printWin.document.documentElement.setAttribute('lang','tr');
+    printWin.document.documentElement.setAttribute('translate','no');
+    printWin.document.documentElement.classList.add('notranslate');
+    if(printWin.document.body){
+      printWin.document.body.setAttribute('translate','no');
+      printWin.document.body.classList.add('notranslate');
+    }
+  }catch(e){
+    try{printWin.close();}catch(e2){}
+    showAlert('Rapor penceresi açılamadı: '+(e.message||String(e)),'err');
+    return false;
+  }
   printWin.focus();
-  setTimeout(function(){
-    printWin.print();
-    printWin.onafterprint=function(){printWin.close();};
-  },1000);
   return true;
+}
+
+function getNakitFlowPrintCSS(){
+  return '*{box-sizing:border-box;margin:0;padding:0}'+
+    'html.notranslate,body.notranslate,[translate="no"]{translate:none}'+
+    'body{font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;font-size:10px;color:#1e293b;background:#fff;line-height:1.35}'+
+    '.nf-print-toolbar{position:sticky;top:0;z-index:100000;display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;padding:12px 18px;background:#0f1e3c;color:#e8eef7;border-bottom:3px solid #0ea5e9;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    '.nf-print-toolbar-title{font-weight:700;font-size:13px;letter-spacing:.03em;white-space:nowrap}'+
+    '.nf-print-toolbar-hint{font-size:10px;color:#94a3b8;line-height:1.4;flex:1;min-width:220px}'+
+    '.nf-print-btn{border:none;border-radius:6px;padding:10px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap}'+
+    '.nf-print-btn-primary{background:#0ea5e9;color:#fff}'+
+    '.nf-print-btn-primary:hover{background:#0284c7}'+
+    '.nf-print-btn-ghost{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.28)}'+
+    '.nf-print-btn-ghost:hover{background:rgba(255,255,255,.18)}'+
+    '@page{size:A4 landscape;margin:10mm}'+
+    '.cover{background:linear-gradient(145deg,#0b1220 0%,#1e293b 55%,#0f172a 100%);color:#fff;padding:36px 32px;min-height:100vh;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    '.cover-logo{font-size:24px;font-weight:800;letter-spacing:3px;text-transform:uppercase;margin-bottom:4px}'+
+    '.cover h1{font-size:20px;font-weight:700;margin:16px 0 8px}'+
+    '.cover h2{font-size:13px;font-weight:600;margin:8px 0;color:#cbd5e1}'+
+    '.cover .meta{font-size:10px;color:#94a3b8;line-height:1.6}'+
+    '.cover-kpi{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}'+
+    '.kpi{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:10px 14px;min-width:110px}'+
+    '.kpi .l{font-size:8px;color:#94a3b8;letter-spacing:.5px}'+
+    '.kpi .v{font-size:14px;font-weight:700;color:#38bdf8;margin-top:4px}'+
+    '.report-page{padding:12px 16px;page-break-after:always}'+
+    '.report-page:last-child{page-break-after:auto}'+
+    '.page-head{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #0f1e3c;padding-bottom:6px;margin-bottom:8px}'+
+    '.brand{font-weight:700;font-size:9px;color:#0f1e3c;letter-spacing:1px}'+
+    '.page-no{font-size:8px;color:#64748b}'+
+    '.lik-table,.fin-table{width:100%;border-collapse:collapse;font-size:9px}'+
+    '.lik-table th,.fin-table th{background:#0f1e3c;color:#fff;padding:5px 4px;text-align:center;font-size:7.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    '.lik-table td,.fin-table td{padding:4px 4px;border-bottom:1px solid #e2e8f0;vertical-align:top}'+
+    '.fin-table td:first-child,.fin-table th:first-child{text-align:left}'+
+    '.lik-table tr:nth-child(even) td,.fin-table tr:nth-child(even) td{background:#f8fafc}'+
+    '.fin-table tr.fin-sep td{background:#f1f5f9;font-size:7px;font-weight:700;letter-spacing:.08em;color:#64748b}'+
+    '.fin-table tr.fin-total td{font-weight:700;background:#eff6ff}'+
+    '.fin-table .pos{color:#16a34a}'+
+    '.fin-table .neg{color:#dc2626}'+
+    '.n{text-align:right;font-variant-numeric:tabular-nums}'+
+    '.c{text-align:center}'+
+    '.sub{font-size:7px;color:#64748b;font-weight:400;display:block}'+
+    '.sub.pos{color:#16a34a}'+
+    '.sub.neg{color:#dc2626}'+
+    '.foot-note{font-size:8px;color:#64748b;margin-top:8px}'+
+    '.tips-page{padding:20px 24px;page-break-after:always;background:#fff}'+
+    '.tips-h2{font-size:14px;color:#0f1e3c;margin:12px 0 10px;border-bottom:2px solid #0ea5e9;padding-bottom:4px}'+
+    '.tips-panel-title{font-size:15px}'+
+    '.tips-intro{font-size:9px;color:#64748b;margin:-4px 0 14px;line-height:1.45}'+
+    '.tips-top5{margin:0 0 16px;padding-left:0;font-size:9px;line-height:1.5;list-style:none}'+
+    '.tips-top5 li{margin-bottom:8px}'+
+    '.tips-actions li{margin-bottom:10px}'+
+    '.tips-list-num{list-style:none;padding-left:0;margin:0 0 12px}'+
+    '.tips-list-num>li{position:relative;padding-left:1.6em;margin-bottom:8px}'+
+    '.tips-madde-no{position:absolute;left:0;font-weight:800;color:#0369a1;min-width:1.4em}'+
+    '.tips-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}'+
+    '.tips-kpi-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 10px}'+
+    '.tips-kpi-lbl{font-size:7px;color:#64748b;letter-spacing:.04em}'+
+    '.tips-kpi-val{font-size:11px;font-weight:700;color:#0f172a;margin-top:3px}'+
+    '.tips-rating-box{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;margin-bottom:14px}'+
+    '.tips-rating-lbl{font-size:7px;color:#64748b}'+
+    '.tips-rating-note{font-size:18px;font-weight:800;margin-top:4px}'+
+    '.tips-rating-sub{font-size:9px;color:#475569;margin-top:4px}'+
+    '.tips-cols{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:8px}'+
+    '.tips-col{min-width:0}'+
+    '.tips-col-h{font-size:10px;color:#0f1e3c;margin:0 0 8px;letter-spacing:.04em;font-weight:700}'+
+    '.tips-list{margin:0;padding-left:14px;font-size:8.5px;line-height:1.5}'+
+    '.tips-list li{margin-bottom:7px}'+
+    '.tips-empty{font-size:8px;color:#94a3b8;font-style:italic}'+
+    '.tips-ico{margin-right:4px}'+
+    '.tips-narr{font-size:9px;line-height:1.5;margin-bottom:12px;color:#475569}'+
+    '.tips-narr-num{list-style:none;padding-left:0}'+
+    '.tips-narr-num>li{position:relative;padding-left:1.5em;margin-bottom:6px}'+
+    '.corp-credit-block{margin:16px 0 20px;border:1px solid #cbd5e1;border-radius:8px;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    '.corp-credit-banner{background:linear-gradient(90deg,#0f1e3c,#1e3a5f);color:#fff;padding:12px 16px}'+
+    '.corp-credit-banner-title{font-size:13px;font-weight:800;letter-spacing:.04em}'+
+    '.corp-credit-banner-sub{font-size:8px;color:#94a3b8;margin-top:4px}'+
+    '.corp-credit-table{width:100%;border-collapse:collapse;font-size:9px}'+
+    '.corp-credit-table thead th{background:#0f1e3c;color:#fff;padding:8px 10px;text-align:right;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    '.corp-credit-table thead th.corp-cr-kalem{text-align:left;min-width:200px}'+
+    '.corp-credit-table thead th.corp-cr-year{text-align:center;min-width:72px}'+
+    '.corp-credit-table tbody td{padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:right;font-variant-numeric:tabular-nums}'+
+    '.corp-credit-table tbody td:first-child{text-align:left;font-weight:600;color:#334155;background:#f8fafc}'+
+    '.corp-credit-table tbody tr:nth-child(even) td:not(:first-child){background:#f8fafc}'+
+    '.corp-credit-table tr.corp-cr-total td{background:#eff6ff!important;font-weight:800;color:#0f172a;border-top:2px solid #0ea5e9}'+
+    '.corp-credit-table tr.corp-cr-total td:first-child{text-transform:uppercase;font-size:8px;letter-spacing:.03em}'+
+    '.corp-credit-note{font-size:7.5px;color:#64748b;padding:10px 14px;background:#f8fafc;margin:0;border-top:1px solid #e2e8f0;line-height:1.45}'+
+    '.doc-footer{padding:14px 20px;background:#f1f5f9;font-size:8px;color:#64748b;border-top:1px solid #e2e8f0}'+
+    '.proj-print .yr-block{margin:0}'+
+    '.proj-print .yr-header{display:flex;align-items:center;gap:10px;margin-bottom:6px;padding:6px 8px;background:#f1f5f9;border-radius:6px}'+
+    '.proj-print .yr-num{font-size:16px;font-weight:800;color:#0f1e3c}'+
+    '.proj-print .yr-period{font-size:8px;color:#64748b}'+
+    '.proj-print .proj-tbl{width:100%;border-collapse:collapse;font-size:7.5px;min-width:0}'+
+    '.proj-print .proj-tbl thead th{background:#0f1e3c;color:#fff;padding:4px 3px;text-align:right;font-size:6.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    '.proj-print .proj-tbl thead th.lbl-col{text-align:left;min-width:120px}'+
+    '.proj-print .proj-tbl tbody td{padding:3px 4px;text-align:right;border-bottom:1px solid #e2e8f0;font-size:7px}'+
+    '.proj-print .proj-tbl tbody td.lbl-col{text-align:left;font-weight:500;color:#334155;background:#fff}'+
+    '.proj-print .proj-tbl tbody td.lbl-col.grp{font-weight:700;background:#f1f5f9!important;text-transform:uppercase;font-size:6.5px}'+
+    '.proj-print .proj-tbl tbody tr.row-total td,.proj-print .proj-tbl tbody tr.row-kapanış td{font-weight:700;background:#eff6ff!important}'+
+    '.proj-print .proj-tbl .toplam-col{border-left:2px solid #cbd5e1;font-weight:700}'+
+    '.proj-print .pos{color:#16a34a}'+
+    '.proj-print .neg{color:#dc2626}'+
+    '@media print{.nf-print-toolbar{display:none!important}body{background:#fff!important}.cover{min-height:auto;page-break-after:always}.report-page{page-break-after:always}.lik-table thead,.fin-table thead,.proj-print .proj-tbl thead{display:table-header-group}}';
+}
+
+function wrapNakitFlowPrintDocument(title, bodyHtml){
+  return '<!DOCTYPE html><html lang="tr" class="notranslate" translate="no"><head><meta charset="UTF-8">'+
+    '<meta http-equiv="Content-Language" content="tr">'+
+    '<meta name="google" content="notranslate">'+
+    '<meta name="googlebot" content="notranslate">'+
+    '<title>'+esc(title)+'</title><style>'+getNakitFlowPrintCSS()+'</style></head>'+
+    '<body class="notranslate" translate="no">'+
+    getNakitFlowPrintToolbarHtml()+
+    '<div id="nf-print-report-root" class="notranslate" translate="no">'+bodyHtml+'</div>'+
+    '</body></html>';
+}
+
+/** PDF / yazdır raporunda kalan İngilizce terimleri Türkçeleştir. */
+function trReportText(s){
+  if(s==null)return '';
+  return String(s)
+    .replace(/\bRating puanı\b/gi,'Kredi notu puanı')
+    .replace(/\brating\b/gi,'kredi notu')
+    .replace(/\bForward kur satışı\b/gi,'Vadeli döviz satışı (forward)')
+    .replace(/\bForward\b/g,'Vadeli forward')
+    .replace(/\bJIT stok\b/gi,'zamanında stok (JIT)')
+    .replace(/\bJIT\b/g,'zamanında (JIT)')
+    .replace(/Satılan Malın Maliyeti \(COGS\)/gi,'Satılan Malın Maliyeti')
+    .replace(/Satılan Malın Maliyeti \(COGS\)/gi,'Satılan Malın Maliyeti')
+    .replace(/\bCOGS\b/g,'satılan mal maliyeti')
+    .replace(/Faaliyet Kârı \(EBIT\)/gi,'Faaliyet Kârı')
+    .replace(/FAALİYET KÂRI \(EBIT\)/gi,'FAALİYET KÂRI')
+    .replace(/\bEBIT\b/g,'faaliyet kârı')
+    .replace(/VÖK \/ EBT/gi,'Vergi Öncesi Kâr (VÖK)')
+    .replace(/\bEBT\b/g,'VÖK')
+    .replace(/\bEBITDA\b/g,'FAVÖK')
+    .replace(/Ticari Alacak \(AR\)/gi,'Ticari Alacak')
+    .replace(/Ticari Borç \(AP\)/gi,'Ticari Borç')
+    .replace(/ \(AR\)/gi,'')
+    .replace(/ \(AP\)/gi,'')
+    .replace(/\bTRY\b/g,'TL')
+    .replace(/\bNET SATIŞLAR\b/g,'NET SATIŞLAR')
+    .replace(/\bNET KÂR\b/g,'NET KÂR')
+    .replace(/EBIT −/g,'faaliyet kârı −')
+    .replace(/EBIT −/g,'faaliyet kârı −')
+    .replace(/Likidite ve rating iyileştirme/gi,'Likidite ve kredi notu iyileştirme');
 }
 
 function liquidityReportLikiditeInner(x){
@@ -4764,19 +5081,13 @@ function liquidityReportBorcInner(x){
   return html;
 }
 
-function buildLiquidityReportPrintHTML(firmName,proj,data,tipPack){
-  const sum=proj.summary||{};
-  const tarih=new Date().toLocaleDateString('tr-TR',{year:'numeric',month:'long',day:'numeric'});
-  const docRef='NF-LIQ-'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'-'+String(Date.now()).slice(-6);
-  const PER_PAGE=12;
+function buildLiquidityReportPagesHtml(data){
   const series=data.series;
-  const chunks=[];
-  for(let i=0;i<series.length;i+=PER_PAGE) chunks.push(series.slice(i,i+PER_PAGE));
-
+  const chunks=groupLiquiditySeriesByYear(series);
   let pagesHtml='';
   chunks.forEach(function(chunk,pi){
     let rows='';
-    for(const x of chunk){
+    for(const x of chunk.months){
       const durColor=x.durumKey==='ekside'?'#dc2626':'#16a34a';
       const faalColor=(x.faaliyetNet||0)>=-1e-6?'#16a34a':'#dc2626';
       rows+='<tr>'+
@@ -4794,7 +5105,7 @@ function buildLiquidityReportPrintHTML(firmName,proj,data,tipPack){
     pagesHtml+='<div class="report-page">'+
       '<div class="page-head">'+
       '<span class="brand">NakitFlow — FinSkor</span>'+
-      '<span class="page-no">Sayfa '+(pi+1)+' / '+chunks.length+' · Ay '+chunk[0].ay+'–'+chunk[chunk.length-1].ay+'</span>'+
+      '<span class="page-no">Likidite · Yıl '+chunk.year+' · Sayfa '+(pi+1)+' / '+chunks.length+'</span>'+
       '</div>'+
       '<table class="lik-table"><thead><tr>'+
       '<th>Ay</th><th>Tarih</th><th>Dönem başı</th><th>Faaliyet net</th><th>Likidite ay sonu</th><th>BCH / mevduat</th><th>Mevduat kons.</th><th>BCH / taksit</th><th>Durum</th>'+
@@ -4802,87 +5113,16 @@ function buildLiquidityReportPrintHTML(firmName,proj,data,tipPack){
       (pi===chunks.length-1?'<p class="foot-note">Dönem başı = ay başı kasa+mevduat. Likidite ay sonu = o ay BCH/mevduat hareketi. Faaliyet net = işletme nakit etkisi (BCH öncesi). Tutarlar TL.</p>':'')+
       '</div>';
   });
+  return pagesHtml;
+}
 
+function buildLiquidityReportCoverHtml(firmName,proj,data,docRef,tarih){
+  const sum=proj.summary||{};
   const pendingEnd=sum.depIntPendingEnd||0;
   const pendingKpi=pendingEnd>1
     ?'<div class="kpi"><div class="l">Son ay tahakkuk faiz</div><div class="v">'+tr(pendingEnd)+'</div></div>'
     :'';
-
-  return '<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8">'+
-    '<title>Aylık Likidite Özeti — '+esc(firmName)+'</title>'+
-    '<style>'+
-    '*{box-sizing:border-box;margin:0;padding:0}'+
-    'body{font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;font-size:10px;color:#1e293b;background:#fff;line-height:1.35}'+
-    '@page{size:A4 landscape;margin:10mm}'+
-    '.cover{background:linear-gradient(145deg,#0b1220 0%,#1e293b 55%,#0f172a 100%);color:#fff;padding:36px 32px;min-height:100vh;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
-    '.cover-logo{font-size:24px;font-weight:800;letter-spacing:3px;text-transform:uppercase;margin-bottom:4px}'+
-    '.cover h1{font-size:20px;font-weight:700;margin:16px 0 8px}'+
-    '.cover .meta{font-size:10px;color:#94a3b8;line-height:1.6}'+
-    '.cover-kpi{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}'+
-    '.kpi{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:10px 14px;min-width:110px}'+
-    '.kpi .l{font-size:8px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}'+
-    '.kpi .v{font-size:14px;font-weight:700;color:#38bdf8;margin-top:4px}'+
-    '.report-page{padding:12px 16px;page-break-after:always}'+
-    '.report-page:last-child{page-break-after:auto}'+
-    '.page-head{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #0f1e3c;padding-bottom:6px;margin-bottom:8px}'+
-    '.brand{font-weight:700;font-size:9px;color:#0f1e3c;letter-spacing:1px;text-transform:uppercase}'+
-    '.page-no{font-size:8px;color:#64748b}'+
-    '.lik-table{width:100%;border-collapse:collapse;font-size:9px}'+
-    '.lik-table th{background:#0f1e3c;color:#fff;padding:5px 4px;text-align:center;font-size:7.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
-    '.lik-table td{padding:4px 4px;border-bottom:1px solid #e2e8f0;vertical-align:top}'+
-    '.lik-table tr:nth-child(even) td{background:#f8fafc}'+
-    '.n{text-align:right;font-variant-numeric:tabular-nums}'+
-    '.c{text-align:center}'+
-    '.sub{font-size:7px;color:#64748b;font-weight:400;display:block}'+
-    '.sub.pos{color:#16a34a}'+
-    '.sub.neg{color:#dc2626}'+
-    '.foot-note{font-size:8px;color:#64748b;margin-top:8px}'+
-    '.tips-page{padding:20px 24px;page-break-after:always;background:#fff}'+
-    '.tips-h2{font-size:14px;color:#0f1e3c;margin:12px 0 10px;border-bottom:2px solid #0ea5e9;padding-bottom:4px}'+
-    '.tips-panel-title{font-size:15px}'+
-    '.tips-intro{font-size:9px;color:#64748b;margin:-4px 0 14px;line-height:1.45}'+
-    '.tips-top5{margin:0 0 16px;padding-left:0;font-size:9px;line-height:1.5;list-style:none;counter-reset:none}'+
-    '.tips-top5 li{margin-bottom:8px;padding-left:0}'+
-    '.tips-actions li{margin-bottom:10px}'+
-    '.tips-list-num{list-style:none;padding-left:0;margin:0 0 12px}'+
-    '.tips-list-num>li{position:relative;padding-left:1.6em;margin-bottom:8px}'+
-    '.tips-madde-no{position:absolute;left:0;font-weight:800;color:#0369a1;min-width:1.4em}'+
-    '.tips-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}'+
-    '.tips-kpi-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 10px}'+
-    '.tips-kpi-lbl{font-size:7px;color:#64748b;text-transform:uppercase;letter-spacing:.04em}'+
-    '.tips-kpi-val{font-size:11px;font-weight:700;color:#0f172a;margin-top:3px}'+
-    '.tips-rating-box{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;margin-bottom:14px}'+
-    '.tips-rating-lbl{font-size:7px;color:#64748b;text-transform:uppercase}'+
-    '.tips-rating-note{font-size:18px;font-weight:800;margin-top:4px}'+
-    '.tips-rating-sub{font-size:9px;color:#475569;margin-top:4px}'+
-    '.tips-cols{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:8px}'+
-    '.tips-col{min-width:0}'+
-    '.tips-col-h{font-size:10px;color:#0f1e3c;margin:0 0 8px;text-transform:uppercase;letter-spacing:.04em;font-weight:700}'+
-    '.tips-list{margin:0;padding-left:14px;font-size:8.5px;line-height:1.5}'+
-    '.tips-list li{margin-bottom:7px}'+
-    '.tips-empty{font-size:8px;color:#94a3b8;font-style:italic}'+
-    '.tips-ico{margin-right:4px}'+
-    '.tips-narr{font-size:9px;line-height:1.5;margin-bottom:12px;color:#475569}'+
-    '.tips-narr-num{list-style:none;padding-left:0}'+
-    '.tips-narr-num>li{position:relative;padding-left:1.5em;margin-bottom:6px}'+
-    '.corp-credit-block{margin:16px 0 20px;border:1px solid #cbd5e1;border-radius:8px;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
-    '.corp-credit-banner{background:linear-gradient(90deg,#0f1e3c,#1e3a5f);color:#fff;padding:12px 16px}'+
-    '.corp-credit-banner-title{font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}'+
-    '.corp-credit-banner-sub{font-size:8px;color:#94a3b8;margin-top:4px}'+
-    '.corp-credit-table{width:100%;border-collapse:collapse;font-size:9px}'+
-    '.corp-credit-table thead th{background:#0f1e3c;color:#fff;padding:8px 10px;text-align:right;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
-    '.corp-credit-table thead th.corp-cr-kalem{text-align:left;min-width:200px}'+
-    '.corp-credit-table thead th.corp-cr-year{text-align:center;min-width:72px}'+
-    '.corp-credit-table tbody td{padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:right;font-variant-numeric:tabular-nums}'+
-    '.corp-credit-table tbody td:first-child{text-align:left;font-weight:600;color:#334155;background:#f8fafc}'+
-    '.corp-credit-table tbody tr:nth-child(even) td:not(:first-child){background:#f8fafc}'+
-    '.corp-credit-table tr.corp-cr-total td{background:#eff6ff!important;font-weight:800;color:#0f172a;border-top:2px solid #0ea5e9}'+
-    '.corp-credit-table tr.corp-cr-total td:first-child{text-transform:uppercase;font-size:8px;letter-spacing:.03em}'+
-    '.corp-credit-note{font-size:7.5px;color:#64748b;padding:10px 14px;background:#f8fafc;margin:0;border-top:1px solid #e2e8f0;line-height:1.45}'+
-    '.doc-footer{padding:14px 20px;background:#f1f5f9;font-size:8px;color:#64748b;border-top:1px solid #e2e8f0}'+
-    '@media print{body{background:#fff!important}.cover{min-height:auto;page-break-after:always}.report-page{page-break-after:always}.lik-table thead{display:table-header-group}}'+
-    '</style></head><body>'+
-    '<div class="cover">'+
+  return '<div class="cover">'+
     '<div class="cover-logo">NakitFlow</div>'+
     '<div class="meta">FinSkor entegrasyonu · Aylık likidite özeti</div>'+
     '<h1>'+esc(firmName)+'</h1>'+
@@ -4895,40 +5135,23 @@ function buildLiquidityReportPrintHTML(firmName,proj,data,tipPack){
     '<div class="kpi"><div class="l">Toplam BCH kullanım</div><div class="v">'+tr(data.totalBchDraw)+'</div></div>'+
     '<div class="kpi"><div class="l">Toplam BCH geri ödeme</div><div class="v">'+tr(data.totalBchRepay)+'</div></div>'+
     pendingKpi+
-    '</div></div>'+
+    '</div></div>';
+}
+
+function buildLiquidityReportPrintHTML(firmName,proj,data,tipPack){
+  const tarih=new Date().toLocaleDateString('tr-TR',{year:'numeric',month:'long',day:'numeric'});
+  const docRef='NF-LIQ-'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'-'+String(Date.now()).slice(-6);
+  const body=
+    buildLiquidityReportCoverHtml(firmName,proj,data,docRef,tarih)+
     (tipPack?buildLiquidityTipsReportSection(tipPack):'')+
-    pagesHtml+
-    '<div class="doc-footer">NakitFlow · '+esc(tarih)+' · '+esc(firmName)+' · '+esc(docRef)+' — Gizli / dahili kullanım</div>'+
-    '</body></html>';
+    buildLiquidityReportPagesHtml(data)+
+    '<div class="doc-footer">NakitFlow · '+esc(tarih)+' · '+esc(firmName)+' · '+esc(docRef)+' — Gizli / dahili kullanım</div>';
+  return wrapNakitFlowPrintDocument('Aylık Likidite Özeti — '+firmName, body);
 }
 
 /** Aylık likidite özeti — FinSkor tarzı yazdır → PDF olarak kaydet. */
 function exportCashSummaryPDF(){
-  const f=curFirm();
-  if(!f){showAlert('Firma seçin.','err');return;}
-  let proj=lastProjection;
-  if(!proj||!proj.rows||!proj.rows.length){
-    try{
-      proj=buildProjection(state.currentFirmId);
-      lastProjection=proj;
-    }catch(e){
-      showAlert('Projeksiyon yüklenemedi: '+(e.message||String(e)),'err');
-      return;
-    }
-  }
-  if(!proj.rows.length){showAlert('Projeksiyon boş.','err');return;}
-  try{
-    const data=buildMonthlyCashSummarySeries(proj);
-    if(!data.series.length){showAlert('Likidite özeti verisi yok.','err');return;}
-    const tipPack=prepareLiquidityImprovementPack(f,data,proj)||lastLiquidityImprovementPack;
-    const html=buildLiquidityReportPrintHTML(f.name||'Firma',proj,data,tipPack);
-    if(openNakitFlowPrintReport(html)){
-      showAlert('Yazdır penceresinde hedef olarak «PDF olarak kaydet» seçin.','ok');
-    }
-  }catch(err){
-    showAlert('PDF hatası: '+(err.message||String(err)),'err');
-    console.error(err);
-  }
+  exportNakitFlowPrintPDF({mode:'liquidity'});
 }
 
 function renderProjection(){
@@ -5557,6 +5780,207 @@ function renderBalance5Y(){
   const ratingsPack = computeBal5FinSkorRatings(f, years, bal, inc);
   renderBal5RatingBlock(f, years, ratingsPack);
   f.bal5FinSkorRatings = ratingsPack;
+}
+
+function buildPrintCoverHtml(firmName, reportTitle, subtitle, proj){
+  const sum=proj&&proj.summary?proj.summary:{};
+  const tarih=new Date().toLocaleDateString('tr-TR',{year:'numeric',month:'long',day:'numeric'});
+  return '<div class="cover">'+
+    '<div class="cover-logo">NakitFlow</div>'+
+    '<div class="meta">FinSkor entegrasyonu · Nakit akış projeksiyonu</div>'+
+    '<h1>'+esc(firmName)+'</h1>'+
+    '<h2>'+esc(reportTitle)+'</h2>'+
+    '<div class="meta">Rapor tarihi: '+esc(tarih)+
+    (sum.startDate?'<br>Dönem: '+esc(sum.startDate)+' · '+(sum.months||'—')+' ay projeksiyon':'')+
+    (subtitle?'<br>'+esc(subtitle):'')+
+    '</div></div>';
+}
+
+function buildCashFlowPrintPagesHtml(yearlyData,firmName){
+  if(!yearlyData||!yearlyData.length)return '';
+  return yearlyData.map(function(yd){
+    return '<div class="report-page">'+
+      '<div class="page-head">'+
+      '<span class="brand">NakitFlow — FinSkor</span>'+
+      '<span class="page-no">Nakit Akış · Yıl '+yd.year+'</span>'+
+      '</div>'+
+      '<div class="proj-print">'+renderProjTable(yd,firmName)+'</div></div>';
+  }).join('');
+}
+
+function buildIncome5YPrintHtml(f,proj){
+  const sy=new Date(f.startDate).getFullYear();
+  const{years,inc}=annual5Y(proj.rows,sy,(f.opening||{}).mdv||0,openingBalAdjFromOpening(f.opening));
+  const sections=[
+    {sep:'NET SATIŞLAR'},{l:'Net Satışlar',k:'ciro',bold:true},
+    {sep:'SATIŞLARIN MALİYETİ'},{l:'Satılan Malın Maliyeti',k:'cogs',cost:true},
+    {sep:'BRÜT KÂR'},{l:'Brüt Kâr',k:'gp',bold:true,margin:'gpM'},
+    {sep:'FAALİYET GİDERLERİ'},{l:'Genel Yönetim ve Operasyon Giderleri',k:'opex',cost:true},
+    {sep:'FAALİYET KÂRI'},{l:'Faaliyet Kârı',k:'faalKar',bold:true,margin:'faalM'},
+    {sep:'DİĞER OLAĞAN GELİR / GİDER'},{l:'Mevduat ve Diğer Faiz Geliri',k:'dgerGelir'},
+    {l:'Diğer Olağan Gider',k:'dgerGider',cost:true},
+    {sep:'FİNANSMAN GİDERLERİ'},{l:'Taksitli Kredi Faizi',k:'tFaiz',cost:true},
+    {l:'BCH Faiz Gideri',k:'bchFaizAccr',cost:true},{l:'Toplam Finansman Gideri',k:'finGid',cost:true,bold:true},
+    {sep:'ARA TOPLAM — FİNANSMAN SONRASI'},{l:'Finansman sonrası faaliyet sonucu',k:'finSonrasi',bold:true,bridge:true},
+    {sep:'KUR FARKI (646/656)'},{l:'Kambiyo net (646/656)',k:'kambiyoKredi',kambi:true},
+    {sep:'ARA TOPLAM — KAMBİYO SONRASI'},{l:'Kambiyo sonrası işlem sonucu',k:'kambiyoSonrasi',bold:true,bridge:true},
+    {l:'Mevduat/diğer olağan net (VÖK köprüsü)',k:'dgerNet',bridge:true},
+    {sep:'VERGİ ÖNCESİ KÂR'},{l:'Vergi Öncesi Kâr (VÖK)',k:'ebt',bold:true},
+    {sep:'VERGİ'},{l:'Kurumlar Vergisi',k:'tax',cost:true},
+    {sep:'NET KÂR'},{l:'Net Kâr',k:'net',bold:true,margin:'netM'},
+  ];
+  const rows=sections.map(function(row){
+    if(row.sep)return'<tr class="fin-sep"><td colspan="'+(years.length+1)+'">'+esc(trReportText(row.sep))+'</td></tr>';
+    const cells=years.map(function(y){
+      const v=inc[y]?.[row.k]||0;
+      let cls='';
+      if(row.kambi)cls=v>0?'neg':(v<0?'pos':'');
+      else if(row.bridge)cls=v>0?'pos':(v<0?'neg':'');
+      else if(row.cost)cls=v>0?'neg':'';
+      else cls=v>0?'pos':(v<0?'neg':'');
+      let extra='';
+      if(row.margin){const m=inc[y]?.[row.margin]||0;extra='<br><span class="sub">'+tr(m,1)+'%</span>';}
+      return'<td class="n '+cls+'">'+tr(v)+extra+'</td>';
+    }).join('');
+    const trCls=row.bold?' fin-total':'';
+    return'<tr class="'+trCls+'"><td>'+(row.bold?'<b>'+esc(trReportText(row.l))+'</b>':esc(trReportText(row.l)))+'</td>'+cells+'</tr>';
+  }).join('');
+  return '<div class="report-page">'+
+    '<div class="page-head"><span class="brand">NakitFlow — FinSkor</span>'+
+    '<span class="page-no">5 Yıllık Gelir Tablosu</span></div>'+
+    '<table class="fin-table"><thead><tr><th>Kalem</th>'+
+    years.map(function(y){return'<th>'+y+'</th>';}).join('')+
+    '</tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+
+function buildBalance5YPrintHtml(f,proj){
+  const sy=new Date(f.startDate).getFullYear();
+  const mdv0=(f.opening||{}).mdv||0;
+  const{years,inc,bal}=annual5Y(proj.rows,sy,mdv0,openingBalAdjFromOpening(f.opening));
+  const ret=computeRetained(years,inc,openingRetainedForFirm(f));
+  const capital0=openingCapital0(f);
+  const realPasif={};
+  for(const y of years)realPasif[y]=pasifToplamWithEquity(bal[y],y,inc,ret,capital0);
+  const snap=f.finskorBilancoSnapshot;
+  let sections;
+  if(snap&&snap.rows&&snap.rows.length){
+    sections=snap.rows.map(function(entry){
+      return{l:trReportText(bilancoAdiNumsiz(entry.label)+(entry.key==='donemNetKar'?' (NakitFlow yıllık net)':'')),fsEntry:entry,bold:!!entry.isTotal,corpTotal:!!entry.isTotal&&BAL5_CORP_TOTAL_KEYS.has(entry.key),c:['kvMaliBorclar','kvTicBorclar','pasifToplam'].indexOf(entry.key)>=0};
+    });
+    sections.push({l:'⚖ Denge Farkı (Aktif − Pasif)',fark:true});
+  }else{
+    sections=[
+      {sep:'DÖNEN VARLIKLAR'},{l:'Nakit ve Banka',k:'nakit'},{l:'Mevduat',k:'mevduat'},
+      {l:'Ticari Alacak',k:'ar'},{l:'Stok',k:'stok'},{l:'Diğer alacak ve diğer dönen varlıklar',k:'otherAssets'},
+      {l:'► Dönen Varlıklar Toplamı',k:'__donen_top__',bold:true,corpTotal:true},
+      {sep:'DURAN VARLIKLAR'},{l:'Maddi Duran Varlık',k:'mdv'},
+      {l:'► Aktif Toplam',k:'aktifToplam',bold:true,corpTotal:true},
+      {sep:'YÜKÜMLÜLÜKLER'},{l:'Ticari Borç',k:'ap',c:true},{l:'BCH',k:'bch',c:true},
+      {l:'Spot Kredi',k:'spot',c:true},{l:'Taksitli Kredi',k:'taksit',c:true},
+      {l:'Diğer borç ve alınan avans',k:'otherLiab',c:true},
+      {l:'► Toplam Yükümlülük',k:'toplamYuk',c:true,bold:true,corpTotal:true},
+      {sep:'ÖZKAYNAK'},{l:'Sermaye (Açılış)',k:'__cap__'},{l:'Geçmiş yıl kar/zarar (devreden)',k:'__gecmis_bfw__'},
+      {l:'Dönem net kar/zarar',k:'__donem_net__'},{l:'► Pasif Toplam',k:'__pasif__',bold:true,corpTotal:true},
+      {l:'⚖ Denge Farkı (Aktif − Pasif)',k:'__fark__',fark:true},
+    ];
+  }
+  const rows=sections.map(function(row){
+    if(row.sep)return'<tr class="fin-sep"><td colspan="'+(years.length+1)+'">'+esc(trReportText(row.sep))+'</td></tr>';
+    const cells=years.map(function(y){
+      let v;
+      if(row.fsEntry)v=finSkorBilancoYearCell(f,row.fsEntry,y,bal,inc,ret,capital0,realPasif[y]);
+      else if(row.fark||row.k==='__fark__')v=((bal[y]||{}).aktifToplam||0)-(realPasif[y]||0);
+      else if(row.k==='__cap__')v=capital0;
+      else if(row.k==='__donen_top__')v=balDonenToplam(bal[y]);
+      else if(row.k==='__gecmis_bfw__')v=ret.bfw[y]||0;
+      else if(row.k==='__donem_net__')v=pasifDonemNetForBalance(bal[y],y,inc,ret,capital0);
+      else if(row.k==='__pasif__')v=realPasif[y]||0;
+      else v=(bal[y]||{})[row.k]||0;
+      let cls='';
+      if(row.fark||row.k==='__fark__')cls=Math.abs(v)<1?'pos':'neg';
+      else if(row.c)cls=v>0?'neg':'';
+      else cls=v>0?'pos':(v<0?'neg':'');
+      return'<td class="n '+cls+'">'+tr(v)+'</td>';
+    }).join('');
+    const trCls=(row.bold||row.corpTotal)?' fin-total':'';
+    return'<tr class="'+trCls+'"><td>'+(row.bold?'<b>'+esc(trReportText(row.l))+'</b>':esc(trReportText(row.l)))+'</td>'+cells+'</tr>';
+  }).join('');
+  return '<div class="report-page">'+
+    '<div class="page-head"><span class="brand">NakitFlow — FinSkor</span>'+
+    '<span class="page-no">5 Yıllık Bilanço</span></div>'+
+    '<table class="fin-table"><thead><tr><th>Kalem</th>'+
+    years.map(function(y){return'<th>'+y+'</th>';}).join('')+
+    '</tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+
+function buildNakitFlowCombinedPrintHTML(f,proj,opts){
+  opts=opts||{};
+  const firmName=f.name||'Firma';
+  const mode=opts.mode||'liquidity';
+  const reportTitle=opts.reportTitle||'NakitFlow Raporu';
+  const tarih=new Date().toLocaleDateString('tr-TR',{year:'numeric',month:'long',day:'numeric'});
+  const docRef='NF-'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'-'+String(Date.now()).slice(-6);
+  const parts=[];
+
+  if(mode==='liquidity'){
+    const data=buildMonthlyCashSummarySeries(proj);
+    const tipPack=opts.tipPack||prepareLiquidityImprovementPack(f,data,proj)||lastLiquidityImprovementPack;
+    return buildLiquidityReportPrintHTML(firmName,proj,data,tipPack);
+  }
+
+  parts.push(buildPrintCoverHtml(firmName,reportTitle,'',proj));
+
+  if(mode==='full'||mode==='cashflow'){
+    const sy=new Date(f.startDate).getFullYear();
+    const numYears=Math.ceil((proj.summary.months||60)/12);
+    const yearlyData=buildYearlyData(proj.rows,sy,numYears);
+    parts.push(buildCashFlowPrintPagesHtml(yearlyData,firmName));
+  }
+  if(mode==='full'||mode==='income'){
+    parts.push(buildIncome5YPrintHtml(f,proj));
+  }
+  if(mode==='full'||mode==='balance'){
+    parts.push(buildBalance5YPrintHtml(f,proj));
+  }
+
+  if(opts.includeLiquidity!==false){
+    const data=buildMonthlyCashSummarySeries(proj);
+    if(data.series.length){
+      const tipPack=opts.tipPack||prepareLiquidityImprovementPack(f,data,proj)||lastLiquidityImprovementPack;
+      parts.push(buildLiquidityReportCoverHtml(firmName,proj,data,docRef+'-LIQ',tarih));
+      if(tipPack)parts.push(buildLiquidityTipsReportSection(tipPack));
+      parts.push(buildLiquidityReportPagesHtml(data));
+    }
+  }
+
+  parts.push('<div class="doc-footer">NakitFlow · '+esc(tarih)+' · '+esc(firmName)+' · '+esc(docRef)+' — Gizli / dahili kullanım</div>');
+  return wrapNakitFlowPrintDocument(reportTitle+' — '+firmName,parts.join(''));
+}
+
+function exportNakitFlowPrintPDF(opts){
+  opts=opts||{};
+  const f=curFirm();
+  if(!f){showAlert('Firma seçin.','err');return;}
+  let proj=lastProjection;
+  if(!proj||!proj.rows||!proj.rows.length){
+    try{
+      proj=buildProjection(state.currentFirmId);
+      lastProjection=proj;
+    }catch(e){
+      showAlert('Projeksiyon yüklenemedi: '+(e.message||String(e)),'err');
+      return;
+    }
+  }
+  if(!proj.rows.length){showAlert('Projeksiyon boş.','err');return;}
+  try{
+    const html=buildNakitFlowCombinedPrintHTML(f,proj,opts);
+    if(openNakitFlowPrintReport(html)){
+      showAlert('Rapor penceresi açıldı. Üstteki «PDF olarak kaydet / Yazdır» düğmesine tıklayın.','ok');
+    }
+  }catch(err){
+    showAlert('PDF hatası: '+(err.message||String(err)),'err');
+    console.error(err);
+  }
 }
 
 // ══════════════════════════════════════════════
@@ -6363,15 +6787,17 @@ function _buildLoansFromConfig(loanConfig, projYil) {
 }
 
 // ── FinSkor → NakitFlow otomatik aktarım ───────────────────────────────────
+let _finskorImportBusy=false;
 async function importFromFinSkor(){
+  if(_finskorImportBusy)return;
   const raw = localStorage.getItem('nakit_akis_finskor_data');
   if(!raw) return;
+  _finskorImportBusy=true;
+  localStorage.removeItem('nakit_akis_finskor_data');
+  try{
   let p;
   try { p = JSON.parse(raw); } catch(e){ return; }
   if(!p || p.kaynak !== 'finskor') return;
-
-  // Tek seferlik okuma
-  localStorage.removeItem('nakit_akis_finskor_data');
 
   // Kredi yapılandırma modal konfigürasyonu (varsa)
   let loanConfig = null;
@@ -6408,12 +6834,13 @@ async function importFromFinSkor(){
   const tcmbAss = buildTcmbAssumptionsForFirm({ startDate: startIso });
   const bch1 = tcmbAss.bch1;
 
-  // ── Firma oluştur ─────────────────────────────────────────────────────────
-  const id = genId();
+  // ── Firma oluştur (aynı isim+tarih varsa güncelle, yoksa yeni) ─────────────
+  const existing = findFirmByNameAndStart(firmAdı, startIso);
+  const id = existing ? existing.id : genId();
   state.firms[id] = {
     id, name: firmAdı,
     startDate: startIso,
-    createdAt: new Date().toISOString(),
+    createdAt: existing ? (existing.createdAt || new Date().toISOString()) : new Date().toISOString(),
     opening:{
       cash:      0,
       bank:      p.kasaBanka        || 0,
@@ -6481,6 +6908,9 @@ async function importFromFinSkor(){
       'ok'
     );
   }, 600);
+  }finally{
+    _finskorImportBusy=false;
+  }
 }
 
 async function init(){
@@ -6495,9 +6925,9 @@ async function init(){
   await importFromFinSkor();   // FinSkor'dan veri geldiyse önce oluştur
   renderFirmList();
   if(typeof updateTcmbAutofillUi==='function')updateTcmbAutofillUi();
-  $('new-firm-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal('new-firm-modal');});
+  $('new-firm-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)cancelNewFirmModal();});
   $('nf-name').addEventListener('keydown',e=>{if(e.key==='Enter')$('nf-date').focus();});
-  $('nf-date').addEventListener('keydown',e=>{if(e.key==='Enter')createFirm();});
+  $('nf-date').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();createFirm();}});
   // Firm list button delegation
   $('firm-list').addEventListener('click',e=>{
     const btn=e.target.closest('[data-action]');if(!btn)return;
@@ -6996,18 +7426,10 @@ function pdfIncLine(y, k, inc) {
   return first + '\n' + second;
 }
 
-function pdfBuildCashFlowPages(doc, proj, firmName) {
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
-  const sy     = new Date(proj.firm.startDate).getFullYear();
-  const numYrs = Math.ceil((proj.summary.months || 60) / 12);
-  const yearlyData = buildYearlyData(proj.rows, sy, numYrs);
-  if (!yearlyData.length) return;
-
-  doc.addPage();
-  pdfAddHeader(doc, firmName, 'Nakit Akış — Yıllık özet (tüm yıllar, tek sayfa)', pageW);
-
-  const rowDefs = PROJ_ROWS.filter(r => r.field && r.type !== 'sep');
+function pdfCashFlowYearTableBody(yearData) {
+  const months = yearData.months;
+  const totals = yearData.totals || {};
+  const cols = months.length;
   const isBalField = function (f) {
     return ['kapanisNakit', 'mevduat', 'bchEnd', 'taksitBak', 'spotBak', 'arBak', 'apBak', 'stokBak', 'acilis', 'ebt'].includes(f);
   };
@@ -7017,49 +7439,60 @@ function pdfBuildCashFlowPages(doc, proj, firmName) {
   const isInF = function (f) {
     return ['tahsilat', 'depFaiz', 'krediKullan', 'spotKullan', 'manuelGelir', 'sermayeGirdi', 'toplamGirdi', 'bchKullan'].includes(f);
   };
-
-  const yearLabels = yearlyData.map(function (yd) { return String(yd.year); });
-  const head = [['Kalem', ...yearLabels]];
   const body = [];
-  for (let ri = 0; ri < rowDefs.length; ri++) {
-    const rd = rowDefs[ri];
+  for (let ri = 0; ri < PROJ_ROWS.length; ri++) {
+    const rd = PROJ_ROWS[ri];
+    if (rd.type === 'sep') continue;
     const isGrp = rd.type === 'grp';
     const isTotal = rd.type === 'total' || rd.type === 'kapanis';
     const cells = [rd.label];
-    for (let yi = 0; yi < yearlyData.length; yi++) {
-      const yd = yearlyData[yi];
-      const months = yd.months;
-      const totals = yd.totals || {};
-      let v = 0;
-      if (isBalField(rd.field)) {
-        if (rd.field === 'acilis') v = months[0] ? (months[0].acilis || 0) : 0;
-        else if (months.length) v = months[months.length - 1][rd.field] || 0;
-      } else {
-        v = totals[rd.field] || 0;
+    if (rd.field) {
+      const ytotal = totals[rd.field] || 0;
+      for (let i = 0; i < cols; i++) {
+        cells.push(pdfNum(months[i][rd.field] || 0));
       }
-      cells.push(pdfNum(v));
+      const isBalance = isBalField(rd.field);
+      const tv = isBalance ? (months[months.length - 1]?.[rd.field] || 0) : ytotal;
+      cells.push(pdfNum(tv));
+    } else {
+      while (cells.length < cols + 2) cells.push('');
     }
     body.push({ cells: cells, isGrp: isGrp, isTotal: isTotal, field: rd.field });
   }
+  return { body: body, isBalField: isBalField, isOutF: isOutF, isInF: isInF, months: months };
+}
 
+function pdfBuildCashFlowYearPage(doc, firmName, yearData) {
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  doc.addPage();
+  const title = 'Nakit Akış — ' + yearData.year;
+  pdfAddHeader(doc, firmName, title, pageW);
+
+  const tbl = pdfCashFlowYearTableBody(yearData);
+  const monthHeaders = tbl.months.map(function (m) {
+    const d = m.tarih.split('-');
+    return AY_KISA[parseInt(d[1], 10) - 1];
+  });
+  const head = [['Kalem', ...monthHeaders, 'Toplam']];
+  const nCols = monthHeaders.length + 2;
   const margin = 4;
-  const nY = yearLabels.length;
-  const labelW = Math.min(52, pageW * 0.22);
+  const labelW = Math.min(48, pageW * 0.2);
   const avail = pageW - margin * 2 - labelW;
-  const colW = Math.max(12, Math.min(24, avail / Math.max(1, nY)));
-  const fs = nY > 8 ? 4.8 : (nY > 5 ? 5.2 : 5.8);
-  const columnStyles = { 0: { halign: 'left', cellWidth: labelW, fontStyle: 'bold', fontSize: fs + 0.2 } };
-  for (let c = 0; c < nY; c++) columnStyles[c + 1] = { halign: 'right', cellWidth: colW, fontSize: fs };
+  const colW = Math.max(10, avail / Math.max(1, nCols - 1));
+  const fs = nCols > 14 ? 4.6 : (nCols > 10 ? 5 : 5.4);
+  const columnStyles = { 0: { halign: 'left', cellWidth: labelW, fontStyle: 'bold', fontSize: fs + 0.15 } };
+  for (let c = 1; c < nCols; c++) columnStyles[c] = { halign: 'right', cellWidth: colW, fontSize: fs };
 
   doc.autoTable({
     head: head,
-    body: body.map(function (r) { return r.cells; }),
+    body: tbl.body.map(function (r) { return r.cells; }),
     startY: 21,
     margin: { left: margin, right: margin, bottom: 9 },
-    tableWidth: labelW + colW * nY,
+    tableWidth: labelW + colW * (nCols - 1),
     styles: {
       fontSize: fs,
-      cellPadding: 0.55,
+      cellPadding: 0.45,
       font: 'NotoSans',
       textColor: PDF_CLR.text,
       lineColor: PDF_CLR.mid,
@@ -7071,14 +7504,14 @@ function pdfBuildCashFlowPages(doc, proj, firmName) {
       fillColor: PDF_CLR.navy,
       textColor: PDF_CLR.white,
       fontStyle: 'bold',
-      fontSize: fs + 0.3,
+      fontSize: fs + 0.2,
       halign: 'center',
     },
     columnStyles: columnStyles,
     bodyStyles: { halign: 'right', valign: 'middle' },
     didParseCell: function (data) {
       if (data.section !== 'body') return;
-      const rd = body[data.row.index];
+      const rd = tbl.body[data.row.index];
       const col = data.column.index;
       if (rd.isGrp) {
         data.cell.styles.fillColor = PDF_CLR.band;
@@ -7091,22 +7524,23 @@ function pdfBuildCashFlowPages(doc, proj, firmName) {
       } else if (col === 0) {
         data.cell.styles.textColor = PDF_CLR.text;
         data.cell.styles.fillColor = [252, 253, 255];
-      } else {
-        const yd = yearlyData[col - 1];
-        const months = yd.months;
-        const totals = yd.totals || {};
+      } else if (rd.field && col > 0) {
         let v = 0;
-        if (isBalField(rd.field)) {
-          if (rd.field === 'acilis') v = months[0] ? (months[0].acilis || 0) : 0;
-          else if (months.length) v = months[months.length - 1][rd.field] || 0;
-        } else v = totals[rd.field] || 0;
-        if (isOutF(rd.field) && v > 0) data.cell.styles.textColor = PDF_CLR.neg;
-        else if (isInF(rd.field) && v > 0) data.cell.styles.textColor = PDF_CLR.pos;
+        if (col <= tbl.months.length) v = tbl.months[col - 1][rd.field] || 0;
+        else if (col === tbl.months.length + 1) {
+          const totals = yearData.totals || {};
+          if (tbl.isBalField(rd.field)) {
+            if (rd.field === 'acilis') v = tbl.months[0] ? (tbl.months[0].acilis || 0) : 0;
+            else if (tbl.months.length) v = tbl.months[tbl.months.length - 1][rd.field] || 0;
+          } else v = totals[rd.field] || 0;
+        }
+        if (tbl.isOutF(rd.field) && v > 0) data.cell.styles.textColor = PDF_CLR.neg;
+        else if (tbl.isInF(rd.field) && v > 0) data.cell.styles.textColor = PDF_CLR.pos;
         if (data.row.index % 2 === 0) data.cell.styles.fillColor = [249, 251, 254];
       }
     },
     willDrawPage: function () {
-      pdfAddHeader(doc, firmName, 'Nakit Akış — Yıllık özet (tüm yıllar, tek sayfa)', pageW);
+      pdfAddHeader(doc, firmName, title, pageW);
       doc.setFont('NotoSans', 'normal');
     },
     didDrawPage: function () {
@@ -7114,6 +7548,16 @@ function pdfBuildCashFlowPages(doc, proj, firmName) {
       doc.setFont('NotoSans', 'normal');
     },
   });
+}
+
+function pdfBuildCashFlowPages(doc, proj, firmName) {
+  const sy = new Date(proj.firm.startDate).getFullYear();
+  const numYrs = Math.ceil((proj.summary.months || 60) / 12);
+  const yearlyData = buildYearlyData(proj.rows, sy, numYrs);
+  if (!yearlyData.length) return;
+  for (let yi = 0; yi < yearlyData.length; yi++) {
+    pdfBuildCashFlowYearPage(doc, firmName, yearlyData[yi]);
+  }
 }
 
 function pdfBuildIncomePage(doc, proj, firmName) {
@@ -7491,7 +7935,7 @@ function pdfBuildCoverPage(doc, firmName, reportTitle) {
   doc.setFont('NotoSans', 'normal');
   doc.setTextColor(...PDF_CLR.sub);
   doc.text('Bu rapor NakitFlow sistemi tarafından otomatik olarak üretilmiştir.', pageW / 2, pageH * 0.65, { align: 'center' });
-  doc.text('Tüm rakamlar Türk Lirası (TRY) cinsindendir, KDV hariçtir.', pageW / 2, pageH * 0.7, { align: 'center' });
+  doc.text('Tüm rakamlar Türk Lirası (TL) cinsindendir, KDV hariçtir.', pageW / 2, pageH * 0.7, { align: 'center' });
 }
 
 function pdfBuildInaPage(doc, proj, firmName, f) {
@@ -7599,7 +8043,9 @@ function pdfBuildInaPage(doc, proj, firmName, f) {
   }
 }
 
-async function exportFullPDF(reportTitle) {
+async function exportFullPDF(reportTitle, opts) {
+  opts = opts || {};
+  const mode = opts.mode || 'full';
   const f = curFirm(); if (!f) return;
   showAlert('PDF hazırlanıyor (Türkçe font yükleniyor)...', 'info');
   try {
@@ -7622,10 +8068,18 @@ async function exportFullPDF(reportTitle) {
 
     pdfBuildCoverPage(doc, firmName, reportTitle || 'Nakit Akış Projeksiyonu Raporu');
 
-    pdfBuildCashFlowPages(doc, proj, firmName);
-    pdfBuildIncomePage(doc, proj, firmName);
-    pdfBuildBalancePage(doc, proj, firmName);
-    pdfBuildInaPage(doc, proj, firmName, f);
+    if (mode === 'full' || mode === 'cashflow') {
+      pdfBuildCashFlowPages(doc, proj, firmName);
+    }
+    if (mode === 'full' || mode === 'income') {
+      pdfBuildIncomePage(doc, proj, firmName);
+    }
+    if (mode === 'full' || mode === 'balance') {
+      pdfBuildBalancePage(doc, proj, firmName);
+    }
+    if (mode === 'full') {
+      pdfBuildInaPage(doc, proj, firmName, f);
+    }
 
     const total = doc.internal.getNumberOfPages();
     const pageW = doc.internal.pageSize.getWidth();
@@ -7656,17 +8110,29 @@ async function captureAndExportPDF(elementId, filename, title) {
 
 function exportRaporPDF() {
   const f = curFirm(); if (!f) return;
-  exportFullPDF(f.name + ' — Nakit Akış Projeksiyonu').catch(e => { showAlert('PDF: ' + e.message, 'err'); });
+  exportNakitFlowPrintPDF({
+    mode: 'full',
+    reportTitle: 'Nakit Akış Projeksiyonu',
+    includeLiquidity: true,
+  });
 }
 
 function exportGelirPDF() {
   const f = curFirm(); if (!f) return;
-  exportFullPDF(f.name + ' — Gelir tablosu (projeksiyon)').catch(e => { showAlert('PDF: ' + e.message, 'err'); });
+  exportNakitFlowPrintPDF({
+    mode: 'income',
+    reportTitle: 'Gelir Tablosu (5 yıl)',
+    includeLiquidity: true,
+  });
 }
 
 function exportBilançoPDF() {
   const f = curFirm(); if (!f) return;
-  exportFullPDF(f.name + ' — Bilanço (projeksiyon)').catch(e => { showAlert('PDF: ' + e.message, 'err'); });
+  exportNakitFlowPrintPDF({
+    mode: 'balance',
+    reportTitle: 'Bilanço (5 yıl)',
+    includeLiquidity: true,
+  });
 }
 
 // ═══════════════════════════════════════════════════════
@@ -7755,7 +8221,7 @@ const OWL_TIPS = {
       <li><b>⚡ Otomatik Hesapla:</b> Yıllık büyüme oranına göre 120 ayı doldurur</li>
       <li><b>📋 Sadece Açılış:</b> Boş aylara açılış kurunu uygular</li>
     </ul>
-    <div class="owl-tip"><b>💡 İpucu:</b> "Varsayımlar" sayfasındaki ⚡ buton, 01.01.2026–31.03.2026 TCMB kurlarından türetilen yıllık bileşik ortalamayı yazar ve 120 aylık tabloyu doldurur.</div>`
+    <div class="owl-tip"><b>💡 İpucu:</b> Varsayılan kur artışı: USD %20,45 · EUR %34,14 (31.12.2024→2025 referans). Otomatik doldur 120 aylık tabloyu bu oranlarla hesaplar.</div>`
   },
   manual: {
     title: 'Manuel Nakit Satırları',

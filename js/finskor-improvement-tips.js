@@ -70,7 +70,7 @@
           borcOzEsik +
           '). ' +
           (gerekli > 0 ? 'Yaklaşık <b>' + fmtTl(gerekli) + ' TL</b> borç azaltımı veya özkaynak artışı ' : '') +
-          'rating ve likidite için en etkili adımlardan biridir.',
+          'kredi notu ve likidite için en etkili adımlardan biridir.',
       });
     }
     if (n(r.kvBankaB_Sat) > 20) {
@@ -124,7 +124,7 @@
         html:
           '<b>Faaliyet karlılığını artırın</b> — Reel faaliyet kâr büyümesi <b>%' +
           r.reelFaalKarBuy.toFixed(1) +
-          '</b> (hedef &gt;%5). Gider ve brüt marj iyileşmesi hem rating hem likiditeye yansır.',
+          '</b> (hedef &gt;%5). Gider ve brüt marj iyileşmesi hem kredi notuna hem likiditeye yansır.',
       });
     }
     if (n(r.alacakTahsil) > 90) {
@@ -144,7 +144,7 @@
         html:
           '<b>Stok yönetimini iyileştirin</b> — Stok gün sayısı <b>' +
           Math.round(r.stokGun) +
-          ' gün</b> (hedef ≤90). Talep tahmini ve JIT stok nakit ihtiyacını düşürür.',
+          ' gün</b> (hedef ≤90). Talep tahmini ve zamanında stok (JIT) yönetimi nakit ihtiyacını düşürür.',
       });
     }
     if (n(r.ihracatSatis) < (paz ? 10 : 5)) {
@@ -154,7 +154,7 @@
         html:
           '<b>İhracat payını artırın</b> — İhracat/satış <b>%' +
           r.ihracatSatis.toFixed(1) +
-          '</b>. Yurtdışı pazar geliştirme finansman ve rating kriterlerine katkı sağlar.',
+          '</b>. Yurtdışı pazar geliştirme finansman ve kredi notu kriterlerine katkı sağlar.',
       });
     }
     if (n(r.reelSatisBuy) < 5) {
@@ -199,7 +199,7 @@
         pri: 4,
         icon: '🔄',
         html:
-          '<b>Forward kur satışı</b> — TL kredi vadelerine karşılık EUR/USD forward ile kur ve finansman maliyetini yönetin.',
+          '<b>Vadeli döviz satışı (forward)</b> — TL kredi vadelerine karşılık EUR/USD forward ile kur ve finansman maliyetini yönetin.',
       });
       tips.push({
         pri: 3,
@@ -257,7 +257,7 @@
           fmtTl(zarar) +
           ' TL</b>' +
           (ozk > 0 ? ' (özkaynağın ~%' + ((zarar / ozk) * 100).toFixed(1) + '’i)' : '') +
-          '. Sermaye artışı Borç/ÖzKaynak ve rating için olumludur.',
+          '. Sermaye artışı Borç/ÖzKaynak ve kredi notu için olumludur.',
       });
     }
 
@@ -425,7 +425,7 @@
         cls: 'rating',
         color: ratingScore.rating.color,
       });
-      kpis.push({ lbl: 'Rating puanı', val: String(puan), cls: puan < 45 ? 'bad' : puan < 68 ? 'warn' : 'ok' });
+      kpis.push({ lbl: 'Kredi notu puanı', val: String(puan), cls: puan < 45 ? 'bad' : puan < 68 ? 'warn' : 'ok' });
       if (puan < 45) bump('critical');
       else if (puan < 68) bump('high');
     }

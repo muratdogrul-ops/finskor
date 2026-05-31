@@ -14,7 +14,7 @@
 
 // (-) işaretli hesaplar: masterdan alınan tam liste
 const MINUS_KODLAR = new Set([
-  103,119,122,124,129,137,139,158,199,
+  119,122,124,129,137,139,158,199,
   222,224,229,237,239,241,243,244,246,247,249,
   257,268,278,298,299,
   302,308,322,337,371,402,408,422,437,
@@ -31,9 +31,10 @@ const MINUS_KODLAR = new Set([
 // 3 haneli hesap kodu → sistem key'i
 // AKTİF 100-299, PASİF 300-591, GELİR 600-699
 const KOD_TO_KEY = {
-  // HAZIR DEĞERLER
-  100:'hazirDegerler', 101:'hazirDegerler', 102:'hazirDegerler',
-  103:'hazirDegerler', 108:'hazirDegerler',
+  // HAZIR DEĞERLER (kasa, banka, diğer hazır) — 101 alınan çek → ticari alacak
+  100:'hazirDegerler', 102:'hazirDegerler', 108:'hazirDegerler',
+  101:'ticAlacaklar',
+  103:'kvTicBorclar',
   // MENKUL KIYMETLER
   110:'menkKiymetler', 111:'menkKiymetler', 112:'menkKiymetler',
   118:'menkKiymetler', 119:'menkKiymetler',
@@ -255,26 +256,33 @@ function pdfMizanGrupOzetSatirMi(key, rawKod) {
   return !!(s && s.has(rawKod));
 }
 
-/** PDF tablo mizan hazır özet (100–103, 108) — Excel / beyanname ile paylaşılmaz */
-const PDF_MIZAN_HAZIR_OZET_KOD = new Set([100, 101, 102, 103, 108]);
+/** PDF tablo mizan hazır özet (100, 102, 108) — 101 çek → ticari alacak; 103 verilen çek → ticari borç */
+const PDF_MIZAN_HAZIR_OZET_KOD = new Set([100, 102, 108]);
 
 /**
  * YOL BAK: yalnız "100 KASA" / "102 BANKALAR" (kod + boşluk + harfli açıklama).
  * Atlanır: "100.01", "101.2024", "102.01.01.01", "100 01 …" (boşluktan sonra rakam).
  */
 function pdfMizanHazirAnaSatirMi(lineTrim) {
-  return /^(100|101|102|103|108)\s+[A-Za-zÇĞİÖŞÜçğıöşü]/.test(String(lineTrim).trim());
+  return /^(100|102|108)\s+[A-Za-zÇĞİÖŞÜçğıöşü]/.test(String(lineTrim).trim());
 }
 
-/** 12 Ticari alacaklar — KOD_TO_KEY ile aynı kodlar (PDF tablo mizan) */
-const PDF_MIZAN_TICARI_OZET_KOD = new Set([120, 121, 122, 124, 126, 127, 128, 129]);
+/** 12 Ticari alacaklar + 101 alınan çekler (PDF tablo mizan) */
+const PDF_MIZAN_TICARI_OZET_KOD = new Set([101, 120, 121, 122, 124, 126, 127, 128, 129]);
 
 /**
- * Hazır ile aynı YOL BAK kuralı: "120 ALICILAR" / "126 VERİLEN …"
+ * Hazır ile aynı YOL BAK kuralı: "120 ALICILAR" / "101 ALINAN …"
  * Atlanır: "120.A", "120.01", "120.B.02", "120 01 …"
  */
 function pdfMizanTicariAlacakAnaSatirMi(lineTrim) {
-  return /^(120|121|122|124|126|127|128|129)\s+[A-Za-zÇĞİÖŞÜçğıöşü]/.test(String(lineTrim).trim());
+  return /^(101|120|121|122|124|126|127|128|129)\s+[A-Za-zÇĞİÖŞÜçğıöşü]/.test(String(lineTrim).trim());
+}
+
+/** 103 verilen çekler — ticari borç (hazır değerden düşülmez) */
+const PDF_MIZAN_VERILEN_CEK_KOD = new Set([103]);
+
+function pdfMizanVerilenCekAnaSatirMi(lineTrim) {
+  return /^103\s+[A-Za-zÇĞİÖŞÜçğıöşü]/.test(String(lineTrim).trim());
 }
 
 /** 13 Diğer alacaklar — KOD_TO_KEY ile aynı kodlar */
@@ -1055,7 +1063,39 @@ function mizanTextIsle(text, structuredLines) {
 }
 
 // ── BEYANNAME / AYRINTILI BİLANÇO PARSER ──────────────────────────────────────
-// Sadece ". A." seviyesi grup satırlarını alır, alt kalemleri atlar
+const BEYAN_NUM_RE = /(?<![\w\d])-?[\d]+[\d.]*,\d{2,4}/g;
+
+function beyanExtractSayilar(line) {
+  return [...String(line || '').matchAll(BEYAN_NUM_RE)]
+    .map((m) => {
+      const s = m[0].replace(/\./g, '').replace(',', '.');
+      return parseFloat(s);
+    })
+    .filter((n) => !isNaN(n));
+}
+
+/** Önceki + cari aynı satırda yoksa (PDF satır kırılımı), sonraki satırdaki tek tutarı cari say */
+function beyanPairCariColumnSayilar(sayilar, lines, lineIndex) {
+  if (!sayilar || sayilar.length >= 2) return sayilar || [];
+  if (!lines || lineIndex == null) return sayilar || [];
+  for (let j = lineIndex + 1; j < Math.min(lines.length, lineIndex + 3); j++) {
+    const t = (lines[j] || '').trim();
+    if (!t) continue;
+    if (/[A-Za-zÇĞİÖŞÜçğıöşü]{3,}/.test(t)) break;
+    const extra = beyanExtractSayilar(t);
+    if (extra.length === 1) return sayilar.concat(extra);
+    if (extra.length >= 2) return extra;
+  }
+  return sayilar || [];
+}
+
+/** Beyanname tablosu: solda önceki dönem, sağda cari — 2+ sütunda son tutar cari */
+function beyanPickCariColumn(sayilar) {
+  if (!sayilar || !sayilar.length) return 0;
+  if (sayilar.length >= 2) return sayilar[sayilar.length - 1];
+  return sayilar[0];
+}
+
 function mizanTextIsleBeyanname(lines, result, year) {
   let bolum = null;  // DONEN | DURAN | KV | UV | OZKAYNAK | GELIR
   let inGelirTablosu = false;
@@ -1071,7 +1111,8 @@ function mizanTextIsleBeyanname(lines, result, year) {
     );
   }
 
-  for (const rawLine of lines) {
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    const rawLine = lines[lineIndex];
     const rawTrim = rawLine.trim();
     const rawNorm = normTR(rawTrim);
 
@@ -1148,26 +1189,56 @@ function mizanTextIsleBeyanname(lines, result, year) {
     // Grup satırı: SADECE harf ile başlayan ". A." / ". B." satırları — toplam satırları
     // ". 1." / ". 3." gibi rakamla başlayan ALT KALEMLER dahil değil (çift sayım önlenir)
     const isGrupHarf = /^\.\s+[a-z][\.\s]/.test(ln);  // sadece harf: ". A.", ". B." vs.
-    const isAltRakam = /^\.\s+\d+[\.\s]/.test(ln);    // rakam alt kalem: ". 1.", ". 3." vs.
+    const isAltRakamDot = /^\.\s+\d+[\.\s]/.test(ln);
+    const isAltRakamPlain =
+      (bolum === 'DONEN' || bolum === 'DURAN' || bolum === 'KV' || bolum === 'UV') &&
+      /^\d+\.\s/.test(line.trim()) &&
+      !/^[a-k]\.\s/i.test(line.trim());
+    const isAltRakam = isAltRakamDot || isAltRakamPlain;
     // ". 2. Yurtdışı Satışlar" — ihracat tespiti için tek istisna
     const isYurtdisi = /^\.\s+\d+\.?\s*yurt/.test(ln);  // boşluk/nokta varyasyonlarını yakala
-    // KURAL: Alt rakam satırları atla (ihracat hariç) — grup harf satırları ve gelir ana satırları al
+    // KURAL: Alt rakam satırları atla (ihracat / hazır-çek ayrımı hariç)
     const isOrtakAlt = isAltRakam && /ortaklardan alacak/.test(ln);
-    if (isAltRakam && !isYurtdisi && !isOrtakAlt) continue;
-    if (!isGrupHarf && !isGelirAna && !isGelirIJ && !isYurtdisi && !isOrtakAlt && !isGelirOzetBare && !isGelirRomanOlaganDisi) continue;
+    let beyanAltLikiditeKey = null;
+    if (isAltRakam && !isYurtdisi && !isOrtakAlt) {
+      if (/alinan/.test(ln) && /cek/.test(ln)) beyanAltLikiditeKey = 'ticAlacaklar';
+      else if (/verilen/.test(ln) && /cek|odeme emri/.test(ln)) beyanAltLikiditeKey = 'kvTicBorclar';
+      else if (
+        /kasa/.test(ln) ||
+        /banka/.test(ln) ||
+        /diger hazir|hazir.*diger|diger.*hazir deger/.test(ln)
+      ) {
+        beyanAltLikiditeKey = 'hazirDegerler';
+      }
+      if (!beyanAltLikiditeKey) continue;
+    }
+    const isHazirGrupSatir =
+      /hazir deger|kasa ve banka/.test(ln) &&
+      (isGrupHarf || (isGelirAna && /^a\.\s/.test(ln)));
+    if (isHazirGrupSatir) {
+      let sayilarGrup = beyanPairCariColumnSayilar(beyanExtractSayilar(line), lines, lineIndex);
+      const grupCari = beyanPickCariColumn(sayilarGrup);
+      if (grupCari) result._hazirBeyanGrupCari = grupCari;
+      continue;
+    }
+    if (!isGrupHarf && !isGelirAna && !isGelirIJ && !isYurtdisi && !isOrtakAlt && !isGelirOzetBare && !isGelirRomanOlaganDisi && !beyanAltLikiditeKey) continue;
 
-    // Sayıları çek: "Önceki Dönem  Cari Dönem" → son sayı = cari dönem
-    const sayilar = [...line.matchAll(/(?<![\w\d])-?[\d]+[\d.]*,\d{2,4}/g)]
-      .map(m => { const s = m[0].replace(/\./g,'').replace(',','.'); return parseFloat(s); })
-      .filter(n => !isNaN(n));
+    let sayilar = beyanExtractSayilar(line);
     if (!sayilar.length) continue;
+    if (beyanAltLikiditeKey) {
+      sayilar = beyanPairCariColumnSayilar(sayilar, lines, lineIndex);
+    }
 
     // Sütun seçimi: son sütun = cari dönem (seçili yıl)
     // NOT: 0,00 meşru bir değerdir — fallback yapma, yoksa önceki dönem (2023) değeri alınır
     // 2023 beyannamesi 3 sütunlu (enflasyon): özkaynak "Dönem Net Karı" son sütun 0,00 → cari 2. sütun
-    let cari = sayilar[sayilar.length - 1];
-    // Hiç sayı yoksa atla (sadece başlık satırı)
-    if (sayilar.length === 0) continue;
+    let cari = beyanPickCariColumn(sayilar);
+
+    if (beyanAltLikiditeKey) {
+      const sign = line.includes('(-)') ? -1 : 1;
+      result[beyanAltLikiditeKey] = (result[beyanAltLikiditeKey] || 0) + sign * cari;
+      continue;
+    }
 
     // Label temizle: baştaki ". A." / "I." ve sondaki sayıları çıkar
     let label = ln.replace(/^\.\s+([a-z]|\d+)[\.\s]+/, '').replace(/[\d.,\s\(\)-]+$/, '').trim();
@@ -1340,6 +1411,19 @@ function mizanTextIsleBeyanname(lines, result, year) {
     }
   })();
 
+  // Hazır değerler: PDF satır kırılımında alt kalemde yalnız önceki dönem okunabiliyor → grup cari toplamına hizala
+  (function finalizeBeyanHazirDegerler() {
+    const grup = Number(result._hazirBeyanGrupCari) || 0;
+    const alt = Number(result.hazirDegerler) || 0;
+    if (grup > 0) {
+      const tol = Math.max(500, grup * 0.02);
+      if (alt <= 0 || alt > grup * 1.02 || Math.abs(alt - grup) > tol) {
+        result.hazirDegerler = grup;
+      }
+    }
+    delete result._hazirBeyanGrupCari;
+  })();
+
   // Firma ünvanını birleştir
   if (unvan1 || unvan2) {
     result._firmaAdi = (unvan1 + (unvan2 ? ' ' + unvan2 : '')).trim();
@@ -1380,6 +1464,7 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
 
     if (key === 'hazirDegerler' && PDF_MIZAN_HAZIR_OZET_KOD.has(rawKod) && !pdfMizanHazirAnaSatirMi(trimmed)) continue;
     if (key === 'ticAlacaklar' && PDF_MIZAN_TICARI_OZET_KOD.has(rawKod) && !pdfMizanTicariAlacakAnaSatirMi(trimmed)) continue;
+    if (key === 'kvTicBorclar' && PDF_MIZAN_VERILEN_CEK_KOD.has(rawKod) && !pdfMizanVerilenCekAnaSatirMi(trimmed)) continue;
     if (key === 'digerAlacaklar' && PDF_MIZAN_DIGER_OZET_KOD.has(rawKod) && !pdfMizanDigerAlacakAnaSatirMi(trimmed)) continue;
     if (key === 'stoklar' && PDF_MIZAN_STOK_OZET_KOD.has(rawKod) && !pdfMizanStokAnaSatirMi(trimmed)) continue;
     if (key === 'digerDonen' && PDF_MIZAN_DIGER_DONEN_OZET_KOD.has(rawKod) && !pdfMizanDigerDonenAnaSatirMi(trimmed)) continue;
@@ -1578,6 +1663,7 @@ function mizanTextIsleMizan(lines, result, silent) {
       if (!pdfMizanHazirAnaSatirMi(line)) continue;
     }
     if (key === 'ticAlacaklar' && PDF_MIZAN_TICARI_OZET_KOD.has(rawKod) && !pdfMizanTicariAlacakAnaSatirMi(line)) continue;
+    if (key === 'kvTicBorclar' && PDF_MIZAN_VERILEN_CEK_KOD.has(rawKod) && !pdfMizanVerilenCekAnaSatirMi(line)) continue;
     if (key === 'digerAlacaklar' && PDF_MIZAN_DIGER_OZET_KOD.has(rawKod) && !pdfMizanDigerAlacakAnaSatirMi(line)) continue;
     if (key === 'stoklar' && PDF_MIZAN_STOK_OZET_KOD.has(rawKod) && !pdfMizanStokAnaSatirMi(line)) continue;
     if (key === 'digerDonen' && PDF_MIZAN_DIGER_DONEN_OZET_KOD.has(rawKod) && !pdfMizanDigerDonenAnaSatirMi(line)) continue;

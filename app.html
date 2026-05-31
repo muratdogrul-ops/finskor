@@ -6833,8 +6833,11 @@ function _nkmBuildFinskorBilancoRowsForPayload(d) {
   return rows;
 }
 function _nkmFinSkorOtherAssetsPlug(d) {
-  return _nkmNum(d.menkKiymetler) + _nkmNum(d.digerAlacaklar) + _nkmNum(d.yilYayginMal)
+  return _nkmNum(d.digerAlacaklar) + _nkmNum(d.yilYayginMal)
     + _nkmNum(d.gelecekAyGider) + _nkmNum(d.digerDonen);
+}
+function _nkmFinSkorLikiditeToplam(d) {
+  return _nkmNum(d.hazirDegerler) + _nkmNum(d.menkKiymetler);
 }
 function _nkmFinSkorOtherLiabKvPlug(d) {
   return _nkmNum(d.kvDigBorclar) + _nkmNum(d.alinanAvans) + _nkmNum(d.yilHakediş) + _nkmNum(d.odenecekVergi)
@@ -6853,8 +6856,8 @@ function openNakitAkis() {
   const firmName = (state.lastResult && (state.lastResult.firma || state.lastResult.firmaAdi))
     || localStorage.getItem('kas_client_name') || '';
 
-  // Nakit ve bankayı hazirDegerler'den al (tek kalem olarak saklanıyor)
-  const kasaBanka = parseFloat(d.hazirDegerler || 0);
+  // Nakit likidite: kasa + banka + menkul (alınan çekler ticari alacakta)
+  const kasaBanka = _nkmFinSkorLikiditeToplam(d);
 
   // Net satışlar
   const netSatis = parseFloat(d.netSatis

@@ -5,9 +5,13 @@
     return isFinite(n) ? n : 0;
   }
 
+  /** Kasa + banka + diğer hazır + menkul (THP 100/102/108 + 11; 101 çek → AR) */
+  function nkmLikiditeToplam(d) {
+    return nkmNum(d.hazirDegerler) + nkmNum(d.menkKiymetler);
+  }
+
   function otherAssetsPlug(d) {
     return (
-      nkmNum(d.menkKiymetler) +
       nkmNum(d.digerAlacaklar) +
       nkmNum(d.yilYayginMal) +
       nkmNum(d.gelecekAyGider) +
@@ -377,11 +381,11 @@
       const y = year || new Date().getFullYear();
       const copy = { ...d };
       hesapToplamlarOnObject(copy, y);
-      const kasaBanka = nkmNum(copy.hazirDegerler);
+      const likidite = nkmLikiditeToplam(copy);
       const retained = mapRetainedFromMizan(copy);
       return {
         cash: 0,
-        bank: kasaBanka,
+        bank: likidite,
         ar: nkmNum(copy.ticAlacaklar),
         ap: nkmNum(copy.kvTicBorclar) + nkmNum(copy.uvTicBorclar),
         inventory: nkmNum(copy.stoklar),
@@ -811,6 +815,7 @@
         if (p && p.kaynak === 'finskor') {
           const d = {
             hazirDegerler: p.kasaBanka,
+            menkKiymetler: p.menkKiymetler || 0,
             ticAlacaklar: p.ticariAlacaklar,
             stoklar: p.stoklar,
             kvTicBorclar: p.kvTicariBorclar,
@@ -824,8 +829,8 @@
             ozKaynak: p.ozKaynak,
             maddiDuranVar: p.maddiDuranVar,
             duranVarlikToplami: p.duranVarlikToplami,
+            otherAssets: p.otherAssets,
           };
-          if (p.otherAssets) d.menkKiymetler = p.otherAssets;
           applyParsedToOpeningBalance(d, { source: 'finskor', format: 'Nakit aktarım bekleyen', year: p.veriYili });
           importLog('ℹ️ FinSkor NakitFlow aktarım verisi kullanıldı (tam firma aktarımı için sayfayı yenileyin).', 'info');
           return;

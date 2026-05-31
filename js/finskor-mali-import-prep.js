@@ -156,6 +156,12 @@ function maliNormalizeDonemNetForOzkaynak(d, year) {
   }
 }
 
+/** Nakit likidite: kasa + banka + diğer hazır (108) + menkul (101/103 hariç) */
+function nakitLikiditeToplam(d) {
+  if (!d) return 0;
+  return (Number(d.hazirDegerler) || 0) + (Number(d.menkKiymetler) || 0);
+}
+
 /** Öz kaynak + pasif toplam — dönem net kar (gelir tablosu) hesaplandıktan SONRA çağrılmalı */
 function finSkorOzKaynakVePasif(d) {
   if (!d) return;
