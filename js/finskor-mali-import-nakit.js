@@ -615,7 +615,7 @@
     return inc;
   };
 
-  window.applyParsedToOpeningBalance = function (parsed, meta) {
+  window.applyParsedToOpeningBalance = async function (parsed, meta) {
     const f = typeof curFirm === 'function' ? curFirm() : null;
     if (!f) {
       showAlert('Önce firma seçin veya oluşturun.', 'err');
@@ -734,7 +734,34 @@
     }
     if (typeof renderOpeningMaliPreview === 'function') renderOpeningMaliPreview();
     if (typeof populateOpening === 'function') populateOpening();
-    if (typeof saveState === 'function') saveState();
+    try {
+      if (typeof autoFillTcmbDefaultsForFirm === 'function') {
+        await autoFillTcmbDefaultsForFirm(f, { refreshUi: false, fetchTcmb: true });
+        if (typeof markTcmbAutofillDone === 'function') markTcmbAutofillDone(f);
+        importLog(
+          '⚙️ Varsayımlar ve 120 ay kur tablosu TCMB kurallarıyla dolduruldu — alanları elle değiştirebilirsiniz.',
+          'ok',
+        );
+      } else if (typeof applyTcmbAssumptionsToFirm === 'function') {
+        applyTcmbAssumptionsToFirm(f);
+        applyTcmbFxToFirm(f, {});
+        if (typeof markTcmbAutofillDone === 'function') markTcmbAutofillDone(f);
+      }
+      if (typeof enrichFxOpeningFromTcmbYearend === 'function') enrichFxOpeningFromTcmbYearend(f);
+    } catch (e) {
+      if (typeof applyTcmbAssumptionsToFirm === 'function') {
+        applyTcmbAssumptionsToFirm(f);
+        applyTcmbFxToFirm(f, {});
+        if (typeof markTcmbAutofillDone === 'function') markTcmbAutofillDone(f);
+      }
+      importLog('⚙️ Varsayımlar yerel TCMB tahminiyle dolduruldu (canlı TCMB: ' + (e.message || e) + ').', 'warn');
+    }
+    if (typeof saveState === 'function') await saveState();
+    if (state.currentFirmId === f.id) {
+      if (typeof populateAssumptions === 'function') populateAssumptions();
+      if (typeof populateFx === 'function') populateFx();
+      if (typeof updateTcmbAutofillUi === 'function') updateTcmbAutofillUi();
+    }
     const src =
       meta?.source === 'finskor'
         ? `FinSkor (${year})`
