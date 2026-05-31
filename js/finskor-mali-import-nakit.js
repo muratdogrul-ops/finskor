@@ -329,23 +329,44 @@
     return { kv, uv, bchSplit };
   };
 
+  function maliInflationBeyanFromCopy(copy) {
+    if (typeof maliInflationBeyanDetected === 'function') return maliInflationBeyanDetected(copy);
+    return !!(copy && (copy._enflasyonSonrasiBilanco || copy.enflasyonSonrasiBilanco));
+  }
+
   function mapRetainedFromMizan(copy) {
+    const inf = maliInflationBeyanFromCopy(copy);
     const gk = nkmNum(copy.gecmisKar);
     const gz = nkmNum(copy.gecmisZarar);
-    const dnk = nkmNum(copy.donemNetKarGelir) || nkmNum(copy.donemNetKar);
+    let priorYearNetKar;
+    if (inf && copy.donemNetKarBilanco != null && copy.donemNetKarBilanco !== '') {
+      priorYearNetKar = Math.round(nkmNum(copy.donemNetKarBilanco));
+    } else if (inf) {
+      priorYearNetKar = Math.round(nkmNum(copy.donemNetKar) || 0);
+    } else {
+      priorYearNetKar = Math.round(nkmNum(copy.donemNetKarGelir) || nkmNum(copy.donemNetKar));
+    }
     const priorYearGecmisKar = Math.round(gk - gz);
-    const priorYearNetKar = Math.round(dnk);
     const openingRetainedEarnings = priorYearGecmisKar + priorYearNetKar;
-    return { priorYearGecmisKar, priorYearNetKar, openingRetainedEarnings, maliYilDonemNetKar: priorYearNetKar };
+    return {
+      priorYearGecmisKar,
+      priorYearNetKar,
+      openingRetainedEarnings,
+      maliYilDonemNetKar: priorYearNetKar,
+      maliYilDonemNetKarGelir: Math.round(nkmNum(copy.donemNetKarGelir) || 0),
+      enflasyonSonrasiBilanco: inf,
+    };
   }
 
   /** Ödenmiş sermaye + yedekler; devreden kar/zarar ayrı satırda (5Y bilanço çift sayımı önlenir). */
   function openingCapitalFromMizan(copy, retained) {
-    const oz = nkmNum(copy.ozKaynak);
-    const re = Math.round(retained?.openingRetainedEarnings || 0);
+    const inf = maliInflationBeyanFromCopy(copy);
     const explicit = Math.round(
       nkmNum(copy.odenmisSermaye) + nkmNum(copy.sermaYedek) + nkmNum(copy.karYedek),
     );
+    if (inf && explicit > 0) return explicit;
+    const oz = nkmNum(copy.ozKaynak);
+    const re = Math.round(retained?.openingRetainedEarnings || 0);
     if (explicit > 0 && (oz <= 0 || Math.abs(oz - explicit - re) < 1000)) return explicit;
     if (oz > 0 && re > 0) return Math.round(Math.max(0, oz - re));
     return Math.round(oz || explicit);
@@ -377,6 +398,7 @@
         priorYearNetKar: retained.priorYearNetKar,
         openingRetainedEarnings: retained.openingRetainedEarnings,
         maliKapanisYili: y,
+        enflasyonSonrasiBilanco: retained.enflasyonSonrasiBilanco,
         _parsedYear: y,
         _sourceKeys: copy,
       };
@@ -593,7 +615,7 @@
     return inc;
   };
 
-  window.applyParsedToOpeningBalance = function (parsed, meta) {
+  window.applyParsedToOpeningBalance = async function (parsed, meta) {
     const f = typeof curFirm === 'function' ? curFirm() : null;
     if (!f) {
       showAlert('Önce firma seçin veya oluşturun.', 'err');
@@ -622,6 +644,16 @@
       maliKapanisYili: opening.maliKapanisYili,
       openingCapitalExcludesRetained: opening.openingCapitalExcludesRetained,
     });
+    if (retained.enflasyonSonrasiBilanco) {
+      const gelirNet = Math.round(nkmNum(parsed.donemNetKarGelir) || 0);
+      importLog(
+        `📐 Enflasyon beyan: devreden dönem net <b>${(opening.priorYearNetKar || 0).toLocaleString('tr-TR')}</b> TL (bilanço son sütun)` +
+          (gelirNet && Math.abs(gelirNet - (opening.priorYearNetKar || 0)) > 1000
+            ? ` · gelir tablosu net <b>${gelirNet.toLocaleString('tr-TR')}</b> yalnızca gelir özetinde`
+            : ''),
+        'info',
+      );
+    }
     if (opening.openingRetainedEarnings) {
       importLog(
         `📒 ${year} kapanış → ${year + 1} devreden: geçmiş <b>${(opening.priorYearGecmisKar || 0).toLocaleString('tr-TR')}</b> + dönem net <b>${(opening.priorYearNetKar || 0).toLocaleString('tr-TR')}</b> = <b>${opening.openingRetainedEarnings.toLocaleString('tr-TR')}</b> TL`,
@@ -701,7 +733,32 @@
     }
     if (typeof renderOpeningMaliPreview === 'function') renderOpeningMaliPreview();
     if (typeof populateOpening === 'function') populateOpening();
-    if (typeof saveState === 'function') saveState();
+    try {
+      if (typeof autoFillTcmbDefaultsForFirm === 'function') {
+        await autoFillTcmbDefaultsForFirm(f, { refreshUi: false, fetchTcmb: true });
+        importLog(
+          '⚙️ Varsayımlar (büyüme, BCH TL/USD/EUR, mevduat) ve 120 ay kur tablosu TCMB kurallarıyla dolduruldu — isterseniz manuel değiştirirsiniz.',
+          'ok',
+        );
+      } else if (typeof applyTcmbAssumptionsToFirm === 'function') {
+        applyTcmbAssumptionsToFirm(f);
+        applyTcmbFxToFirm(f, {});
+        if (typeof saveState === 'function') await saveState();
+      }
+    } catch (e) {
+      if (typeof applyTcmbAssumptionsToFirm === 'function') {
+        applyTcmbAssumptionsToFirm(f);
+        applyTcmbFxToFirm(f, {});
+      }
+      if (typeof saveState === 'function') await saveState();
+      importLog('⚙️ Varsayımlar yerel TCMB tahminiyle dolduruldu (canlı TCMB: ' + (e.message || e) + ').', 'warn');
+    }
+    if (typeof enrichFxOpeningFromTcmbYearend === 'function') enrichFxOpeningFromTcmbYearend(f);
+    if (typeof saveState === 'function') await saveState();
+    if (state.currentFirmId === f.id) {
+      if (typeof populateAssumptions === 'function') populateAssumptions();
+      if (typeof populateFx === 'function') populateFx();
+    }
     const src =
       meta?.source === 'finskor'
         ? `FinSkor (${year})`
