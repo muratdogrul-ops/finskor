@@ -91,77 +91,16 @@ function ticBorclarEtkinKvUv(year, row) {
   return { kvTic: kv, uvTic: uv };
 }
 
-/** Kurumlar beyannamesi: "Enflasyon Düzeltmesi Sonrası" sütunlu bilanço */
-function maliInflationBeyanDetected(d) {
-  return !!(d && (d._enflasyonSonrasiBilanco || d.enflasyonSonrasiBilanco));
-}
-
-/**
- * Öz kaynak toplamına eklenecek dönem net kar.
- * Enflasyon sonrası bilançoda dönem net 0 ise gelir tablosu neti EKLENMEZ (çift sayım önlenir).
- */
-function maliEffectiveDonemNetForOzKaynak(d) {
-  if (!d) return 0;
-  if (maliInflationBeyanDetected(d)) {
-    if (d.donemNetKarBilanco != null && d.donemNetKarBilanco !== '') {
-      return Number(d.donemNetKarBilanco) || 0;
-    }
-    return Number(d.donemNetKar) || 0;
-  }
-  const bil = Number(d.donemNetKar) || 0;
-  if (Math.abs(bil) >= 1) return bil;
-  return Number(d.donemNetKarGelir) || 0;
-}
-
-/** Parse sonrası: enflasyon beyan'da donemNetKar = bilanço; gelir neti yalnızca donemNetKarGelir */
-function maliNormalizeDonemNetForOzkaynak(d, year) {
-  if (!d) return;
-  const y = year || new Date().getFullYear();
-  const pdfDonemKar = d.donemKar;
-  const pdfDonemNetKar = d.donemNetKar;
-  const pdfDonemNetKarGelir = d.donemNetKarGelir;
-  if (maliInflationBeyanDetected(d)) {
-    if (d.donemNetKarBilanco != null && d.donemNetKarBilanco !== '') {
-      d.donemNetKar = Number(d.donemNetKarBilanco) || 0;
-    } else {
-      d.donemNetKar = Number(d.donemNetKar) || 0;
-    }
-    if (pdfDonemNetKarGelir != null && pdfDonemNetKarGelir !== '' && pdfDonemNetKarGelir !== 0) {
-      d.donemNetKarGelir = Number(pdfDonemNetKarGelir);
-    }
-    return;
-  }
-  if (d.brutSatis || d.satMaliyet || d.faalGider) {
-    const netSatisYeni = (d.brutSatis || 0) - (d.satisInd || 0);
-    if (!d.netSatis || netSatisYeni > 0) d.netSatis = netSatisYeni;
-    d.brutSatisKar = (d.netSatis || 0) - (d.satMaliyet || 0);
-    d.faalKar = (d.brutSatisKar || 0) - (d.faalGider || 0);
-    d.olagan =
-      (d.faalKar || 0) + (d.digerFaalGelir || 0) - (d.digerFaalGider || 0) - (d.finansmanGider || 0);
-    if (pdfDonemKar == null || pdfDonemKar === 0) {
-      d.donemKar = (d.olagan || 0) + (d.olagandisiGelir || 0) - (d.olagandisiGider || 0);
-    }
-    if (pdfDonemNetKar == null || pdfDonemNetKar === 0) {
-      d.donemNetKar = (d.donemKar || 0) - (d.vergiKarsilik || 0);
-      d.donemNetKarGelir = d.donemNetKar;
-    }
-  }
-  if (pdfDonemKar != null && pdfDonemKar !== 0) d.donemKar = pdfDonemKar;
-  if (pdfDonemNetKar != null && pdfDonemNetKar !== 0) {
-    d.donemNetKar = pdfDonemNetKar;
-    d.donemNetKarGelir = pdfDonemNetKarGelir != null ? pdfDonemNetKarGelir : pdfDonemNetKar;
-  } else if (pdfDonemKar != null && pdfDonemKar !== 0 && d.vergiKarsilik != null) {
-    d.donemNetKar = pdfDonemKar - (d.vergiKarsilik || 0);
-    d.donemNetKarGelir = d.donemNetKar;
-  }
-}
-
 /** Öz kaynak + pasif toplam — dönem net kar (gelir tablosu) hesaplandıktan SONRA çağrılmalı */
 function finSkorOzKaynakVePasif(d) {
   if (!d) return;
   const sum = (...keys) => keys.reduce((t, k) => t + (Number(d[k]) || 0), 0);
   const ortak131Tenzil = Math.max(0, d.ortakAlacak131 || 0);
-  const donemOz = maliEffectiveDonemNetForOzKaynak(d);
+  const donemBilanco =
+    d.donemNetKar != null && d.donemNetKar !== 0 ? Number(d.donemNetKar) : 0;
+  const donemGelir =
+    d.donemNetKarGelir != null && d.donemNetKarGelir !== 0 ? Number(d.donemNetKarGelir) : 0;
+  const donemOz = donemBilanco !== 0 ? donemBilanco : donemGelir;
   const ozAlt =
     sum('odenmisSermaye', 'sermaYedek', 'karYedek', 'gecmisKar') +
     donemOz -
@@ -214,7 +153,36 @@ function hesapToplamlarOnObject(d, year) {
   const uvAlt =
     sum('uvMaliBorclar', 'uvDigBorclar', 'uvAlinanAvans', 'uvBorcKarsilik', 'uvDigYK') + uvTicEff;
   d.uvYKToplam = uvAlt > 0 ? uvAlt : d.uvYKToplam || 0;
-  maliNormalizeDonemNetForOzkaynak(d, y);
+  const pdfDonemKar = d.donemKar;
+  const pdfDonemNetKar = d.donemNetKar;
+  const pdfDonemNetKarGelir = d.donemNetKarGelir;
+  if (y !== 2023) {
+    if (d.brutSatis || d.satMaliyet || d.faalGider) {
+      const netSatisYeni = (d.brutSatis || 0) - (d.satisInd || 0);
+      if (!d.netSatis || netSatisYeni > 0) d.netSatis = netSatisYeni;
+      d.brutSatisKar = (d.netSatis || 0) - (d.satMaliyet || 0);
+      d.faalKar = (d.brutSatisKar || 0) - (d.faalGider || 0);
+      d.olagan =
+        (d.faalKar || 0) + (d.digerFaalGelir || 0) - (d.digerFaalGider || 0) - (d.finansmanGider || 0);
+      if (pdfDonemKar == null || pdfDonemKar === 0) {
+        d.donemKar = (d.olagan || 0) + (d.olagandisiGelir || 0) - (d.olagandisiGider || 0);
+      }
+      if (pdfDonemNetKar == null || pdfDonemNetKar === 0) {
+        d.donemNetKar = (d.donemKar || 0) - (d.vergiKarsilik || 0);
+        d.donemNetKarGelir = d.donemNetKar;
+      }
+    }
+    if (pdfDonemKar != null && pdfDonemKar !== 0) d.donemKar = pdfDonemKar;
+    if (pdfDonemNetKar != null && pdfDonemNetKar !== 0) {
+      d.donemNetKar = pdfDonemNetKar;
+      d.donemNetKarGelir = pdfDonemNetKarGelir != null ? pdfDonemNetKarGelir : pdfDonemNetKar;
+    } else if (pdfDonemKar != null && pdfDonemKar !== 0 && d.vergiKarsilik != null) {
+      d.donemNetKar = pdfDonemKar - (d.vergiKarsilik || 0);
+      d.donemNetKarGelir = d.donemNetKar;
+    }
+  } else if (y === 2023) {
+    d.donemNetKar = 0;
+  }
   normalizeOrtakAlacak131(d);
   finSkorOzKaynakVePasif(d);
 }

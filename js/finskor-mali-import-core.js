@@ -1062,14 +1062,6 @@ function mizanTextIsleBeyanname(lines, result, year) {
   let unvan1 = '', unvan2 = '';
   let expectUnvan1 = false, expectUnvan2 = false;
   let inDuzenleyenSection = false; // Mali müşavir bölümüne girince firma adı yazmayı durdur
-  const inflationBeyan = lines.some((l) => /enflasyon\s+duzeltmesi\s+sonrasi/i.test(normTR(l)));
-  result._enflasyonSonrasiBilanco = inflationBeyan;
-  if (inflationBeyan) {
-    importLog(
-      '📐 Enflasyon düzeltmeli bilanço: özkaynak dönem net karı son sütundan; gelir tablosu neti özkaynağa eklenmez.',
-      'info',
-    );
-  }
 
   for (const rawLine of lines) {
     const rawTrim = rawLine.trim();
@@ -1190,11 +1182,7 @@ function mizanTextIsleBeyanname(lines, result, year) {
     }
     if (key === null) continue; // Hesaplanan satır (brüt satış karı vb.) — atla
 
-    // Özkaynak F — Dönem Net Karı: enflasyon sonrası sütun (0 dahil) ayrı saklanır
-    if ((key === 'donemNetKar' || key === 'donemNetKarGelir') && bolum === 'OZKAYNAK') {
-      result.donemNetKarBilanco = cari;
-      continue;
-    }
+    // Dönem net karı yalnızca applyDonemNetKarFinal ile (çift yazım önlenir)
     if (key === 'donemNetKar' || key === 'donemNetKarGelir') continue;
 
     // ── YILLARA YAYGIN BÖLÜM OVERRIDE ─────────────────────────────────────
@@ -1247,13 +1235,18 @@ function mizanTextIsleBeyanname(lines, result, year) {
     // NOT: PDF beyannamede A.Brüt Satışlar zaten toplam — ihracat brutSatis'e EKLENMIYOR
   }
 
-  // Dönem net karı: gelir tablosu → donemNetKarGelir; bilanço → donemNetKar / donemNetKarBilanco
+  // Dönem net karı: gelir tablosu "Dönem Net Karı veya Zararı" öncelikli (bilanço önce gelince çift sayım olmasın)
+  // ── KRİTİK: Yalnızca year===2023 (2022 yok, 2024+ yok). Dönem net kar gelir tablosundan okunmaz; bu blok bilanço fallback de yazmaz; alan boş kalır.
   (function applyDonemNetKarFinal() {
-    const inflation = !!result._enflasyonSonrasiBilanco;
+    if (year === 2023) return;
     const numRe = /(?<![\w\d])-?[\d]+[\d.]*,\d{2,4}/g;
     function pickCari(sayilar) {
       if (!sayilar.length) return null;
-      return sayilar[sayilar.length - 1];
+      let cari = sayilar[sayilar.length - 1];
+      if (year === 2023 && sayilar.length >= 2 && Math.abs(sayilar[sayilar.length - 1]) < 1e-9) {
+        cari = sayilar[sayilar.length - 2];
+      }
+      return cari;
     }
     function lineIsDonemNetKarVeyaZarar(t) {
       const u = t.replace(/^[a-k]\.\s*/i, '').trim();
@@ -1281,25 +1274,14 @@ function mizanTextIsleBeyanname(lines, result, year) {
     }
     if (dk !== null) result['donemKar'] = dk;
     if (dnk !== null) {
+      result['donemNetKar'] = dnk;
       result['donemNetKarGelir'] = dnk;
-      if (!inflation) {
-        result['donemNetKar'] = dnk;
-      }
-      if (typeof maliNormalizeDonemNetForOzkaynak === 'function') {
-        maliNormalizeDonemNetForOzkaynak(result, year);
-      } else if (inflation) {
-        result['donemNetKar'] =
-          result['donemNetKarBilanco'] != null ? Number(result['donemNetKarBilanco']) || 0 : 0;
-      }
       return;
     }
     if (dk !== null && result['vergiKarsilik'] != null) {
       const net = dk - (result['vergiKarsilik'] || 0);
+      result['donemNetKar'] = net;
       result['donemNetKarGelir'] = net;
-      if (!inflation) result['donemNetKar'] = net;
-      if (typeof maliNormalizeDonemNetForOzkaynak === 'function') {
-        maliNormalizeDonemNetForOzkaynak(result, year);
-      }
       return;
     }
     let b2 = null;
@@ -1328,15 +1310,10 @@ function mizanTextIsleBeyanname(lines, result, year) {
       let lab = ln.replace(/^\.\s+([a-z]|\d+)[\.\s]+/, '').replace(/[\d.,\s\(\)-]+$/, '').trim();
       lab = lab.replace(/^[a-j]\.\s+/, '').trim();
       if (!/donem net kar/.test(lab) || b2 !== 'OZKAYNAK') continue;
-      const cari = sayilar[sayilar.length - 1];
-      result['donemNetKarBilanco'] = cari;
+      let cari = sayilar[sayilar.length - 1];
+      if (year === 2023 && sayilar.length >= 2 && Math.abs(sayilar[sayilar.length - 1]) < 1e-9) cari = sayilar[sayilar.length - 2];
+      result['donemNetKar'] = cari;
       break;
-    }
-    if (typeof maliNormalizeDonemNetForOzkaynak === 'function') {
-      maliNormalizeDonemNetForOzkaynak(result, year);
-    } else if (inflation) {
-      result['donemNetKar'] =
-        result['donemNetKarBilanco'] != null ? Number(result['donemNetKarBilanco']) || 0 : 0;
     }
   })();
 
@@ -1687,18 +1664,15 @@ function finalizeImport(data) {
     if (Math.abs(fark) >= 1) {
       const dnk = probe.donemNetKar || probe.donemNetKarGelir || 0;
       const gelirKapanis =
-        !probe._enflasyonSonrasiBilanco &&
         Math.abs(Math.abs(fark) - Math.abs(dnk)) < 1000 &&
         Math.abs(dnk) >= 1 &&
-        !(probe._mizan590591 || probe.donemNetKarBilanco != null);
+        !(probe._mizan590591 || probe.donemNetKarBilanco);
       importLog(
         `⚖️ Okunan bilanço özeti: Aktif <b>${a.toLocaleString('tr-TR')}</b> · Pasif <b>${p.toLocaleString('tr-TR')}</b> · Fark <b>${fark.toLocaleString('tr-TR')}</b> TL` +
           (gelirKapanis
-            ? ' <span style="opacity:.85">(gelir tablosu neti özkaynağa çift yazılmış olabilir — sayfayı yenileyin)</span>'
-            : probe._enflasyonSonrasiBilanco
-              ? ' <span style="opacity:.85">(enflasyon beyan — gelir neti bilanço dışı tutuldu)</span>'
-              : ''),
-        Math.abs(fark) < 1000 ? 'ok' : 'warn',
+            ? ' <span style="opacity:.85">(590/591 yok — gelir tablosu kapanışı özkaynağa işlenmeli; sayfayı yenileyin)</span>'
+            : ''),
+        'warn',
       );
     } else {
       importLog(`⚖️ Bilanço dengesi: Aktif = Pasif (<b>${a.toLocaleString('tr-TR')}</b> TL)`, 'ok');
@@ -1819,16 +1793,16 @@ function hesapToplamlar(year) {
   // Dönem Karı
   d.donemKar = (d.olagan||0) + (d.olagandisiGelir||0) - (d.olagandisiGider||0);
 
-  if (typeof maliNormalizeDonemNetForOzkaynak === 'function') {
-    maliNormalizeDonemNetForOzkaynak(d, year);
-  } else if (year !== 2023) {
+  // Dönem Net Karı: gelir tablosu varsa oradan hesapla (bilanço değerini override et)
+  // SADECE 2023: dönem net karı gelir tablosundan hesaplanmaz; import da yazmaz — alan boş kalır (yukarıdaki blok donemNetKar'a dokunmaz)
+  if (year !== 2023) {
     if (d.brutSatis || d.satMaliyet || d.faalGider) {
-      d.donemNetKar = (d.donemKar || 0) - (d.vergiKarsilik || 0);
+      d.donemNetKar = (d.donemKar||0) - (d.vergiKarsilik||0);
     } else if (!d.donemNetKar) {
-      d.donemNetKar = (d.donemKar || 0) - (d.vergiKarsilik || 0);
+      d.donemNetKar = (d.donemKar||0) - (d.vergiKarsilik||0);
     }
-    d.donemNetKarGelir = d.donemNetKar;
   }
+  d.donemNetKarGelir = d.donemNetKar;
   if (typeof finSkorOzKaynakVePasif === 'function') finSkorOzKaynakVePasif(d);
 }
 

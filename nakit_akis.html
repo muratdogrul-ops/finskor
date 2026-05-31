@@ -652,8 +652,10 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
     <p>Projeksiyon motorunun tüm ayarları burada. Her parametre sonuçları doğrudan etkiler.</p>
     <ul>
       <li><strong>Yıllık tablo (Y1…Y5):</strong> Takvim yıllarına göre ciro ve gider büyüme %; Y1 brüt marjı gelir tablosundan, Y2–Y5 marjı isteğe bağlı</li>
-      <li><strong>⚡ Tümünü otomatik doldur:</strong> Ciro/gider büyümesi, TL/USD/EUR BCH, mevduat, kurumlar vergisi ve 120 ay kur tablosu — tek tuşla; sonra istediğin alanı elle değiştir</li>
-      <li><strong>Mizan / FinSkor yükleme:</strong> Açılış kaydından sonra aynı kurallar otomatik uygulanır</li>
+      <li><strong>BCH Faiz Oranları:</strong> Yıl bazında TL/USD/EUR BCH faizleri — TCMB baz alınır, <em>otomatik doldur</em> tuşunu kullan</li>
+      <li><strong>Mevduat Faizi:</strong> Nakit rezerv üzerinden kazanılan getiri</li>
+      <li><strong>Kurumlar Vergisi:</strong> Oran ve ödeme ayları</li>
+      <li><strong>Döviz Kuru:</strong> ⚡ butonu ile <strong>01.01.2026–31.03.2026</strong> TCMB satış kurlarından türetilen yıllık bileşik ortalamayı <strong>Döviz Kurları</strong> sayfasına yazar</li>
     </ul>
     <span class="avatar-tip">💡 TCMB Ocak 2026 politika faizi %37 — BCH için otomatik doldur butonunu kullan!</span>
   </div>
@@ -661,10 +663,6 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
 
       <div class="card glow">
         <div class="card-header"><div class="card-icon">⚙️</div><div class="card-title">Büyüme & Projeksiyon</div></div>
-        <div class="btn-group" style="margin:12px 0 14px;flex-wrap:wrap;gap:8px;align-items:center">
-          <button type="button" class="btn btn-primary btn-sm" data-action="tcmb-fill-all" onclick="autoFillAllTcmbDefaults()">⚡ Tümünü otomatik doldur</button>
-          <span style="font-size:.72rem;color:var(--tx3);max-width:520px;line-height:1.4">Ciro ve gider büyümesi, TL / USD / EUR BCH faizleri, mevduat, kurumlar vergisi ve <strong>120 aylık kur tablosu</strong> — TCMB kurallarıyla. Sonra istediğiniz alanı elle değiştirebilirsiniz.</span>
-        </div>
         <div class="section-sep">Projeksiyon</div>
         <div class="form-grid">
           <div class="field"><label>Projeksiyon (ay)</label><input id="ass-months" type="number" value="120" min="1" max="120"></div>
@@ -773,14 +771,8 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
         <hr class="divider">
         <div class="btn-group" style="gap:8px;flex-wrap:wrap">
           <button class="btn btn-primary" onclick="saveAssumptions()">💾 Varsayımları Kaydet</button>
-          <button class="btn btn-secondary" onclick="autoFillAllTcmbDefaults()" style="font-size:.8rem">
-            ⚡ Tümünü otomatik doldur (+ kurlar)
-          </button>
-          <button class="btn btn-secondary" onclick="autoFillFxGrowth()" style="font-size:.8rem">
-            💱 Sadece döviz kurları sayfası
-          </button>
           <button class="btn btn-secondary" onclick="autoFillBchUsdEur()" style="font-size:.8rem">
-            ⚡ USD &amp; EUR BCH
+            ⚡ USD &amp; EUR BCH Faiz Oranlarını Otomatik Doldur
           </button>
         </div>
         <div class="notice">Yıllık EBT ≤ 0 ise kurumlar vergisi = 0. Zarar 5 yıl devredilir.</div>
@@ -990,10 +982,9 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
           <div class="field"><label>Önceki iş günü USD/TL (kambiyo ref.)</label><input id="fx-usd-prev-gl" type="number" step="0.01" placeholder="TCMB veya elle" title="1. ay kambiyo karşılaştırması. 🌐 TCMB ile otomatik doldurulur; boşsa 1. ay kambiyo 0 kabul edilir."></div>
           <div class="field"><label>Önceki iş günü EUR/TL (kambiyo ref.)</label><input id="fx-eur-prev-gl" type="number" step="0.01" placeholder="TCMB veya elle" title="EUR için önceki iş günü TCMB gösterge satış."></div>
         </div>
-        <div class="btn-group" style="flex-wrap:wrap">
+        <div class="btn-group">
           <button type="button" class="btn btn-primary" data-action="tcmb-fx-sync" onclick="syncFxFromTcmb()">🌐 TCMB’den Güncelle (bugün + önceki iş günü)</button>
-          <button type="button" class="btn btn-primary" onclick="autoFillFxGrowth()">📈 TCMB yıllık artış + 120 ay tablo</button>
-          <button class="btn btn-primary" onclick="autoFillFx()">⚡ Tabloyu hesapla (mevcut oranlarla)</button>
+          <button class="btn btn-primary" onclick="autoFillFx()">⚡ Otomatik Hesapla &amp; Doldur</button>
           <button class="btn btn-secondary" onclick="fillFxFromOpen()">📋 Sadece Açılış Kurunu Uygula</button>
         </div>
         <div class="notice" style="margin-top:10px">Otomatik hesap: Açılış kurundan başlar, seçilen yıllık artış oranını aylık bileşik büyüme olarak uygular. İstediğiniz ayı manuel değiştirebilirsiniz.</div>
@@ -1480,17 +1471,13 @@ async function createFirm(){
   const id=genId();
   const defExp={};let i=0;
   for(const{group,items}of EXPENSE_GROUPS)for(const item of items)defExp[i++]={group,name:item,amount:0};
-  const fxRates=typeof buildTcmbFxRatesObject==='function'
-    ?buildTcmbFxRatesObject(FX_SPOT.usd,FX_SPOT.eur)
-    :{usdOpen:FX_SPOT.usd,eurOpen:FX_SPOT.eur,usdPrevBeforeProj:0,eurPrevBeforeProj:0,usdGrowth:FX_HIST_GROWTH.usd,eurGrowth:FX_HIST_GROWTH.eur,monthly:Array.from({length:FX_TABLE_MONTHS},()=>({usd:FX_SPOT.usd,eur:FX_SPOT.eur}))};
+  const fxRates={usdOpen:0,eurOpen:0,usdPrevBeforeProj:0,eurPrevBeforeProj:0,monthly:Array.from({length:FX_TABLE_MONTHS},()=>({usd:0,eur:0}))};
   state.firms[id]={id,name,startDate:dt.toISOString(),createdAt:new Date().toISOString(),finskorFirmType:'uretim',
     opening:{cash:0,bank:0,ar:0,ap:0,inventory:0,capital:0,otherAssets:0,otherLiab:0,kvMaliBorclar:0,uvMaliBorclar:0},
     incomeStmt:{revenue:0,cogs:0},
     ciro:{mode:'uniform',monthly:new Array(12).fill(100/12)},
-    assumptions:Object.assign(
-      {months:120,growth:0,expGrowth:0,bchLimit:1e12,bchRate:0,
-        bch1:0,bch2:0,bch3:0,bch4:0,bch5:0,dep1:0,dep2:0,dep3:0,dep4:0,dep5:0,taxRate:25,taxMonths:'3,6,9,12'},
-      typeof buildTcmbAssumptionsForFirm==='function'?buildTcmbAssumptionsForFirm({startDate:dt.toISOString()}):{}),
+    assumptions:{months:120,growth:0,expGrowth:0,bchLimit:1e12,bchRate:0,
+      bch1:0,bch2:0,bch3:0,bch4:0,bch5:0,dep1:0,dep2:0,dep3:0,dep4:0,dep5:0,taxRate:25,taxMonths:'3,6,9,12'},
     expenses:defExp,loans:[],manualCf:[],fxRates,
     ina:{wacc:15,terminalGrowth:2,firstFcfYear:null,explicitYears:null,waccMode:'constant',waccStaged:[15,15,15,15,15],waccDynamicBase:15,dynamicRisk:{currentRatio:null,netDebtEbitda:null,ebitdaMargin:null,marginTrend:null}}};
   state.currentFirmId=id;
@@ -2329,18 +2316,10 @@ function autoFillCiroExpFromTcmbInflation(opts) {
     showAlert('Önce firma seçin.', 'err');
     return;
   }
-  const gr = ciroExpGrowthRatesForFirm(f);
-  const a = f.assumptions || (f.assumptions = {});
-  a.growth = gr.ciro[1];
-  a.expGrowth = gr.exp[1];
-  for (let yi = 1; yi <= 5; yi++) {
-    a['ciroY' + yi] = gr.ciro[yi];
-    a['expY' + yi] = gr.exp[yi];
-  }
   const bits = [];
   for (let yi = 1; yi <= 5; yi++) {
     const calY = assProjectionCalendarYear(f, yi);
-    const pct = gr.ciro[yi];
+    const pct = parseFloat(ciroExpGrowthPctForCalendarYear(calY).toFixed(1));
     const cEl = $('ass-year-ciro-' + yi);
     const eEl = $('ass-year-exp-' + yi);
     if (cEl) cEl.value = pct;
@@ -2356,272 +2335,45 @@ function autoFillCiroExpFromTcmbInflation(opts) {
 
 const BCH_SPREAD = 5; // BCH TL: politika tahmini (Y1..Y5 → 2026..2030) + 5 puan
 const MEVDUAT_SPREAD = 5; // Mevduat: aynı yıl oranları politika + 5 puan
-const BCH_USD_ANNUAL = 7;
-const BCH_EUR_ANNUAL = 6;
-
-/** TCMB varsayılanları — firma nesnesine (FinSkor aktarım / mizan / yeni firma ile aynı). */
-function buildTcmbAssumptionsForFirm(f) {
-  const stub = f && f.startDate ? f : { startDate: new Date(2026, 0, 1).toISOString() };
-  const gr = ciroExpGrowthRatesForFirm(stub);
-  const bch1 = parseFloat((TCMB_POLICY.y1 + BCH_SPREAD).toFixed(1));
-  const bch2 = parseFloat((TCMB_POLICY.y2 + BCH_SPREAD).toFixed(1));
-  const bch3 = parseFloat((TCMB_POLICY.y3 + BCH_SPREAD).toFixed(1));
-  const bch4 = parseFloat((TCMB_POLICY.y4 + BCH_SPREAD).toFixed(1));
-  const bch5 = parseFloat((TCMB_POLICY.y5 + BCH_SPREAD).toFixed(1));
-  const dep1 = parseFloat((TCMB_POLICY.y1 + MEVDUAT_SPREAD).toFixed(1));
-  const dep2 = parseFloat((TCMB_POLICY.y2 + MEVDUAT_SPREAD).toFixed(1));
-  const dep3 = parseFloat((TCMB_POLICY.y3 + MEVDUAT_SPREAD).toFixed(1));
-  const dep4 = parseFloat((TCMB_POLICY.y4 + MEVDUAT_SPREAD).toFixed(1));
-  const dep5 = parseFloat((TCMB_POLICY.y5 + MEVDUAT_SPREAD).toFixed(1));
-  return {
-    months: 120,
-    growth: gr.ciro[1],
-    expGrowth: gr.exp[1],
-    ciroY1: gr.ciro[1],
-    ciroY2: gr.ciro[2],
-    ciroY3: gr.ciro[3],
-    ciroY4: gr.ciro[4],
-    ciroY5: gr.ciro[5],
-    expY1: gr.exp[1],
-    expY2: gr.exp[2],
-    expY3: gr.exp[3],
-    expY4: gr.exp[4],
-    expY5: gr.exp[5],
-    bchLimit: 1e12,
-    bchRate: bch1,
-    bch1,
-    bch2,
-    bch3,
-    bch4,
-    bch5,
-    bchUsdRate: BCH_USD_ANNUAL,
-    bchUsd1: BCH_USD_ANNUAL,
-    bchUsd2: BCH_USD_ANNUAL,
-    bchUsd3: BCH_USD_ANNUAL,
-    bchUsd4: BCH_USD_ANNUAL,
-    bchUsd5: BCH_USD_ANNUAL,
-    bchEurRate: BCH_EUR_ANNUAL,
-    bchEur1: BCH_EUR_ANNUAL,
-    bchEur2: BCH_EUR_ANNUAL,
-    bchEur3: BCH_EUR_ANNUAL,
-    bchEur4: BCH_EUR_ANNUAL,
-    bchEur5: BCH_EUR_ANNUAL,
-    dep1,
-    dep2,
-    dep3,
-    dep4,
-    dep5,
-    taxRate: 25,
-    taxMonths: '3,6,9,12',
-  };
-}
-
-function buildTcmbFxRatesObject(usd0, eur0, opts) {
-  const o = opts || {};
-  const u0 = usd0 > 0 ? usd0 : FX_SPOT.usd;
-  const e0 = eur0 > 0 ? eur0 : FX_SPOT.eur;
-  const prevUsd = Number(o.usdPrev) || 0;
-  const prevEur = Number(o.eurPrev) || 0;
-  const usdMonthly = Math.pow(1 + FX_HIST_GROWTH.usd / 100, 1 / 12);
-  const eurMonthly = Math.pow(1 + FX_HIST_GROWTH.eur / 100, 1 / 12);
-  let usdCur = u0;
-  let eurCur = e0;
-  const monthly = [];
-  for (let t = 0; t < FX_TABLE_MONTHS; t++) {
-    monthly.push({ usd: parseFloat(usdCur.toFixed(4)), eur: parseFloat(eurCur.toFixed(4)) });
-    usdCur *= usdMonthly;
-    eurCur *= eurMonthly;
-  }
-  return {
-    usdOpen: u0,
-    eurOpen: e0,
-    usdPrevBeforeProj: prevUsd,
-    eurPrevBeforeProj: prevEur,
-    usdGrowth: FX_HIST_GROWTH.usd,
-    eurGrowth: FX_HIST_GROWTH.eur,
-    monthly,
-  };
-}
-
-function applyTcmbAssumptionsToFirm(f) {
-  if (!f) return;
-  f.assumptions = Object.assign({}, f.assumptions || {}, buildTcmbAssumptionsForFirm(f));
-}
-
-function applyTcmbFxToFirm(f, rates) {
-  if (!f) return;
-  const r = rates || {};
-  const usd0 =
-    Number(r.usd) > 0
-      ? Number(r.usd)
-      : Number(f.fxRates && f.fxRates.usdOpen) > 0
-        ? Number(f.fxRates.usdOpen)
-        : FX_SPOT.usd;
-  const eur0 =
-    Number(r.eur) > 0
-      ? Number(r.eur)
-      : Number(f.fxRates && f.fxRates.eurOpen) > 0
-        ? Number(f.fxRates.eurOpen)
-        : FX_SPOT.eur;
-  f.fxRates = buildTcmbFxRatesObject(usd0, eur0, {
-    usdPrev: r.usdPrev != null ? r.usdPrev : f.fxRates && f.fxRates.usdPrevBeforeProj,
-    eurPrev: r.eurPrev != null ? r.eurPrev : f.fxRates && f.fxRates.eurPrevBeforeProj,
-  });
-}
-
-async function fetchTcmbRatesForDate(d) {
-  if (!d || isNaN(+d)) return null;
-  try {
-    const txt = await fetchTcmbXmlText(_tcmbArchiveUrl(d));
-    return parseTcmbForexSelling(txt);
-  } catch {
-    return null;
-  }
-}
-
-/** Mizan kapanış yılı 31.12 TCMB → açılış kuru (arka planda). */
-function enrichFxOpeningFromTcmbYearend(f) {
-  if (!f) return Promise.resolve();
-  const y =
-    Number(f.opening && f.opening.maliKapanisYili) ||
-    (f.startDate ? new Date(f.startDate).getFullYear() - 1 : 0);
-  if (!y) return Promise.resolve();
-  return fetchTcmbRatesForDate(new Date(y, 11, 31))
-    .then(function (r) {
-      if (!r || !(r.usd > 0 && r.eur > 0)) return;
-      applyTcmbFxToFirm(f, { usd: r.usd, eur: r.eur });
-      if (typeof saveState === 'function') return saveState();
-    })
-    .then(function () {
-      if (state.currentFirmId === f.id && typeof populateFx === 'function') populateFx();
-    })
-    .catch(function () {});
-}
-
-/**
- * Firma: varsayımlar + FX (TCMB kuralları). refreshUi: form alanlarını günceller.
- * fetchTcmb: açılış kuru için mizan yılı sonu + kambiyo için önceki iş günü dener.
- */
-async function autoFillTcmbDefaultsForFirm(f, opts) {
-  if (!f) return;
-  const o = opts || {};
-  applyTcmbAssumptionsToFirm(f);
-  let usd0 = FX_SPOT.usd;
-  let eur0 = FX_SPOT.eur;
-  let prevUsd = 0;
-  let prevEur = 0;
-  if (o.fetchTcmb !== false) {
-    const y =
-      Number(f.opening && f.opening.maliKapanisYili) ||
-      (f.startDate ? new Date(f.startDate).getFullYear() - 1 : 0);
-    if (y) {
-      const ye = await fetchTcmbRatesForDate(new Date(y, 11, 31));
-      if (ye && ye.usd > 0 && ye.eur > 0) {
-        usd0 = ye.usd;
-        eur0 = ye.eur;
-      }
-    }
-    try {
-      const xml = await fetchTcmbXmlText(TCMB_TODAY_XML);
-      const prev = await fetchTcmbPreviousDayRates(xml, 20);
-      if (prev) {
-        prevUsd = prev.usd;
-        prevEur = prev.eur;
-      }
-    } catch {
-      /* spot + yılsonu yeterli */
-    }
-  } else if (f.fxRates && f.fxRates.usdOpen > 0) {
-    usd0 = f.fxRates.usdOpen;
-    eur0 = f.fxRates.eurOpen;
-    prevUsd = f.fxRates.usdPrevBeforeProj || 0;
-    prevEur = f.fxRates.eurPrevBeforeProj || 0;
-  }
-  applyTcmbFxToFirm(f, { usd: usd0, eur: eur0, usdPrev: prevUsd, eurPrev: prevEur });
-  if (typeof saveState === 'function') await saveState();
-  if (o.refreshUi) {
-    if (typeof populateAssumptions === 'function') populateAssumptions();
-    if (typeof populateFx === 'function') populateFx();
-  }
-}
-
-async function autoFillAllTcmbDefaults(opts) {
-  const f = curFirm();
-  if (!f) {
-    showAlert('Önce firma seçin.', 'err');
-    return;
-  }
-  const btn = document.querySelector('[data-action="tcmb-fill-all"]');
-  if (btn) btn.disabled = true;
-  try {
-    await autoFillTcmbDefaultsForFirm(f, Object.assign({ refreshUi: true, fetchTcmb: true }, opts || {}));
-    const gr = ciroExpGrowthRatesForFirm(f);
-    const y1 = assProjectionCalendarYear(f, 1);
-    if (!opts || !opts.quiet) {
-      showAlert(
-        '✅ Otomatik dolduruldu: ciro/gider ' +
-          y1 +
-          ' %' +
-          gr.ciro[1] +
-          ' · BCH TL Y1 %' +
-          (TCMB_POLICY.y1 + BCH_SPREAD) +
-          ' · USD/EUR BCH %' +
-          BCH_USD_ANNUAL +
-          '/' +
-          BCH_EUR_ANNUAL +
-          ' · mevduat · 120 ay kur tablosu. İstediğiniz alanı manuel değiştirebilirsiniz.',
-        'ok',
-      );
-    }
-  } catch (e) {
-    showAlert('Otomatik doldurma: ' + (e && e.message ? e.message : String(e)), 'err');
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
-
-window.autoFillTcmbDefaultsForFirm = autoFillTcmbDefaultsForFirm;
-window.autoFillAllTcmbDefaults = autoFillAllTcmbDefaults;
-window.buildTcmbAssumptionsForFirm = buildTcmbAssumptionsForFirm;
-window.buildTcmbFxRatesObject = buildTcmbFxRatesObject;
-window.applyTcmbAssumptionsToFirm = applyTcmbAssumptionsToFirm;
-window.applyTcmbFxToFirm = applyTcmbFxToFirm;
-window.enrichFxOpeningFromTcmbYearend = enrichFxOpeningFromTcmbYearend;
 
 // USD BCH = yıllık %7, EUR BCH = yıllık %6 — tüm 5 yıla yaz ve kaydet
 function autoFillBchUsdEur() {
-  const f = curFirm();
-  if (!f) return;
-  const a = buildTcmbAssumptionsForFirm(f);
-  ['ass-bchusdrate', 'ass-bchusd1', 'ass-bchusd2', 'ass-bchusd3', 'ass-bchusd4', 'ass-bchusd5'].forEach(function (id) {
-    const el = document.getElementById(id);
-    if (el) el.value = String(a.bchUsd1);
-  });
-  ['ass-bcheurrate', 'ass-bcheur1', 'ass-bcheur2', 'ass-bcheur3', 'ass-bcheur4', 'ass-bcheur5'].forEach(function (id) {
-    const el = document.getElementById(id);
-    if (el) el.value = String(a.bchEur1);
-  });
+  // USD BCH faiz oranları
+  ['ass-bchusdrate','ass-bchusd1','ass-bchusd2','ass-bchusd3','ass-bchusd4','ass-bchusd5']
+    .forEach(id => { const el = document.getElementById(id); if(el) el.value = '7'; });
+  // EUR BCH faiz oranları
+  ['ass-bcheurrate','ass-bcheur1','ass-bcheur2','ass-bcheur3','ass-bcheur4','ass-bcheur5']
+    .forEach(id => { const el = document.getElementById(id); if(el) el.value = '6'; });
   saveAssumptions();
-  showAlert('✅ USD BCH faizi %' + BCH_USD_ANNUAL + ', EUR BCH faizi %' + BCH_EUR_ANNUAL + ' — kaydedildi.', 'ok');
+  showAlert('✅ USD BCH faizi %7, EUR BCH faizi %6 — tüm 5 yıla uygulandı ve kaydedildi.', 'ok');
 }
 
 function autoFillBchDep() {
   const f = curFirm();
-  if (!f) return;
-  applyTcmbAssumptionsToFirm(f);
-  populateAssumptions();
+  // BCH TL faizleri (politika + spread)
+  $('ass-bch1').value = (TCMB_POLICY.y1 + BCH_SPREAD).toFixed(1);
+  $('ass-bch2').value = (TCMB_POLICY.y2 + BCH_SPREAD).toFixed(1);
+  $('ass-bch3').value = (TCMB_POLICY.y3 + BCH_SPREAD).toFixed(1);
+  $('ass-bch4').value = (TCMB_POLICY.y4 + BCH_SPREAD).toFixed(1);
+  $('ass-bch5').value = (TCMB_POLICY.y5 + BCH_SPREAD).toFixed(1);
+  // BCH Fallback (Y1 oranı)
+  const bchFb = document.getElementById('ass-bchrate');
+  if(bchFb) bchFb.value = (TCMB_POLICY.y1 + BCH_SPREAD).toFixed(1);
+  // Mevduat faizleri (aynı yıllar: politika + MEVDUAT_SPREAD)
+  $('ass-dep1').value = (TCMB_POLICY.y1 + MEVDUAT_SPREAD).toFixed(1);
+  $('ass-dep2').value = (TCMB_POLICY.y2 + MEVDUAT_SPREAD).toFixed(1);
+  $('ass-dep3').value = (TCMB_POLICY.y3 + MEVDUAT_SPREAD).toFixed(1);
+  $('ass-dep4').value = (TCMB_POLICY.y4 + MEVDUAT_SPREAD).toFixed(1);
+  $('ass-dep5').value = (TCMB_POLICY.y5 + MEVDUAT_SPREAD).toFixed(1);
+  autoFillCiroExpFromTcmbInflation({ save: false, quiet: true });
   saveAssumptions();
-  const gr = ciroExpGrowthRatesForFirm(f);
-  const grTxt = [1, 2, 3, 4, 5].map(function (yi) {
-    return assProjectionCalendarYear(f, yi) + ' %' + gr.ciro[yi];
-  }).join(' · ');
+  const gr = f ? ciroExpGrowthRatesForFirm(f) : null;
+  const grTxt = gr
+    ? ' | Ciro/gider: ' + [1, 2, 3, 4, 5].map((yi) => assProjectionCalendarYear(f, yi) + ' %' + gr.ciro[yi]).join(' · ')
+    : '';
   showAlert(
-    '✅ BCH TL Y1=%' +
-      (TCMB_POLICY.y1 + BCH_SPREAD) +
-      '→Y5=%' +
-      (TCMB_POLICY.y5 + BCH_SPREAD) +
-      ' · Mevduat · ciro/gider: ' +
-      grTxt,
+    '✅ BCH Y1=%' + (TCMB_POLICY.y1 + BCH_SPREAD) + '→Y5=%' + (TCMB_POLICY.y5 + BCH_SPREAD) +
+      ' | Mevduat politika+' + MEVDUAT_SPREAD + grTxt,
     'ok',
   );
 }
@@ -2629,32 +2381,39 @@ function autoFillBchDep() {
 // Varsayımlar sayfasındaki butondan çağrılır.
 // Döviz Kurları growth alanlarına FX_HIST_GROWTH (01.01.2026–31.03.2026 TCMB bileşik ortalama) yazar
 // ve FX_TABLE_MONTHS aylık kur tablosunu hesaplayıp doldurur, ardından kaydeder.
-function autoFillFxGrowth() {
-  const f = curFirm();
-  if (!f) {
-    showAlert('Önce firma seçin.', 'err');
-    return;
-  }
+function autoFillFxGrowth(){
+  const uPct = FX_HIST_GROWTH.usd / 100, ePct = FX_HIST_GROWTH.eur / 100;
+  // 1) Büyüme oranlarını Döviz Kurları sayfasına yaz
+  const usdGrowthEl = document.getElementById('fx-usd-growth');
+  const eurGrowthEl = document.getElementById('fx-eur-growth');
+  if(usdGrowthEl) usdGrowthEl.value = FX_HIST_GROWTH.usd.toFixed(2);
+  if(eurGrowthEl) eurGrowthEl.value = FX_HIST_GROWTH.eur.toFixed(2);
+
+  // 2) Açılış kurlarını oku (Döviz Kurları sayfasındaki input yoksa FX_SPOT kullan)
   const usdOpenEl = document.getElementById('fx-usd-open');
   const eurOpenEl = document.getElementById('fx-eur-open');
-  const usdOpen = fnum(usdOpenEl && usdOpenEl.value, f.fxRates && f.fxRates.usdOpen > 0 ? f.fxRates.usdOpen : FX_SPOT.usd);
-  const eurOpen = fnum(eurOpenEl && eurOpenEl.value, f.fxRates && f.fxRates.eurOpen > 0 ? f.fxRates.eurOpen : FX_SPOT.eur);
-  applyTcmbFxToFirm(f, {
-    usd: usdOpen,
-    eur: eurOpen,
-    usdPrev: fnum($('fx-usd-prev-gl') && $('fx-usd-prev-gl').value, 0),
-    eurPrev: fnum($('fx-eur-prev-gl') && $('fx-eur-prev-gl').value, 0),
-  });
-  populateFx();
+  const usdOpen = fnum(usdOpenEl?.value, FX_SPOT.usd);
+  const eurOpen = fnum(eurOpenEl?.value, FX_SPOT.eur);
+  // Açılış kurunu da set et (boşsa)
+  if(usdOpenEl && !fnum(usdOpenEl.value,0)) usdOpenEl.value = usdOpen.toFixed(4);
+  if(eurOpenEl && !fnum(eurOpenEl.value,0)) eurOpenEl.value = eurOpen.toFixed(4);
+
+  // 3) Aylık bileşik büyüme ile tabloyu doldur
+  const usdMonthly = Math.pow(1 + uPct, 1/12);
+  const eurMonthly = Math.pow(1 + ePct, 1/12);
+  let usdCur = usdOpen, eurCur = eurOpen;
+  for(let t = 0; t < FX_TABLE_MONTHS; t++){
+    const usdEl = document.getElementById('fx-usd-'+t);
+    const eurEl = document.getElementById('fx-eur-'+t);
+    if(usdEl) usdEl.value = usdCur.toFixed(4);
+    if(eurEl) eurEl.value = eurCur.toFixed(4);
+    usdCur *= usdMonthly;
+    eurCur *= eurMonthly;
+  }
+
+  // 4) Kaydet
   saveFx();
-  showAlert(
-    '✅ USD ~%' +
-      FX_HIST_GROWTH.usd.toFixed(1) +
-      ', EUR ~%' +
-      FX_HIST_GROWTH.eur.toFixed(1) +
-      ' (01.01.2026–31.03.2026 TCMB bileşik) + 120 ay tablo kaydedildi.',
-    'ok',
-  );
+  showAlert('✅ USD ~%'+FX_HIST_GROWTH.usd.toFixed(1)+', EUR ~%'+FX_HIST_GROWTH.eur.toFixed(1)+' (01.01.2026–31.03.2026 TCMB bileşik ortalama) uygulandı ve kaydedildi.','ok');
 }
 
 function autoFillFx(){
@@ -6434,13 +6193,31 @@ async function importFromFinSkor(){
     if(idx >= 0) defExp[idx].amount = Math.round(p.faalGider / 12);
   }
 
+  // ── TCMB/FX otomatik değerler ─────────────────────────────────────────────
+  // BCH TL faizleri (TCMB politika tahmini + 5 puan); mevduat aynı yıllar + 5 puan
+  const bch1 = parseFloat((TCMB_POLICY.y1 + BCH_SPREAD).toFixed(1));
+  const bch2 = parseFloat((TCMB_POLICY.y2 + BCH_SPREAD).toFixed(1));
+  const bch3 = parseFloat((TCMB_POLICY.y3 + BCH_SPREAD).toFixed(1));
+  const bch4 = parseFloat((TCMB_POLICY.y4 + BCH_SPREAD).toFixed(1));
+  const bch5 = parseFloat((TCMB_POLICY.y5 + BCH_SPREAD).toFixed(1));
+
+  // Büyüme: TCMB politika faizi baz alınarak enflasyon + 5 puan (Y1)
   const grTcmb = ciroExpGrowthRatesForFirm({ startDate: startIso });
   const growthRate = grTcmb.ciro[1];
+
+  // FX: ay0 = FinSkor modal ile aynı (veri yılı 31.12. TCMB); sonrası FX_HIST_GROWTH bileşik
   const yfx = p.tcmbYearendFx;
-  const usd0 = yfx && yfx.usd > 0 ? Number(yfx.usd) : FX_SPOT.usd;
-  const eur0 = yfx && yfx.eur > 0 ? Number(yfx.eur) : FX_SPOT.eur;
-  const tcmbAss = buildTcmbAssumptionsForFirm({ startDate: startIso });
-  const bch1 = tcmbAss.bch1;
+  const usd0 = (yfx && yfx.usd > 0) ? Number(yfx.usd) : FX_SPOT.usd;
+  const eur0 = (yfx && yfx.eur > 0) ? Number(yfx.eur) : FX_SPOT.eur;
+  const usdMonthly = Math.pow(1 + FX_HIST_GROWTH.usd / 100, 1/12);
+  const eurMonthly = Math.pow(1 + FX_HIST_GROWTH.eur / 100, 1/12);
+  let usdCur = usd0, eurCur = eur0;
+  const fxMonthly = [];
+  for(let t = 0; t < FX_TABLE_MONTHS; t++){
+    fxMonthly.push({usd: parseFloat(usdCur.toFixed(4)), eur: parseFloat(eurCur.toFixed(4))});
+    usdCur *= usdMonthly;
+    eurCur *= eurMonthly;
+  }
 
   // ── Firma oluştur ─────────────────────────────────────────────────────────
   const id = genId();
@@ -6485,16 +6262,43 @@ async function importFromFinSkor(){
       cogs:    p.satMaliyet  || 0,
     },
     ciro:{mode:'uniform', monthly:new Array(12).fill(100/12)},
-    assumptions: tcmbAss,
+    assumptions:{
+      months: 120,
+      growth: growthRate,
+      expGrowth: growthRate,
+      ciroY1: grTcmb.ciro[1], ciroY2: grTcmb.ciro[2], ciroY3: grTcmb.ciro[3], ciroY4: grTcmb.ciro[4], ciroY5: grTcmb.ciro[5],
+      expY1: grTcmb.exp[1], expY2: grTcmb.exp[2], expY3: grTcmb.exp[3], expY4: grTcmb.exp[4], expY5: grTcmb.exp[5],
+      // bchLimit: BCH limiti → pratikte sınırsız; ay sonu eksi nakit her zaman BCH ile kapanır.
+      bchLimit: 1e12,
+      bchRate: bch1,
+      bch1, bch2, bch3, bch4, bch5,
+      // EUR BCH faiz oranları (yıllık %6 sabit)
+      bchEurRate: 6, bchEur1: 6, bchEur2: 6, bchEur3: 6, bchEur4: 6, bchEur5: 6,
+      // USD BCH faiz oranları (yıllık %7 sabit)
+      bchUsdRate: 7, bchUsd1: 7, bchUsd2: 7, bchUsd3: 7, bchUsd4: 7, bchUsd5: 7,
+      dep1: parseFloat((TCMB_POLICY.y1 + MEVDUAT_SPREAD).toFixed(1)),
+      dep2: parseFloat((TCMB_POLICY.y2 + MEVDUAT_SPREAD).toFixed(1)),
+      dep3: parseFloat((TCMB_POLICY.y3 + MEVDUAT_SPREAD).toFixed(1)),
+      dep4: parseFloat((TCMB_POLICY.y4 + MEVDUAT_SPREAD).toFixed(1)),
+      dep5: parseFloat((TCMB_POLICY.y5 + MEVDUAT_SPREAD).toFixed(1)),
+      taxRate: 25, taxMonths: '3,6,9,12'
+    },
     expenses: defExp,
     loans: loanConfig ? _buildLoansFromConfig(loanConfig, projYil) : _buildLoansFromFinskor(p, projYil),
     manualCf: [],
-    fxRates: buildTcmbFxRatesObject(usd0, eur0),
+    fxRates:{
+      usdOpen: usd0,
+      eurOpen: eur0,
+      usdPrevBeforeProj: 0,
+      eurPrevBeforeProj: 0,
+      usdGrowth: FX_HIST_GROWTH.usd,
+      eurGrowth: FX_HIST_GROWTH.eur,
+      monthly: fxMonthly
+    },
   };
 
   await saveState();
   selectFirm(id);
-  enrichFxOpeningFromTcmbYearend(state.firms[id]);
 
   // Özet mesaj
   const kvMali = p.kvMaliBorclar || 0;
