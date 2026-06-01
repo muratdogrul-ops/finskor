@@ -3244,6 +3244,8 @@ const HESAPLAR = [
   {key:'stoklar',label:'15. Stoklar',kod:'15'},
   {key:'yilYayginMal',label:'17. Yıllara Yaygın İnşaat ve Onarım Maliyetleri',kod:'17'},
   {key:'gelecekAyGider',label:'18. Gelecek Aylara Ait Giderler ve Gelir Tahakkukları',kod:'18'},
+  {key:'indirilecekKdv',label:'191. İndirilecek KDV',kod:'191'},
+  {key:'devredenKdv',label:'190. Devreden KDV',kod:'190'},
   {key:'digerDonen',label:'19. Diğer Dönen Varlıklar',kod:'19'},
   {key:'donenVarlik',label:'▶ DÖNEN VARLIK TOPLAMI',kod:'',isTotal:true},
   {type:'cat',label:'II. DURAN VARLIKLAR',labelEn:'II. NON-CURRENT ASSETS'},
@@ -3266,6 +3268,7 @@ const HESAPLAR = [
   {key:'odenecekVergi',label:'36. Ödenecek Vergi ve Diğer Yükümlülükler',kod:'36'},
   {key:'borcKarsilik',label:'37. Borç ve Gider Karşılıkları',kod:'37'},
   {key:'gelecekAyGelir',label:'38. Gelecek Aylara Ait Gelirler ve Gider Tahakkukları',kod:'38'},
+  {key:'hesaplananKdv',label:'391. Hesaplanan KDV',kod:'391'},
   {key:'digerKvYK',label:'39. Diğer Kısa Vadeli Yabancı Kaynaklar',kod:'39'},
   {key:'kvYKToplam',label:'▶ KV YABANCI KAYNAK TOPLAMI',kod:'',isTotal:true},
   {type:'cat',label:'IV. UZUN VADELİ YABANCI KAYNAKLAR',labelEn:'IV. LONG-TERM LIABILITIES'},
@@ -3400,7 +3403,7 @@ function recalc() {
   [2022,2023,2024,2025,2026].forEach(y => {
     const D = k => state.yearData[y][k]||0;
     const { kvTic, uvTic } = ticBorclarEtkinKvUv(y, state.yearData[y]);
-    const donen = D('hazirDegerler')+D('menkKiymetler')+D('ticAlacaklar')+D('digerAlacaklar')+D('stoklar')+D('yilYayginMal')+D('gelecekAyGider')+D('digerDonen');
+    const donen = D('hazirDegerler')+D('menkKiymetler')+D('ticAlacaklar')+D('digerAlacaklar')+D('stoklar')+D('yilYayginMal')+D('gelecekAyGider')+D('indirilecekKdv')+D('devredenKdv')+D('digerDonen');
     setT('donenVarlik',y,donen);
     const duran = D('uzunTicAlacak')+D('uzunDigAlacak')+D('maliDuranVar')+D('maddiDuranVar')+D('maddiOlmayan')+D('ozelTukenme')+D('gelecekYilGider')+D('digerDuran');
     setT('duranVarlik',y,duran);
@@ -6833,15 +6836,21 @@ function _nkmBuildFinskorBilancoRowsForPayload(d) {
   return rows;
 }
 function _nkmFinSkorOtherAssetsPlug(d) {
-  return _nkmNum(d.digerAlacaklar) + _nkmNum(d.yilYayginMal)
+  const kdv = _nkmNum(d.indirilecekKdv) + _nkmNum(d.devredenKdv);
+  let plug = _nkmNum(d.digerAlacaklar) + _nkmNum(d.yilYayginMal)
     + _nkmNum(d.gelecekAyGider) + _nkmNum(d.digerDonen);
+  if (kdv > 0) plug = Math.max(0, plug - kdv);
+  return plug;
 }
 function _nkmFinSkorLikiditeToplam(d) {
   return _nkmNum(d.hazirDegerler) + _nkmNum(d.menkKiymetler);
 }
 function _nkmFinSkorOtherLiabKvPlug(d) {
-  return _nkmNum(d.kvDigBorclar) + _nkmNum(d.alinanAvans) + _nkmNum(d.yilHakediş) + _nkmNum(d.odenecekVergi)
+  const hk = _nkmNum(d.hesaplananKdv);
+  let plug = _nkmNum(d.kvDigBorclar) + _nkmNum(d.alinanAvans) + _nkmNum(d.yilHakediş) + _nkmNum(d.odenecekVergi)
     + _nkmNum(d.borcKarsilik) + _nkmNum(d.gelecekAyGelir) + _nkmNum(d.digerKvYK);
+  if (hk > 0) plug = Math.max(0, plug - hk);
+  return plug;
 }
 function _nkmFinSkorOtherLiabUvPlug(d) {
   return _nkmNum(d.uvDigBorclar) + _nkmNum(d.uvAlinanAvans) + _nkmNum(d.uvBorcKarsilik) + _nkmNum(d.uvDigYK);
@@ -6897,6 +6906,9 @@ function openNakitAkis() {
                       + parseFloat(d.maliDuranVar||0)  + parseFloat(d.maddiDuranVar||0)
                       + parseFloat(d.maddiOlmayan||0)  + parseFloat(d.ozelTukenme||0)
                       + parseFloat(d.gelecekYilGider||0)+ parseFloat(d.digerDuran||0),
+    indirilecekKdv: _nkmNum(d.indirilecekKdv),
+    devredenKdv: _nkmNum(d.devredenKdv),
+    hesaplananKdv: _nkmNum(d.hesaplananKdv),
   };
 
   const p = _nkmPayload;
@@ -7571,7 +7583,7 @@ const KOD_TO_KEY = {
   // GELECEK AY GİDERLER
   180:'gelecekAyGider', 181:'gelecekAyGider',
   // DİĞER DÖNEN VARLIKLAR
-  190:'digerDonen', 191:'digerDonen', 192:'digerDonen',
+  190:'devredenKdv', 191:'indirilecekKdv', 192:'indirilecekKdv',
   193:'digerDonen', 195:'digerDonen', 196:'digerDonen',
   197:'digerDonen', 198:'digerDonen', 199:'digerDonen',
   // UZUN TİCARİ ALACAKLAR
@@ -7629,7 +7641,7 @@ const KOD_TO_KEY = {
   // GELECEK AY GELİR
   380:'gelecekAyGelir', 381:'gelecekAyGelir',
   // DİĞER KV
-  391:'digerKvYK', 392:'digerKvYK', 393:'digerKvYK',
+  391:'hesaplananKdv', 392:'hesaplananKdv', 393:'hesaplananKdv',
   397:'digerKvYK', 399:'digerKvYK',
   // UV MALİ BORÇLAR
   400:'uvMaliBorclar', 401:'uvMaliBorclar', 402:'uvMaliBorclar',
@@ -7809,7 +7821,7 @@ function pdfMizanStokAnaSatirMi(lineTrim) {
 }
 
 /** 19 Diğer dönen — KOD_TO_KEY (194 yok); çift toplam: ana + 192.01 / 192 01 ikisi birden */
-const PDF_MIZAN_DIGER_DONEN_OZET_KOD = new Set([190, 191, 192, 193, 195, 196, 197, 198, 199]);
+const PDF_MIZAN_DIGER_DONEN_OZET_KOD = new Set([193, 195, 196, 197, 198, 199]);
 
 function pdfMizanDigerDonenAnaSatirMi(lineTrim) {
   return /^(190|191|192|193|195|196|197|198|199)\s+[A-Za-zÇĞİÖŞÜçğıöşü]/.test(String(lineTrim).trim());
@@ -9075,7 +9087,7 @@ function finalizeImport(data) {
 
   // Kategorilere göre göster
   const cats = [
-    ['AKTİF',        ['hazirDegerler','menkKiymetler','ticAlacaklar','digerAlacaklar','stoklar','yilYayginMal','gelecekAyGider','digerDonen','uzunTicAlacak','uzunDigAlacak','maliDuranVar','maddiDuranVar','maddiOlmayan','ozelTukenme','gelecekYilGider','digerDuran']],
+    ['AKTİF',        ['hazirDegerler','menkKiymetler','ticAlacaklar','digerAlacaklar','stoklar','yilYayginMal','gelecekAyGider','indirilecekKdv','devredenKdv','digerDonen','uzunTicAlacak','uzunDigAlacak','maliDuranVar','maddiDuranVar','maddiOlmayan','ozelTukenme','gelecekYilGider','digerDuran']],
     ['KV BORÇLAR',   ['kvMaliBorclar','kvTicBorclar','kvDigBorclar','alinanAvans','yilHakediş','odenecekVergi','borcKarsilik','gelecekAyGelir','digerKvYK']],
     ['UV BORÇLAR',   ['uvMaliBorclar','uvTicBorclar','uvDigBorclar','uvAlinanAvans','uvBorcKarsilik','uvDigYK']],
     ['ÖZ KAYNAK',    ['odenmisSermaye','sermaYedek','karYedek','gecmisKar','gecmisZarar','donemNetKar']],
@@ -9159,7 +9171,7 @@ function hesapToplamlar(year) {
   const sum = (...keys) => keys.reduce((t, k) => t + (d[k] || 0), 0);
 
   // Dönen Varlık = alt kalemler toplamı (yoksa sıfır)
-  const donenYeni = sum('hazirDegerler','menkKiymetler','ticAlacaklar','digerAlacaklar','stoklar','yilYayginMal','gelecekAyGider','digerDonen');
+  const donenYeni = sum('hazirDegerler','menkKiymetler','ticAlacaklar','digerAlacaklar','stoklar','yilYayginMal','gelecekAyGider','indirilecekKdv','devredenKdv','digerDonen');
   if (!d.donenVarlik || donenYeni > d.donenVarlik) d.donenVarlik = donenYeni;
 
   // Duran Varlık
@@ -9171,7 +9183,7 @@ function hesapToplamlar(year) {
 
   // KV / UV Yabancı Kaynak — 2025'te UV ticari KV ticariye dahil
   const { kvTic: kvTicEff, uvTic: uvTicEff } = ticBorclarEtkinKvUv(year, d);
-  const kvAlt = sum('kvMaliBorclar','kvDigBorclar','alinanAvans','yilHakediş','odenecekVergi','borcKarsilik','gelecekAyGelir','digerKvYK') + kvTicEff;
+  const kvAlt = sum('kvMaliBorclar','kvDigBorclar','alinanAvans','yilHakediş','odenecekVergi','borcKarsilik','gelecekAyGelir','hesaplananKdv','digerKvYK') + kvTicEff;
   d.kvYKToplam = kvAlt > 0 ? kvAlt : (d.kvYKToplam || 0);
 
   const uvAlt = sum('uvMaliBorclar','uvDigBorclar','uvAlinanAvans','uvBorcKarsilik','uvDigYK') + uvTicEff;

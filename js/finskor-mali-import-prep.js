@@ -1,4 +1,12 @@
 /** NakitFlow — FinSkor mali import ön tanımlar (core.js öncesi) */
+
+/** Tüm KDV tahakkuku / projeksiyon oranı (TDHP’den bağımsız tek oran). */
+const FINSKOR_KDV_ORAN_PCT = 20;
+
+function finskorKdvOraniPct() {
+  return FINSKOR_KDV_ORAN_PCT;
+}
+
 const HESAPLAR = [
   { type: 'cat', label: 'I. DÖNEN VARLIKLAR' },
   { key: 'hazirDegerler', label: '10. Hazır Değerler', isTotal: false },
@@ -8,6 +16,8 @@ const HESAPLAR = [
   { key: 'stoklar', label: '15. Stoklar', isTotal: false },
   { key: 'yilYayginMal', label: '17. Yıllara Yaygın İnşaat Maliyetleri', isTotal: false },
   { key: 'gelecekAyGider', label: '18. Gelecek Aylara Ait Giderler', isTotal: false },
+  { key: 'indirilecekKdv', label: '191. İndirilecek KDV', isTotal: false },
+  { key: 'devredenKdv', label: '190. Devreden KDV', isTotal: false },
   { key: 'digerDonen', label: '19. Diğer Dönen Varlıklar', isTotal: false },
   { key: 'donenVarlik', label: '▶ DÖNEN VARLIK TOPLAMI', isTotal: true },
   { type: 'cat', label: 'II. DURAN VARLIKLAR' },
@@ -30,6 +40,7 @@ const HESAPLAR = [
   { key: 'odenecekVergi', label: '36. Ödenecek Vergi ve Yükümlülükler', isTotal: false },
   { key: 'borcKarsilik', label: '37. Borç ve Gider Karşılıkları', isTotal: false },
   { key: 'gelecekAyGelir', label: '38. Gelecek Aylara Ait Gelirler', isTotal: false },
+  { key: 'hesaplananKdv', label: '391–393 Hesaplanan KDV', isTotal: false },
   { key: 'digerKvYK', label: '39. Diğer KV Yabancı Kaynaklar', isTotal: false },
   { key: 'kvYKToplam', label: '▶ KV YABANCI KAYNAK TOPLAMI', isTotal: true },
   { type: 'cat', label: 'IV. UZUN VADELİ YABANCI KAYNAKLAR' },
@@ -108,6 +119,10 @@ function maliEffectiveDonemNetForOzKaynak(d) {
     }
     return Number(d.donemNetKar) || 0;
   }
+  if (d._mizan590591Eksik) {
+    const g = Number(d.donemNetKarGelir);
+    if (Math.abs(g) >= 1) return g;
+  }
   const bil = Number(d.donemNetKar) || 0;
   if (Math.abs(bil) >= 1) return bil;
   return Number(d.donemNetKarGelir) || 0;
@@ -131,6 +146,9 @@ function maliNormalizeDonemNetForOzkaynak(d, year) {
     }
     return;
   }
+  const hadMizanDonem =
+    d._mizan590591 &&
+    ((pdfDonemNetKar != null && pdfDonemNetKar !== 0) || (pdfDonemKar != null && pdfDonemKar !== 0));
   if (d.brutSatis || d.satMaliyet || d.faalGider) {
     const netSatisYeni = (d.brutSatis || 0) - (d.satisInd || 0);
     if (!d.netSatis || netSatisYeni > 0) d.netSatis = netSatisYeni;
@@ -141,7 +159,7 @@ function maliNormalizeDonemNetForOzkaynak(d, year) {
     if (pdfDonemKar == null || pdfDonemKar === 0) {
       d.donemKar = (d.olagan || 0) + (d.olagandisiGelir || 0) - (d.olagandisiGider || 0);
     }
-    if (pdfDonemNetKar == null || pdfDonemNetKar === 0) {
+    if (!hadMizanDonem && (pdfDonemNetKar == null || pdfDonemNetKar === 0)) {
       d.donemNetKar = (d.donemKar || 0) - (d.vergiKarsilik || 0);
       d.donemNetKarGelir = d.donemNetKar;
     }
@@ -153,6 +171,10 @@ function maliNormalizeDonemNetForOzkaynak(d, year) {
   } else if (pdfDonemKar != null && pdfDonemKar !== 0 && d.vergiKarsilik != null) {
     d.donemNetKar = pdfDonemKar - (d.vergiKarsilik || 0);
     d.donemNetKarGelir = d.donemNetKar;
+  }
+  if (d._mizan590591Eksik) {
+    const g = Number(d.donemNetKarGelir);
+    if (Math.abs(g) >= 1) d.donemNetKar = g;
   }
 }
 
@@ -177,6 +199,31 @@ function finSkorOzKaynakVePasif(d) {
   d.pasifToplam = (Number(d.kvYKToplam) || 0) + (Number(d.uvYKToplam) || 0) + (Number(d.ozKaynak) || 0);
 }
 
+/**
+ * Mizan parse sonrası: öz kaynakta çift yazılmış dönem neti (59 özet + 590 detay vb.) varsa düzelt.
+ * İki/üç haneli özet atlama sonrası kalan küçük farklar için güvenlik ağı.
+ */
+function maliBilancoFarkDuzelt(d, year) {
+  if (!d) return;
+  const y = year || new Date().getFullYear();
+  hesapToplamlarOnObject(d, y);
+  let fark = (Number(d.aktifToplam) || 0) - (Number(d.pasifToplam) || 0);
+  if (Math.abs(fark) < 1) return;
+
+  const dnk = Number(d.donemNetKar) || 0;
+  const dnkG = Number(d.donemNetKarGelir) || Number(d.donemNetKar) || 0;
+
+  if (d._mizan590591 && Math.abs(dnk) >= 1 && Math.abs(Math.abs(fark) - Math.abs(dnk)) < 1000) {
+    d.donemNetKar = dnk + fark;
+    if (dnkG && Math.abs(dnkG - dnk) < 1000) d.donemNetKarGelir = dnkG;
+    else if (dnkG) d.donemNetKarGelir = dnkG;
+    d.donemNetKarBilanco = d.donemNetKar;
+    d._mizanBilancoFarkDuzeltildi = 'donem-net-cift';
+    finSkorOzKaynakVePasif(d);
+    hesapToplamlarOnObject(d, y);
+  }
+}
+
 function hesapToplamlarOnObject(d, year) {
   if (!d) return;
   const y = year || new Date().getFullYear();
@@ -189,6 +236,8 @@ function hesapToplamlarOnObject(d, year) {
     'stoklar',
     'yilYayginMal',
     'gelecekAyGider',
+    'indirilecekKdv',
+    'devredenKdv',
     'digerDonen',
   );
   if (!d.donenVarlik || donenYeni > d.donenVarlik) d.donenVarlik = donenYeni;
@@ -214,6 +263,7 @@ function hesapToplamlarOnObject(d, year) {
       'odenecekVergi',
       'borcKarsilik',
       'gelecekAyGelir',
+      'hesaplananKdv',
       'digerKvYK',
     ) + kvTicEff;
   d.kvYKToplam = kvAlt > 0 ? kvAlt : d.kvYKToplam || 0;

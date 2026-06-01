@@ -10,25 +10,89 @@
     return nkmNum(d.hazirDegerler) + nkmNum(d.menkKiymetler);
   }
 
+  /** 191/192 ayrı satırsa digerDonen içindeki KDV çift sayılmasın */
+  function kdvAssetSplit(d) {
+    const ind = nkmNum(d.indirilecekKdv);
+    const dev = nkmNum(d.devredenKdv);
+    return { ind, dev, sum: ind + dev };
+  }
+
+  function kdvPayableSplit(d) {
+    return nkmNum(d.hesaplananKdv) || nkmNum(d.odenecekKdv);
+  }
+
+  function extractKdvFromBilancoRows(rows) {
+    let ind = 0;
+    let dev = 0;
+    let od = 0;
+    if (!Array.isArray(rows)) return { indirilecekKdv: 0, devredenKdv: 0, hesaplananKdv: 0 };
+    for (const r of rows) {
+      const v = Math.round(nkmNum(r.tutar != null ? r.tutar : r.value));
+      if (!v) continue;
+      const k = String(r.key || '');
+      const lbl = String(r.label || '');
+      if (k === 'indirilecekKdv') ind = ind || v;
+      else if (k === 'devredenKdv') dev = dev || v;
+      else if (k === 'hesaplananKdv') od = od || v;
+      else if (/190|devreden\s*kdv/i.test(lbl) && !/indirilecek/.test(lbl)) dev = dev || v;
+      else if (/191|192|indirilecek|tecil|diger\s*kdv/i.test(lbl) && !/devreden/.test(lbl)) ind = ind || v;
+      else if (/391|hesaplanan\s*kdv|ödenecek\s*kdv/i.test(lbl)) od = od || v;
+    }
+    return { indirilecekKdv: ind, devredenKdv: dev, hesaplananKdv: od };
+  }
+
+  function enrichParsedWithKdv(parsed, meta) {
+    const d = { ...parsed };
+    let ind = nkmNum(d.indirilecekKdv);
+    let dev = nkmNum(d.devredenKdv);
+    let od = kdvPayableSplit(d);
+    const fromRows = extractKdvFromBilancoRows(
+      meta?.bilancoRows || parsed.finskorBilancoRows || meta?.finskorBilancoRows,
+    );
+    if (!ind && fromRows.indirilecekKdv) ind = fromRows.indirilecekKdv;
+    if (!dev && fromRows.devredenKdv) dev = fromRows.devredenKdv;
+    if (!od && fromRows.hesaplananKdv) od = fromRows.hesaplananKdv;
+    if (meta && meta.kaynak === 'finskor') {
+      if (!ind && nkmNum(meta.indirilecekKdv)) ind = Math.round(nkmNum(meta.indirilecekKdv));
+      if (!dev && nkmNum(meta.devredenKdv)) dev = Math.round(nkmNum(meta.devredenKdv));
+      if (!od && nkmNum(meta.hesaplananKdv)) od = Math.round(nkmNum(meta.hesaplananKdv));
+    }
+    if (ind) d.indirilecekKdv = Math.round(ind);
+    if (dev) d.devredenKdv = Math.round(dev);
+    if (od) d.hesaplananKdv = Math.round(od);
+    if (nkmNum(d.digerDonen) > 0 && !d._mizan19KdvAyriSatir) {
+      const kdv = kdvAssetSplit(d);
+      if (kdv.sum > 0) d.digerDonen = Math.max(0, nkmNum(d.digerDonen) - kdv.sum);
+    }
+    if (nkmNum(d.digerKvYK) > 0 && od) {
+      d.digerKvYK = Math.max(0, nkmNum(d.digerKvYK) - Math.round(od));
+    }
+    return d;
+  }
+
   function otherAssetsPlug(d) {
-    return (
+    const kdv = kdvAssetSplit(d);
+    let plug =
       nkmNum(d.digerAlacaklar) +
       nkmNum(d.yilYayginMal) +
       nkmNum(d.gelecekAyGider) +
-      nkmNum(d.digerDonen)
-    );
+      nkmNum(d.digerDonen);
+    if (kdv.sum > 0 && !d._mizan19KdvAyriSatir) plug = Math.max(0, plug - kdv.sum);
+    return plug;
   }
 
   function otherLiabKvPlug(d) {
-    return (
+    const hk = kdvPayableSplit(d);
+    let plug =
       nkmNum(d.kvDigBorclar) +
       nkmNum(d.alinanAvans) +
       nkmNum(d.yilHakediş) +
       nkmNum(d.odenecekVergi) +
       nkmNum(d.borcKarsilik) +
       nkmNum(d.gelecekAyGelir) +
-      nkmNum(d.digerKvYK)
-    );
+      nkmNum(d.digerKvYK);
+    if (hk > 0) plug = Math.max(0, plug - hk);
+    return plug;
   }
 
   function otherLiabUvPlug(d) {
@@ -338,18 +402,22 @@
     return !!(copy && (copy._enflasyonSonrasiBilanco || copy.enflasyonSonrasiBilanco));
   }
 
+  /** Açılış devreden: gelir tablosu dönem neti (590/591 yoksa da aynı). */
+  function mizanDonemNetForOpening(copy) {
+    if (!copy) return 0;
+    const dnkG = Math.round(nkmNum(copy.donemNetKarGelir));
+    if (Math.abs(dnkG) >= 1) return dnkG;
+    if (copy.donemNetKarBilanco != null && copy.donemNetKarBilanco !== '') {
+      return Math.round(nkmNum(copy.donemNetKarBilanco));
+    }
+    return Math.round(nkmNum(copy.donemNetKar));
+  }
+
   function mapRetainedFromMizan(copy) {
     const inf = maliInflationBeyanFromCopy(copy);
     const gk = nkmNum(copy.gecmisKar);
     const gz = nkmNum(copy.gecmisZarar);
-    let priorYearNetKar;
-    if (inf && copy.donemNetKarBilanco != null && copy.donemNetKarBilanco !== '') {
-      priorYearNetKar = Math.round(nkmNum(copy.donemNetKarBilanco));
-    } else if (inf) {
-      priorYearNetKar = Math.round(nkmNum(copy.donemNetKar) || 0);
-    } else {
-      priorYearNetKar = Math.round(nkmNum(copy.donemNetKarGelir) || nkmNum(copy.donemNetKar));
-    }
+    const priorYearNetKar = mizanDonemNetForOpening(copy);
     const priorYearGecmisKar = Math.round(gk - gz);
     const openingRetainedEarnings = priorYearGecmisKar + priorYearNetKar;
     return {
@@ -383,7 +451,7 @@
       hesapToplamlarOnObject(copy, y);
       const likidite = nkmLikiditeToplam(copy);
       const retained = mapRetainedFromMizan(copy);
-      return {
+      const opening = {
         cash: 0,
         bank: likidite,
         ar: nkmNum(copy.ticAlacaklar),
@@ -392,6 +460,10 @@
         mdv: duranToplam(copy) || nkmNum(copy.maddiDuranVar),
         capital: openingCapitalFromMizan(copy, retained),
         openingCapitalExcludesRetained: true,
+        indirilecekKdv: Math.round(nkmNum(copy.indirilecekKdv)),
+        devredenKdv: Math.round(nkmNum(copy.devredenKdv)),
+        hesaplananKdv: Math.round(kdvPayableSplit(copy)),
+        odenecekKdv: Math.round(kdvPayableSplit(copy)),
         otherAssets: otherAssetsPlug(copy),
         otherLiab: otherLiabKvPlug(copy) + otherLiabUvPlug(copy),
         openingOtherLiabKv: otherLiabKvPlug(copy),
@@ -406,6 +478,7 @@
         _parsedYear: y,
         _sourceKeys: copy,
       };
+      return openingAlignToMaliTotals(opening, copy, retained);
     },
 
     mapToIncomeStmt(d, year) {
@@ -483,15 +556,87 @@
       nkmNum(x.ar) +
       nkmNum(x.inventory) +
       nkmNum(x.mdv) +
+      nkmNum(x.indirilecekKdv) +
+      nkmNum(x.devredenKdv) +
       nkmNum(x.otherAssets);
     const pasif =
       nkmNum(x.ap) +
       nkmNum(x.kvMaliBorclar) +
       nkmNum(x.uvMaliBorclar) +
+      nkmNum(x.odenecekKdv) +
       nkmNum(x.capital) +
       nkmNum(x.otherLiab) +
       re;
     return { aktif, pasif, fark: aktif - pasif };
+  }
+
+  /** Kayıtlı mizan snapshot → parse kopyası (mevcut firmayı hizalamak için). */
+  function mizanParsedCopyFromFirm(f) {
+    const snap = f && f.maliParsedSnapshot;
+    if (!snap) return null;
+    const copy = { ...(snap.raw || {}) };
+    for (const row of snap.bilancoRows || []) {
+      if (!row || !row.key || row.type === 'cat' || row.isTotal) continue;
+      copy[row.key] = Number(row.value != null ? row.value : row.tutar) || 0;
+    }
+    if (snap.totals) {
+      copy.aktifToplam = snap.totals.aktifToplam;
+      copy.pasifToplam = snap.totals.pasifToplam;
+    }
+    if (copy.donemNetKarBilanco == null && Math.abs(nkmNum(copy.donemNetKar)) >= 1) {
+      copy.donemNetKarBilanco = copy.donemNetKar;
+    }
+    return copy;
+  }
+
+  /**
+   * Dosya dengeli, açılış kutuları değilse: devreden = bilanço dönem neti + geçmiş; kutu toplamlarını hizala.
+   * @returns {boolean} değişiklik yapıldı mı
+   */
+  window.syncOpeningRetainedToMaliFile = function (f) {
+    if (!f || !f.opening) return false;
+    const snap = f.maliParsedSnapshot;
+    if (!snap || !snap.totals || Math.abs(Number(snap.totals.fark) || 0) >= 1) return false;
+    const copy = mizanParsedCopyFromFirm(f);
+    if (!copy) return false;
+    const retained = mapRetainedFromMizan(copy);
+    const re = Math.round(nkmNum(retained.openingRetainedEarnings));
+    const before = openingFieldsBalance(f.opening, re);
+    if (Math.abs(before.fark) < 1) return false;
+
+    f.opening.priorYearGecmisKar = retained.priorYearGecmisKar;
+    f.opening.priorYearNetKar = retained.priorYearNetKar;
+    f.opening.openingRetainedEarnings = retained.openingRetainedEarnings;
+    openingAlignToMaliTotals(f.opening, copy, retained);
+    const after = openingFieldsBalance(f.opening, re);
+    if (Math.abs(after.fark) >= 1) return false;
+    if (typeof saveState === 'function') saveState();
+    return true;
+  };
+
+  /** Açılış kutuları toplamı = mizan aktif/pasif (küçük yuvarlama / dağıtım farkı → diğer varlık/borç) */
+  function openingAlignToMaliTotals(opening, copy, retained) {
+    if (!opening || !copy) return opening;
+    const ret = retained || mapRetainedFromMizan(copy);
+    opening.priorYearGecmisKar = ret.priorYearGecmisKar;
+    opening.priorYearNetKar = ret.priorYearNetKar;
+    opening.openingRetainedEarnings = ret.openingRetainedEarnings;
+    const re = Math.round(nkmNum(ret.openingRetainedEarnings));
+    const tgtA = Math.round(nkmNum(copy.aktifToplam));
+    const tgtP = Math.round(nkmNum(copy.pasifToplam));
+    if (!tgtA && !tgtP) return opening;
+    let ob = openingFieldsBalance(opening, re);
+    const dA = Math.round(tgtA - ob.aktif);
+    const dP = Math.round(tgtP - ob.pasif);
+    if (Math.abs(dA) >= 1) {
+      opening.otherAssets = Math.round(nkmNum(opening.otherAssets) + dA);
+    }
+    if (Math.abs(dP) >= 1) {
+      opening.openingOtherLiabKv = Math.round(nkmNum(opening.openingOtherLiabKv) + dP);
+      opening.otherLiab =
+        Math.round(nkmNum(opening.openingOtherLiabKv)) + Math.round(nkmNum(opening.openingOtherLiabUv));
+    }
+    return opening;
   }
 
   function buildMaliParsedSnapshot(parsed, year, meta) {
@@ -514,6 +659,19 @@
       if (inGelir) gelirRows.push(item);
       else bilancoRows.push(item);
     }
+    const pushTotalIfMissing = (key, label) => {
+      if (bilancoRows.some((r) => r && r.key === key)) return;
+      const v = Number(copy[key]) || 0;
+      if (!v) return;
+      bilancoRows.push({ key, label, value: v, isTotal: true });
+    };
+    pushTotalIfMissing('donenVarlik', '▶ DÖNEN VARLIK TOPLAMI');
+    pushTotalIfMissing('duranVarlik', '▶ DURAN VARLIK TOPLAMI');
+    pushTotalIfMissing('aktifToplam', '▶▶ AKTİF TOPLAM');
+    pushTotalIfMissing('kvYKToplam', '▶ KV YABANCI KAYNAK TOPLAMI');
+    pushTotalIfMissing('uvYKToplam', '▶ UV YABANCI KAYNAK TOPLAMI');
+    pushTotalIfMissing('ozKaynak', '▶ ÖZ KAYNAK TOPLAMI');
+    pushTotalIfMissing('pasifToplam', '▶▶ PASİF TOPLAM');
     const aktifToplam = copy.aktifToplam || 0;
     const pasifToplam = copy.pasifToplam || 0;
     return {
@@ -530,6 +688,13 @@
         ihracat: Math.round(nkmNum(parsed.ihracat)),
         brutSatis: nkmNum(parsed.brutSatis),
         netSatis: nkmNum(copy.netSatis),
+        donemNetKar: Math.round(nkmNum(copy.donemNetKar)),
+        donemNetKarGelir: Math.round(nkmNum(copy.donemNetKarGelir)),
+        donemNetKarBilanco: Math.round(
+          nkmNum(copy.donemNetKarBilanco != null ? copy.donemNetKarBilanco : copy.donemNetKar),
+        ),
+        gecmisKar: Math.round(nkmNum(copy.gecmisKar)),
+        gecmisZarar: Math.round(nkmNum(copy.gecmisZarar)),
       },
     };
   }
@@ -563,6 +728,8 @@
         src +
         (snap.at ? ' · ' + new Date(snap.at).toLocaleString('tr-TR') : '');
     }
+    if (typeof syncOpeningRetainedToMaliFile === 'function') syncOpeningRetainedToMaliFile(f);
+
     const bar = document.getElementById('opening-mali-balance-bar');
     if (bar && snap.totals) {
       const tf = snap.totals;
@@ -619,6 +786,120 @@
     return inc;
   };
 
+  function refreshFinskorSnapshotKdvRows(f) {
+    const snap = f && f.finskorBilancoSnapshot;
+    if (!snap || !Array.isArray(snap.rows)) return;
+    const o = f.opening || {};
+    for (const row of snap.rows) {
+      if (!row || !row.key) continue;
+      if (row.key === 'indirilecekKdv') row.tutar = Math.round(nkmNum(o.indirilecekKdv));
+      if (row.key === 'devredenKdv') row.tutar = Math.round(nkmNum(o.devredenKdv));
+      if (row.key === 'hesaplananKdv') row.tutar = Math.round(nkmNum(o.odenecekKdv));
+    }
+  }
+
+  /** Projeksiyon / 5Y bilanço öncesi: açılış KDV — mizan, snapshot, kas_autosave. */
+  window.ensureOpeningKdvHydrated = function (f) {
+    if (!f) return false;
+    if (!f.opening) f.opening = {};
+    const o = f.opening;
+    let ind = nkmNum(o.indirilecekKdv);
+    let dev = nkmNum(o.devredenKdv);
+    let od = nkmNum(o.odenecekKdv);
+    const fromSnap = extractKdvFromBilancoRows(f.finskorBilancoSnapshot?.rows);
+    if (!ind) ind = fromSnap.indirilecekKdv;
+    if (!dev) dev = fromSnap.devredenKdv;
+    if (!od) od = fromSnap.hesaplananKdv;
+    if ((!ind && !dev && !od) && f.maliParsedSnapshot?.raw) {
+      const raw = enrichParsedWithKdv(f.maliParsedSnapshot.raw, {
+        bilancoRows: f.maliParsedSnapshot.bilancoRows,
+      });
+      if (!ind) ind = nkmNum(raw.indirilecekKdv);
+      if (!dev) dev = nkmNum(raw.devredenKdv);
+      if (!od) od = kdvPayableSplit(raw);
+    }
+    if (!ind && !dev && !od) {
+      try {
+        const pack = JSON.parse(localStorage.getItem('kas_autosave') || 'null');
+        const year =
+          Number(o.maliKapanisYili) ||
+          (typeof getDefaultMaliYear === 'function' ? getDefaultMaliYear(f) : new Date().getFullYear() - 1);
+        const yd = pack && pack.yearData && pack.yearData[year];
+        if (yd) {
+          const e = enrichParsedWithKdv(yd, {
+            bilancoRows: f.finskorBilancoSnapshot?.rows,
+            year,
+          });
+          if (!ind) ind = nkmNum(e.indirilecekKdv);
+          if (!dev) dev = nkmNum(e.devredenKdv);
+          if (!od) od = kdvPayableSplit(e);
+        }
+      } catch {
+        /* */
+      }
+    }
+    if (!ind && !dev && !od) return false;
+    let ch = false;
+    if (ind !== nkmNum(o.indirilecekKdv)) {
+      o.indirilecekKdv = Math.round(ind);
+      ch = true;
+    }
+    if (dev !== nkmNum(o.devredenKdv)) {
+      o.devredenKdv = Math.round(dev);
+      ch = true;
+    }
+    if (od !== nkmNum(o.odenecekKdv)) {
+      o.odenecekKdv = Math.round(od);
+      ch = true;
+    }
+    refreshFinskorSnapshotKdvRows(f);
+    if (ch) {
+      if (f.maliParsedSnapshot?.raw && typeof FinSkorMaliImport?.mapToOpening === 'function') {
+        const y =
+          o.maliKapanisYili || (typeof getDefaultMaliYear === 'function' ? getDefaultMaliYear(f) : null);
+        const plug = FinSkorMaliImport.mapToOpening(
+          enrichParsedWithKdv(f.maliParsedSnapshot.raw, {
+            bilancoRows: f.maliParsedSnapshot.bilancoRows || f.finskorBilancoSnapshot?.rows,
+          }),
+          y,
+        );
+        if (plug.otherAssets != null) o.otherAssets = plug.otherAssets;
+        if (plug.otherLiab != null) o.otherLiab = plug.otherLiab;
+        if (plug.openingOtherLiabKv != null) o.openingOtherLiabKv = plug.openingOtherLiabKv;
+        if (plug.openingOtherLiabUv != null) o.openingOtherLiabUv = plug.openingOtherLiabUv;
+      }
+    }
+    return ch;
+  };
+
+  window.syncOpeningKdvFromFirm = function (f) {
+    if (!f || !f.opening) return false;
+    const o = f.opening;
+    if (nkmNum(o.indirilecekKdv) || nkmNum(o.devredenKdv) || nkmNum(o.odenecekKdv)) return false;
+    const snap = f.maliParsedSnapshot;
+    const raw = snap && snap.raw ? snap.raw : null;
+    const rows = snap && snap.bilancoRows ? snap.bilancoRows : f.finskorBilancoSnapshot?.rows;
+    const src = raw ? enrichParsedWithKdv(raw, { bilancoRows: rows }) : null;
+    const kdv = src
+      ? {
+          indirilecekKdv: nkmNum(src.indirilecekKdv),
+          devredenKdv: nkmNum(src.devredenKdv),
+          hesaplananKdv: kdvPayableSplit(src),
+        }
+      : extractKdvFromBilancoRows(rows);
+    if (!kdv.indirilecekKdv && !kdv.devredenKdv && !kdv.hesaplananKdv) return false;
+    if (kdv.indirilecekKdv) o.indirilecekKdv = Math.round(kdv.indirilecekKdv);
+    if (kdv.devredenKdv) o.devredenKdv = Math.round(kdv.devredenKdv);
+    if (kdv.hesaplananKdv) o.odenecekKdv = Math.round(kdv.hesaplananKdv);
+    return true;
+  };
+
+  window.refreshNakitProjectionViews = function () {
+    if (typeof renderProjection === 'function') renderProjection();
+    if (typeof renderBalance5Y === 'function') renderBalance5Y();
+    if (typeof renderIncome5Y === 'function') renderIncome5Y();
+  };
+
   window.applyParsedToOpeningBalance = async function (parsed, meta) {
     const f = typeof curFirm === 'function' ? curFirm() : null;
     if (!f) {
@@ -626,6 +907,7 @@
       return;
     }
     const year = meta?.year || getDefaultMaliYear(f);
+    parsed = enrichParsedWithKdv(parsed, meta);
     const opening = FinSkorMaliImport.mapToOpening(parsed, year);
     if (!f.opening) f.opening = {};
     Object.assign(f.opening, {
@@ -636,6 +918,10 @@
       inventory: opening.inventory,
       mdv: opening.mdv,
       capital: opening.capital,
+      indirilecekKdv: opening.indirilecekKdv,
+      devredenKdv: opening.devredenKdv,
+      hesaplananKdv: opening.hesaplananKdv,
+      odenecekKdv: opening.odenecekKdv,
       otherAssets: opening.otherAssets,
       otherLiab: opening.otherLiab,
       openingOtherLiabKv: opening.openingOtherLiabKv,
@@ -659,9 +945,15 @@
         'info',
       );
     }
+    if (opening.indirilecekKdv || opening.devredenKdv || opening.odenecekKdv) {
+      importLog(
+        `🧾 KDV açılış (TDHP): 191 indirilecek <b>${(opening.indirilecekKdv || 0).toLocaleString('tr-TR')}</b> · 190 devreden <b>${(opening.devredenKdv || 0).toLocaleString('tr-TR')}</b> · 391 hesaplanan/ödenecek <b>${(opening.odenecekKdv || 0).toLocaleString('tr-TR')}</b> TL`,
+        'ok',
+      );
+    }
     if (opening.openingRetainedEarnings) {
       importLog(
-        `📒 ${year} kapanış → ${year + 1} devreden: geçmiş <b>${(opening.priorYearGecmisKar || 0).toLocaleString('tr-TR')}</b> + dönem net <b>${(opening.priorYearNetKar || 0).toLocaleString('tr-TR')}</b> = <b>${opening.openingRetainedEarnings.toLocaleString('tr-TR')}</b> TL`,
+        `📒 ${year} kapanış → ${year + 1} devreden: geçmiş <b>${(opening.priorYearGecmisKar || 0).toLocaleString('tr-TR')}</b> + dönem net <b>${(opening.priorYearNetKar || 0).toLocaleString('tr-TR')}</b> TL = <b>${opening.openingRetainedEarnings.toLocaleString('tr-TR')}</b> TL`,
         'ok',
       );
     } else if (opening.priorYearNetKar) {
@@ -729,6 +1021,17 @@
       hasYurtdisiSatis: !!(f.maliIhracat && f.maliIhracat.hasYurtdisiSatis),
     };
     f.maliParsedSnapshot = buildMaliParsedSnapshot(parsed, year, meta);
+    if (f.maliParsedSnapshot?.bilancoRows?.length) {
+      f.finskorBilancoSnapshot = {
+        yil: year,
+        rows: f.maliParsedSnapshot.bilancoRows.map((r) => ({
+          key: r.key,
+          label: r.label,
+          tutar: Number(r.value != null ? r.value : r.tutar) || 0,
+          isTotal: !!r.isTotal,
+        })),
+      };
+    }
     if (f.maliParsedSnapshot?.totals) {
       const t = f.maliParsedSnapshot.totals;
       importLog(
@@ -736,6 +1039,7 @@
         Math.abs(t.fark) < 1 ? 'ok' : 'warn',
       );
     }
+    if (typeof syncOpeningRetainedToMaliFile === 'function') syncOpeningRetainedToMaliFile(f);
     if (typeof renderOpeningMaliPreview === 'function') renderOpeningMaliPreview();
     if (typeof populateOpening === 'function') populateOpening();
     try {
@@ -765,6 +1069,7 @@
       if (typeof populateAssumptions === 'function') populateAssumptions();
       if (typeof populateFx === 'function') populateFx();
       if (typeof updateTcmbAutofillUi === 'function') updateTcmbAutofillUi();
+      if (typeof refreshNakitProjectionViews === 'function') refreshNakitProjectionViews();
     }
     const src =
       meta?.source === 'finskor'
@@ -774,7 +1079,11 @@
       inc && inc.revenue
         ? ` Referans gelir: ${inc.revenue.toLocaleString('tr-TR')} TL.`
         : '';
-    showAlert(`Açılış + gelir güncellendi — ${src}.${gelirNote} Alanları düzenleyebilirsiniz.`, 'ok');
+    if (!meta?.silent) {
+      showAlert(`Açılış + gelir güncellendi — ${src}.${gelirNote} Alanları düzenleyebilirsiniz.`, 'ok');
+    } else {
+      importLog(`✅ Otomatik aktarım: ${src}.${gelirNote}`, 'ok');
+    }
   };
 
   window.handleOpeningMaliFile = async function (ev) {
@@ -801,6 +1110,85 @@
     }
   };
 
+  window.syncKdvOnlyFromFinSkor = async function (f) {
+    if (!f || !f.opening) return false;
+    const o = f.opening;
+    if (nkmNum(o.indirilecekKdv) || nkmNum(o.devredenKdv) || nkmNum(o.odenecekKdv)) return false;
+    if (typeof syncOpeningKdvFromFirm === 'function' && syncOpeningKdvFromFirm(f)) {
+      if (typeof saveState === 'function') await saveState();
+      if (state.currentFirmId === f.id && typeof populateOpening === 'function') populateOpening();
+      if (typeof refreshNakitProjectionViews === 'function') refreshNakitProjectionViews();
+      return true;
+    }
+    const raw = localStorage.getItem('kas_autosave');
+    if (!raw) return false;
+    let pack;
+    try {
+      pack = JSON.parse(raw);
+    } catch {
+      return false;
+    }
+    const year = getDefaultMaliYear(f);
+    const yd = pack.yearData && pack.yearData[year];
+    if (!yd) return false;
+    const enriched = enrichParsedWithKdv({ ...yd }, {
+      bilancoRows: f.finskorBilancoSnapshot?.rows,
+      year,
+    });
+    const ind = Math.round(nkmNum(enriched.indirilecekKdv));
+    const dev = Math.round(nkmNum(enriched.devredenKdv));
+    const od = Math.round(kdvPayableSplit(enriched));
+    if (!ind && !dev && !od) return false;
+    if (ind) o.indirilecekKdv = ind;
+    if (dev) o.devredenKdv = dev;
+    if (od) o.odenecekKdv = od;
+    const plug = FinSkorMaliImport.mapToOpening(enriched, year);
+    if (plug.otherAssets != null) o.otherAssets = plug.otherAssets;
+    if (plug.otherLiab != null) o.otherLiab = plug.otherLiab;
+    importLog(
+      `🧾 KDV otomatik: 191 <b>${ind.toLocaleString('tr-TR')}</b> · 192 <b>${dev.toLocaleString('tr-TR')}</b> · 391 <b>${od.toLocaleString('tr-TR')}</b> TL`,
+      'ok',
+    );
+    if (typeof saveState === 'function') await saveState();
+    if (state.currentFirmId === f.id && typeof populateOpening === 'function') populateOpening();
+    if (typeof refreshNakitProjectionViews === 'function') refreshNakitProjectionViews();
+    return true;
+  };
+
+  window.autoPullOpeningFromFinSkorIfEmpty = async function (f) {
+    if (!f) return;
+    if (f.openingMaliMeta?.at) return;
+    const o = f.opening || {};
+    if (
+      nkmNum(o.bank) ||
+      nkmNum(o.ar) ||
+      nkmNum(o.indirilecekKdv) ||
+      nkmNum(o.devredenKdv) ||
+      nkmNum(o.odenecekKdv)
+    ) {
+      return;
+    }
+    if (localStorage.getItem('nakit_akis_finskor_data')) return;
+    const raw = localStorage.getItem('kas_autosave');
+    if (!raw) return;
+    let pack;
+    try {
+      pack = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    const year = getDefaultMaliYear(f);
+    const yd = pack.yearData && pack.yearData[year];
+    if (!yd || !Object.entries(yd).some(([k, v]) => !k.startsWith('_') && v && v !== 0)) return;
+    await applyParsedToOpeningBalance(enrichParsedWithKdv({ ...yd }, { bilancoRows: f.finskorBilancoSnapshot?.rows, year }), {
+      source: 'finskor',
+      format: 'FinSkor otomatik senkron',
+      year,
+      bilancoRows: f.finskorBilancoSnapshot?.rows,
+      silent: true,
+    });
+  };
+
   window.pullOpeningFromFinSkor = function () {
     const f = typeof curFirm === 'function' ? curFirm() : null;
     if (!f) {
@@ -813,26 +1201,58 @@
       try {
         const p = JSON.parse(pending);
         if (p && p.kaynak === 'finskor') {
-          const d = {
-            hazirDegerler: p.kasaBanka,
-            menkKiymetler: p.menkKiymetler || 0,
-            ticAlacaklar: p.ticariAlacaklar,
-            stoklar: p.stoklar,
-            kvTicBorclar: p.kvTicariBorclar,
-            kvMaliBorclar: p.kvMaliBorclar,
-            uvMaliBorclar: p.uvMaliBorclar,
-            netSatis: p.netSatis,
-            satMaliyet: p.satMaliyet,
-            faalGider: p.faalGider,
-            brutSatis: p.brutSatis,
-            satisInd: p.satisInd,
-            ozKaynak: p.ozKaynak,
-            maddiDuranVar: p.maddiDuranVar,
-            duranVarlikToplami: p.duranVarlikToplami,
-            otherAssets: p.otherAssets,
-          };
-          applyParsedToOpeningBalance(d, { source: 'finskor', format: 'Nakit aktarım bekleyen', year: p.veriYili });
-          importLog('ℹ️ FinSkor NakitFlow aktarım verisi kullanıldı (tam firma aktarımı için sayfayı yenileyin).', 'info');
+          const d = enrichParsedWithKdv(
+            {
+              hazirDegerler: p.kasaBanka,
+              menkKiymetler: p.menkKiymetler || 0,
+              ticAlacaklar: p.ticariAlacaklar,
+              stoklar: p.stoklar,
+              kvTicBorclar: p.kvTicariBorclar,
+              kvMaliBorclar: p.kvMaliBorclar,
+              uvMaliBorclar: p.uvMaliBorclar,
+              netSatis: p.netSatis,
+              satMaliyet: p.satMaliyet,
+              faalGider: p.faalGider,
+              brutSatis: p.brutSatis,
+              satisInd: p.satisInd,
+              ozKaynak: p.ozKaynak,
+              odenmisSermaye: p.odenmisSermaye,
+              sermaYedek: p.sermaYedek,
+              karYedek: p.karYedek,
+              gecmisKar: p.gecmisKar,
+              gecmisZarar: p.gecmisZarar,
+              donemNetKar: p.donemNetKar,
+              donemNetKarGelir: p.donemNetKar,
+              maddiDuranVar: p.maddiDuranVar,
+              duranVarlikToplami: p.duranVarlikToplami,
+              digerAlacaklar: p.digerAlacaklar,
+              yilYayginMal: p.yilYayginMal,
+              gelecekAyGider: p.gelecekAyGider,
+              digerDonen: p.digerDonen,
+              kvDigBorclar: p.kvDigBorclar,
+              alinanAvans: p.alinanAvans,
+              yilHakediş: p.yilHakediş,
+              odenecekVergi: p.odenecekVergi,
+              borcKarsilik: p.borcKarsilik,
+              gelecekAyGelir: p.gelecekAyGelir,
+              digerKvYK: p.digerKvYK,
+              uvDigBorclar: p.uvDigBorclar,
+              uvAlinanAvans: p.uvAlinanAvans,
+              uvBorcKarsilik: p.uvBorcKarsilik,
+              uvDigYK: p.uvDigYK,
+              indirilecekKdv: p.indirilecekKdv,
+              devredenKdv: p.devredenKdv,
+              hesaplananKdv: p.hesaplananKdv,
+              finskorBilancoRows: p.finskorBilancoRows,
+            },
+            { ...p, bilancoRows: p.finskorBilancoRows, year: p.veriYili },
+          );
+          applyParsedToOpeningBalance(d, {
+            source: 'finskor',
+            format: 'FinSkor Nakit aktarım',
+            year: p.veriYili,
+            bilancoRows: p.finskorBilancoRows,
+          });
           return;
         }
       } catch {
@@ -865,7 +1285,13 @@
     }
     importLog(`FinSkor kas_autosave → ${year} yılı`, 'ok');
     if (pack.firmaAdi) importLog(`Firma: ${pack.firmaAdi}`, 'info');
-    applyParsedToOpeningBalance({ ...yd }, { source: 'finskor', format: 'FinSkor otomatik kayıt', year });
+    const rows = f.finskorBilancoSnapshot?.rows;
+    applyParsedToOpeningBalance(enrichParsedWithKdv({ ...yd }, { bilancoRows: rows, year }), {
+      source: 'finskor',
+      format: 'FinSkor otomatik kayıt',
+      year,
+      bilancoRows: rows,
+    });
   };
 
   document.addEventListener('DOMContentLoaded', function () {

@@ -56,8 +56,9 @@ const KOD_TO_KEY = {
   178:'yilYayginMal', 179:'yilYayginMal',
   // GELECEK AY GİDERLER
   180:'gelecekAyGider', 181:'gelecekAyGider',
-  // DİĞER DÖNEN VARLIKLAR
-  190:'digerDonen', 191:'digerDonen', 192:'digerDonen',
+  // KDV (TDHP: 191 indirilecek, 190 devreden, 192 diğer/tecil → indirilecek)
+  190:'devredenKdv', 191:'indirilecekKdv', 192:'indirilecekKdv',
+  // DİĞER DÖNEN VARLIKLAR (190–192 KDV ayrı satırda)
   193:'digerDonen', 195:'digerDonen', 196:'digerDonen',
   197:'digerDonen', 198:'digerDonen', 199:'digerDonen',
   // UZUN TİCARİ ALACAKLAR
@@ -114,8 +115,9 @@ const KOD_TO_KEY = {
   373:'borcKarsilik', 379:'borcKarsilik',
   // GELECEK AY GELİR
   380:'gelecekAyGelir', 381:'gelecekAyGelir',
+  // HESAPLANAN KDV (391–393 ayrı; 360 ödenecek vergi karışık kalır)
+  391:'hesaplananKdv', 392:'hesaplananKdv', 393:'hesaplananKdv',
   // DİĞER KV
-  391:'digerKvYK', 392:'digerKvYK', 393:'digerKvYK',
   397:'digerKvYK', 399:'digerKvYK',
   // UV MALİ BORÇLAR
   400:'uvMaliBorclar', 401:'uvMaliBorclar', 402:'uvMaliBorclar',
@@ -302,10 +304,10 @@ function pdfMizanStokAnaSatirMi(lineTrim) {
 }
 
 /** 19 Diğer dönen — KOD_TO_KEY (194 yok); çift toplam: ana + 192.01 / 192 01 ikisi birden */
-const PDF_MIZAN_DIGER_DONEN_OZET_KOD = new Set([190, 191, 192, 193, 195, 196, 197, 198, 199]);
+const PDF_MIZAN_DIGER_DONEN_OZET_KOD = new Set([193, 195, 196, 197, 198, 199]);
 
 function pdfMizanDigerDonenAnaSatirMi(lineTrim) {
-  return /^(190|191|192|193|195|196|197|198|199)\s+[A-Za-zÇĞİÖŞÜçğıöşü]/.test(String(lineTrim).trim());
+  return /^(193|195|196|197|198|199)\s+[A-Za-zÇĞİÖŞÜçğıöşü]/.test(String(lineTrim).trim());
 }
 
 /** 25–29 duran (KOD_TO_KEY) — grup 24 (240–249) dahil değil; dönen 100–199’a dokunulmaz */
@@ -639,6 +641,37 @@ function normTR(s) {
     .replace(/̇/g,'');       // combining dot kaldır
 }
 
+/** Mizan satırında hesap adı (kod sütununun yanı). */
+function mizanRowHesapAdi(row, colKod) {
+  if (colKod < 0 || !row) return '';
+  for (let c = colKod + 1; c < Math.min(colKod + 5, row.length); c++) {
+    const v = String(row[c] ?? '').trim();
+    if (!v) continue;
+    if (/^\d+([.,]\d+)?$/.test(v.replace(/\s/g, ''))) continue;
+    if (/^[\d.,\s]+$/.test(v) && v.length < 24) continue;
+    return v;
+  }
+  return '';
+}
+
+/**
+ * Logo / Mikro vb.: 190 = Devreden KDV, 192 = Diğer/Tecil KDV (TDHP 191/192’den farklı olabilir).
+ */
+function mizanKdvKeyFromKodLabel(kod, labelRaw) {
+  const lab = normTR(String(labelRaw || ''));
+  if (kod === 190) {
+    if (/devreden|tecil edilmeyen/.test(lab) && /kdv|katma deger vergisi|vergi/.test(lab)) return 'devredenKdv';
+    if (/kdv|katma deger vergisi/.test(lab)) return 'devredenKdv';
+  }
+  if (kod === 191) return 'indirilecekKdv';
+  if (kod === 192) {
+    if (/devreden/.test(lab)) return 'devredenKdv';
+    if (/tecil|diger\s*kdv|diğer\s*kdv|diger kdv|indirilecek/.test(lab)) return 'indirilecekKdv';
+    return 'indirilecekKdv';
+  }
+  return null;
+}
+
 /** Excel mizan A sütunu: 100, 100.01, 100-01 → { kod, isAna } */
 function parseMizanHesapKodu(raw) {
   if (raw === null || raw === undefined) return null;
@@ -680,6 +713,50 @@ function mizanKatkiFromBakiye(kod, borcBak, alacBak, borcTutar, alacTutar) {
 function mizanKod2Temsil3(kod2, bb, ab) {
   if (kod2 === 59) return bb > ab ? 591 : 590;
   return kod2 * 10;
+}
+
+/** Mizanda üç haneli detay var mı — iki haneli özet satırla çift sayımı önlemek için */
+function mizanScanUcHanePresence(rows, startRow, colKodList) {
+  const uc = {
+    has1xx: false,
+    has2xx: false,
+    has3xx: false,
+    has4xx: false,
+    has5xx: false,
+    has6xx: false,
+    has19xxAna: false,
+  };
+  for (let r = startRow; r < rows.length; r++) {
+    const row = rows[r] || [];
+    for (const c of colKodList) {
+      const parsed = parseMizanHesapKodu(row[c]);
+      if (!parsed) continue;
+      const k = parsed.kod;
+      if (k >= 100 && k <= 199) {
+        uc.has1xx = true;
+        if (parsed.isAna && k >= 190 && k <= 199) uc.has19xxAna = true;
+      } else if (k >= 200 && k <= 299) uc.has2xx = true;
+      else if (k >= 300 && k <= 399) uc.has3xx = true;
+      else if (k >= 400 && k <= 499) uc.has4xx = true;
+      else if (k >= 500 && k <= 599) uc.has5xx = true;
+      else if (k >= 600 && k <= 699) uc.has6xx = true;
+    }
+  }
+  return uc;
+}
+
+/** İki haneli özet + üç haneli detay birlikteyse özet atlanır (Karimex vb. mizanlar) */
+function mizanSkipIkiHaneOzet(kod2, uc) {
+  if (!uc || kod2 == null) return false;
+  if (kod2 === 50) return true;
+  if (kod2 >= 10 && kod2 <= 18 && uc.has1xx) return true;
+  if (kod2 === 19 && (uc.has19xxAna || uc.has1xx)) return true;
+  if (kod2 >= 22 && kod2 <= 29 && uc.has2xx) return true;
+  if (kod2 >= 30 && kod2 <= 39 && uc.has3xx) return true;
+  if (kod2 >= 40 && kod2 <= 49 && uc.has4xx) return true;
+  if (kod2 >= 52 && kod2 <= 59 && uc.has5xx) return true;
+  if (kod2 >= 60 && kod2 <= 69 && uc.has6xx) return true;
+  return false;
 }
 
 // Mizan satırlarını işle: hesap kodu tara, key'e topla
@@ -740,6 +817,8 @@ function mizanRowlariIsle(rows) {
   const startRow = headerRow >= 0 ? headerRow + 1 : 0;
   const colKodList = colKod >= 0 ? [colKod] : [0, 1, 2];
 
+  const ucHane = mizanScanUcHanePresence(rows, startRow, colKodList);
+
   // ── KURAL ────────────────────────────────────────────────────────
   // AKTİF (100-299):
   //   Borç Bakiye sütununu kullan.
@@ -783,10 +862,7 @@ function mizanRowlariIsle(rows) {
       if (typeof raw === 'number' && raw >= 10 && raw <= 99 && Math.floor(raw) === raw) { kod2 = Math.floor(raw); break; }
     }
     if (kod2 === null) continue;
-    // 50 kodunu iki haneli aşamada atla:
-    // 500=odenmisSermaye, 502+=sermaYedek ayrışması gerekiyor
-    // Üç haneli aşamada KOD_TO_KEY ile doğru key'lere dağıtılır
-    if (kod2 === 50) continue;
+    if (mizanSkipIkiHaneOzet(kod2, ucHane)) continue;
     const key2 = KOD_TO_KEY_2 && KOD_TO_KEY_2[kod2];
     if (!key2) continue;
 
@@ -830,6 +906,7 @@ function mizanRowlariIsle(rows) {
     }
     if (!parsed) continue;
     const { kod, isAna } = parsed;
+    const hesapAdi = mizanRowHesapAdi(row, colKod);
 
     const borcTutar = colBorc >= 0 ? (parseImportNumber(row[colBorc]) ?? 0) : 0;
     const alacTutar = colAlac >= 0 ? (parseImportNumber(row[colAlac]) ?? 0) : 0;
@@ -841,15 +918,19 @@ function mizanRowlariIsle(rows) {
 
     let slot = ucHaneli.get(kod);
     if (!slot) {
-      slot = { ana: null, altSum: 0 };
+      slot = { ana: null, altSum: 0, label: '' };
       ucHaneli.set(kod, slot);
     }
-    if (isAna) slot.ana = (slot.ana || 0) + katki;
-    else slot.altSum += katki;
+    if (isAna) {
+      slot.ana = (slot.ana || 0) + katki;
+      if (hesapAdi) slot.label = hesapAdi;
+    } else slot.altSum += katki;
   }
 
   for (const [kod, slot] of ucHaneli) {
-    const key = KOD_TO_KEY[kod];
+    let key = KOD_TO_KEY[kod];
+    const kdvKey = mizanKdvKeyFromKodLabel(kod, slot.label || '');
+    if (kdvKey) key = kdvKey;
     if (!key) continue;
     if (ikiHaneliOkundu.has(key)) continue;
 
@@ -862,6 +943,7 @@ function mizanRowlariIsle(rows) {
     }
     result[key] = (result[key] || 0) + (key === 'gecmisZarar' ? Math.abs(katki) : katki);
     if (kod === 601) result['ihracat'] = (result['ihracat'] || 0) + Math.abs(katki);
+    if (kod === 190 || kod === 191 || kod === 192) result._mizan19KdvAyriSatir = true;
   }
 
   const n = Object.keys(result).filter(k => result[k] !== 0).length;
@@ -875,7 +957,25 @@ function mizanRowlariIsle(rows) {
     result._mizan590591 = true;
   }
   importLog(`✅ ${n} kalem eşleştirildi`, n > 0 ? 'ok' : 'warn');
+  mizanNetDigerDonenFromKdv(result);
+  if (typeof maliBilancoFarkDuzelt === 'function' && importState.year) {
+    maliBilancoFarkDuzelt(result, importState.year);
+  }
   return result;
+}
+
+/** 19 grubu: KDV 190–192 ayrı satırdaysa 193–199 (peşin vergi, personel avans vb.) silinmez */
+function mizanNetDigerDonenFromKdv(result) {
+  if (!result) return;
+  const diger = Number(result.digerDonen) || 0;
+  if (!diger) return;
+  if (result._mizan19KdvAyriSatir) return;
+  const kdv = (Number(result.indirilecekKdv) || 0) + (Number(result.devredenKdv) || 0);
+  if (kdv > 0) result.digerDonen = Math.max(0, diger - kdv);
+  const hk = Number(result.hesaplananKdv) || 0;
+  if (hk > 0 && result.digerKvYK) {
+    result.digerKvYK = Math.max(0, Number(result.digerKvYK) - hk);
+  }
 }
 
 
@@ -892,6 +992,9 @@ const BEYAN_GRUP_MAP = [
   // "Gelirler ve Gider" (KV pasif H.) önce — geniş /gider/ yoksa dönen G. satırı KV ile karışır
   [/gelecek ay.*gelirler.*ve.*gider/,      'gelecekAyGelir'],
   [/gelecek ay.*giderler.*ve.*gelir/,      'gelecekAyGider'],
+  [/indirilecek kdv/,                      'indirilecekKdv'],
+  [/devreden kdv/,                         'devredenKdv'],
+  [/hesaplanan kdv/,                       'hesaplananKdv'],
   [/diger donen/,                          'digerDonen'],
   // AKTİF DURAN
   [/maddi duran varlik/,                   'maddiDuranVar'],
@@ -1459,7 +1562,9 @@ function mizanTextIsleMizanKoordinat(structuredLines, result, silent) {
     const m = trimmed.match(/^([1-6]\d{2})(?:[.\-]\d+)?\s+\S/);
     if (!m) continue;
     const rawKod = parseInt(m[1], 10);
-    const key = KOD_TO_KEY[rawKod];
+    let key = KOD_TO_KEY[rawKod];
+    const kdvKey = mizanKdvKeyFromKodLabel(rawKod, trimmed);
+    if (kdvKey) key = kdvKey;
     if (!key) continue;
 
     if (key === 'hazirDegerler' && PDF_MIZAN_HAZIR_OZET_KOD.has(rawKod) && !pdfMizanHazirAnaSatirMi(trimmed)) continue;
@@ -1653,7 +1758,9 @@ function mizanTextIsleMizan(lines, result, silent) {
     const rawKod = parseInt(kodMatch[1], 10);
     if (rawKod < 100) continue;
 
-    const key = KOD_TO_KEY[rawKod];
+    let key = KOD_TO_KEY[rawKod];
+    const kdvKey = mizanKdvKeyFromKodLabel(rawKod, line);
+    if (kdvKey) key = kdvKey;
     if (!key) continue;
     const kod = rawKod;
 
@@ -1770,7 +1877,15 @@ function finalizeImport(data) {
     const a = probe.aktifToplam || 0;
     const p = probe.pasifToplam || 0;
     const fark = a - p;
-    if (Math.abs(fark) >= 1) {
+    if (probe._mizan590591Eksik && Math.abs(fark) >= 1) {
+      const gelir = probe.donemNetKarGelir || probe.donemNetKar || 0;
+      importLog(
+        `ℹ️ Mizanda 590/591 yok — bilanço dönem neti gelir tablosu ile aynı: <b>${Number(gelir).toLocaleString('tr-TR')}</b> TL` +
+          ` · Aktif−Pasif farkı <b>${fark.toLocaleString('tr-TR')}</b> TL (mizan kapanış satırı eksik)`,
+        'warn',
+      );
+    }
+    if (Math.abs(fark) >= 1 && !probe._mizan590591Eksik) {
       const dnk = probe.donemNetKar || probe.donemNetKarGelir || 0;
       const gelirKapanis =
         !probe._enflasyonSonrasiBilanco &&
@@ -1786,7 +1901,7 @@ function finalizeImport(data) {
               : ''),
         Math.abs(fark) < 1000 ? 'ok' : 'warn',
       );
-    } else {
+    } else if (Math.abs(fark) < 1) {
       importLog(`⚖️ Bilanço dengesi: Aktif = Pasif (<b>${a.toLocaleString('tr-TR')}</b> TL)`, 'ok');
     }
   }
