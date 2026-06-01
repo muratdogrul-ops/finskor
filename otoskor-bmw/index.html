@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OtoSkor — BMW 1 & 2 Serisi Arama</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="brand">
+        <svg class="brand-ring" viewBox="0 0 48 48" aria-hidden="true">
+          <circle cx="24" cy="24" r="22" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M24 8v32M8 24h32" stroke="currentColor" stroke-width="1.5" opacity=".35"/>
+        </svg>
+        <div>
+          <h1 class="logo">OTOSKOR</h1>
+          <p class="tagline">BMW akıllı ilan arama</p>
+        </div>
+      </div>
+      <div class="header-meta" id="apiStatus">
+        <span class="status-dot"></span>
+        <span class="status-text">Bağlantı kontrol ediliyor…</span>
+      </div>
+    </header>
+
+    <nav class="series-tabs" role="tablist" aria-label="BMW serileri">
+      <button type="button" class="tab active" role="tab" aria-selected="true" data-series="1">
+        1 Serisi
+      </button>
+      <button type="button" class="tab" role="tab" aria-selected="false" data-series="2">
+        2 Serisi
+      </button>
+      <button type="button" class="tab" role="tab" aria-selected="false" data-series="all">
+        1 + 2 Serisi
+      </button>
+      <button type="button" class="tab disabled" role="tab" aria-selected="false" disabled>
+        3 Serisi <span class="badge-soon">Yakında</span>
+      </button>
+      <button type="button" class="tab disabled" role="tab" aria-selected="false" disabled>
+        X1 <span class="badge-soon">Yakında</span>
+      </button>
+      <button type="button" class="tab disabled" role="tab" aria-selected="false" disabled>
+        X3 <span class="badge-soon">Yakında</span>
+      </button>
+    </nav>
+
+    <section class="search-panel">
+      <h2 class="panel-title">Arama kriterleri</h2>
+      <form id="searchForm" class="filters">
+        <label class="field">
+          <span>Model yılı (2012–2025)</span>
+          <select id="year" name="year" required></select>
+        </label>
+        <label class="field">
+          <span>Donanım türü (Tümü = tüm modeller)</span>
+          <select id="trim" name="trim" required></select>
+        </label>
+        <label class="field">
+          <span>Maks. kilometre</span>
+          <select id="kmMax" name="kmMax">
+            <option value="" selected>Fark etmez</option>
+            <option value="30000">30.000 km</option>
+            <option value="50000">50.000 km</option>
+            <option value="80000">80.000 km</option>
+            <option value="120000">120.000 km</option>
+            <option value="150000">150.000 km</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Maks. fiyat (TL)</span>
+          <select id="priceMax" name="priceMax">
+            <option value="" selected>Fark etmez</option>
+            <option value="1500000">1.500.000</option>
+            <option value="1800000">1.800.000</option>
+            <option value="2200000">2.200.000</option>
+            <option value="2800000">2.800.000</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Hasar / tramer</span>
+          <select id="damageFilter" name="damageFilter">
+            <option value="all" selected>Tümü</option>
+            <option value="clean">Tramersiz / temiz öncelik</option>
+            <option value="unknown">Belirsiz de olur</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Şehir</span>
+          <select id="city" name="city" required>
+            <option value="Samsun" selected>Samsun</option>
+            <option value="İstanbul">İstanbul</option>
+            <option value="Ankara">Ankara</option>
+            <option value="İzmir">İzmir</option>
+            <option value="Bursa">Bursa</option>
+            <option value="Antalya">Antalya</option>
+            <option value="Trabzon">Trabzon</option>
+            <option value="Adana">Adana</option>
+            <option value="Kocaeli">Kocaeli</option>
+          </select>
+        </label>
+        <button type="submit" class="btn-search" id="btnSearch">
+          <span class="btn-label">ARA</span>
+          <span class="btn-glow" aria-hidden="true"></span>
+        </button>
+      </form>
+      <p class="search-hint" id="searchHint">Motor ve donanım seçiminize uygun ilanlar listelenir. Kaynaklar: <strong>Arabam</strong>, <strong>Otokoç</strong>, <strong>Borusan Next</strong>, <strong>Sahibinden</strong>.</p>
+    </section>
+
+    <section class="main-metrics" id="mainMetrics" aria-label="Seçili km ve fiyat">
+      <div class="metric-card metric-km">
+        <span class="metric-label">Maks. KM</span>
+        <span class="metric-big" id="metricKmDisplay">80.000 km</span>
+      </div>
+      <div class="metric-card metric-price">
+        <span class="metric-label">Maks. Fiyat</span>
+        <span class="metric-big" id="metricPriceDisplay">1.800.000 TL</span>
+      </div>
+      <div class="metric-card metric-damage">
+        <span class="metric-label">Hasar tercihi</span>
+        <span class="metric-big metric-big-sm" id="metricDamageDisplay">Tramersiz</span>
+      </div>
+    </section>
+
+    <div id="loader" class="loader hidden" aria-live="polite" aria-busy="true">
+      <div class="loader-card">
+        <div class="loader-ring"></div>
+        <p class="loader-step" id="loaderStep">Hazırlanıyor…</p>
+        <ul class="loader-steps" id="loaderSteps"></ul>
+      </div>
+    </div>
+
+    <section id="resultsSection" class="results hidden">
+      <div class="results-head">
+        <h2 class="panel-title">Sonuçlar</h2>
+        <p class="results-meta" id="resultsMeta"></p>
+      </div>
+      <p class="search-note" id="searchNote"></p>
+      <div class="table-wrap">
+        <table class="results-table">
+          <thead>
+            <tr>
+              <th>Araç</th>
+              <th>Konum</th>
+              <th>KM</th>
+              <th>Fiyat</th>
+              <th>Hasar / Tramer</th>
+              <th>Kimden</th>
+              <th>Özellikler</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="emptyState" class="empty-state hidden">
+      <p>Kriterleri seçin ve <strong>ARA</strong> butonuna basın.</p>
+      <p class="empty-hint">Bulunan ilan linkleri + hazır site aramaları listelenir.</p>
+    </section>
+
+    <footer class="footer">
+      <p>OtoSkor — Trust Engine prototip · Veriler web aramasından gelir; satın almadan önce ilanı kaynak sitede doğrulayın.</p>
+    </footer>
+  </div>
+  <script src="js/app.js" type="module"></script>
+</body>
+</html>
