@@ -3129,7 +3129,6 @@ function buildKdvSchedule(months,sales,purchases,investNet,kdvPct,opening,opts){
   const vatPay=new Array(months).fill(0);
   const refundCash=new Array(months).fill(0);     // iade nakit girişi (ay)
   const refundClaimed=new Array(months).fill(0);  // o ay iade için talep edilen tutar
-  const refundDrain=new Array(months).fill(0);    // o ay 190 devredenden çıkacak (iade alındı) tutar
   const indirilecekEnd=new Array(months).fill(0);
   const devredenEnd=new Array(months).fill(0);
   const odenecekEnd=new Array(months).fill(0);
@@ -3147,23 +3146,37 @@ function buildKdvSchedule(months,sales,purchases,investNet,kdvPct,opening,opts){
     const ix=Math.min(months-1,Math.max(0,month|0));
     refundCash[ix]+=a;
   }
+  const cashShare=Math.max(0,Math.min(1,shares.cash||0));
   for(let t=0;t<months;t++){
     if(odenecekBal>1e-6){vatPay[t]=odenecekBal;odenecekBal=0;}
-    carry+=inputVat[t]||0;
-    let payable=salesVat[t]||0;
-    if(carry>=payable){carry-=payable;payable=0;}
-    else{payable-=carry;carry=0;}
-    odenecekBal+=payable;
-    // İade modunda: eşiğin üzerindeki indirim fazlası iade/mahsuba ayrılır (nakit girişi ~delay ay sonra).
-    // İadesi projeksiyon ufku içinde tahsil edilemeyecek son aylarda fazla devredende bekler (büyür).
-    if(shares.total>0&&carry>target+1e-6&&(t+delay)<months){
-      const surplus=carry-target;
-      const claimed=surplus*Math.min(1,shares.total);   // iade+mahsup edilen kısım devredenden çıkar
-      const cashPart=surplus*Math.max(0,Math.min(1,shares.cash||0)); // sadece nakit kısmı nakde döner
-      carry-=claimed;
-      refundDrain[t]+=claimed;
-      if(claimed>1e-6)refundClaimed[t]=claimed;
-      if(cashPart>1e-6)scheduleRefund(cashPart,t+delay);
+    const inp=inputVat[t]||0,out=salesVat[t]||0;
+    if(shares.total>0){
+      // İHRACATÇI (iade modu): 190 devreden, mizandaki iade backlog'u olarak KORUNUR; iade/mahsup
+      // dosyasına bağlandığı için cari aylık KDV'yi netlemede kullanılmaz (tükenmez). Aylık net KDV:
+      //  - indirim fazlası → iade/mahsup, nakit ~delay ay sonra (ufuk dışıysa devredende bekler/büyür),
+      //  - hesaplanan fazlası → o ay ödenir. Devreden mizan seviyesinde devam eder.
+      const net=inp-out;
+      if(net>=0){
+        const claimed=net*Math.min(1,shares.total);
+        const cashPart=net*cashShare;
+        if((t+delay)<months){
+          if(claimed>1e-6)refundClaimed[t]=claimed;
+          if(cashPart>1e-6)scheduleRefund(cashPart,t+delay);
+          carry=target;
+        }else{
+          carry=target+net; // iadesi projeksiyon ufku dışında: devredende bekler
+        }
+      }else{
+        odenecekBal+=(-net);
+        carry=target;
+      }
+    }else{
+      // İHRACAT/İADE YOK → klasik TDHP devri: indirim fazlası 190'da birikerek büyür.
+      carry+=inp;
+      let payable=out;
+      if(carry>=payable){carry-=payable;payable=0;}
+      else{payable-=carry;carry=0;}
+      odenecekBal+=payable;
     }
     indirilecekEnd[t]=0;
     devredenEnd[t]=carry;
