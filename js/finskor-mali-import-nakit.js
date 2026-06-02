@@ -1080,10 +1080,24 @@
         ? ` Referans gelir: ${inc.revenue.toLocaleString('tr-TR')} TL.`
         : '';
     if (!meta?.silent) {
-      showAlert(`Açılış + gelir güncellendi — ${src}.${gelirNote} Alanları düzenleyebilirsiniz.`, 'ok');
+      showAlert(`Açılış + gelir güncellendi — ${src}.${gelirNote} Firma Profili & KDV'yi kontrol edin.`, 'ok');
+      if (state.currentFirmId === f.id && typeof focusKdvProfileCard === 'function') focusKdvProfileCard();
     } else {
       importLog(`✅ Otomatik aktarım: ${src}.${gelirNote}`, 'ok');
     }
+  };
+
+  // Mali veri yüklendikten sonra kullanıcıyı "Firma Profili & KDV" kartına kaydır + kısa vurgu.
+  window.focusKdvProfileCard = function () {
+    setTimeout(function () {
+      const card = document.getElementById('kdv-profile-card');
+      if (!card || card.offsetParent === null) return; // gizliyse atla
+      try { card.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch { card.scrollIntoView(); }
+      card.classList.remove('kdv-flash');
+      void card.offsetWidth; // reflow → animasyonu yeniden tetikle
+      card.classList.add('kdv-flash');
+      setTimeout(function () { card.classList.remove('kdv-flash'); }, 2300);
+    }, 180);
   };
 
   window.handleOpeningMaliFile = async function (ev) {
