@@ -1080,9 +1080,13 @@
         ? ` Referans gelir: ${inc.revenue.toLocaleString('tr-TR')} TL.`
         : '';
     if (!meta?.silent) {
-      showAlert(`Açılış + gelir güncellendi — ${src}.${gelirNote} Firma Profili & KDV penceresini doldurun.`, 'ok');
-      if (typeof openKdvProfileModal === 'function') {
-        setTimeout(function () { openKdvProfileModal(); }, 80);
+      showAlert(`Açılış + gelir güncellendi — ${src}.${gelirNote} Firma Profili & KDV penceresi açılıyor.`, 'ok');
+      if (typeof window.requestOpenKdvProfileModalAfterImport === 'function') {
+        window.requestOpenKdvProfileModalAfterImport();
+      } else if (typeof window.openKdvProfileModal === 'function') {
+        window.openKdvProfileModal(true);
+      } else {
+        window._kdvModalImportPending = true;
       }
     } else {
       importLog(`✅ Otomatik aktarım: ${src}.${gelirNote}`, 'ok');
@@ -1107,6 +1111,9 @@
         year,
         fileName: file.name,
       });
+      if (typeof window.requestOpenKdvProfileModalAfterImport === 'function') {
+        window.requestOpenKdvProfileModalAfterImport();
+      }
     } catch (e) {
       importLog(`❌ ${e.message || e}`, 'err');
       showAlert(e.message || 'Dosya okunamadı', 'err');
@@ -1192,7 +1199,7 @@
     });
   };
 
-  window.pullOpeningFromFinSkor = function () {
+  window.pullOpeningFromFinSkor = async function () {
     const f = typeof curFirm === 'function' ? curFirm() : null;
     if (!f) {
       showAlert('Önce firma seçin.', 'err');
@@ -1250,7 +1257,7 @@
             },
             { ...p, bilancoRows: p.finskorBilancoRows, year: p.veriYili },
           );
-          applyParsedToOpeningBalance(d, {
+          await applyParsedToOpeningBalance(d, {
             source: 'finskor',
             format: 'FinSkor Nakit aktarım',
             year: p.veriYili,
@@ -1289,7 +1296,7 @@
     importLog(`FinSkor kas_autosave → ${year} yılı`, 'ok');
     if (pack.firmaAdi) importLog(`Firma: ${pack.firmaAdi}`, 'info');
     const rows = f.finskorBilancoSnapshot?.rows;
-    applyParsedToOpeningBalance(enrichParsedWithKdv({ ...yd }, { bilancoRows: rows, year }), {
+    await applyParsedToOpeningBalance(enrichParsedWithKdv({ ...yd }, { bilancoRows: rows, year }), {
       source: 'finskor',
       format: 'FinSkor otomatik kayıt',
       year,
@@ -1300,4 +1307,19 @@
   document.addEventListener('DOMContentLoaded', function () {
     populateOpeningMaliYearSelect();
   });
+
+  /** Mali import sonrası KDV popup — import JS içinde tanımlı (HTML script sırasından bağımsız). */
+  window.requestOpenKdvProfileModalAfterImport = function () {
+    window._kdvModalImportPending = true;
+    function tryOpen() {
+      if (!window._kdvModalImportPending) return true;
+      if (typeof window.openKdvProfileModal !== 'function') return false;
+      window.openKdvProfileModal(true);
+      return true;
+    }
+    if (tryOpen()) return;
+    [50, 150, 350, 700, 1200, 2000, 4000].forEach(function (ms) {
+      setTimeout(tryOpen, ms);
+    });
+  };
 })();

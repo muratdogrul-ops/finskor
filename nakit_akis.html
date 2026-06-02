@@ -13,7 +13,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
 <script src="js/finskor-mali-import-prep.js"></script>
 <script src="js/finskor-mali-import-core.js"></script>
-<script src="js/finskor-mali-import-nakit.js"></script>
+<script src="js/finskor-mali-import-nakit.js?v=20250602kdv"></script>
 <script src="js/finskor-rating.js"></script>
 <script src="js/finskor-improvement-tips.js"></script>
 <style>
@@ -261,6 +261,8 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
 .firm-date{font-size:.72rem;color:var(--tx3);font-family:'JetBrains Mono',monospace;margin-top:2px}
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center}
 .modal-bg.open{display:flex}
+#kdv-profile-modal{z-index:10100}
+body.kdv-modal-open{overflow:hidden}
 .modal{background:var(--s1);border:1px solid var(--bd2);border-radius:var(--r3);padding:28px;width:90%;max-width:600px;max-height:90vh;overflow-y:auto}
 @keyframes modalIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
 .modal-title{font-size:1.1rem;font-weight:700;margin-bottom:20px}
@@ -1934,9 +1936,8 @@ function saveKdvProfileOnly(silent){
   saveState();
   if(!silent&&typeof refreshNakitProjectionViews==='function')refreshNakitProjectionViews();
 }
-function openKdvProfileModal(){
+function openKdvProfileModal(fromImport){
   const f=curFirm();if(!f){showAlert('Önce firma seçin.','err');return;}
-  if(typeof navTo==='function'&&document.getElementById('page-opening')&&!document.getElementById('page-opening').classList.contains('active'))navTo('opening');
   writeKdvProfileToUi(ensureKdvProfile(f));
   if(f.maliIhracat&&f.maliIhracat.hasYurtdisiSatis){
     if($('kdv-sector')?.value==='general')applyKdvSectorPresetToUi('food',true);
@@ -1948,18 +1949,25 @@ function openKdvProfileModal(){
   }
   updateKdvBucketHint();
   bindKdvModalAutoSave();
-  const bg=$('kdv-profile-modal');if(bg)bg.classList.add('open');
+  const bg=$('kdv-profile-modal');
+  if(bg){
+    if(bg.parentElement!==document.body)document.body.appendChild(bg);
+    bg.classList.add('open');
+  }
+  document.body.classList.add('kdv-modal-open');
   const inner=$('kdv-profile-modal-inner');
   if(inner){inner.classList.remove('kdv-flash');void inner.offsetWidth;inner.classList.add('kdv-flash');setTimeout(function(){inner.classList.remove('kdv-flash');},2800);}
+  if(fromImport&&inner){try{inner.focus();}catch(e){}}
+  window._kdvModalImportPending=false;
 }
 function closeKdvProfileModal(){
   saveKdvProfileOnly(true);
   closeModal('kdv-profile-modal');
+  document.body.classList.remove('kdv-modal-open');
   if(typeof refreshNakitProjectionViews==='function')refreshNakitProjectionViews();
 }
 window.openKdvProfileModal=openKdvProfileModal;
 window.closeKdvProfileModal=closeKdvProfileModal;
-
 // ══════════════════════════════════════════════
 // OPENING BALANCE
 // ══════════════════════════════════════════════
@@ -2010,6 +2018,9 @@ function populateOpening(){
   if($('ob-odenecek-kdv'))$('ob-odenecek-kdv').value=o.odenecekKdv||0;
   writeKdvProfileToUi(ensureKdvProfile(f));
   updateKdvProfileSummary(f.kdvProfile);
+  if(window._kdvModalImportPending&&typeof openKdvProfileModal==='function'){
+    setTimeout(function(){if(window._kdvModalImportPending)openKdvProfileModal(true);},60);
+  }
   if(typeof syncOpeningRetainedToMaliFile==='function'){
     if(syncOpeningRetainedToMaliFile(f)){
       Object.assign(o,f.opening||{});
