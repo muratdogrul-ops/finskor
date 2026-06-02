@@ -1081,7 +1081,7 @@
         : '';
     if (!meta?.silent) {
       showAlert(`Açılış + gelir güncellendi — ${src}.${gelirNote} Firma Profili & KDV'yi kontrol edin.`, 'ok');
-      if (typeof focusKdvProfileCard === 'function') focusKdvProfileCard();
+      if (typeof focusKdvAfterLayoutSettles === 'function') focusKdvAfterLayoutSettles();
     } else {
       importLog(`✅ Otomatik aktarım: ${src}.${gelirNote}`, 'ok');
     }
@@ -1097,6 +1097,28 @@
       p = p.parentElement;
     }
     return null;
+  }
+  function hardPulseKdvCard(card) {
+    if (!card) return;
+    // CSS sınıfı görünmese bile inline pulse ile yeşil etkiyi garanti et.
+    const oldTransition = card.style.transition;
+    card.style.transition = 'box-shadow .22s ease, background-color .22s ease, border-color .22s ease';
+    const on = function () {
+      card.style.borderColor = '#22c55e';
+      card.style.boxShadow = '0 0 0 4px rgba(34,197,94,.92), 0 0 28px rgba(34,197,94,.42)';
+      card.style.backgroundColor = 'rgba(34,197,94,.08)';
+    };
+    const off = function () {
+      card.style.boxShadow = '';
+      card.style.backgroundColor = '';
+    };
+    on();
+    setTimeout(off, 260);
+    setTimeout(on, 520);
+    setTimeout(function () {
+      off();
+      card.style.transition = oldTransition || '';
+    }, 860);
   }
   function scrollToKdvCardOnce() {
     const card = document.getElementById('kdv-profile-card');
@@ -1124,7 +1146,31 @@
     void card.offsetWidth; // reflow → animasyonu yeniden tetikle
     card.classList.add('kdv-flash');
     setTimeout(function () { card.classList.remove('kdv-flash'); }, 2300);
+    hardPulseKdvCard(card);
     return true;
+  }
+  function focusKdvAfterLayoutSettles() {
+    // Mali veri yükleme sonrası import log + alert içerik yüksekliğini artırıyor; önce yerleşim stabilize olsun.
+    let tries = 0;
+    let lastH = -1;
+    let stable = 0;
+    (function watch() {
+      const h = Math.max(
+        document.body ? document.body.scrollHeight : 0,
+        document.documentElement ? document.documentElement.scrollHeight : 0,
+      );
+      stable = h === lastH ? stable + 1 : 0;
+      lastH = h;
+      tries++;
+      if (stable >= 2 || tries >= 14) {
+        if (typeof focusKdvProfileCard === 'function') {
+          focusKdvProfileCard();
+          setTimeout(focusKdvProfileCard, 520);
+        }
+        return;
+      }
+      setTimeout(watch, 120);
+    })();
   }
   window.focusKdvProfileCard = function () {
     // Re-render'lar yerleşimi kaydırabildiği için birkaç kez dene; başarınca son bir kez daha sabitle.
@@ -1161,8 +1207,8 @@
         fileName: file.name,
       });
       // Excel/PDF kullanıcı yüklemesinde, aktarım sonrası ikinci bir zorunlu odak denemesi.
-      if (typeof focusKdvProfileCard === 'function') {
-        setTimeout(function () { focusKdvProfileCard(); }, 120);
+      if (typeof focusKdvAfterLayoutSettles === 'function') {
+        setTimeout(function () { focusKdvAfterLayoutSettles(); }, 120);
       }
     } catch (e) {
       importLog(`❌ ${e.message || e}`, 'err');
