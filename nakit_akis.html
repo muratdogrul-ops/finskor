@@ -566,10 +566,12 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
           <div class="field"><label>Yatırım KDV %</label><input id="kdv-invest-rate" type="number" step="0.1" min="0" max="20" placeholder="20"></div>
           <div class="field kdv-export-field"><label>İhraç kayıtlı alım payı %</label><input id="kdv-export-registered-pct" type="number" step="0.1" min="0" max="100" placeholder="0" title="Bu payda KDV ödenmez ve 191'e yazılmaz."></div>
           <div class="field kdv-export-field"><label>KDV iadesi davranışı</label><select id="kdv-refund-mode"><option value="carry">Devret</option><option value="cash">Nakit iade</option><option value="offset">Mahsup</option><option value="mixed">Karma</option></select></div>
-          <div class="field kdv-export-field"><label>İade gecikmesi (ay)</label><input id="kdv-refund-delay" type="number" min="0" max="12" step="1" placeholder="3"></div>
+          <div class="field kdv-export-field"><label>İade gecikmesi (ay)</label><input id="kdv-refund-delay" type="number" min="0" max="12" step="1" placeholder="4" title="İhracata yüklenilen KDV'nin iade/mahsupla nakde dönme gecikmesi."></div>
+          <div class="field kdv-export-field"><label>İade alınan pay %</label><input id="kdv-export-refund-rate" type="number" min="0" max="100" step="1" placeholder="80" title="İhracata yüklenilen KDV'nin iade alınan yüzdesi; kalan kısım 190 devredende birikir (devreden yıllar içinde büyür)."></div>
           <div class="field kdv-export-field"><label>Nakit iade oranı %</label><input id="kdv-refund-cash-pct" type="number" min="0" max="100" step="1" placeholder="70"></div>
           <div class="field kdv-export-field"><label>Mahsup oranı %</label><input id="kdv-refund-offset-pct" type="number" min="0" max="100" step="1" placeholder="30"></div>
           <div class="field kdv-export-field"><label>Açılış 190 kullanımı</label><select id="kdv-opening-refund-mode"><option value="carry">Devret</option><option value="cash">Nakit iade bekleniyor</option><option value="offset">Vergilere mahsup</option><option value="mixed">Karışık</option></select></div>
+          <div class="field kdv-export-field" style="grid-column:1/-1"><label>İhracat sezonu (12 ay: Oca…Ara, ağırlık)</label><input id="kdv-export-season" type="text" placeholder="11,10,9,7,6,5,4,5,8,11,12,12" title="Yıllık ihracatın aylara dağılımı (fındık hasat/sezon). Devreden ay içinde buna göre dalgalanır."></div>
         </div>
         <div id="kdv-profile-hint" class="notice" style="margin-top:10px"></div>
       </div>
@@ -1731,6 +1733,8 @@ const KDV_SECTOR_PRESETS={
     buckets:{raw:{pct:100,rate:20},pack:{pct:0,rate:20},energy:{pct:0,rate:20},other:{pct:0,rate:20}},
     opexRate:20,investRate:20,exportRegisteredPurchasePct:0,refundMode:'carry',refundDelayMonths:3,refundCashPct:70,refundOffsetPct:30,openingRefundMode:'carry'}
 };
+// İhracat sezonu (12 ay, Oca..Ara) — fındık: hasat Ağu-Eyl, ihracat sonbahar-kış yoğun. Toplam ~100.
+const DEFAULT_EXPORT_SEASON=[11,10,9,7,6,5,4,5,8,11,12,12];
 function cloneKdvPreset(sector){
   return JSON.parse(JSON.stringify(KDV_SECTOR_PRESETS[sector]||KDV_SECTOR_PRESETS.general));
 }
@@ -1746,22 +1750,15 @@ function normalizeKdvProfile(profile,f){
     p.exportEnabled=true;
     p.exportRatio=Math.max(0,Math.min(100,Number(f.maliIhracat.ihracatOrani)||0));
   }
-  // 2025 mizan davranışı: devreden sonsuz büyümez. İhracata yüklenen KDV ~N ay birikir, sonra iade/mahsupla çözülür.
-  // N = açılış devreden ÷ (yıllık ihracat × efektif alış KDV oranı / 12). Sadece kullanıcı iade modu seçmediyse (carry) otomatik kur.
+  // İhracatçı otomatik: ihracata yüklenilen KDV her ay 190'a eklenir, refundRate kadarı ~delay ay sonra iade,
+  // kalanı devredende BİRİKİR (devreden ihracat büyüdükçe büyür — beyannamelerdeki 13→18→27M deseni).
+  // Sadece kullanıcı iade modu seçmediyse (carry) otomatik 'cash' kurulur.
   if(f&&f.maliIhracat&&p.exportEnabled&&p.refundMode==='carry'){
-    const exp=(typeof window!=='undefined'&&typeof window.maliIhracatTutar==='function')?Number(window.maliIhracatTutar(f))||0:Number(f.maliIhracat.ihracat)||0;
-    const devOpen=Math.max(0,Number(f.opening&&f.opening.devredenKdv)||0);
-    const effRate=kdvBucketEffectiveRate(p);
-    let n=9;
-    if(exp>0&&devOpen>0&&effRate>0){
-      const monthly=exp*effRate/12;
-      if(monthly>0)n=Math.round(devOpen/monthly);
-    }
-    p.refundDelayMonths=Math.max(1,Math.min(12,n));
     p.refundMode='cash';
     p.openingRefundMode='cash';
     p.refundCashPct=100;
     p.refundOffsetPct=0;
+    if(!(p.refundDelayMonths>0))p.refundDelayMonths=4; // iade gecikmesi (lag), ay
   }
   p.exportRatio=Math.max(0,Math.min(100,Number(p.exportRatio)||0));
   p.domesticSalesRate=Math.max(0,Math.min(20,Number(p.domesticSalesRate)||0));
@@ -1771,6 +1768,11 @@ function normalizeKdvProfile(profile,f){
   p.refundDelayMonths=Math.max(0,Math.min(12,parseInt(p.refundDelayMonths)||0));
   p.refundCashPct=Math.max(0,Math.min(100,Number(p.refundCashPct)||0));
   p.refundOffsetPct=Math.max(0,Math.min(100,Number(p.refundOffsetPct)||0));
+  // İhracata yüklenilen KDV'nin iade alınan payı (kalanı devredende birikir). Varsayılan %80 (Karimex kalibrasyonu).
+  p.exportRefundRate=Math.max(0,Math.min(100,p.exportRefundRate==null?80:Number(p.exportRefundRate)));
+  // İhracat sezonu (12 ay). Geçersizse fındık varsayılan eğrisi.
+  if(!Array.isArray(p.exportSeason)||p.exportSeason.length!==12)p.exportSeason=DEFAULT_EXPORT_SEASON.slice();
+  else p.exportSeason=p.exportSeason.map(v=>Math.max(0,Number(v)||0));
   return p;
 }
 function ensureKdvProfile(f){
@@ -1832,7 +1834,9 @@ function readKdvProfileFromUi(silent){
     refundDelayMonths:fnum($('kdv-refund-delay')?.value,3),
     refundCashPct:fnum($('kdv-refund-cash-pct')?.value,70),
     refundOffsetPct:fnum($('kdv-refund-offset-pct')?.value,30),
-    openingRefundMode:$('kdv-opening-refund-mode')?.value||'carry'
+    openingRefundMode:$('kdv-opening-refund-mode')?.value||'carry',
+    exportRefundRate:fnum($('kdv-export-refund-rate')?.value,80),
+    exportSeason:(function(){const s=$('kdv-export-season')?.value;if(!s)return undefined;const a=String(s).split(/[,;\s]+/).map(x=>Number(x)).filter(x=>!isNaN(x));return a.length===12?a:undefined;})()
   };
   return normalizeKdvProfile(p);
 }
@@ -1855,6 +1859,8 @@ function writeKdvProfileToUi(profile){
   $('kdv-refund-cash-pct').value=p.refundCashPct;
   $('kdv-refund-offset-pct').value=p.refundOffsetPct;
   $('kdv-opening-refund-mode').value=p.openingRefundMode||'carry';
+  if($('kdv-export-refund-rate'))$('kdv-export-refund-rate').value=p.exportRefundRate;
+  if($('kdv-export-season'))$('kdv-export-season').value=(p.exportSeason||[]).join(',');
   toggleKdvExportFields();
   updateKdvBucketHint();
 }
@@ -3132,43 +3138,56 @@ function buildKdvSchedule(months,sales,purchases,investNet,kdvPct,opening,opts){
   const indirilecekEnd=new Array(months).fill(0);
   const devredenEnd=new Array(months).fill(0);
   const odenecekEnd=new Array(months).fill(0);
-  // 190 DEVREDEN = firmanın taşıdığı iade backlog'u. İhracatçıda bu, mizandaki seviyede (açılış 190)
-  // korunur: her ay indirim fazlası bu eşiğin üzerine çıktıkça fazlası iade/mahsup edilir ve ~delay ay
-  // sonra nakde döner. İhracat/iade yoksa (Devret) eşik yok → klasik TDHP devri birikerek büyür.
-  // delay (kaç ay devrettiği) profilde: açılış devreden ÷ (yıllık ihracat × efektif alış KDV / 12).
+  const exportLoaded=new Array(months).fill(0);   // ihracata yüklenilen KDV (aylık)
+  const shares=kdvRefundShares(profile);
+  const isExport=shares.total>0;                  // iade modunda ihracatçı
+  const delay=Math.max(0,Math.min(months-1,profile.refundDelayMonths||0));
+  // (2A) İhracata yüklenilen KDV'nin iade alınan payı; kalan kısım 190 DEVREDEN'de BİRİKİR (yıllar içinde büyür).
+  const refundRate=Math.max(0,Math.min(1,(profile.exportRefundRate==null?80:Number(profile.exportRefundRate))/100));
+  const cashShare=Math.max(0,Math.min(1,shares.cash||0));
+  // (3B) İhracat sezonu: yıllık ihracat (= o yıl satış × ihracat oranı) profile.exportSeason (12 ay)
+  // eğrisiyle aylara yayılır → devreden ay içinde fındık hasat/sezonuna göre dalgalanır.
+  const season=(Array.isArray(profile.exportSeason)&&profile.exportSeason.length===12)?profile.exportSeason:null;
+  let seasonSum=0;if(season)for(let m=0;m<12;m++)seasonSum+=Math.max(0,season[m]||0);
+  const yearCount=Math.ceil(months/12);
+  for(let yi=0;yi<yearCount;yi++){
+    let annualSales=0;for(let m=yi*12;m<yi*12+12&&m<months;m++)annualSales+=Math.max(0,sales[m]||0);
+    const annualExport=annualSales*exportRatio;
+    for(let m=0;m<12;m++){const t=yi*12+m;if(t>=months)break;if(!isExport)continue;
+      const exp=(season&&seasonSum>0)?annualExport*(Math.max(0,season[m]||0)/seasonSum):(Math.max(0,sales[t]||0)*exportRatio);
+      exportLoaded[t]=exp*purchaseRate; // (1A) yüklenilen oranı = efektif alış KDV oranı
+    }
+  }
   let carry=Math.max(0,opening?.indirilecekKdv||0)+Math.max(0,opening?.devredenKdv||0);
   let odenecekBal=Math.max(0,opening?.odenecekKdv||0);
-  const shares=kdvRefundShares(profile);
-  const delay=Math.max(0,Math.min(months-1,profile.refundDelayMonths||0));
-  const target=(shares.total>0)?Math.max(0,opening?.devredenKdv||0):Infinity; // iade modunda devreden eşiği
   function scheduleRefund(amount,month){
     const a=Math.max(0,amount||0);if(a<=1e-6)return;
-    const ix=Math.min(months-1,Math.max(0,month|0));
-    refundCash[ix]+=a;
+    refundCash[Math.min(months-1,Math.max(0,month|0))]+=a;
   }
-  const cashShare=Math.max(0,Math.min(1,shares.cash||0));
+  // Pipeline ön-yükleme: açılış devredendeki bekleyen iadeler ilk 'delay' ayda gelir (başlangıç sıçramasını önler).
+  const drainDue=new Array(months).fill(0);
+  if(isExport&&refundRate>0&&delay>0){
+    for(let i=0;i<delay&&i<months;i++){const r=refundRate*(exportLoaded[i]||0);drainDue[i]+=r;scheduleRefund(r*cashShare,i);}
+  }
   for(let t=0;t<months;t++){
     if(odenecekBal>1e-6){vatPay[t]=odenecekBal;odenecekBal=0;}
     const inp=inputVat[t]||0,out=salesVat[t]||0;
-    if(shares.total>0){
-      // İHRACATÇI (iade modu): 190 devreden, mizandaki iade backlog'u olarak KORUNUR; iade/mahsup
-      // dosyasına bağlandığı için cari aylık KDV'yi netlemede kullanılmaz (tükenmez). Aylık net KDV:
-      //  - indirim fazlası → iade/mahsup, nakit ~delay ay sonra (ufuk dışıysa devredende bekler/büyür),
-      //  - hesaplanan fazlası → o ay ödenir. Devreden mizan seviyesinde devam eder.
-      const net=inp-out;
-      if(net>=0){
-        const claimed=net*Math.min(1,shares.total);
-        const cashPart=net*cashShare;
-        if((t+delay)<months){
-          if(claimed>1e-6)refundClaimed[t]=claimed;
-          if(cashPart>1e-6)scheduleRefund(cashPart,t+delay);
-          carry=target;
-        }else{
-          carry=target+net; // iadesi projeksiyon ufku dışında: devredende bekler
-        }
-      }else{
-        odenecekBal+=(-net);
-        carry=target;
+    if(isExport){
+      // (4A) Yurtiçi taraf AYRI: yurtiçi çıktı KDV − yurtiçi girdi KDV → 391 ödenecek. İhracat devredenini etkilemez.
+      const yuk=exportLoaded[t]||0;
+      const domIn=Math.max(0,inp-yuk);          // ihracata yüklenmeyen (yurtiçi) girdi KDV
+      const domNet=out-domIn;
+      if(domNet>0)odenecekBal+=domNet;          // yurtiçi indirim fazlası (4A) ihracat devredenine karışmaz
+      // İhracat devreden: bu ay yüklenilen KDV 190'a eklenir; refundRate kadarı delay ay sonra iade (nakit+devredenden düşüş),
+      // kalan (1-refundRate) DEVREDEN'de kalıcı birikir → ihracat büyüdükçe devreden büyür.
+      if(drainDue[t]>1e-6)carry=Math.max(0,carry-drainDue[t]);
+      carry+=yuk;
+      const refundAmt=yuk*refundRate;
+      if(refundAmt>1e-6){
+        refundClaimed[t]=refundAmt;
+        const ix=t+delay;
+        if(ix<months){drainDue[ix]+=refundAmt;scheduleRefund(refundAmt*cashShare,ix);}
+        // ix ufuk dışıysa: iade projeksiyon sonrası → devredende bekler (drain yok)
       }
     }else{
       // İHRACAT/İADE YOK → klasik TDHP devri: indirim fazlası 190'da birikerek büyür.
@@ -3182,8 +3201,8 @@ function buildKdvSchedule(months,sales,purchases,investNet,kdvPct,opening,opts){
     devredenEnd[t]=carry;
     odenecekEnd[t]=odenecekBal;
   }
-  return{salesVat,purchaseVat,opexVat,investVat,inputVat,vatPay,refundCash,refundClaimed,indirilecekEnd,devredenEnd,odenecekEnd,
-    effectiveSalesVatRate:domesticShare*domesticSalesRate,effectivePurchaseVatRate:purchaseRate,exportRatio};
+  return{salesVat,purchaseVat,opexVat,investVat,inputVat,exportLoaded,vatPay,refundCash,refundClaimed,indirilecekEnd,devredenEnd,odenecekEnd,
+    effectiveSalesVatRate:domesticShare*domesticSalesRate,effectivePurchaseVatRate:purchaseRate,exportRatio,exportRefundRate:refundRate};
 }
 function interpolateLagged(series,lagMonths){
   const k=Math.floor(lagMonths),frac=lagMonths-k;
