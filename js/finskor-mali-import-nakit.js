@@ -1081,23 +1081,43 @@
         : '';
     if (!meta?.silent) {
       showAlert(`Açılış + gelir güncellendi — ${src}.${gelirNote} Firma Profili & KDV'yi kontrol edin.`, 'ok');
-      if (state.currentFirmId === f.id && typeof focusKdvProfileCard === 'function') focusKdvProfileCard();
+      if (typeof focusKdvProfileCard === 'function') focusKdvProfileCard();
     } else {
       importLog(`✅ Otomatik aktarım: ${src}.${gelirNote}`, 'ok');
     }
   };
 
   // Mali veri yüklendikten sonra kullanıcıyı "Firma Profili & KDV" kartına kaydır + kısa vurgu.
+  function scrollToKdvCardOnce() {
+    const card = document.getElementById('kdv-profile-card');
+    if (!card) return false;
+    // Açılış sayfası aktif değilse görünür yap (kullanıcı projeksiyon vb. sayfadayken yüklediyse).
+    const page = document.getElementById('page-opening');
+    if (page && !page.classList.contains('active') && typeof navTo === 'function') {
+      try { navTo('opening'); } catch (e) {}
+    }
+    if (card.offsetParent === null) return false; // hâlâ gizliyse sonra dene
+    // Ana içerik pencere ile kayar; topbar yüksekliği kadar pay bırak.
+    const topbar = document.querySelector('#main .topbar');
+    const offset = (topbar ? topbar.offsetHeight : 0) + 16;
+    const top = card.getBoundingClientRect().top + window.pageYOffset - offset;
+    try { window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' }); }
+    catch (e) { window.scrollTo(0, Math.max(0, top)); }
+    card.classList.remove('kdv-flash');
+    void card.offsetWidth; // reflow → animasyonu yeniden tetikle
+    card.classList.add('kdv-flash');
+    setTimeout(function () { card.classList.remove('kdv-flash'); }, 2300);
+    return true;
+  }
   window.focusKdvProfileCard = function () {
-    setTimeout(function () {
-      const card = document.getElementById('kdv-profile-card');
-      if (!card || card.offsetParent === null) return; // gizliyse atla
-      try { card.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch { card.scrollIntoView(); }
-      card.classList.remove('kdv-flash');
-      void card.offsetWidth; // reflow → animasyonu yeniden tetikle
-      card.classList.add('kdv-flash');
-      setTimeout(function () { card.classList.remove('kdv-flash'); }, 2300);
-    }, 180);
+    // Re-render'lar yerleşimi kaydırabildiği için birkaç kez dene; başarınca son bir kez daha sabitle.
+    let tries = 0;
+    (function attempt() {
+      const ok = scrollToKdvCardOnce();
+      tries++;
+      if (!ok && tries < 6) { setTimeout(attempt, 200); return; }
+      if (ok) setTimeout(scrollToKdvCardOnce, 450); // re-render sonrası konumu sabitle
+    })();
   };
 
   window.handleOpeningMaliFile = async function (ev) {
