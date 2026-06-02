@@ -1080,14 +1080,8 @@
         ? ` Referans gelir: ${inc.revenue.toLocaleString('tr-TR')} TL.`
         : '';
     if (!meta?.silent) {
-      showAlert(`Açılış + gelir güncellendi — ${src}.${gelirNote} Firma Profili & KDV penceresi açılıyor.`, 'ok');
-      if (typeof window.requestOpenKdvProfileModalAfterImport === 'function') {
-        window.requestOpenKdvProfileModalAfterImport();
-      } else if (typeof window.openKdvProfileModal === 'function') {
-        window.openKdvProfileModal(true);
-      } else {
-        window._kdvModalImportPending = true;
-      }
+      window.requestOpenKdvProfileModalAfterImport && window.requestOpenKdvProfileModalAfterImport();
+      showAlert(`Açılış + gelir güncellendi — ${src}.${gelirNote} Firma Profili & KDV penceresi açıldı.`, 'ok');
     } else {
       importLog(`✅ Otomatik aktarım: ${src}.${gelirNote}`, 'ok');
     }
@@ -1308,18 +1302,18 @@
     populateOpeningMaliYearSelect();
   });
 
-  /** Mali import sonrası KDV popup — import JS içinde tanımlı (HTML script sırasından bağımsız). */
+  /** Mali import sonrası KDV popup — önce zorla aç, sonra alanları doldur. */
   window.requestOpenKdvProfileModalAfterImport = function () {
-    window._kdvModalImportPending = true;
-    function tryOpen() {
-      if (!window._kdvModalImportPending) return true;
-      if (typeof window.openKdvProfileModal !== 'function') return false;
-      window.openKdvProfileModal(true);
-      return true;
+    function go() {
+      if (typeof window.forceOpenKdvProfileModal === 'function') window.forceOpenKdvProfileModal();
+      if (typeof populateOpening === 'function') {
+        try { populateOpening(); } catch (e) { /* devam */ }
+      }
+      if (typeof window.openKdvProfileModal === 'function') {
+        try { window.openKdvProfileModal(true); } catch (e) { /* devam */ }
+      }
     }
-    if (tryOpen()) return;
-    [50, 150, 350, 700, 1200, 2000, 4000].forEach(function (ms) {
-      setTimeout(tryOpen, ms);
-    });
+    go();
+    [0, 120, 350, 800, 1500, 3000].forEach(function (ms) { setTimeout(go, ms); });
   };
 })();

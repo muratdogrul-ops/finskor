@@ -13,7 +13,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
 <script src="js/finskor-mali-import-prep.js"></script>
 <script src="js/finskor-mali-import-core.js"></script>
-<script src="js/finskor-mali-import-nakit.js?v=20250602kdv"></script>
+<script src="js/finskor-mali-import-nakit.js?v=20250602kdv2"></script>
 <script src="js/finskor-rating.js"></script>
 <script src="js/finskor-improvement-tips.js"></script>
 <style>
@@ -1282,6 +1282,27 @@ body.kdv-modal-open{overflow:hidden}
     </div>
   </div>
 </div>
+<script>
+(function(){
+  window.forceOpenKdvProfileModal=function(){
+    var m=document.getElementById('kdv-profile-modal');
+    if(!m)return false;
+    try{if(m.parentNode!==document.body)document.body.appendChild(m);}catch(e){}
+    m.classList.add('open');
+    m.style.display='flex';
+    m.style.position='fixed';
+    m.style.inset='0';
+    m.style.zIndex='10100';
+    m.style.alignItems='center';
+    m.style.justifyContent='center';
+    m.style.background='rgba(0,0,0,.65)';
+    document.body.classList.add('kdv-modal-open');
+    var inner=document.getElementById('kdv-profile-modal-inner');
+    if(inner){inner.classList.remove('kdv-flash');void inner.offsetWidth;inner.classList.add('kdv-flash');}
+    return true;
+  };
+})();
+</script>
 
 <!-- MODAL: YENİ FİRMA -->
 <div class="modal-bg" id="new-firm-modal">
@@ -1937,6 +1958,7 @@ function saveKdvProfileOnly(silent){
   if(!silent&&typeof refreshNakitProjectionViews==='function')refreshNakitProjectionViews();
 }
 function openKdvProfileModal(fromImport){
+  if(typeof window.forceOpenKdvProfileModal==='function')window.forceOpenKdvProfileModal();
   const f=curFirm();if(!f){showAlert('Önce firma seçin.','err');return;}
   writeKdvProfileToUi(ensureKdvProfile(f));
   if(f.maliIhracat&&f.maliIhracat.hasYurtdisiSatis){
@@ -1949,11 +1971,6 @@ function openKdvProfileModal(fromImport){
   }
   updateKdvBucketHint();
   bindKdvModalAutoSave();
-  const bg=$('kdv-profile-modal');
-  if(bg){
-    if(bg.parentElement!==document.body)document.body.appendChild(bg);
-    bg.classList.add('open');
-  }
   document.body.classList.add('kdv-modal-open');
   const inner=$('kdv-profile-modal-inner');
   if(inner){inner.classList.remove('kdv-flash');void inner.offsetWidth;inner.classList.add('kdv-flash');setTimeout(function(){inner.classList.remove('kdv-flash');},2800);}
