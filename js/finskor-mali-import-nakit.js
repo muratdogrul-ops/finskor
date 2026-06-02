@@ -1088,6 +1088,16 @@
   };
 
   // Mali veri yüklendikten sonra kullanıcıyı "Firma Profili & KDV" kartına kaydır + kısa vurgu.
+  function findScrollParent(el) {
+    let p = el && el.parentElement;
+    while (p) {
+      const st = window.getComputedStyle(p);
+      const oy = st ? st.overflowY : '';
+      if ((oy === 'auto' || oy === 'scroll') && p.scrollHeight > p.clientHeight + 4) return p;
+      p = p.parentElement;
+    }
+    return null;
+  }
   function scrollToKdvCardOnce() {
     const card = document.getElementById('kdv-profile-card');
     if (!card) return false;
@@ -1101,8 +1111,15 @@
     const topbar = document.querySelector('#main .topbar');
     const offset = (topbar ? topbar.offsetHeight : 0) + 16;
     const top = card.getBoundingClientRect().top + window.pageYOffset - offset;
+    try { card.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
     try { window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' }); }
     catch (e) { window.scrollTo(0, Math.max(0, top)); }
+    const sp = findScrollParent(card);
+    if (sp) {
+      const spTop = card.getBoundingClientRect().top - sp.getBoundingClientRect().top + sp.scrollTop - 12;
+      try { sp.scrollTo({ top: Math.max(0, spTop), behavior: 'smooth' }); }
+      catch (e) { sp.scrollTop = Math.max(0, spTop); }
+    }
     card.classList.remove('kdv-flash');
     void card.offsetWidth; // reflow → animasyonu yeniden tetikle
     card.classList.add('kdv-flash');
@@ -1112,12 +1129,17 @@
   window.focusKdvProfileCard = function () {
     // Re-render'lar yerleşimi kaydırabildiği için birkaç kez dene; başarınca son bir kez daha sabitle.
     let tries = 0;
-    (function attempt() {
+    const kick = function () {
       const ok = scrollToKdvCardOnce();
       tries++;
-      if (!ok && tries < 6) { setTimeout(attempt, 200); return; }
-      if (ok) setTimeout(scrollToKdvCardOnce, 450); // re-render sonrası konumu sabitle
-    })();
+      if (!ok && tries < 8) { setTimeout(kick, 220); return; }
+      if (ok) {
+        setTimeout(scrollToKdvCardOnce, 420); // re-render sonrası konumu sabitle
+        setTimeout(scrollToKdvCardOnce, 980); // geç çalışan bileşenler için ek güvence
+      }
+    };
+    // Sayfa geçişi/DOM boyaması sonrası başlat.
+    requestAnimationFrame(function () { requestAnimationFrame(kick); });
   };
 
   window.handleOpeningMaliFile = async function (ev) {
