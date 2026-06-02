@@ -1113,12 +1113,12 @@
       card.style.backgroundColor = '';
     };
     on();
-    setTimeout(off, 260);
-    setTimeout(on, 520);
+    setTimeout(off, 420);
+    setTimeout(on, 980);
     setTimeout(function () {
       off();
       card.style.transition = oldTransition || '';
-    }, 860);
+    }, 1800);
   }
   function scrollToKdvCardOnce() {
     const card = document.getElementById('kdv-profile-card');
@@ -1129,10 +1129,8 @@
       try { navTo('opening'); } catch (e) {}
     }
     if (card.offsetParent === null) return false; // hâlâ gizliyse sonra dene
-    // Ana içerik pencere ile kayar; topbar yüksekliği kadar pay bırak.
-    const topbar = document.querySelector('#main .topbar');
-    const offset = (topbar ? topbar.offsetHeight : 0) + 16;
-    const top = card.getBoundingClientRect().top + window.pageYOffset - offset;
+    // Topbar sticky olduğu için ek offset uygulamıyoruz; offset, kartı olduğundan fazla yukarı kaçırıyordu.
+    const top = card.getBoundingClientRect().top + window.pageYOffset;
     try { card.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
     try { window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' }); }
     catch (e) { window.scrollTo(0, Math.max(0, top)); }
