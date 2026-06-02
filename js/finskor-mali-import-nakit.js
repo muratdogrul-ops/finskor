@@ -1154,12 +1154,16 @@
     const year = parseInt(document.getElementById('opening-mali-yil')?.value, 10) || getDefaultMaliYear(f);
     try {
       const result = await FinSkorMaliImport.parseFile(file, year);
-      applyParsedToOpeningBalance(result.data, {
+      await applyParsedToOpeningBalance(result.data, {
         source: 'file',
         format: result.format,
         year,
         fileName: file.name,
       });
+      // Excel/PDF kullanıcı yüklemesinde, aktarım sonrası ikinci bir zorunlu odak denemesi.
+      if (typeof focusKdvProfileCard === 'function') {
+        setTimeout(function () { focusKdvProfileCard(); }, 120);
+      }
     } catch (e) {
       importLog(`❌ ${e.message || e}`, 'err');
       showAlert(e.message || 'Dosya okunamadı', 'err');

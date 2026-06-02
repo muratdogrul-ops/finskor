@@ -50,8 +50,14 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;opa
 .page{display:none;animation:fadeIn .2s ease}
 .page.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-@keyframes kdvFlash{0%{box-shadow:0 0 0 0 rgba(74,222,128,.0)}15%{box-shadow:0 0 0 3px rgba(74,222,128,.65)}100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}}
-.kdv-flash{animation:kdvFlash 2.2s ease-out;border-color:rgba(74,222,128,.55)!important}
+@keyframes kdvFlash{
+  0%{box-shadow:0 0 0 0 rgba(34,197,94,0);background:transparent}
+  18%{box-shadow:0 0 0 4px rgba(34,197,94,.95),0 0 28px rgba(34,197,94,.45);background:rgba(34,197,94,.08)}
+  40%{box-shadow:0 0 0 0 rgba(34,197,94,0);background:transparent}
+  62%{box-shadow:0 0 0 4px rgba(34,197,94,.95),0 0 28px rgba(34,197,94,.45);background:rgba(34,197,94,.08)}
+  100%{box-shadow:0 0 0 0 rgba(34,197,94,0);background:transparent}
+}
+.kdv-flash{animation:kdvFlash 1.35s ease-in-out 2;border-color:#22c55e!important}
 .page-header{margin-bottom:24px}
 .page-header h1{font-size:1.6rem;font-weight:800;letter-spacing:-.5px;line-height:1.2}
 .page-header p{color:var(--tx2);font-size:.82rem;margin-top:5px}
