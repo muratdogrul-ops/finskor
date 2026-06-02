@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
@@ -13,7 +13,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
 <script src="js/finskor-mali-import-prep.js"></script>
 <script src="js/finskor-mali-import-core.js"></script>
-<script src="js/finskor-mali-import-nakit.js?v=20250602kdv2"></script>
+<script src="js/finskor-mali-import-nakit.js?v=20250602kdv3"></script>
 <script src="js/finskor-rating.js"></script>
 <script src="js/finskor-improvement-tips.js"></script>
 <style>
@@ -50,15 +50,26 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;opa
 .page{display:none;animation:fadeIn .2s ease}
 .page.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-@keyframes kdvFlash{
-  0%{box-shadow:0 0 0 0 rgba(34,197,94,0);background:transparent}
-  18%{box-shadow:0 0 0 4px rgba(34,197,94,.95),0 0 28px rgba(34,197,94,.45);background:rgba(34,197,94,.08)}
-  40%{box-shadow:0 0 0 0 rgba(34,197,94,0);background:transparent}
-  62%{box-shadow:0 0 0 4px rgba(34,197,94,.95),0 0 28px rgba(34,197,94,.45);background:rgba(34,197,94,.08)}
-  100%{box-shadow:0 0 0 0 rgba(34,197,94,0);background:transparent}
+@keyframes kdvSectorPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,0);border-color:var(--bd);background:var(--s3)}
+  50%{box-shadow:0 0 0 4px rgba(34,197,94,.9),0 0 20px rgba(34,197,94,.4);border-color:#22c55e;background:rgba(34,197,94,.14)}
 }
-.kdv-flash{animation:kdvFlash 1.35s ease-in-out 2;border-color:#22c55e!important}
-.modal--kdv.kdv-flash{border:2px solid #22c55e!important}
+.kdv-pulse-field{border:2px solid var(--bd);border-radius:var(--r);padding:6px 8px;background:var(--s3);transition:border-color .15s,box-shadow .15s}
+.kdv-pulse-field.kdv-field-pulse{animation:kdvSectorPulse .95s ease-in-out 5}
+.kdv-pulse-field.kdv-field-pulse select{border-color:#22c55e;font-weight:600}
+.modal--kdv{display:flex;flex-direction:column;width:min(520px,94vw);max-width:520px;max-height:min(72vh,580px);padding:0;overflow:hidden;background:var(--s1)}
+.kdv-modal-topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--bd);flex-shrink:0;background:var(--s1)}
+.kdv-modal-topbar .modal-title{margin:0;font-size:.95rem;line-height:1.25}
+.kdv-modal-close-x{flex-shrink:0;width:32px;height:32px;border:none;border-radius:8px;background:var(--s2);color:var(--tx2);font-size:1.25rem;line-height:1;cursor:pointer}
+.kdv-modal-close-x:hover{background:var(--s3);color:var(--tx)}
+.kdv-modal-body{flex:1;min-height:0;overflow-y:auto;padding:10px 14px;font-size:.82rem}
+.kdv-modal-body .form-grid{gap:8px}
+.kdv-modal-body .section-sep{margin:8px 0 6px;font-size:.72rem}
+.kdv-modal-body .tbl-scroll{max-height:120px;margin-top:4px}
+.kdv-modal-body .field label{font-size:.68rem}
+.kdv-modal-body .field input,.kdv-modal-body .field select{padding:5px 8px;font-size:.8rem}
+.kdv-modal-foot{flex-shrink:0;padding:10px 14px;border-top:1px solid var(--bd);background:var(--s2)}
+.kdv-modal-foot .btn{width:100%;justify-content:center;padding:10px 16px;font-size:.85rem}
 .page-header{margin-bottom:24px}
 .page-header h1{font-size:1.6rem;font-weight:800;letter-spacing:-.5px;line-height:1.2}
 .page-header p{color:var(--tx2);font-size:.82rem;margin-top:5px}
@@ -261,7 +272,8 @@ tbody tr:hover td{background:rgba(14,165,233,.04)}
 .firm-date{font-size:.72rem;color:var(--tx3);font-family:'JetBrains Mono',monospace;margin-top:2px}
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center}
 .modal-bg.open{display:flex}
-#kdv-profile-modal{z-index:10100}
+#kdv-profile-modal{z-index:10100;padding:10px;background:rgba(15,23,42,.72)}
+#kdv-profile-modal.open{display:flex;align-items:center;justify-content:center}
 body.kdv-modal-open{overflow:hidden}
 .modal{background:var(--s1);border:1px solid var(--bd2);border-radius:var(--r3);padding:28px;width:90%;max-width:600px;max-height:90vh;overflow-y:auto}
 @keyframes modalIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
@@ -1246,15 +1258,19 @@ body.kdv-modal-open{overflow:hidden}
 
 <!-- MODAL: FİRMA PROFİLİ & KDV -->
 <div class="modal-bg" id="kdv-profile-modal" onclick="if(event.target===this)closeKdvProfileModal()">
-  <div class="modal modal--kdv" id="kdv-profile-modal-inner" onclick="event.stopPropagation()" style="max-width:760px;max-height:92vh;overflow-y:auto">
-    <div class="modal-title">🧾 Firma Profili &amp; KDV</div>
-    <p style="font-size:.78rem;color:var(--tx2);margin-bottom:12px;line-height:1.45">
-      Ticari kalemler KDV hariç kalır; satış KDV, alış KDV ve varsa ihracat iadesi bu profile göre nakit akışa yansır. Değişiklikler otomatik kaydedilir.
+  <div class="modal modal--kdv" id="kdv-profile-modal-inner" onclick="event.stopPropagation()">
+    <div class="kdv-modal-topbar">
+      <div class="modal-title">🧾 Firma Profili &amp; KDV</div>
+      <button type="button" class="kdv-modal-close-x" onclick="closeKdvProfileModal()" aria-label="Kapat">×</button>
+    </div>
+    <div class="kdv-modal-body">
+    <p style="font-size:.72rem;color:var(--tx2);margin-bottom:8px;line-height:1.4">
+      KDV ve ihracat ayarları otomatik kaydedilir; nakit akışa yansır.
     </p>
     <div class="form-grid">
-      <div class="field"><label>Firma sektörü</label><select id="kdv-sector" onchange="applyKdvSectorPresetToUi(this.value,true)"><option value="food">Gıda / tarım işleme</option><option value="general">Genel ticaret</option><option value="auto">Otomotiv yedek parça</option><option value="service">Hizmet</option><option value="construction">İnşaat / taahhüt</option><option value="custom">Özel / manuel</option></select></div>
+      <div class="field kdv-pulse-field" id="kdv-sector-field"><label>Firma sektörü</label><select id="kdv-sector" onchange="applyKdvSectorPresetToUi(this.value,true)"><option value="food">Gıda / tarım işleme</option><option value="general">Genel ticaret</option><option value="auto">Otomotiv yedek parça</option><option value="service">Hizmet</option><option value="construction">İnşaat / taahhüt</option><option value="custom">Özel / manuel</option></select></div>
       <div class="field"><label>Yurtiçi satış KDV oranı %</label><input id="kdv-domestic-rate" type="number" step="0.1" min="0" max="20" placeholder="20"></div>
-      <div class="field"><label>Yurt dışı satış var mı?</label><select id="kdv-export-enabled" onchange="toggleKdvExportFields()"><option value="no">Hayır</option><option value="yes">Evet</option></select></div>
+      <div class="field kdv-pulse-field" id="kdv-export-enabled-field"><label>Yurt dışı satış var mı?</label><select id="kdv-export-enabled" onchange="toggleKdvExportFields()"><option value="no">Hayır</option><option value="yes">Evet</option></select></div>
       <div class="field kdv-export-field"><label>İhracat / ciro oranı %</label><input id="kdv-export-ratio" type="number" step="0.1" min="0" max="100" placeholder="0"></div>
     </div>
     <div class="section-sep">Alış KDV yapısı (SMM kovaları)</div>
@@ -1276,30 +1292,46 @@ body.kdv-modal-open{overflow:hidden}
       <div class="field kdv-export-field"><label>Açılış 190 kullanımı</label><select id="kdv-opening-refund-mode"><option value="carry">Devret</option><option value="cash">Nakit iade bekleniyor</option><option value="offset">Vergilere mahsup</option><option value="mixed">Karışık</option></select></div>
       <div class="field kdv-export-field" style="grid-column:1/-1"><label>İhracat sezonu (12 ay: Oca…Ara, ağırlık)</label><input id="kdv-export-season" type="text" placeholder="11,10,9,7,6,5,4,5,8,11,12,12" title="Yıllık ihracatın aylara dağılımı (fındık hasat/sezon)."></div>
     </div>
-    <div id="kdv-profile-hint" class="notice" style="margin-top:10px"></div>
-    <div class="btn-group" style="margin-top:14px">
-      <button type="button" class="btn btn-primary" onclick="closeKdvProfileModal()">✓ Tamam</button>
+    <div id="kdv-profile-hint" class="notice" style="margin-top:8px"></div>
+    </div>
+    <div class="kdv-modal-foot">
+      <button type="button" class="btn btn-primary" id="kdv-profile-close-btn" onclick="closeKdvProfileModal()">✓ Tamam — kaydet ve kapat</button>
     </div>
   </div>
 </div>
 <script>
 (function(){
+  window.hideKdvProfileModal=function(){
+    var m=document.getElementById('kdv-profile-modal');
+    if(!m)return;
+    m.classList.remove('open');
+    m.style.display='';
+    m.style.position='';
+    m.style.inset='';
+    m.style.zIndex='';
+    m.style.alignItems='';
+    m.style.justifyContent='';
+    m.style.background='';
+    document.body.classList.remove('kdv-modal-open');
+  };
   window.forceOpenKdvProfileModal=function(){
     var m=document.getElementById('kdv-profile-modal');
     if(!m)return false;
     try{if(m.parentNode!==document.body)document.body.appendChild(m);}catch(e){}
     m.classList.add('open');
     m.style.display='flex';
-    m.style.position='fixed';
-    m.style.inset='0';
-    m.style.zIndex='10100';
-    m.style.alignItems='center';
-    m.style.justifyContent='center';
-    m.style.background='rgba(0,0,0,.65)';
     document.body.classList.add('kdv-modal-open');
-    var inner=document.getElementById('kdv-profile-modal-inner');
-    if(inner){inner.classList.remove('kdv-flash');void inner.offsetWidth;inner.classList.add('kdv-flash');}
     return true;
+  };
+  window.pulseKdvSectorField=function(){
+    ['kdv-sector-field','kdv-export-enabled-field'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(!el)return;
+      el.classList.remove('kdv-field-pulse');
+      void el.offsetWidth;
+      el.classList.add('kdv-field-pulse');
+      setTimeout(function(){el.classList.remove('kdv-field-pulse');},5200);
+    });
   };
 })();
 </script>
@@ -1972,16 +2004,19 @@ function openKdvProfileModal(fromImport){
   updateKdvBucketHint();
   bindKdvModalAutoSave();
   document.body.classList.add('kdv-modal-open');
-  const inner=$('kdv-profile-modal-inner');
-  if(inner){inner.classList.remove('kdv-flash');void inner.offsetWidth;inner.classList.add('kdv-flash');setTimeout(function(){inner.classList.remove('kdv-flash');},2800);}
-  if(fromImport&&inner){try{inner.focus();}catch(e){}}
+  if(typeof window.pulseKdvSectorField==='function')window.pulseKdvSectorField();
+  if(fromImport){
+    const sec=$('kdv-sector-field');
+    if(sec){try{sec.scrollIntoView({block:'nearest',behavior:'smooth'});}catch(e){}}
+  }
   window._kdvModalImportPending=false;
 }
 function closeKdvProfileModal(){
   saveKdvProfileOnly(true);
-  closeModal('kdv-profile-modal');
-  document.body.classList.remove('kdv-modal-open');
+  if(typeof window.hideKdvProfileModal==='function')window.hideKdvProfileModal();
+  else closeModal('kdv-profile-modal');
   if(typeof refreshNakitProjectionViews==='function')refreshNakitProjectionViews();
+  showAlert('KDV profili kaydedildi.','ok');
 }
 window.openKdvProfileModal=openKdvProfileModal;
 window.closeKdvProfileModal=closeKdvProfileModal;

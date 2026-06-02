@@ -1041,7 +1041,15 @@
     }
     if (typeof syncOpeningRetainedToMaliFile === 'function') syncOpeningRetainedToMaliFile(f);
     if (typeof renderOpeningMaliPreview === 'function') renderOpeningMaliPreview();
+    if (!meta?.silent) {
+      window._kdvModalImportPending = true;
+      window._kdvImportPopupLogged = false;
+    }
     if (typeof populateOpening === 'function') populateOpening();
+    /* KDV popup — TCMB beklenmeden hemen (ağ takılırsa popup yine gelir) */
+    if (!meta?.silent && typeof window.requestOpenKdvProfileModalAfterImport === 'function') {
+      window.requestOpenKdvProfileModalAfterImport({ early: true });
+    }
     try {
       if (typeof autoFillTcmbDefaultsForFirm === 'function') {
         await autoFillTcmbDefaultsForFirm(f, { refreshUi: false, fetchTcmb: true });
@@ -1080,8 +1088,7 @@
         ? ` Referans gelir: ${inc.revenue.toLocaleString('tr-TR')} TL.`
         : '';
     if (!meta?.silent) {
-      window.requestOpenKdvProfileModalAfterImport && window.requestOpenKdvProfileModalAfterImport();
-      showAlert(`Açılış + gelir güncellendi — ${src}.${gelirNote} Firma Profili & KDV penceresi açıldı.`, 'ok');
+      showAlert(`Açılış + gelir güncellendi — ${src}.${gelirNote}`, 'ok');
     } else {
       importLog(`✅ Otomatik aktarım: ${src}.${gelirNote}`, 'ok');
     }
@@ -1105,9 +1112,6 @@
         year,
         fileName: file.name,
       });
-      if (typeof window.requestOpenKdvProfileModalAfterImport === 'function') {
-        window.requestOpenKdvProfileModalAfterImport();
-      }
     } catch (e) {
       importLog(`❌ ${e.message || e}`, 'err');
       showAlert(e.message || 'Dosya okunamadı', 'err');
@@ -1302,18 +1306,28 @@
     populateOpeningMaliYearSelect();
   });
 
-  /** Mali import sonrası KDV popup — önce zorla aç, sonra alanları doldur. */
-  window.requestOpenKdvProfileModalAfterImport = function () {
-    function go() {
+  /** Mali import sonrası KDV popup — TCMB'den bağımsız, hemen aç + kısa retry. */
+  window.requestOpenKdvProfileModalAfterImport = function (opts) {
+    function kdvModalVisible() {
+      const m = document.getElementById('kdv-profile-modal');
+      return !!(m && (m.classList.contains('open') || m.style.display === 'flex'));
+    }
+    function go(logOnSuccess) {
       if (typeof window.forceOpenKdvProfileModal === 'function') window.forceOpenKdvProfileModal();
-      if (typeof populateOpening === 'function') {
-        try { populateOpening(); } catch (e) { /* devam */ }
-      }
       if (typeof window.openKdvProfileModal === 'function') {
         try { window.openKdvProfileModal(true); } catch (e) { /* devam */ }
       }
+      if (logOnSuccess && kdvModalVisible() && !window._kdvImportPopupLogged) {
+        window._kdvImportPopupLogged = true;
+        importLog(
+          '🧾 Firma Profili & KDV penceresi açıldı — sektör ve ihracat ayarlarını kontrol edin.',
+          'ok',
+        );
+      }
     }
-    go();
-    [0, 120, 350, 800, 1500, 3000].forEach(function (ms) { setTimeout(go, ms); });
+    go(true);
+    [80, 250, 700, 1500].forEach(function (ms) {
+      setTimeout(function () { go(false); }, ms);
+    });
   };
 })();
