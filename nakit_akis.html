@@ -15,7 +15,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
 <script src="js/finskor-mali-import-prep.js"></script>
 <script src="js/finskor-mali-import-core.js"></script>
-<script src="js/finskor-mali-import-nakit.js?v=20250602kdv3"></script>
+<script src="js/finskor-mali-import-nakit.js?v=20250603bchratio"></script>
 <script src="js/finskor-rating.js"></script>
 <script src="js/finskor-improvement-tips.js"></script>
 <style>
@@ -888,14 +888,14 @@ body.kdv-modal-open{overflow:hidden}
       <li><strong>🔄 BCH (Borçlu Cari Hesap):</strong> Rotatif limit — Limit dahilinde otomatik kullanım/geri ödeme</li>
     </ul>
     <span class="avatar-tip">💡 TL, USD ve EUR cinsinden kredi girebilirsin — TL karşılığı kur tablosundan otomatik hesaplanır.</span>
-    <span class="avatar-tip" id="loans-export-bch-tip" style="display:none">🌍 <b>İhracatçı firma:</b> KV BCH otomatik <b>%50 TL + %50 USD</b>; likidite ihtiyacında BCH çekimi en az %50 USD (kalan TL veya USD).</span>
+    <span class="avatar-tip" id="loans-export-bch-tip" style="display:none">🌍 <b>İhracatçı firma:</b> KV BCH <b>ihracat/ciro oranında</b> TL+USD (ör. ciro %20 ihracat → %20 USD, %80 TL); likidite çekiminde USD payı en az bu oran.</span>
   </div>
 </div>
 
 
       <div class="card glow">
         <div class="card-header"><div class="card-icon">🏦</div><div class="card-title">Mevcut Krediler</div>
-          <button type="button" class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="applyExportKvBchFromUi()" title="601 ihracat &gt; 0 ise KV BCH %50 TL + %50 USD">🌍 İhracatçı BCH (%50 USD)</button>
+          <button type="button" class="btn btn-secondary btn-sm" style="margin-left:auto" id="btn-export-kv-bch" onclick="applyExportKvBchFromUi()" title="601 ihracat &gt; 0 ise KV BCH ihracat/ciro oranında TL+USD">🌍 İhracatçı BCH (oran)</button>
         </div>
         <div class="tbl-scroll"><table><thead><tr>
           <th style="text-align:left;min-width:80px">Tip</th><th style="text-align:left;min-width:100px">Banka</th>
@@ -2477,7 +2477,9 @@ function applyExportKvBchFromUi(){
   if(typeof reapplyExportKvBchLoans!=='function'){showAlert('Mali modül yüklenemedi — Ctrl+F5 ile yenileyin.','err');return;}
   if(!reapplyExportKvBchLoans(f,ihr)){showAlert('KV mali borç bulunamadı veya ihracat 0.','err');return;}
   saveState();renderLoans();
-  showAlert('KV BCH %50 TL + %50 USD olarak güncellendi.','ok');
+  const lbl=(typeof formatExportBchSplitLabel==='function'&&typeof getExportBchUsdShare==='function')
+    ?formatExportBchSplitLabel(getExportBchUsdShare(f)):'ihracat oranında TL+USD';
+  showAlert('KV BCH '+lbl+' olarak güncellendi.','ok');
 }
 function renderLoans(){
   const f=curFirm();if(!f)return;
@@ -2486,7 +2488,17 @@ function renderLoans(){
   }
   const exportTip=document.getElementById('loans-export-bch-tip');
   if(exportTip){
-    exportTip.style.display=(typeof firmHasYurtdisiSatis==='function'&&firmHasYurtdisiSatis(f))?'block':'none';
+    const isEx=(typeof firmHasYurtdisiSatis==='function'&&firmHasYurtdisiSatis(f));
+    exportTip.style.display=isEx?'block':'none';
+    if(isEx&&typeof getExportBchUsdShare==='function'&&typeof formatExportBchSplitLabel==='function'){
+      const u=getExportBchUsdShare(f);
+      const oran=(f.maliIhracat&&f.maliIhracat.ihracatOrani>0)?(' (ciro ~%'+f.maliIhracat.ihracatOrani.toFixed(1)+' ihracat)'):'';
+      exportTip.innerHTML='🌍 <b>İhracatçı firma:</b> KV BCH <b>'+formatExportBchSplitLabel(u)+'</b>'+oran+'; likidite çekiminde USD payı en az ihracat oranı.';
+    }
+  }
+  const exportBtn=document.getElementById('btn-export-kv-bch');
+  if(exportBtn&&typeof getExportBchUsdShare==='function'&&typeof formatExportBchSplitLabel==='function'&&firmHasYurtdisiSatis(f)){
+    exportBtn.title='KV BCH: '+formatExportBchSplitLabel(getExportBchUsdShare(f));
   }
   const loans=f.loans||[];
   const body=$('loan-table-body');
@@ -2613,9 +2625,10 @@ function addBchLoan(){
   f.loans.push({type:'bch_existing',bank,ccy,principal});
   if (typeof firmHasYurtdisiSatis === 'function' && firmHasYurtdisiSatis(f) && typeof bchUsdShareRatio === 'function') {
     const share = bchUsdShareRatio(f, f.fx, 0);
-    if (share < 0.5 - 0.001) {
+    const minUsd=(typeof getExportBchUsdShare==='function')?getExportBchUsdShare(f):0.5;
+    if (share < minUsd - 0.001) {
       showAlert(
-        'BCH eklendi; toplam BCH içinde USD payı %' + (share * 100).toFixed(1) + ' — ihracatçı için en az %50 USD olmalı. TL/USD BCH dengesini kontrol edin.',
+        'BCH eklendi; toplam BCH içinde USD payı %' + (share * 100).toFixed(1) + ' — ihracatçı için en az %' + (minUsd * 100).toFixed(1) + ' USD (ihracat/ciro). TL/USD dengesini kontrol edin.',
         'warn',
       );
     } else {
@@ -3973,7 +3986,7 @@ function buildProjection(firmId){
         const draw=Math.min(need,avail);
         if(draw>0){
           if(exportBchRule&&typeof splitBchDrawForExport==='function'){
-            const sp=splitBchDrawForExport(draw,bbalTl,bbalUsdFc,fxUsdT);
+            const sp=splitBchDrawForExport(draw,bbalTl,bbalUsdFc,fxUsdT,f);
             bbalTl+=sp.drawTl;
             bbalUsdFc+=sp.drawUsdFc;
           }else{
@@ -3985,7 +3998,7 @@ function buildProjection(firmId){
         if(cash<0&&bchLimit>=1e11){
           const extra=-cash;
           if(exportBchRule&&typeof splitBchDrawForExport==='function'){
-            const sp=splitBchDrawForExport(extra,bbalTl,bbalUsdFc,fxUsdT);
+            const sp=splitBchDrawForExport(extra,bbalTl,bbalUsdFc,fxUsdT,f);
             bbalTl+=sp.drawTl;
             bbalUsdFc+=sp.drawUsdFc;
           }else{
@@ -6314,22 +6327,36 @@ function bal5MaliOpeningPasifSum(f) {
   return kv + uv + cap + re;
 }
 
-/** Mizan kapanış yılı (ör. 2025) — projeksiyon başlangıcından önceki sütun. */
+/** Mizan / dosya bilanço verisi yüklü mü (5Y sütunu için). */
+function bal5HasMaliBilancoData(f) {
+  if (!f) return false;
+  const rows = bal5BilancoRowsForFirm(f);
+  if (rows && rows.length) return true;
+  const t = f.maliParsedSnapshot && f.maliParsedSnapshot.totals;
+  return !!(t && (Math.abs(Number(t.aktifToplam) || 0) > 1 || Math.abs(Number(t.pasifToplam) || 0) > 1));
+}
+
+/** Mizan kapanış yılı (ör. 2025) — projeksiyon öncesi veya aynı ilk yıl (mizan sütunu). */
 function bal5MaliClosingYear(f, projStartYear) {
   const o = (f && f.opening) || {};
   let y =
     Number(o.maliKapanisYili) ||
     Number(f && f.maliParsedSnapshot && f.maliParsedSnapshot.year) ||
+    Number(f && f.finskorBilancoSnapshot && f.finskorBilancoSnapshot.yil) ||
     Number(f && f.maliSource && f.maliSource.year) ||
     Number(f && f.openingMaliMeta && f.openingMaliMeta.year) ||
     0;
-  if (y > 0 && y < projStartYear) return y;
+  if (y <= 0 && f && f.finskorBilancoSnapshot) y = Number(f.finskorBilancoSnapshot.yil) || 0;
+  if (y <= 0 || !bal5HasMaliBilancoData(f)) return 0;
+  if (y < projStartYear) return y;
+  if (y === projStartYear) return y;
   return 0;
 }
 
 function bal5DisplayYears(f, projYears) {
   const sy = projYears[0];
   const maliY = bal5MaliClosingYear(f, sy);
+  if (maliY > 0 && projYears.indexOf(maliY) >= 0) return { years: projYears, maliY };
   if (maliY > 0) return { years: [maliY].concat(projYears), maliY };
   return { years: projYears, maliY: 0 };
 }

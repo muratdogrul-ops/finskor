@@ -375,7 +375,7 @@
         pri: 4,
         icon: '🌍',
         html:
-          'İhracatçı firmada BCH ihtiyacında <b>en az %50 USD</b> (kalan TL veya USD) kuralı uygulanır — Kur ve Krediler ayarlarınızı buna göre tutun.',
+          'İhracatçı firmada BCH ihtiyacında <b>USD payı en az ihracat/ciro oranı</b> (kalan TL veya USD) uygulanır — Kur ve Krediler ayarlarınızı buna göre tutun.',
       });
     }
 

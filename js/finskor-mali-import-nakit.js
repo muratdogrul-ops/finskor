@@ -142,6 +142,33 @@
     return window.maliIhracatTutar(f, parsed) > 0;
   };
 
+  /** İhracatçı BCH: USD payı = toplam satış içinde ihracat oranı (0–1). Örn. %20 ihracat → %20 USD, %80 TL. */
+  window.getExportBchUsdShare = function (f, parsed) {
+    if (!f || !window.firmHasYurtdisiSatis(f, parsed)) return 0;
+    if (f.maliIhracat && Number(f.maliIhracat.ihracatOrani) > 0) {
+      return Math.max(0, Math.min(1, Number(f.maliIhracat.ihracatOrani) / 100));
+    }
+    const ihr = window.maliIhracatTutar(f, parsed);
+    const rev =
+      nkmNum(parsed && parsed.netSatis) ||
+      nkmNum(f.maliSource && f.maliSource.netSatis) ||
+      nkmNum(f.incomeStmt && f.incomeStmt.revenue) ||
+      Math.max(0, nkmNum(parsed && parsed.brutSatis) - nkmNum(parsed && parsed.satisInd)) ||
+      nkmNum(f.maliSource && f.maliSource.brutSatis);
+    if (rev > 0 && ihr > 0) return Math.max(0, Math.min(1, ihr / rev));
+    const p = f.kdvProfile;
+    if (p && p.exportEnabled && Number(p.exportRatio) > 0) {
+      return Math.max(0, Math.min(1, Number(p.exportRatio) / 100));
+    }
+    return 0;
+  };
+
+  window.formatExportBchSplitLabel = function (usdShare) {
+    const u = Math.round(Math.max(0, Math.min(1, usdShare)) * 1000) / 10;
+    const t = Math.round((1 - Math.max(0, Math.min(1, usdShare))) * 1000) / 10;
+    return '%' + t + ' TL + %' + u + ' USD';
+  };
+
   window.applyMaliIhracatMeta = function (f, parsed, year) {
     if (!f) return;
     const ihr = Math.round(nkmNum(parsed && parsed.ihracat));
@@ -157,25 +184,53 @@
     };
   };
 
-  /** İhracatçı: KV BCH %50 TL + %50 USD (UV taksitli TL aynı) */
+  /** İhracatçı: KV BCH — TL/USD payları = satış içindeki ihracat oranı (UV taksitli TL aynı). */
   window.splitKvBchForExport = function (kvTl, f) {
     const kv = Math.max(0, Math.round(nkmNum(kvTl)));
     if (kv <= 0) return [];
-    const halfTl = Math.floor(kv / 2);
-    const halfTlUsdLeg = kv - halfTl;
+    const usdShare = window.getExportBchUsdShare(f);
+    const tlShare = 1 - usdShare;
+    const lbl = window.formatExportBchSplitLabel(usdShare);
     const usdRate = window.getMaliUsdOpenRate(f);
-    const usdPrincipal = Math.round((halfTlUsdLeg / usdRate) * 100) / 100;
+    if (usdShare <= 0.0001) {
+      return [
+        {
+          type: 'bch_existing',
+          bank: 'KV Mali Borç — TL (' + lbl + ')',
+          ccy: 'TL',
+          principal: kv,
+          _maliAuto: 'kv_tl',
+        },
+      ];
+    }
+    if (tlShare <= 0.0001) {
+      const usdPrincipal = Math.round((kv / usdRate) * 100) / 100;
+      return [
+        {
+          type: 'bch_existing',
+          bank: 'KV Mali Borç — USD (' + lbl + ')',
+          ccy: 'USD',
+          principal: usdPrincipal,
+          _maliAuto: 'kv_usd',
+        },
+      ];
+    }
+    const tlPart = Math.round(kv * tlShare);
+    const usdTlLeg = kv - tlPart;
+    const usdPrincipal = Math.round((usdTlLeg / usdRate) * 100) / 100;
+    const tlPct = Math.round(tlShare * 1000) / 10;
+    const usdPct = Math.round(usdShare * 1000) / 10;
     return [
       {
         type: 'bch_existing',
-        bank: 'KV Mali Borç — TL (%50)',
+        bank: 'KV Mali Borç — TL (%' + tlPct + ')',
         ccy: 'TL',
-        principal: halfTl,
+        principal: tlPart,
         _maliAuto: 'kv_tl',
       },
       {
         type: 'bch_existing',
-        bank: 'KV Mali Borç — USD (%50)',
+        bank: 'KV Mali Borç — USD (%' + usdPct + ')',
         ccy: 'USD',
         principal: usdPrincipal,
         _maliAuto: 'kv_usd',
@@ -206,10 +261,10 @@
   };
 
   /**
-   * Likidite eksiği BCH çekimi — ihracatçıda USD payı ≥ %50 (TL karşılığı).
+   * Likidite eksiği BCH çekimi — ihracatçıda USD payı ≥ ihracat/ciro oranı (TL karşılığı).
    * Kalan kısım TL veya USD; EUR kullanılmaz.
    */
-  window.splitBchDrawForExport = function (needTl, bbalTl, bbalUsdFc, fxUsd) {
+  window.splitBchDrawForExport = function (needTl, bbalTl, bbalUsdFc, fxUsd, f) {
     const need = Math.max(0, needTl);
     const fx = fxUsd > 0 ? fxUsd : 1;
     const tl = Math.max(0, bbalTl);
@@ -217,7 +272,9 @@
     const totalEq = tl + usdFc * fx;
     const usdEq = usdFc * fx;
     if (need <= 0) return { drawTl: 0, drawUsdFc: 0 };
-    const targetUsdEq = 0.5 * (totalEq + need);
+    const usdTarget =
+      f && typeof window.getExportBchUsdShare === 'function' ? window.getExportBchUsdShare(f) : 0;
+    const targetUsdEq = usdTarget * (totalEq + need);
     const minUsdEq = Math.max(0, targetUsdEq - usdEq);
     const drawUsdEq = Math.min(need, minUsdEq);
     const drawUsdFc = drawUsdEq / fx;
@@ -292,7 +349,7 @@
     return true;
   };
 
-  /** İhracatçı KV BCH: tek TL → %50 TL + %50 USD (manuel ihracat ile de çalışır) */
+  /** İhracatçı KV BCH: tek TL → ihracat oranında TL + USD (manuel ihracat ile de çalışır) */
   window.reapplyExportKvBchLoans = function (f, ihrOverride) {
     if (!f) return false;
     const ihr =
@@ -327,7 +384,7 @@
     return true;
   };
 
-  /** Eski tek TL KV BCH → ihracatçıda %50 TL + %50 USD */
+  /** Eski tek TL KV BCH → ihracatçıda ihracat oranında TL + USD */
   window.migrateExportKvBchSplit = function (f) {
     if (!f) return false;
     window.backfillMaliIhracatMeta(f);
@@ -337,13 +394,33 @@
     );
     const alreadySplit =
       kvLoans.some((L) => L._maliAuto === 'kv_tl') && kvLoans.some((L) => L._maliAuto === 'kv_usd');
-    if (alreadySplit) return false;
+    if (alreadySplit) {
+      const target = window.getExportBchUsdShare(f);
+      const fx = window.getMaliUsdOpenRate(f);
+      let tl = 0;
+      let usdEq = 0;
+      for (const L of kvLoans) {
+        const p = Math.max(0, nkmNum(L.principal));
+        if ((L.ccy || 'TL') === 'USD') usdEq += p * fx;
+        else tl += p;
+      }
+      const tot = tl + usdEq;
+      const actual = tot > 0 ? usdEq / tot : 0;
+      if (Math.abs(actual - target) < 0.02) return false;
+    }
     const legacySingle =
       kvLoans.length === 1 && (kvLoans[0]._maliAuto === 'kv' || kvLoans[0].bank === 'KV Mali Borç (mizan/FinSkor)');
-    if (!legacySingle && kvLoans.length > 0) return false;
-    const kv = Math.round(
-      nkmNum(f.opening && f.opening.kvMaliBorclar) || (kvLoans[0] && kvLoans[0].principal) || 0,
-    );
+    if (!legacySingle && kvLoans.length > 0 && !alreadySplit) return false;
+    let kv = Math.round(nkmNum(f.opening && f.opening.kvMaliBorclar) || 0);
+    if (kv <= 0 && kvLoans.length) {
+      const fx = window.getMaliUsdOpenRate(f);
+      kv = Math.round(
+        kvLoans.reduce((s, L) => {
+          const p = Math.max(0, nkmNum(L.principal));
+          return s + ((L.ccy || 'TL') === 'USD' ? p * fx : p);
+        }, 0),
+      );
+    }
     if (kv <= 0) return false;
     window.syncLoansFromMaliBorc(
       f,
@@ -971,8 +1048,12 @@
     window.applyMaliIhracatMeta(f, parsed, year);
     const synced = window.syncLoansFromMaliBorc(f, window.maliBorcSyncPayload(f, parsed));
     if (synced.kv > 0 || synced.uv > 0) {
+      const splitLbl =
+        synced.bchSplit && typeof window.formatExportBchSplitLabel === 'function'
+          ? window.formatExportBchSplitLabel(window.getExportBchUsdShare(f))
+          : '%50 TL + %50 USD';
       const bchTxt = synced.bchSplit
-        ? `KV <b>${synced.kv.toLocaleString('tr-TR')}</b> TL → BCH <b>%50 TL + %50 USD</b> (ihracat)`
+        ? `KV <b>${synced.kv.toLocaleString('tr-TR')}</b> TL → BCH <b>${splitLbl}</b> (ihracat oranı)`
         : `KV <b>${synced.kv.toLocaleString('tr-TR')}</b> TL (BCH)`;
       importLog(
         `🏦 Krediler: ${bchTxt} · UV <b>${synced.uv.toLocaleString('tr-TR')}</b> TL (24 ay taksit, ilk ödeme 01.02.2026, faiz %${maliUvInstallmentRate(f)})`,
@@ -983,7 +1064,7 @@
       importLog(
         `🌍 Yurtdışı satış <b>${f.maliIhracat.ihracat.toLocaleString('tr-TR')}</b> TL` +
           (f.maliIhracat.ihracatOrani > 0
-            ? ` (ciro ~%${f.maliIhracat.ihracatOrani.toFixed(1)}) — BCH çekiminde min. %50 USD`
+            ? ` (ciro ~%${f.maliIhracat.ihracatOrani.toFixed(1)}) — BCH çekiminde min. %${f.maliIhracat.ihracatOrani.toFixed(1)} USD (ihracat payı)`
             : ''),
         'info',
       );
