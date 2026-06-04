@@ -59,7 +59,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;opa
 .kdv-pulse-field{border:2px solid var(--bd);border-radius:var(--r);padding:6px 8px;background:var(--s3);transition:border-color .15s,box-shadow .15s}
 .kdv-pulse-field.kdv-field-pulse{animation:kdvSectorPulse .95s ease-in-out 5}
 .kdv-pulse-field.kdv-field-pulse select{border-color:#22c55e;font-weight:600}
-.modal--kdv{display:flex;flex-direction:column;width:min(520px,94vw);max-width:520px;max-height:min(72vh,580px);padding:0;overflow:hidden;background:var(--s1)}
+.modal--kdv{display:flex;flex-direction:column;width:min(540px,94vw);max-width:540px;max-height:min(88vh,680px);padding:0;overflow:hidden;background:var(--s1)}
 .kdv-modal-topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--bd);flex-shrink:0;background:var(--s1)}
 .kdv-modal-topbar .modal-title{margin:0;font-size:.95rem;line-height:1.25}
 .kdv-modal-close-x{flex-shrink:0;width:32px;height:32px;border:none;border-radius:8px;background:var(--s2);color:var(--tx2);font-size:1.25rem;line-height:1;cursor:pointer}
@@ -72,6 +72,8 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;opa
 .kdv-modal-body .field input,.kdv-modal-body .field select{padding:5px 8px;font-size:.8rem}
 .kdv-modal-foot{flex-shrink:0;padding:10px 14px;border-top:1px solid var(--bd);background:var(--s2)}
 .kdv-modal-foot .btn{width:100%;justify-content:center;padding:10px 16px;font-size:.85rem}
+#kdv-profile-modal #kdv-sector-blurb{font-size:.72rem;line-height:1.45;margin:0 0 10px;padding:8px 10px;background:var(--s2);border-radius:var(--r);border:1px solid var(--bd)}
+#kdv-profile-modal .kdv-modal-body .tbl-scroll{max-height:150px}
 .page-header{margin-bottom:24px}
 .page-header h1{font-size:1.6rem;font-weight:800;letter-spacing:-.5px;line-height:1.2}
 .page-header p{color:var(--tx2);font-size:.82rem;margin-top:5px}
@@ -1270,15 +1272,20 @@ body.kdv-modal-open{overflow:hidden}
     <p style="font-size:.72rem;color:var(--tx2);margin-bottom:8px;line-height:1.4">
       KDV ve ihracat ayarları otomatik kaydedilir; nakit akışa yansır.
     </p>
+    <div class="section-sep">Firma sektörü</div>
+    <div class="form-grid cols2">
+      <div class="field kdv-pulse-field" id="kdv-sector-field"><label>Ana sektör</label><select id="kdv-sector" onchange="onKdvSectorChange()"><option value="food">Gıda / tarım işleme</option><option value="general">Genel ticaret</option><option value="auto">Otomotiv yedek parça</option><option value="service">Hizmet</option><option value="construction">İnşaat / taahhüt</option><option value="custom">Özel / manuel</option></select></div>
+      <div class="field" id="kdv-food-sub-field" style="display:none"><label>Alt dal (gıda / tarım)</label><select id="kdv-food-sub" onchange="onKdvFoodSubChange()"><option value="general">Karma gıda (genel)</option><option value="egg">Yumurta &amp; kümes</option><option value="dairy">Süt &amp; süt ürünleri</option><option value="catering">Yeme–içme hizmeti</option></select></div>
+    </div>
+    <div id="kdv-sector-blurb">Sektör seçin; satış ve alış KDV önerileri otomatik dolar.</div>
     <div class="form-grid">
-      <div class="field kdv-pulse-field" id="kdv-sector-field"><label>Firma sektörü</label><select id="kdv-sector" onchange="applyKdvSectorPresetToUi(this.value,true)"><option value="food">Gıda / tarım işleme</option><option value="general">Genel ticaret</option><option value="auto">Otomotiv yedek parça</option><option value="service">Hizmet</option><option value="construction">İnşaat / taahhüt</option><option value="custom">Özel / manuel</option></select></div>
       <div class="field"><label>Yurtiçi satış KDV oranı %</label><input id="kdv-domestic-rate" type="number" step="0.1" min="0" max="20" placeholder="20"></div>
       <div class="field kdv-pulse-field" id="kdv-export-enabled-field"><label>Yurt dışı satış var mı?</label><select id="kdv-export-enabled" onchange="toggleKdvExportFields()"><option value="no">Hayır</option><option value="yes">Evet</option></select></div>
       <div class="field kdv-export-field"><label>İhracat / ciro oranı %</label><input id="kdv-export-ratio" type="number" step="0.1" min="0" max="100" placeholder="0"></div>
     </div>
     <div class="section-sep">Alış KDV yapısı (SMM kovaları)</div>
     <div class="tbl-scroll"><table><thead><tr><th style="text-align:left">Kova</th><th>Pay %</th><th>KDV %</th></tr></thead><tbody>
-      <tr><td style="text-align:left">Hammadde</td><td><input id="kdv-bucket-raw-pct" type="number" step="0.1" min="0" max="100" oninput="updateKdvBucketHint()"></td><td><input id="kdv-bucket-raw-rate" type="number" step="0.1" min="0" max="20" oninput="updateKdvBucketHint()"></td></tr>
+      <tr><td style="text-align:left">Hammadde / yem / çiğ girdi</td><td><input id="kdv-bucket-raw-pct" type="number" step="0.1" min="0" max="100" oninput="updateKdvBucketHint()"></td><td><input id="kdv-bucket-raw-rate" type="number" step="0.1" min="0" max="20" oninput="updateKdvBucketHint()"></td></tr>
       <tr><td style="text-align:left">Ambalaj / çuval / big bag</td><td><input id="kdv-bucket-pack-pct" type="number" step="0.1" min="0" max="100" oninput="updateKdvBucketHint()"></td><td><input id="kdv-bucket-pack-rate" type="number" step="0.1" min="0" max="20" oninput="updateKdvBucketHint()"></td></tr>
       <tr><td style="text-align:left">Enerji / üretim</td><td><input id="kdv-bucket-energy-pct" type="number" step="0.1" min="0" max="100" oninput="updateKdvBucketHint()"></td><td><input id="kdv-bucket-energy-rate" type="number" step="0.1" min="0" max="20" oninput="updateKdvBucketHint()"></td></tr>
       <tr><td style="text-align:left">Diğer direkt gider</td><td><input id="kdv-bucket-other-pct" type="number" step="0.1" min="0" max="100" oninput="updateKdvBucketHint()"></td><td><input id="kdv-bucket-other-rate" type="number" step="0.1" min="0" max="20" oninput="updateKdvBucketHint()"></td></tr>
@@ -1287,13 +1294,16 @@ body.kdv-modal-open{overflow:hidden}
       <div class="field"><label>Faaliyet gideri KDV %</label><input id="kdv-opex-rate" type="number" step="0.1" min="0" max="20" placeholder="20"></div>
       <div class="field"><label>Yatırım KDV %</label><input id="kdv-invest-rate" type="number" step="0.1" min="0" max="20" placeholder="20"></div>
       <div class="field kdv-export-field"><label>İhraç kayıtlı alım payı %</label><input id="kdv-export-registered-pct" type="number" step="0.1" min="0" max="100" placeholder="0" title="Bu payda KDV ödenmez ve 191'e yazılmaz."></div>
-      <div class="field kdv-export-field"><label>KDV iadesi davranışı</label><select id="kdv-refund-mode"><option value="carry">Devret</option><option value="cash">Nakit iade</option><option value="offset">Mahsup</option><option value="mixed">Karma</option></select></div>
-      <div class="field kdv-export-field"><label>İade gecikmesi (ay)</label><input id="kdv-refund-delay" type="number" min="0" max="12" step="1" placeholder="4" title="İhracata yüklenilen KDV'nin iade/mahsupla nakde dönme gecikmesi."></div>
-      <div class="field kdv-export-field"><label>İade alınan pay % <span style="opacity:.6">(bilgi)</span></label><input id="kdv-export-refund-rate" type="number" min="0" max="100" step="1" placeholder="80" title="Bilgi amaçlı. 190 devreden seviyesi açılış bakiyesine ve ihracat hacmine göre otomatik kalibre edilir."></div>
-      <div class="field kdv-export-field"><label>Nakit iade oranı %</label><input id="kdv-refund-cash-pct" type="number" min="0" max="100" step="1" placeholder="70"></div>
-      <div class="field kdv-export-field"><label>Mahsup oranı %</label><input id="kdv-refund-offset-pct" type="number" min="0" max="100" step="1" placeholder="30"></div>
-      <div class="field kdv-export-field"><label>Açılış 190 kullanımı</label><select id="kdv-opening-refund-mode"><option value="carry">Devret</option><option value="cash">Nakit iade bekleniyor</option><option value="offset">Vergilere mahsup</option><option value="mixed">Karışık</option></select></div>
-      <div class="field kdv-export-field" style="grid-column:1/-1"><label>İhracat sezonu (12 ay: Oca…Ara, ağırlık)</label><input id="kdv-export-season" type="text" placeholder="11,10,9,7,6,5,4,5,8,11,12,12" title="Yıllık ihracatın aylara dağılımı (fındık hasat/sezon)."></div>
+    </div>
+    <div class="section-sep kdv-export-field">İhracat — KDV iadesi</div>
+    <div class="form-grid kdv-export-field">
+      <div class="field"><label>KDV iadesi davranışı</label><select id="kdv-refund-mode"><option value="carry">Devret</option><option value="cash">Nakit iade</option><option value="offset">Mahsup</option><option value="mixed">Karma</option></select></div>
+      <div class="field"><label>İade gecikmesi (ay)</label><input id="kdv-refund-delay" type="number" min="0" max="12" step="1" placeholder="4" title="İhracata yüklenilen KDV'nin iade/mahsupla nakde dönme gecikmesi."></div>
+      <div class="field"><label>İade alınan pay % <span style="opacity:.6">(bilgi)</span></label><input id="kdv-export-refund-rate" type="number" min="0" max="100" step="1" placeholder="80" title="Bilgi amaçlı. 190 devreden seviyesi açılış bakiyesine ve ihracat hacmine göre otomatik kalibre edilir."></div>
+      <div class="field"><label>Nakit iade oranı %</label><input id="kdv-refund-cash-pct" type="number" min="0" max="100" step="1" placeholder="70"></div>
+      <div class="field"><label>Mahsup oranı %</label><input id="kdv-refund-offset-pct" type="number" min="0" max="100" step="1" placeholder="30"></div>
+      <div class="field"><label>Açılış 190 kullanımı</label><select id="kdv-opening-refund-mode"><option value="carry">Devret</option><option value="cash">Nakit iade bekleniyor</option><option value="offset">Vergilere mahsup</option><option value="mixed">Karışık</option></select></div>
+      <div class="field" style="grid-column:1/-1"><label>İhracat sezonu (12 ay: Oca…Ara, ağırlık)</label><input id="kdv-export-season" type="text" placeholder="11,10,9,7,6,5,4,5,8,11,12,12" title="Yıllık ihracatın aylara dağılımı (fındık hasat/sezon)."></div>
     </div>
     <div id="kdv-profile-hint" class="notice" style="margin-top:8px"></div>
     </div>
@@ -1878,10 +1888,38 @@ function curFirm(){
 // ══════════════════════════════════════════════
 // KDV PROFİLİ — sektör + ihracat + SMM kovaları
 // ══════════════════════════════════════════════
+const KDV_FOOD_SUB_LABELS={general:'Karma gıda',egg:'Yumurta & kümes',dairy:'Süt & süt ürünleri',catering:'Yeme–içme hizmeti'};
+const KDV_SECTOR_BLURBS={
+  food_egg:'<b>Yumurta & kümes:</b> Satış %1 · yem/hammadde %1 · ambalaj/enerji %20.',
+  food_dairy:'<b>Süt & süt ürünleri:</b> Satış %1 · çiğ süt/hammadde %1 · ambalaj/enerji %20.',
+  food_general:'<b>Gıda / tarım:</b> Temel gıda satışı %1 · hammadde %1 (I. sayılı liste).',
+  food_catering:'<b>Yeme–içme hizmeti:</b> Satış %10 (hizmet) · giderler ağırlıklı %10.',
+  general:'<b>Genel ticaret:</b> Satış ve alış çoğunlukla %20.',
+  auto:'<b>Otomotiv yedek parça:</b> Satış %20.',
+  service:'<b>Hizmet:</b> Satış %20.',
+  construction:'<b>İnşaat / taahhüt:</b> Satış %20.',
+  custom:'<b>Özel:</b> Oranları manuel girin; preset uygulanmaz.'
+};
+function kdvPresetKey(sector, foodSub){
+  if(sector==='food'){
+    const m={egg:'food_egg',dairy:'food_dairy',general:'food_general',catering:'food_catering'};
+    return m[foodSub]||'food_general';
+  }
+  return sector||'general';
+}
 const KDV_SECTOR_PRESETS={
-  food:{sector:'food',domesticSalesRate:10,exportEnabled:false,exportRatio:0,
+  food_egg:{sector:'food',foodSub:'egg',domesticSalesRate:1,exportEnabled:false,exportRatio:0,
+    buckets:{raw:{pct:80,rate:1},pack:{pct:8,rate:20},energy:{pct:7,rate:20},other:{pct:5,rate:10}},
+    opexRate:20,investRate:20,exportRegisteredPurchasePct:0,refundMode:'carry',refundDelayMonths:3,refundCashPct:70,refundOffsetPct:30,openingRefundMode:'carry'},
+  food_dairy:{sector:'food',foodSub:'dairy',domesticSalesRate:1,exportEnabled:false,exportRatio:0,
+    buckets:{raw:{pct:75,rate:1},pack:{pct:10,rate:20},energy:{pct:10,rate:20},other:{pct:5,rate:20}},
+    opexRate:20,investRate:20,exportRegisteredPurchasePct:0,refundMode:'carry',refundDelayMonths:3,refundCashPct:70,refundOffsetPct:30,openingRefundMode:'carry'},
+  food_general:{sector:'food',foodSub:'general',domesticSalesRate:1,exportEnabled:false,exportRatio:0,
     buckets:{raw:{pct:85,rate:1},pack:{pct:8,rate:20},energy:{pct:5,rate:20},other:{pct:2,rate:20}},
     opexRate:20,investRate:20,exportRegisteredPurchasePct:0,refundMode:'carry',refundDelayMonths:3,refundCashPct:70,refundOffsetPct:30,openingRefundMode:'carry'},
+  food_catering:{sector:'food',foodSub:'catering',domesticSalesRate:10,exportEnabled:false,exportRatio:0,
+    buckets:{raw:{pct:0,rate:1},pack:{pct:0,rate:20},energy:{pct:0,rate:20},other:{pct:100,rate:10}},
+    opexRate:10,investRate:20,exportRegisteredPurchasePct:0,refundMode:'carry',refundDelayMonths:3,refundCashPct:70,refundOffsetPct:30,openingRefundMode:'carry'},
   general:{sector:'general',domesticSalesRate:20,exportEnabled:false,exportRatio:0,
     buckets:{raw:{pct:80,rate:20},pack:{pct:10,rate:20},energy:{pct:5,rate:20},other:{pct:5,rate:10}},
     opexRate:20,investRate:20,exportRegisteredPurchasePct:0,refundMode:'carry',refundDelayMonths:3,refundCashPct:70,refundOffsetPct:30,openingRefundMode:'carry'},
@@ -1900,15 +1938,26 @@ const KDV_SECTOR_PRESETS={
 };
 // İhracat sezonu (12 ay, Oca..Ara) — fındık: hasat Ağu-Eyl, ihracat sonbahar-kış yoğun. Toplam ~100.
 const DEFAULT_EXPORT_SEASON=[11,10,9,7,6,5,4,5,8,11,12,12];
-function cloneKdvPreset(sector){
-  return JSON.parse(JSON.stringify(KDV_SECTOR_PRESETS[sector]||KDV_SECTOR_PRESETS.general));
+function cloneKdvPreset(sector, foodSub){
+  const key=kdvPresetKey(sector, foodSub);
+  return JSON.parse(JSON.stringify(KDV_SECTOR_PRESETS[key]||KDV_SECTOR_PRESETS.general));
 }
 function defaultKdvProfile(){
   return cloneKdvPreset('general');
 }
 function normalizeKdvProfile(profile,f){
-  const base=cloneKdvPreset((profile&&profile.sector)||'general');
+  const sec=(profile&&profile.sector)||'general';
+  let fsub=profile&&profile.foodSub;
+  if(sec==='food'&&!fsub)fsub='general';
+  if(sec!=='food')fsub=undefined;
+  const base=cloneKdvPreset(sec,fsub);
   const p=Object.assign(base,profile||{});
+  if(sec==='food')p.foodSub=fsub||p.foodSub||'general';
+  else delete p.foodSub;
+  // Eski gıda preset satış %10 idi — temel gıda üreticisi için %1’e yükselt
+  if(p.sector==='food'&&p.foodSub!=='catering'&&Math.abs(Number(p.domesticSalesRate)-10)<0.01){
+    p.domesticSalesRate=1;
+  }
   p.buckets=Object.assign(base.buckets,(profile&&profile.buckets)||{});
   ['raw','pack','energy','other'].forEach(k=>{p.buckets[k]=Object.assign(base.buckets[k]||{pct:0,rate:20},(profile&&profile.buckets&&profile.buckets[k])||{});});
   if(f&&f.maliIhracat&&Number(f.maliIhracat.ihracatOrani)>0&&(!p.exportEnabled||p.exportRatio<=0)){
@@ -1965,9 +2014,29 @@ function kdvRefundShares(profile){
   const total=Math.min(1,cash+offset);
   return{cash,offset,total};
 }
+function toggleKdvFoodSubField(){
+  const isFood=($('kdv-sector')?.value)==='food';
+  const fld=$('kdv-food-sub-field');
+  if(fld)fld.style.display=isFood?'':'none';
+}
+function updateKdvSectorBlurb(){
+  const el=$('kdv-sector-blurb');if(!el)return;
+  const sector=$('kdv-sector')?.value||'general';
+  const key=sector==='food'?kdvPresetKey('food',$('kdv-food-sub')?.value||'general'):sector;
+  el.innerHTML=KDV_SECTOR_BLURBS[key]||KDV_SECTOR_BLURBS.general;
+}
+function onKdvSectorChange(){
+  toggleKdvFoodSubField();
+  applyKdvSectorPresetToUi($('kdv-sector')?.value||'general',true);
+}
+function onKdvFoodSubChange(){
+  applyKdvSectorPresetToUi('food',true);
+}
 function applyKdvSectorPresetToUi(sector,keepExport){
+  if((sector||'')==='custom'){toggleKdvFoodSubField();updateKdvSectorBlurb();updateKdvBucketHint();return;}
   const cur=readKdvProfileFromUi(true);
-  const p=cloneKdvPreset(sector||'general');
+  let foodSub=sector==='food'?($('kdv-food-sub')?.value||cur?.foodSub||'general'):undefined;
+  const p=cloneKdvPreset(sector||'general',foodSub);
   if(keepExport&&cur){
     p.exportEnabled=cur.exportEnabled;
     p.exportRatio=cur.exportRatio;
@@ -1976,13 +2045,16 @@ function applyKdvSectorPresetToUi(sector,keepExport){
     p.refundCashPct=cur.refundCashPct;
     p.refundOffsetPct=cur.refundOffsetPct;
     p.openingRefundMode=cur.openingRefundMode;
+    if(cur.exportSeason)p.exportSeason=cur.exportSeason.slice();
   }
   writeKdvProfileToUi(p);
 }
 function readKdvProfileFromUi(silent){
   if(!$('kdv-sector'))return silent?null:defaultKdvProfile();
+  const sector=$('kdv-sector').value||'general';
   const p={
-    sector:$('kdv-sector').value||'general',
+    sector:sector,
+    foodSub:sector==='food'?($('kdv-food-sub')?.value||'general'):undefined,
     domesticSalesRate:fnum($('kdv-domestic-rate')?.value,20),
     exportEnabled:($('kdv-export-enabled')?.value)==='yes',
     exportRatio:fnum($('kdv-export-ratio')?.value,0),
@@ -2009,6 +2081,8 @@ function writeKdvProfileToUi(profile){
   if(!$('kdv-sector'))return;
   const p=normalizeKdvProfile(profile);
   $('kdv-sector').value=p.sector||'general';
+  if($('kdv-food-sub'))$('kdv-food-sub').value=p.foodSub||'general';
+  toggleKdvFoodSubField();
   $('kdv-domestic-rate').value=p.domesticSalesRate;
   $('kdv-export-enabled').value=p.exportEnabled?'yes':'no';
   $('kdv-export-ratio').value=p.exportRatio;
@@ -2027,6 +2101,7 @@ function writeKdvProfileToUi(profile){
   if($('kdv-export-refund-rate'))$('kdv-export-refund-rate').value=p.exportRefundRate;
   if($('kdv-export-season'))$('kdv-export-season').value=(p.exportSeason||[]).join(',');
   toggleKdvExportFields();
+  updateKdvSectorBlurb();
   updateKdvBucketHint();
 }
 function toggleKdvExportFields(){
@@ -2045,11 +2120,17 @@ function updateKdvBucketHint(){
   updateKdvProfileSummary(p);
 }
 const KDV_SECTOR_LABELS={food:'Gıda / tarım',general:'Genel ticaret',auto:'Otomotiv yedek',service:'Hizmet',construction:'İnşaat / taahhüt',custom:'Özel'};
+function kdvProfileSectorLabel(p){
+  if(!p)return '';
+  let s=KDV_SECTOR_LABELS[p.sector]||p.sector;
+  if(p.sector==='food'&&p.foodSub)s+=' → '+(KDV_FOOD_SUB_LABELS[p.foodSub]||p.foodSub);
+  return s;
+}
 function updateKdvProfileSummary(profile){
   const el=$('kdv-profile-summary');if(!el)return;
   const f=curFirm();
   const p=normalizeKdvProfile(profile||(f&&f.kdvProfile)||defaultKdvProfile(),f);
-  const sec=KDV_SECTOR_LABELS[p.sector]||p.sector;
+  const sec=kdvProfileSectorLabel(p);
   const eff=(kdvBucketEffectiveRate(p)*100).toFixed(2);
   let txt='<b>'+sec+'</b> · Yurtiçi satış KDV %'+p.domesticSalesRate.toFixed(1)+' · Efektif alış KDV ~%'+eff;
   if(p.exportEnabled&&p.exportRatio>0)txt+=' · İhracat %'+p.exportRatio.toFixed(1);
