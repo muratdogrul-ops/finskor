@@ -1117,7 +1117,7 @@ body.kdv-modal-open{overflow:hidden}
         <div class="avatar-face">💎</div>
         <div class="avatar-bubble">
           <h3>Bugünkü değer (özet)</h3>
-          <p>Bu sayfa <strong>FCFF vekili</strong> üretir: <strong>NOPAT</strong> (satış−SMM−gider−faaliyet vergisi) − yatırım − <strong>işletme sermayesi değişimi</strong> (tahsilat/satış, ödeme/satınalma, stok). <strong>KDV ödemesi ve finansman vekile dahil değil</strong> (çifte sayım önlenir). Nakit tablosu K.Vergisi = faiz-sonrası ödeme. Net borç = son yıl borç − kasa − mevduat.</p>
+          <p>Bu sayfa <strong>FCFF vekili</strong> üretir: <strong>NOPAT</strong> (faaliyet EBIT − <strong>faaliyet vergisi</strong>, faiz hariç) − yatırım − <strong>ΔİS</strong>. İNA vergisi nakit tablosundaki K.Vergisi değildir (faiz vergi kalkanı WACC ile çift sayılmaz). <strong>KDV ve finansman vekile dahil değil.</strong> Net borç = son yıl borç − kasa − mevduat.</p>
           <span class="avatar-tip">İşletme değeri faiz değişimine tepki vermemeli (UFCF); faiz etkisi özsermayede net borç üzerinden yansır. WACC: sabit / 5 yıl aşamalı / dinamik.</span>
         </div>
       </div>
@@ -1667,6 +1667,8 @@ const INA_WACC_STAGED_DEFAULT = [38, 28, 20, 14, 11];
 const INA_TERMINAL_G_DEFAULT = 6;
 /** Varsayılan tablo değişince artırın — tüm firmalara bir kez zorunlu uygulanır */
 const INA_DEFAULTS_VERSION = 3;
+/** true = İNA’da faaliyet EBIT vergisi (FCFF); false = eski nakit K.Vergisi (faiz kalkanı — geri al) */
+const INA_FCFF_UNLEVERED_TAX = true;
 
 function defaultInaParams() {
   return {
@@ -4392,18 +4394,28 @@ function inaWaccModeChanged() {
 
 /**
  * Yıllık FCFF vekili: faaliyet NOPAT − yatırım − işletme sermayesi değişimi (tahsilat/satış, ödeme/satınalma, stok).
- * KDV ve finansman vekile dahil değil; vergi faaliyet EBIT üzerinden.
+ * KDV ve finansman vekile dahil değil. INA_FCFF_UNLEVERED_TAX=true iken vergi yalnız K.Vergisi (FCFF) / vergiIna.
  */
-function yearlyFcfInaFromTotals(t, stokDelta) {
+function yearlyFcfInaBreakdown(t, stokDelta) {
   const ebitOp = Number(t.ebitIna);
-  const vergiFcff = Number.isFinite(Number(t.vergiIna)) ? Number(t.vergiIna) : 0;
   const ebit = Number.isFinite(ebitOp)
     ? ebitOp
     : ((t.satis || 0) - (t.cogs || 0) - (t.opex || 0) + (t.manuelGelir || 0) - (t.manuelGider || 0));
+  let vergiFcff = 0;
+  if (INA_FCFF_UNLEVERED_TAX) {
+    vergiFcff = Number.isFinite(Number(t.vergiIna)) ? Number(t.vergiIna) : 0;
+  } else {
+    vergiFcff = Number(t.vergi) || 0;
+  }
   const nopat = ebit - vergiFcff;
   const capex = t.yatirimCikti || 0;
   const deltaWc = (t.satis || 0) - (t.tahsilat || 0) + (t.satinAlma || 0) - (t.tedarikci || 0) + (stokDelta || 0);
-  return nopat - capex - deltaWc;
+  const fcf = nopat - capex - deltaWc;
+  return { ebit: ebit, vergiFcff: vergiFcff, nopat: nopat, capex: capex, deltaWc: deltaWc, fcf: fcf };
+}
+
+function yearlyFcfInaFromTotals(t, stokDelta) {
+  return yearlyFcfInaBreakdown(t, stokDelta).fcf;
 }
 
 /**
@@ -4440,15 +4452,16 @@ function computeInaValuation(proj, ina) {
     capN = Math.min(Math.floor(Number(capRaw)), fullTail.length);
   }
   const explicit = capN != null ? fullTail.slice(0, capN) : fullTail;
-  const fcfArr = explicit.map(function (yd, idx) {
+  const fcfBreakdowns = explicit.map(function (yd) {
     const t = yd.totals || {};
     const m0 = yd.months && yd.months[0];
     const mL = yd.months && yd.months[yd.months.length - 1];
     const stokBeg = m0 ? (m0.stokBak || 0) : 0;
     const stokEnd = mL ? (mL.stokBak || 0) : (t.stokBak || 0);
     const stokDelta = stokEnd - stokBeg;
-    return yearlyFcfInaFromTotals(t, stokDelta);
+    return yearlyFcfInaBreakdown(t, stokDelta);
   });
+  const fcfArr = fcfBreakdowns.map(function (b) { return b.fcf; });
   const n = fcfArr.length;
   if (!n) return { error: 'Açık dönem nakit vekili yok.' };
 
@@ -4487,9 +4500,15 @@ function computeInaValuation(proj, ina) {
     cumulativeDiscountFactor *= (1 + wDec);
     const pv = fcfArr[i] / cumulativeDiscountFactor;
     pvExplicit += pv;
+    const bd = fcfBreakdowns[i] || {};
     tableRows.push({
       year: explicit[i].year,
       fcf: fcfArr[i],
+      ebit: bd.ebit,
+      vergiFcff: bd.vergiFcff,
+      nopat: bd.nopat,
+      capex: bd.capex,
+      deltaWc: bd.deltaWc,
       waccPct: yearlyWaccPct[i],
       cumulativeFactor: cumulativeDiscountFactor,
       disc: cumulativeDiscountFactor,
@@ -4522,6 +4541,7 @@ function computeInaValuation(proj, ina) {
     lastFcf: lastFcf,
     waccPct: yearlyWaccPct[n - 1],
     waccMode: mode,
+    fcffUnleveredTax: INA_FCFF_UNLEVERED_TAX,
     yearlyWaccPct: yearlyWaccPct,
     terminalWaccPct: yearlyWaccPct[n - 1],
     gPct: g,
@@ -4814,14 +4834,18 @@ function refreshInaResults(options) {
     tbl += '<p class="notice" style="margin-bottom:10px">Dinamik WACC: risk skoru <b>' + res.dynMeta.riskScore + '</b>, yıllık düşüş adımı ~%' + tr(res.dynMeta.annualImprovementPct, 2) + ', başlangıç %' + tr(res.dynMeta.baseWaccPct, 1) + '.</p>';
   }
   const modeLabel = res.waccMode === 'constant' ? 'Sabit' : (res.waccMode === 'staged' ? 'Aşamalı' : 'Dinamik');
-  tbl += '<div class="tbl-wrap"><table><thead><tr><th>Yıl</th><th>Vekil FCF (TL)</th><th>WACC %</th><th>Bileşik çarpan Π(1+r)</th><th>Bugünkü değer (TL)</th></tr></thead><tbody>';
+  const taxNote = res.fcffUnleveredTax !== false
+    ? 'Vergi: faaliyet EBIT (FCFF) — nakit K.Vergisi değil.'
+    : '<span style="color:var(--red)">Uyarı: eski mod (nakit K.Vergisi) — INA_FCFF_UNLEVERED_TAX=true önerilir.</span>';
+  tbl += '<p class="notice" style="margin-bottom:8px;font-size:.76rem">' + taxNote + '</p>';
+  tbl += '<div class="tbl-wrap"><table><thead><tr><th>Yıl</th><th>EBIT</th><th>Vergi (FCFF)</th><th>NOPAT</th><th>ΔİS</th><th>Yatırım</th><th>Vekil FCF</th><th>WACC %</th><th>Π(1+r)</th><th>PV</th></tr></thead><tbody>';
   for (let i = 0; i < res.tableRows.length; i++) {
     const row = res.tableRows[i];
     const waccCell = row.waccPct != null ? tr(row.waccPct, 2) : '—';
-    tbl += '<tr><td>' + row.year + '</td><td>' + tr(row.fcf, 0) + '</td><td>' + waccCell + '</td><td>' + tr(row.cumulativeFactor || row.disc, 4) + '</td><td>' + tr(row.pv, 0) + '</td></tr>';
+    tbl += '<tr><td>' + row.year + '</td><td>' + tr(row.ebit, 0) + '</td><td>' + tr(row.vergiFcff, 0) + '</td><td>' + tr(row.nopat, 0) + '</td><td>' + tr(row.deltaWc, 0) + '</td><td>' + tr(row.capex, 0) + '</td><td><b>' + tr(row.fcf, 0) + '</b></td><td>' + waccCell + '</td><td>' + tr(row.cumulativeFactor || row.disc, 4) + '</td><td>' + tr(row.pv, 0) + '</td></tr>';
   }
-  tbl += '<tr class="muted-row"><td colspan="4">Açık dönem PV toplamı</td><td>' + tr(res.pvExplicit, 0) + '</td></tr>';
-  tbl += '<tr class="muted-row"><td colspan="4">Terminal PV (Gordon, g=%' + tr(res.gPct, 1) + ', son yıl r=%' + tr(res.terminalWaccPct != null ? res.terminalWaccPct : res.waccPct, 1) + ')</td><td>' + tr(res.pvTv, 0) + '</td></tr>';
+  tbl += '<tr class="muted-row"><td colspan="9">Açık dönem PV toplamı</td><td>' + tr(res.pvExplicit, 0) + '</td></tr>';
+  tbl += '<tr class="muted-row"><td colspan="9">Terminal PV (Gordon, g=%' + tr(res.gPct, 1) + ', son yıl r=%' + tr(res.terminalWaccPct != null ? res.terminalWaccPct : res.waccPct, 1) + ')</td><td>' + tr(res.pvTv, 0) + '</td></tr>';
   tbl += '</tbody></table></div>';
   tbl += '<p class="notice" style="margin-top:14px">Mod: <b>' + modeLabel + '</b> · Dönem: ' + res.firstYear + '–' + res.lastYear + ' · Son yıl vekil FCF (FCFF vergi): ' + tr(res.lastFcf, 0) + ' TL. Yatırım tavsiyesi değildir.</p>';
   box.innerHTML = tbl;
@@ -6228,8 +6252,8 @@ function bilancoAdiNumsiz(s) {
 const BAL5_CORP_TOTAL_KEYS = new Set(['donenVarlik', 'duranVarlik', 'aktifToplam', 'kvYKToplam', 'uvYKToplam', 'ozKaynak', 'pasifToplam']);
 
 const BAL5_KDV_KEYS = new Set(['indirilecekKdv', 'devredenKdv', 'hesaplananKdv']);
-/** 5Y bilanço tablosunda gösterilmez (391 tahakkuk; ödenecek KDV ayrı satırda / mahsup sonrası). */
-const BAL5_HIDDEN_ROW_KEYS = new Set(['hesaplananKdv']);
+/** 5Y bilanço tablosunda gösterilmez (KDV motoru / açılışta kullanılır; denge farkı satırı kalır). */
+const BAL5_HIDDEN_ROW_KEYS = new Set(['hesaplananKdv', 'indirilecekKdv', 'devredenKdv']);
 
 /** FinSkor snapshot’ta 191/190 yoksa NakitFlow satırlarını ekle. */
 function bal5SectionsEnsureKdv(snapRows) {
@@ -6701,8 +6725,6 @@ function renderBalance5Y(){
       {l:'Mevduat',          k:'mevduat'},
       {l:'Ticari Alacak (AR)',k:'ar'},
       {l:'Stok',             k:'stok'},
-      {l:'İndirilecek KDV (191)', k:'indirilecekKdv'},
-      {l:'Devreden KDV (190)',    k:'devredenKdv'},
       {l:'Diğer alacak + diğer dönen (bilanço dengesi)', k:'otherAssets'},
       {l:'► Dönen Varlıklar Toplamı', k:'__donen_top__', bold:true, corpTotal:true},
       {sep:'DURAN VARLIKLAR'},
@@ -6907,7 +6929,7 @@ function buildBalance5YPrintHtml(f,proj){
   }else{
     sections=[
       {sep:'DÖNEN VARLIKLAR'},{l:'Nakit ve Banka',k:'nakit'},{l:'Mevduat',k:'mevduat'},
-      {l:'Ticari Alacak',k:'ar'},{l:'Stok',k:'stok'},{l:'İndirilecek KDV',k:'indirilecekKdv'},{l:'Devreden KDV',k:'devredenKdv'},{l:'Diğer alacak ve diğer dönen varlıklar',k:'otherAssets'},
+      {l:'Ticari Alacak',k:'ar'},{l:'Stok',k:'stok'},{l:'Diğer alacak ve diğer dönen varlıklar',k:'otherAssets'},
       {l:'► Dönen Varlıklar Toplamı',k:'__donen_top__',bold:true,corpTotal:true},
       {sep:'DURAN VARLIKLAR'},{l:'Maddi Duran Varlık',k:'mdv'},
       {l:'► Aktif Toplam',k:'aktifToplam',bold:true,corpTotal:true},

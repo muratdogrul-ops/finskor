@@ -1304,12 +1304,16 @@ function mizanTextIsleBeyanname(lines, result, year) {
     const isOrtakAlt = isAltRakam && /ortaklardan alacak/.test(ln);
     let beyanAltLikiditeKey = null;
     if (isAltRakam && !isYurtdisi && !isOrtakAlt) {
-      if (/alinan/.test(ln) && /cek/.test(ln)) beyanAltLikiditeKey = 'ticAlacaklar';
-      else if (/verilen/.test(ln) && /cek|odeme emri/.test(ln)) beyanAltLikiditeKey = 'kvTicBorclar';
+      if (bolum === 'DONEN' && /alinan/.test(ln) && /cek/.test(ln)) beyanAltLikiditeKey = 'ticAlacaklar';
+      // 103 / verilen çek (-): aktifte hazırdan düşülmez; pasif KV ticari borç (bilanço dengesi)
+      else if (bolum === 'DONEN' && /verilen/.test(ln) && /cek|odeme emri/.test(ln)) {
+        beyanAltLikiditeKey = 'kvTicBorclar';
+      }
       else if (
-        /kasa/.test(ln) ||
-        /banka/.test(ln) ||
-        /diger hazir|hazir.*diger|diger.*hazir deger/.test(ln)
+        bolum === 'DONEN' &&
+        (/kasa/.test(ln) ||
+          (/banka/.test(ln) && !/kredi|borc|mali/.test(ln)) ||
+          /diger hazir|hazir.*diger|diger.*hazir deger/.test(ln))
       ) {
         beyanAltLikiditeKey = 'hazirDegerler';
       }
@@ -1338,8 +1342,12 @@ function mizanTextIsleBeyanname(lines, result, year) {
     let cari = beyanPickCariColumn(sayilar);
 
     if (beyanAltLikiditeKey) {
-      const sign = line.includes('(-)') ? -1 : 1;
-      result[beyanAltLikiditeKey] = (result[beyanAltLikiditeKey] || 0) + sign * cari;
+      if (beyanAltLikiditeKey === 'kvTicBorclar' && /verilen/.test(ln) && /cek|odeme emri/.test(ln)) {
+        result.kvTicBorclar = (result.kvTicBorclar || 0) + Math.abs(cari);
+      } else {
+        const sign = line.includes('(-)') ? -1 : 1;
+        result[beyanAltLikiditeKey] = (result[beyanAltLikiditeKey] || 0) + sign * cari;
+      }
       continue;
     }
 
@@ -1514,13 +1522,13 @@ function mizanTextIsleBeyanname(lines, result, year) {
     }
   })();
 
-  // Hazır değerler: PDF satır kırılımında alt kalemde yalnız önceki dönem okunabiliyor → grup cari toplamına hizala
+  // Hazır değerler: alt kalem cari eksikse grup toplamına hizala (alt > grup ise alt toplamı koru)
   (function finalizeBeyanHazirDegerler() {
     const grup = Number(result._hazirBeyanGrupCari) || 0;
     const alt = Number(result.hazirDegerler) || 0;
     if (grup > 0) {
       const tol = Math.max(500, grup * 0.02);
-      if (alt <= 0 || alt > grup * 1.02 || Math.abs(alt - grup) > tol) {
+      if (alt <= 0 || alt < grup - tol) {
         result.hazirDegerler = grup;
       }
     }
