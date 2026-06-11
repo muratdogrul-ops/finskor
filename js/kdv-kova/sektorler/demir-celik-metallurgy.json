@@ -1,0 +1,148 @@
+{
+  "sektorMeta": {
+    "id": "demir-celik-metallurgy",
+    "ad": "Demir-Çelik / Metalurji",
+    "kdvRejimi": "TEVKIFAT_AGIRLIKLI",
+    "gecerlilikYili": 2026,
+    "guven": "dusuk",
+    "netPozisyonTipik": "DEVREDEN",
+    "uiGrup": "imalat",
+    "altDal": "uretim",
+    "kaynaklar": [
+      "KDVGUT I/C-2.1.3.3.8 demir-çelik tevkifatı",
+      "hurda 7/10 (2.1.3.3.4); hurda teslimi 17/4-g istisna"
+    ],
+    "notlar": []
+  },
+  "satisKalemleri": [
+    {
+      "urunKodu": "GENEL_MAL",
+      "urunAdi": "Demir-çelik mamul (%20, tevkifatlı)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "matrahKaynagi": "brutSatis",
+      "varsayilanCiroPayi": {
+        "min": 0.9,
+        "max": 1.0,
+        "tipik": 1.0
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    }
+  ],
+  "alisKalemleri": [
+    {
+      "girdiKodu": "HURDA_CEVHER",
+      "girdiAdi": "Hurda/cevher hammadde (%20; hurda 7/10 alıcı)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.5,
+        "max": 0.7,
+        "tipik": 0.62
+      },
+      "kaynak": "KDVGUT 2.1.3.3.4"
+    },
+    {
+      "girdiKodu": "ENERJI_ELEKTRIK",
+      "girdiAdi": "Enerji (ark ocağı, yüksek %20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.15,
+        "max": 0.3,
+        "tipik": 0.22
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "YARDIMCI_KIMYASAL",
+      "girdiAdi": "Ferroalyaj/elektrot/refrakter (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.03,
+        "max": 0.12,
+        "tipik": 0.08
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "AMBALAJ",
+      "girdiAdi": "Bağlama/paketleme (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.0,
+        "max": 0.05,
+        "tipik": 0.02
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "NAKLIYE_LOJISTIK",
+      "girdiAdi": "Ağır nakliye (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.2,
+        "max": 0.5,
+        "tipik": 0.4
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "OPEX_20",
+      "girdiAdi": "Diğer (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.2,
+        "max": 0.6,
+        "tipik": 0.4
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "KDVSIZ_GIDER",
+      "girdiAdi": "KDV'siz maliyet payı (ücret/amortisman/öz üretim)",
+      "kdvOrani": 0,
+      "istisnaTipi": "kdvsiz",
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.06,
+        "max": 0.06,
+        "tipik": 0.06
+      },
+      "kaynak": "KDV'siz maliyet (GVK ücret/amortisman) — indirilecek KDV doğurmaz"
+    }
+  ],
+  "tevkifat": {
+    "var": true,
+    "pay": 5,
+    "payda": 10,
+    "kapsamOrani": 0.6,
+    "gibKod": "demir-çelik (2.1.3.3.8)",
+    "altSinirKdvDahil": 9900,
+    "kaynak": "KDVGUT 2.1.3.3.8; oran güncel tebliğle teyit"
+  },
+  "iadeBaglantisi": {
+    "tur": "TEVKIFAT",
+    "motorRejim": "INDIRIMLI_ORAN",
+    "nakdenGecikmeAy": 4,
+    "aciklama": "Mamul tevkifatı + yüksek enerji -> devreden/tevkifat iadesi."
+  },
+  "karmaOranFormulu": "hesaplanan391 = Σ(brutSatis*ciroPayi*oran) [GENEL_MAL(20%)] ; indirilecek191 = Σ(SMM*pay*oran) [HURDA_CEVHER(20%) + ENERJI_ELEKTRIK(20%) + YARDIMCI_KIMYASAL(20%) + AMBALAJ(20%)] + Σ(faalGider*pay*oran) [OPEX: NAKLIYE_LOJISTIK(20%) + OPEX_20(20%)]"
+}

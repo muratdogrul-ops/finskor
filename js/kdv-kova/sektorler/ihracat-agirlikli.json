@@ -1,0 +1,153 @@
+{
+  "sektorMeta": {
+    "id": "ihracat-agirlikli",
+    "ad": "İhracat Ağırlıklı Üretim",
+    "kdvRejimi": "IHRACAT_ISTISNASI",
+    "gecerlilikYili": 2026,
+    "guven": "orta",
+    "netPozisyonTipik": "IADE",
+    "uiGrup": "imalat",
+    "altDal": "ihracat",
+    "kaynaklar": [
+      "KDVK 11/1-a",
+      "KDVGUT IV/A"
+    ],
+    "notlar": []
+  },
+  "satisKalemleri": [
+    {
+      "urunKodu": "IHRACAT",
+      "urunAdi": "Mamul ihracatı (%0)",
+      "kdvOrani": 0,
+      "istisnaTipi": "ihracat",
+      "matrahKaynagi": "brutSatis",
+      "varsayilanCiroPayi": {
+        "min": 0.5,
+        "max": 0.95,
+        "tipik": 0.75
+      },
+      "kaynak": "KDVK 11/1-a"
+    },
+    {
+      "urunKodu": "GENEL_MAL",
+      "urunAdi": "Yurtiçi satış (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "matrahKaynagi": "brutSatis",
+      "varsayilanCiroPayi": {
+        "min": 0.05,
+        "max": 0.5,
+        "tipik": 0.25
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    }
+  ],
+  "alisKalemleri": [
+    {
+      "girdiKodu": "HAMMADDE_20",
+      "girdiAdi": "Hammadde/yarı mamul (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.65,
+        "max": 0.85,
+        "tipik": 0.75
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "AMBALAJ",
+      "girdiAdi": "İhracat ambalajı (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.03,
+        "max": 0.1,
+        "tipik": 0.06
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "ENERJI_ELEKTRIK",
+      "girdiAdi": "Enerji (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.05,
+        "max": 0.15,
+        "tipik": 0.1
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "ISLEME_ISCILIK",
+      "girdiAdi": "Fason/işçilik (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.0,
+        "max": 0.1,
+        "tipik": 0.05
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "NAKLIYE_LOJISTIK",
+      "girdiAdi": "İhracat lojistiği (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.2,
+        "max": 0.6,
+        "tipik": 0.4
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "OPEX_20",
+      "girdiAdi": "Diğer (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.2,
+        "max": 0.6,
+        "tipik": 0.4
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "KDVSIZ_GIDER",
+      "girdiAdi": "KDV'siz maliyet payı (ücret/amortisman/öz üretim)",
+      "kdvOrani": 0,
+      "istisnaTipi": "kdvsiz",
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.04,
+        "max": 0.04,
+        "tipik": 0.04
+      },
+      "kaynak": "KDV'siz maliyet (GVK ücret/amortisman) — indirilecek KDV doğurmaz"
+    }
+  ],
+  "tevkifat": null,
+  "iadeBaglantisi": {
+    "tur": "IHRACAT_11_1_A",
+    "motorRejim": "IHRACAT_ISTISNASI",
+    "nakdenGecikmeAy": 3,
+    "aciklama": "İhracat payı iadeye konu; yurtiçi %20 önce mahsup."
+  },
+  "karmaOranFormulu": "hesaplanan391 = Σ(brutSatis*ciroPayi*oran) [IHRACAT(0%) + GENEL_MAL(20%)] ; indirilecek191 = Σ(SMM*pay*oran) [HAMMADDE_20(20%) + AMBALAJ(20%) + ENERJI_ELEKTRIK(20%) + ISLEME_ISCILIK(20%)] + Σ(faalGider*pay*oran) [OPEX: NAKLIYE_LOJISTIK(20%) + OPEX_20(20%)]"
+}

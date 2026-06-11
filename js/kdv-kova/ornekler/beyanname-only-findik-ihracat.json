@@ -1,0 +1,13 @@
+{
+  "sektorId": "findik-kuruyemis-ihracat",
+  "aciklama": "Fındık ihracat; müstahsil %1 + işçilik/ambalaj/nakliye %20 -> 11/1-a iade.",
+  "beyanname": {
+    "brutSatis": 5000000,
+    "smm": 3500000,
+    "faaliyetGideri": 300000
+  },
+  "beklenen": {
+    "odenecek360": 0,
+    "iadePotansiyeli": 219300
+  }
+}

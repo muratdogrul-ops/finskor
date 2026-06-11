@@ -1,0 +1,136 @@
+{
+  "sektorMeta": {
+    "id": "lojistik-tasimacilik",
+    "ad": "Lojistik / Taşımacılık",
+    "kdvRejimi": "TEVKIFAT_AGIRLIKLI",
+    "gecerlilikYili": 2026,
+    "guven": "orta",
+    "netPozisyonTipik": "ODENECEK",
+    "uiGrup": "hizmet",
+    "altDal": "hizmet",
+    "kaynaklar": [
+      "2007/13033 m.1 genel oran %20",
+      "KDVGUT I/C-2.1.3.2 yük taşıma 2/10"
+    ],
+    "notlar": [
+      "SMM'de KDV'siz pay (~%32): şoför ücretleri, sigorta, amortisman."
+    ]
+  },
+  "satisKalemleri": [
+    {
+      "urunKodu": "GENEL_MAL",
+      "urunAdi": "Taşıma/lojistik hizmeti (%20, 2/10 tevkifatlı)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "matrahKaynagi": "brutSatis",
+      "varsayilanCiroPayi": {
+        "min": 0.9,
+        "max": 1.0,
+        "tipik": 1.0
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    }
+  ],
+  "alisKalemleri": [
+    {
+      "girdiKodu": "AKARYAKIT",
+      "girdiAdi": "Akaryakıt (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.45,
+        "max": 0.65,
+        "tipik": 0.55
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "ISLEME_ISCILIK",
+      "girdiAdi": "Bakım/onarım/lastik (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.05,
+        "max": 0.15,
+        "tipik": 0.1
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "AMBALAJ",
+      "girdiAdi": "Paletleme/elleçleme (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.0,
+        "max": 0.06,
+        "tipik": 0.03
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "EKIPMAN_YATIRIM",
+      "girdiAdi": "Araç/filo yatırımı (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "YATIRIM",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.1,
+        "max": 0.5,
+        "tipik": 0.3
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "OPEX_20",
+      "girdiAdi": "Diğer (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.2,
+        "max": 0.6,
+        "tipik": 0.4
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "KDVSIZ_GIDER",
+      "girdiAdi": "KDV'siz maliyet payı (ücret/amortisman/öz üretim)",
+      "kdvOrani": 0,
+      "istisnaTipi": "kdvsiz",
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.32,
+        "max": 0.32,
+        "tipik": 0.32
+      },
+      "kaynak": "KDV'siz maliyet (GVK ücret/amortisman) — indirilecek KDV doğurmaz"
+    }
+  ],
+  "tevkifat": {
+    "var": true,
+    "pay": 2,
+    "payda": 10,
+    "kapsamOrani": 0.5,
+    "gibKod": "yük taşıma (2/10)",
+    "altSinirKdvDahil": 9900,
+    "kaynak": "KDVGUT I/C-2.1.3.2; karayolu yük taşıma"
+  },
+  "iadeBaglantisi": {
+    "tur": "TEVKIFAT",
+    "motorRejim": "INDIRIMLI_ORAN",
+    "nakdenGecikmeAy": 4,
+    "aciklama": "Yük taşımada 2/10 -> kısmi tevkifat iadesi."
+  },
+  "karmaOranFormulu": "hesaplanan391 = Σ(brutSatis*ciroPayi*oran) [GENEL_MAL(20%)] ; indirilecek191 = Σ(SMM*pay*oran) [AKARYAKIT(20%) + ISLEME_ISCILIK(20%) + AMBALAJ(20%)] + Σ(faalGider*pay*oran) [OPEX: EKIPMAN_YATIRIM(20%) + OPEX_20(20%)]"
+}

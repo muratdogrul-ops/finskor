@@ -1,0 +1,125 @@
+{
+  "sektorMeta": {
+    "id": "genel-ticaret-standart",
+    "ad": "Genel Ticaret (Standart)",
+    "kdvRejimi": "GENEL",
+    "gecerlilikYili": 2026,
+    "guven": "yuksek",
+    "netPozisyonTipik": "ODENECEK",
+    "uiGrup": "ticaret",
+    "altDal": "ticaret",
+    "kaynaklar": [
+      "2007/13033 m.1 genel oran %20"
+    ],
+    "notlar": []
+  },
+  "satisKalemleri": [
+    {
+      "urunKodu": "GENEL_MAL",
+      "urunAdi": "Genel oranlı mal (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "matrahKaynagi": "brutSatis",
+      "varsayilanCiroPayi": {
+        "min": 0.9,
+        "max": 1.0,
+        "tipik": 1.0
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    }
+  ],
+  "alisKalemleri": [
+    {
+      "girdiKodu": "TICARI_MAL_20",
+      "girdiAdi": "Ticari mal alışı (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.9,
+        "max": 0.98,
+        "tipik": 0.95
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "AMBALAJ",
+      "girdiAdi": "Poşet/koli (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.0,
+        "max": 0.06,
+        "tipik": 0.03
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "ENERJI_ELEKTRIK",
+      "girdiAdi": "Elektrik (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.2,
+        "max": 0.4,
+        "tipik": 0.3
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "NAKLIYE_LOJISTIK",
+      "girdiAdi": "Nakliye (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.1,
+        "max": 0.4,
+        "tipik": 0.3
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "OPEX_20",
+      "girdiAdi": "Kira/diğer (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.2,
+        "max": 0.6,
+        "tipik": 0.4
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "KDVSIZ_GIDER",
+      "girdiAdi": "KDV'siz maliyet payı (ücret/amortisman/öz üretim)",
+      "kdvOrani": 0,
+      "istisnaTipi": "kdvsiz",
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.02,
+        "max": 0.02,
+        "tipik": 0.02
+      },
+      "kaynak": "KDV'siz maliyet (GVK ücret/amortisman) — indirilecek KDV doğurmaz"
+    }
+  ],
+  "tevkifat": null,
+  "iadeBaglantisi": {
+    "tur": null,
+    "motorRejim": "GENEL",
+    "nakdenGecikmeAy": 0,
+    "aciklama": "Hesaplanan>indirilecek; düzenli 360.03 ödemesi."
+  },
+  "karmaOranFormulu": "hesaplanan391 = Σ(brutSatis*ciroPayi*oran) [GENEL_MAL(20%)] ; indirilecek191 = Σ(SMM*pay*oran) [TICARI_MAL_20(20%) + AMBALAJ(20%)] + Σ(faalGider*pay*oran) [OPEX: ENERJI_ELEKTRIK(20%) + NAKLIYE_LOJISTIK(20%) + OPEX_20(20%)]"
+}

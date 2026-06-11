@@ -1,0 +1,13 @@
+{
+  "sektorId": "hayvan-yemi-uretim",
+  "aciklama": "Yem üretim; satış 13/ı tam istisna. Hammaddenin bir kısmı (küspe/soya/kepek) 13/ı istisna (%0), tahıl %1, katkı/ambalaj/enerji %20.",
+  "beyanname": {
+    "brutSatis": 4000000,
+    "smm": 3000000,
+    "faaliyetGideri": 400000
+  },
+  "beklenen": {
+    "odenecek360": 0,
+    "iadePotansiyeli": 370000
+  }
+}

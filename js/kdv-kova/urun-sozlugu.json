@@ -1,0 +1,230 @@
+{
+  "_aciklama": "Ortak ürün/girdi KDV kodları (TR). Sektör dosyaları bu kodlara referans verir. Oranlar 2026 için; kaynaklar README.md'de.",
+  "_oran_yapisi": "2007/13033 BKK: (I) liste %1, (II) liste %10, listelerde olmayan %20. 7346 s.CK ile %8->%10 (10.07.2023).",
+  "satisUrunleri": {
+    "TEMEL_GIDA": {
+      "ad": "Temel gıda (süt, yumurta, et, ekmek, meyve-sebze, baklagil)",
+      "kdvOrani": 1,
+      "kaynak": "5189 s.CK, 2007/13033 (I) liste"
+    },
+    "SUT_YUMURTA": {
+      "ad": "Süt, yoğurt, peynir, yumurta, bal",
+      "kdvOrani": 1,
+      "kaynak": "TGTC 4. fasıl, (I) liste"
+    },
+    "CANLI_HAYVAN": {
+      "ad": "Canlı hayvan (büyük/küçükbaş, kümes)",
+      "kdvOrani": 1,
+      "kaynak": "GİB özelge, (I) liste"
+    },
+    "TAHIL_SEBZE": {
+      "ad": "Tahıl, sebze, baklagil (işlenmemiş)",
+      "kdvOrani": 1,
+      "kaynak": "(I) liste, fasıl 7-10"
+    },
+    "FINDIK_NATUREL": {
+      "ad": "Fındık (kabuklu/iç, naturel) yurtiçi",
+      "kdvOrani": 1,
+      "kaynak": "(I) liste 1. sıra, 5189 sonrası toptan/perakende %1"
+    },
+    "ISLENMIS_GIDA_10": {
+      "ad": "İşlenmiş/ÖTV'li gıda, bazı içecekler",
+      "kdvOrani": 10,
+      "kaynak": "(II) liste, 7346 s.CK"
+    },
+    "YEME_ICME_HIZMET": {
+      "ad": "Lokanta/kafe yeme-içme hizmeti",
+      "kdvOrani": 10,
+      "kaynak": "(II) liste 24. sıra"
+    },
+    "KONAKLAMA": {
+      "ad": "Otel/konaklama hizmeti",
+      "kdvOrani": 10,
+      "kaynak": "(II) liste"
+    },
+    "SAGLIK_EGITIM_HIZ": {
+      "ad": "Sağlık/eğitim hizmeti",
+      "kdvOrani": 10,
+      "kaynak": "(II) liste"
+    },
+    "YAPIM_ISI": {
+      "ad": "İnşaat/yapım işi (genel)",
+      "kdvOrani": 20,
+      "kaynak": "genel oran"
+    },
+    "KONUT_150_ALTI": {
+      "ad": "Net 150 m² altı konut tesliminde indirimli",
+      "kdvOrani": 1,
+      "kaynak": "(I) liste, konut istisnası koşullu"
+    },
+    "GENEL_MAL": {
+      "ad": "Genel oranlı mal/hizmet",
+      "kdvOrani": 20,
+      "kaynak": "2007/13033 m.1, genel oran"
+    },
+    "TEKSTIL_10": {
+      "ad": "Tekstil/giyim/konfeksiyon (%10)",
+      "kdvOrani": 10,
+      "kaynak": "(II) liste; 7346 sonrası %10 korundu"
+    },
+    "YEM_SATIS": {
+      "ad": "Hayvan yemi teslimi (TAM İSTİSNA 13/ı)",
+      "kdvOrani": 0,
+      "istisnaTipi": "tam_istisna_13_i",
+      "kaynak": "KDVK 13/ı (6663 s.K.)"
+    },
+    "IHRACAT": {
+      "ad": "Mal/hizmet ihracatı (istisna)",
+      "kdvOrani": 0,
+      "istisnaTipi": "ihracat",
+      "kaynak": "KDVK 11/1-a, 12"
+    }
+  },
+  "alisGirdileri": {
+    "TICARI_MAL_GIDA_1": {
+      "ad": "Ticari mal alışı - gıda (%1)",
+      "kdvOrani": 1,
+      "kaynak": "(I) liste"
+    },
+    "TICARI_MAL_20": {
+      "ad": "Ticari mal alışı - genel (%20)",
+      "kdvOrani": 20,
+      "kaynak": "genel oran"
+    },
+    "HAMMADDE_20": {
+      "ad": "Hammadde / yarı mamul (%20)",
+      "kdvOrani": 20,
+      "kaynak": "genel oran"
+    },
+    "FINDIK_ALIS_MUSTAHSIL": {
+      "ad": "Müstahsilden fındık alışı (%1, GV stopajı ayrı)",
+      "kdvOrani": 1,
+      "kaynak": "(I) liste; mustahsil makbuzu, GVK stopajı KDV dışı"
+    },
+    "YEM": {
+      "ad": "Hayvan yemi (tam istisna)",
+      "kdvOrani": 0,
+      "istisnaTipi": "tam_istisna_13_i",
+      "kaynak": "KDVK 13/ı (6663 s.K.)"
+    },
+    "GUBRE": {
+      "ad": "Gübre (tam istisna)",
+      "kdvOrani": 0,
+      "istisnaTipi": "tam_istisna_13_i",
+      "kaynak": "KDVK 13/ı"
+    },
+    "TARIM_ILAC": {
+      "ad": "Zirai ilaç/pestisit (%20)",
+      "kdvOrani": 20,
+      "kaynak": "genel oran (firma özelinde teyit)"
+    },
+    "ENERJI_ELEKTRIK": {
+      "ad": "Elektrik / enerji (%20)",
+      "kdvOrani": 20,
+      "kaynak": "genel oran"
+    },
+    "AKARYAKIT": {
+      "ad": "Akaryakıt (%20, ÖTV ayrı)",
+      "kdvOrani": 20,
+      "kaynak": "genel oran"
+    },
+    "AMBALAJ": {
+      "ad": "Ambalaj malzemesi (%20)",
+      "kdvOrani": 20,
+      "kaynak": "genel oran"
+    },
+    "NAKLIYE_LOJISTIK": {
+      "ad": "Nakliye/lojistik (%20, yük taşıma 2/10 tevkifat)",
+      "kdvOrani": 20,
+      "kaynak": "genel oran; KDVGUT I/C-2 (2/10)"
+    },
+    "KIRA_KDV": {
+      "ad": "İşyeri kirası - KDV'li (%20)",
+      "kdvOrani": 20,
+      "kaynak": "genel oran"
+    },
+    "EKIPMAN_YATIRIM": {
+      "ad": "Makine/ekipman yatırımı (%20)",
+      "kdvOrani": 20,
+      "kovaTipi": "YATIRIM",
+      "kaynak": "genel oran"
+    },
+    "TASERON_ISCILIK": {
+      "ad": "Taşeron/işçilik (%20, işgücü 9/10 tevkifat)",
+      "kdvOrani": 20,
+      "kaynak": "genel oran; KDVGUT I/C-2 (9/10)"
+    },
+    "ISLEME_ISCILIK": {
+      "ad": "İşleme/kurutma/işçilik hizmeti (%20)",
+      "kdvOrani": 20,
+      "kaynak": "genel oran"
+    },
+    "BUGDAY_TAHIL_ALIS": {
+      "ad": "Buğday/tahıl alışı (%1)",
+      "kdvOrani": 1,
+      "kaynak": "(I) liste değirmencilik girdisi"
+    },
+    "CIG_SUT_1": {
+      "ad": "Çiğ süt (%1)",
+      "kdvOrani": 1,
+      "kaynak": "(I) liste süt"
+    },
+    "ET_HAMMADDE_1": {
+      "ad": "Karkas/çiğ et hammadde (%1)",
+      "kdvOrani": 1,
+      "kaynak": "(I) liste et"
+    },
+    "YARDIMCI_KIMYASAL": {
+      "ad": "Yardımcı/katkı/kimyasal/sarf (%20)",
+      "kdvOrani": 20,
+      "kaynak": "genel oran"
+    },
+    "OPEX_20": {
+      "ad": "KDV'li faaliyet gideri - kira/diğer (%20)",
+      "kdvOrani": 20,
+      "kaynak": "genel oran; personel/ücret KDV dışı"
+    },
+    "TAHIL_HAMMADDE": {
+      "ad": "Yem hammaddesi tahıl (%1)",
+      "kdvOrani": 1,
+      "kaynak": "(I) liste"
+    },
+    "KATKI_VITAMIN": {
+      "ad": "Yem katkı/vitamin/premiks (%20)",
+      "kdvOrani": 20,
+      "kaynak": "genel oran"
+    },
+    "HAMMADDE_TEKSTIL_10": {
+      "ad": "İplik/kumaş/tekstil girdi (%10)",
+      "kdvOrani": 10,
+      "kaynak": "(II) liste"
+    },
+    "KIMYASAL_BOYA_20": {
+      "ad": "Boya/kimyasal/aksesuar (%20)",
+      "kdvOrani": 20,
+      "kaynak": "genel oran"
+    },
+    "HURDA_CEVHER": {
+      "ad": "Hurda/cevher/metalurji hammadde (%20; hurda alımında 7/10 tevkifat)",
+      "kdvOrani": 20,
+      "kaynak": "genel oran; KDVGUT 2.1.3.3.4 hurda 7/10; hurda teslimi 17/4-g istisna"
+    },
+    "YEM_HAMMADDE_ISTISNA": {
+      "ad": "Yem hammaddesi - küspe/soya/kepek/balık unu (TAM İSTİSNA 13/ı)",
+      "kdvOrani": 0,
+      "istisnaTipi": "tam_istisna_13_i",
+      "kaynak": "KDVK 13/ı"
+    },
+    "FASON_TEKSTIL_10": {
+      "ad": "Fason tekstil/konfeksiyon işçiliği (%10)",
+      "kdvOrani": 10,
+      "kaynak": "(II) liste B/10"
+    },
+    "KDVSIZ_GIDER": {
+      "ad": "KDV'siz maliyet payı (ücret/amortisman/öz üretim)",
+      "kdvOrani": 0,
+      "istisnaTipi": "kdvsiz",
+      "kaynak": "GVK ücret/amortisman; indirilecek KDV doğurmaz"
+    }
+  }
+}

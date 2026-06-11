@@ -1,0 +1,16 @@
+{
+  "sektorId": "gida-uretim",
+  "aciklama": "Gıda üretim altın senaryo (8M ciro); çıktı %1, ambalaj/enerji/işleme/katkı %20 ayrı.",
+  "beyanname": {
+    "brutSatis": 8000000,
+    "smm": 5600000,
+    "faaliyetGideri": 800000
+  },
+  "beklenen": {
+    "hesaplanan391": 188000,
+    "indirilecek191": 588320,
+    "odenecek360": 0,
+    "devredenSonraki": 400320,
+    "iadePotansiyeli": 400320
+  }
+}

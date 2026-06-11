@@ -1,0 +1,152 @@
+{
+  "sektorMeta": {
+    "id": "gida-toptan-perakende",
+    "ad": "Gıda Toptan/Perakende",
+    "kdvRejimi": "INDIRIMLI_ORAN",
+    "gecerlilikYili": 2026,
+    "guven": "orta",
+    "netPozisyonTipik": "DEVREDEN",
+    "uiGrup": "gida",
+    "altDal": "ticaret",
+    "kaynaklar": [
+      "5189 s.CK temel gıda %1",
+      "KDVK 29/2"
+    ],
+    "notlar": []
+  },
+  "satisKalemleri": [
+    {
+      "urunKodu": "TEMEL_GIDA",
+      "urunAdi": "Temel gıda (%1)",
+      "kdvOrani": 1,
+      "istisnaTipi": null,
+      "matrahKaynagi": "brutSatis",
+      "varsayilanCiroPayi": {
+        "min": 0.7,
+        "max": 0.85,
+        "tipik": 0.8
+      },
+      "kaynak": "2007/13033 (I) sayılı liste %1 (5189 s.CK)"
+    },
+    {
+      "urunKodu": "ISLENMIS_GIDA_10",
+      "urunAdi": "ÖTV'li/aromalı içecek (%10)",
+      "kdvOrani": 10,
+      "istisnaTipi": null,
+      "matrahKaynagi": "brutSatis",
+      "varsayilanCiroPayi": {
+        "min": 0.1,
+        "max": 0.2,
+        "tipik": 0.15
+      },
+      "kaynak": "(II) liste; ÖTV'li içecek"
+    },
+    {
+      "urunKodu": "GENEL_MAL",
+      "urunAdi": "Gıda dışı mal (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "matrahKaynagi": "brutSatis",
+      "varsayilanCiroPayi": {
+        "min": 0.0,
+        "max": 0.15,
+        "tipik": 0.05
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    }
+  ],
+  "alisKalemleri": [
+    {
+      "girdiKodu": "TICARI_MAL_GIDA_1",
+      "girdiAdi": "Gıda mal alışı (%1)",
+      "kdvOrani": 1,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.75,
+        "max": 0.88,
+        "tipik": 0.82
+      },
+      "kaynak": "2007/13033 (I) sayılı liste %1 (5189 s.CK)"
+    },
+    {
+      "girdiKodu": "TICARI_MAL_20",
+      "girdiAdi": "Gıda dışı mal alışı (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.08,
+        "max": 0.22,
+        "tipik": 0.16
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "AMBALAJ",
+      "girdiAdi": "Poşet/koli (minimal, %20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.0,
+        "max": 0.05,
+        "tipik": 0.02
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "ENERJI_ELEKTRIK",
+      "girdiAdi": "Elektrik/soğutma (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.2,
+        "max": 0.5,
+        "tipik": 0.35
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "NAKLIYE_LOJISTIK",
+      "girdiAdi": "Nakliye/dağıtım (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.1,
+        "max": 0.4,
+        "tipik": 0.3
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "OPEX_20",
+      "girdiAdi": "Kira/diğer (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.2,
+        "max": 0.5,
+        "tipik": 0.35
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    }
+  ],
+  "tevkifat": null,
+  "iadeBaglantisi": {
+    "tur": "INDIRIMLI_ORAN_29_2",
+    "motorRejim": "INDIRIMLI_ORAN",
+    "nakdenGecikmeAy": 12,
+    "aciklama": "Ticaret; satış %1 + OPEX %20 -> 29/2/devreden."
+  },
+  "karmaOranFormulu": "hesaplanan391 = Σ(brutSatis*ciroPayi*oran) [TEMEL_GIDA(1%) + ISLENMIS_GIDA_10(10%) + GENEL_MAL(20%)] ; indirilecek191 = Σ(SMM*pay*oran) [TICARI_MAL_GIDA_1(1%) + TICARI_MAL_20(20%) + AMBALAJ(20%)] + Σ(faalGider*pay*oran) [OPEX: ENERJI_ELEKTRIK(20%) + NAKLIYE_LOJISTIK(20%) + OPEX_20(20%)]"
+}

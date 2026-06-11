@@ -1,0 +1,16 @@
+{
+  "sektorId": "gida-uretim-et",
+  "aciklama": "Et üretim altın senaryo (8M ciro); et satış %1, ambalaj/enerji/işleme %20.",
+  "beyanname": {
+    "brutSatis": 8000000,
+    "smm": 5600000,
+    "faaliyetGideri": 800000
+  },
+  "beklenen": {
+    "hesaplanan391": 232000,
+    "indirilecek191": 556400,
+    "odenecek360": 0,
+    "devredenSonraki": 324400,
+    "iadePotansiyeli": 324400
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "sektorId": "gida-toptan-perakende",
+  "aciklama": "Market; satış ağırlıkla %1, OPEX %20 -> 29/2 potansiyeli (alt sınır altı -> bootstrap'ta 0).",
+  "beyanname": {
+    "brutSatis": 2000000,
+    "smm": 1400000,
+    "faaliyetGideri": 200000
+  },
+  "beklenen": {
+    "odenecek360": 0,
+    "iadePotansiyeli": 35880
+  }
+}

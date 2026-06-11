@@ -1,0 +1,153 @@
+{
+  "sektorMeta": {
+    "id": "gida-uretim-yumurta",
+    "ad": "Yumurta Üretimi",
+    "kdvRejimi": "INDIRIMLI_ORAN",
+    "gecerlilikYili": 2026,
+    "guven": "orta",
+    "netPozisyonTipik": "DEVREDEN",
+    "uiGrup": "gida",
+    "altDal": "uretim",
+    "kaynaklar": [
+      "2007/13033 (I) liste yumurta %1 (5189 s.CK)",
+      "Hayvan yemi 13/ı satışında alıcı tarafında indirilecek KDV yok",
+      "KDVK 29/2"
+    ]
+  },
+  "satisKalemleri": [
+    {
+      "urunKodu": "YUMURTA",
+      "urunAdi": "Kafes/tablak yumurta (%1)",
+      "kdvOrani": 1,
+      "istisnaTipi": null,
+      "matrahKaynagi": "brutSatis",
+      "varsayilanCiroPayi": {
+        "min": 0.9,
+        "max": 1.0,
+        "tipik": 0.98
+      },
+      "kaynak": "2007/13033 (I) sayılı liste %1 (5189 s.CK)"
+    },
+    {
+      "urunKodu": "YAN_URUN",
+      "urunAdi": "Kırık yumurta/yan ürün (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "matrahKaynagi": "brutSatis",
+      "varsayilanCiroPayi": {
+        "min": 0.0,
+        "max": 0.1,
+        "tipik": 0.02
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    }
+  ],
+  "alisKalemleri": [
+    {
+      "girdiKodu": "YEM_13I",
+      "girdiAdi": "Karma yem (13/ı — alıcıda KDV yok)",
+      "kdvOrani": 0,
+      "istisnaTipi": "TAM_ISTISNA_13_I",
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.5,
+        "max": 0.68,
+        "tipik": 0.58
+      },
+      "kaynak": "KDVK 13/ı hayvan yemi tam istisna"
+    },
+    {
+      "girdiKodu": "CIVCIL_TAVUK",
+      "girdiAdi": "Civciv/damızlık tavuk (%1)",
+      "kdvOrani": 1,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.05,
+        "max": 0.15,
+        "tipik": 0.1
+      },
+      "kaynak": "2007/13033 (I) sayılı liste %1 (5189 s.CK)"
+    },
+    {
+      "girdiKodu": "AMBALAJ",
+      "girdiAdi": "Koli/separatör/koli bandı (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.08,
+        "max": 0.14,
+        "tipik": 0.12
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "ENERJI_ELEKTRIK",
+      "girdiAdi": "Enerji/ısıtma/soğutma (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.08,
+        "max": 0.14,
+        "tipik": 0.12
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "ISLEME_ISCILIK",
+      "girdiAdi": "Toplama/paketleme hizmeti (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.04,
+        "max": 0.12,
+        "tipik": 0.08
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "NAKLIYE_LOJISTIK",
+      "girdiAdi": "Yem/yumurta nakliyesi (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.15,
+        "max": 0.4,
+        "tipik": 0.3
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "OPEX_20",
+      "girdiAdi": "Kira/bakım/veteriner (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.35,
+        "max": 0.65,
+        "tipik": 0.5
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    }
+  ],
+  "tevkifat": null,
+  "iadeBaglantisi": {
+    "tur": "INDIRIMLI_ORAN_29_2",
+    "motorRejim": "INDIRIMLI_ORAN",
+    "nakdenGecikmeAy": 12,
+    "aciklama": "Yumurta satışı %1; yem 13/ı (indirilecek yok), ambalaj/enerji %20 -> güçlü devreden/29-2."
+  },
+  "karmaOranFormulu": "hesaplanan391 = Σ(brutSatis*ciroPayi*oran) [YUMURTA(1%) + YAN_URUN(20%)] ; indirilecek191 = Σ(SMM*pay*oran) [YEM_13I(0%) + CIVCIL_TAVUK(1%) + AMBALAJ(20%) + ENERJI_ELEKTRIK(20%) + ISLEME_ISCILIK(20%)] + Σ(faalGider*pay*oran) [OPEX: NAKLIYE_LOJISTIK(20%) + OPEX_20(20%)]"
+}

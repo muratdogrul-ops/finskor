@@ -1,0 +1,13 @@
+{
+  "sektorId": "tekstil-konfeksiyon",
+  "aciklama": "Tekstil; satış %10 + ihracat, iplik/kumaş %10, FASON %10, boya/enerji %20 -> devreden/29-2+11/1-a.",
+  "beyanname": {
+    "brutSatis": 10000000,
+    "smm": 6000000,
+    "faaliyetGideri": 1000000
+  },
+  "beklenen": {
+    "odenecek360": 0,
+    "iadePotansiyeli": 96000
+  }
+}

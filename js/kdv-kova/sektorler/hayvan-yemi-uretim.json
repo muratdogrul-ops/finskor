@@ -1,0 +1,154 @@
+{
+  "sektorMeta": {
+    "id": "hayvan-yemi-uretim",
+    "ad": "Hayvan Yemi Üretimi (13/ı)",
+    "kdvRejimi": "KARMA",
+    "gecerlilikYili": 2026,
+    "guven": "orta",
+    "netPozisyonTipik": "IADE",
+    "uiGrup": "gida",
+    "altDal": "uretim",
+    "kaynaklar": [
+      "KDVK 13/ı yem teslimi tam istisna (6663 s.K.)",
+      "(I) liste tahıl %1"
+    ],
+    "notlar": []
+  },
+  "satisKalemleri": [
+    {
+      "urunKodu": "YEM_SATIS",
+      "urunAdi": "Yem teslimi (TAM İSTİSNA 13/ı, %0)",
+      "kdvOrani": 0,
+      "istisnaTipi": "tam_istisna_13_i",
+      "matrahKaynagi": "brutSatis",
+      "varsayilanCiroPayi": {
+        "min": 0.9,
+        "max": 1.0,
+        "tipik": 1.0
+      },
+      "kaynak": "KDVK 13/ı"
+    }
+  ],
+  "alisKalemleri": [
+    {
+      "girdiKodu": "YEM_HAMMADDE_ISTISNA",
+      "girdiAdi": "Küspe/soya/kepek/balık unu (TAM İSTİSNA 13/ı)",
+      "kdvOrani": 0,
+      "istisnaTipi": "tam_istisna_13_i",
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.2,
+        "max": 0.4,
+        "tipik": 0.3
+      },
+      "kaynak": "KDVK 13/ı"
+    },
+    {
+      "girdiKodu": "TAHIL_HAMMADDE",
+      "girdiAdi": "Mısır/buğday/arpa (%1)",
+      "kdvOrani": 1,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.1,
+        "max": 0.3,
+        "tipik": 0.2
+      },
+      "kaynak": "2007/13033 (I) sayılı liste %1 (5189 s.CK)"
+    },
+    {
+      "girdiKodu": "KATKI_VITAMIN",
+      "girdiAdi": "Katkı/vitamin/premiks (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.15,
+        "max": 0.35,
+        "tipik": 0.25
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "AMBALAJ",
+      "girdiAdi": "Çuval/big-bag (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.05,
+        "max": 0.12,
+        "tipik": 0.08
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "ENERJI_ELEKTRIK",
+      "girdiAdi": "Enerji/pelet (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.06,
+        "max": 0.14,
+        "tipik": 0.1
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "ISLEME_ISCILIK",
+      "girdiAdi": "İşçilik (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.0,
+        "max": 0.1,
+        "tipik": 0.07
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "NAKLIYE_LOJISTIK",
+      "girdiAdi": "Nakliye (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.2,
+        "max": 0.5,
+        "tipik": 0.4
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "OPEX_20",
+      "girdiAdi": "Diğer (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.2,
+        "max": 0.6,
+        "tipik": 0.4
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    }
+  ],
+  "tevkifat": null,
+  "iadeBaglantisi": {
+    "tur": "TAM_ISTISNA_13_I",
+    "motorRejim": "IHRACAT_ISTISNASI",
+    "nakdenGecikmeAy": 2,
+    "aciklama": "Satış 13/ı tam istisna (KDV yok); tüm girdi KDV'si iade."
+  },
+  "karmaOranFormulu": "hesaplanan391 = Σ(brutSatis*ciroPayi*oran) [YEM_SATIS(0%)] ; indirilecek191 = Σ(SMM*pay*oran) [YEM_HAMMADDE_ISTISNA(0%) + TAHIL_HAMMADDE(1%) + KATKI_VITAMIN(20%) + AMBALAJ(20%) + ENERJI_ELEKTRIK(20%) + ISLEME_ISCILIK(20%)] + Σ(faalGider*pay*oran) [OPEX: NAKLIYE_LOJISTIK(20%) + OPEX_20(20%)]"
+}

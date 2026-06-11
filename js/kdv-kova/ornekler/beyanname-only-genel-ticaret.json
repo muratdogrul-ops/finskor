@@ -1,0 +1,13 @@
+{
+  "sektorId": "genel-ticaret-standart",
+  "aciklama": "Standart ticaret; alış %20 + ayrı ambalaj/enerji/nakliye OPEX.",
+  "beyanname": {
+    "brutSatis": 1000000,
+    "smm": 700000,
+    "faaliyetGideri": 100000
+  },
+  "beklenen": {
+    "odenecek360": 42800,
+    "iadePotansiyeli": 0
+  }
+}

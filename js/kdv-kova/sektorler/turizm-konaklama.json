@@ -1,0 +1,142 @@
+{
+  "sektorMeta": {
+    "id": "turizm-konaklama",
+    "ad": "Turizm / Konaklama",
+    "kdvRejimi": "INDIRIMLI_ORAN",
+    "gecerlilikYili": 2026,
+    "guven": "orta",
+    "netPozisyonTipik": "DEVREDEN",
+    "uiGrup": "hizmet",
+    "altDal": "hizmet",
+    "kaynaklar": [
+      "(II) liste konaklama %10",
+      "KDVK 29/2"
+    ],
+    "notlar": [
+      "SMM'de KDV'siz pay (~%25): personel ücretleri."
+    ]
+  },
+  "satisKalemleri": [
+    {
+      "urunKodu": "KONAKLAMA",
+      "urunAdi": "Konaklama hizmeti (%10)",
+      "kdvOrani": 10,
+      "istisnaTipi": null,
+      "matrahKaynagi": "brutSatis",
+      "varsayilanCiroPayi": {
+        "min": 0.9,
+        "max": 1.0,
+        "tipik": 1.0
+      },
+      "kaynak": "(II) liste"
+    }
+  ],
+  "alisKalemleri": [
+    {
+      "girdiKodu": "TICARI_MAL_GIDA_1",
+      "girdiAdi": "F&B gıda girdisi (%1)",
+      "kdvOrani": 1,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.2,
+        "max": 0.4,
+        "tipik": 0.3
+      },
+      "kaynak": "2007/13033 (I) sayılı liste %1 (5189 s.CK)"
+    },
+    {
+      "girdiKodu": "ENERJI_ELEKTRIK",
+      "girdiAdi": "Enerji (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.15,
+        "max": 0.35,
+        "tipik": 0.25
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "ISLEME_ISCILIK",
+      "girdiAdi": "Temizlik/çamaşır hizmet (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.05,
+        "max": 0.15,
+        "tipik": 0.1
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "YARDIMCI_KIMYASAL",
+      "girdiAdi": "Amenities/sarf (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.05,
+        "max": 0.15,
+        "tipik": 0.1
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "EKIPMAN_YATIRIM",
+      "girdiAdi": "Tesis/ekipman yatırımı (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "YATIRIM",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.1,
+        "max": 0.5,
+        "tipik": 0.3
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "OPEX_20",
+      "girdiAdi": "Kira/diğer (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.3,
+        "max": 0.7,
+        "tipik": 0.5
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "KDVSIZ_GIDER",
+      "girdiAdi": "KDV'siz maliyet payı (ücret/amortisman/öz üretim)",
+      "kdvOrani": 0,
+      "istisnaTipi": "kdvsiz",
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.25,
+        "max": 0.25,
+        "tipik": 0.25
+      },
+      "kaynak": "KDV'siz maliyet (GVK ücret/amortisman) — indirilecek KDV doğurmaz"
+    }
+  ],
+  "tevkifat": null,
+  "iadeBaglantisi": {
+    "tur": "INDIRIMLI_ORAN_29_2",
+    "motorRejim": "INDIRIMLI_ORAN",
+    "nakdenGecikmeAy": 12,
+    "aciklama": "Konaklama %10, girdiler %20 -> devreden/29-2."
+  },
+  "karmaOranFormulu": "hesaplanan391 = Σ(brutSatis*ciroPayi*oran) [KONAKLAMA(10%)] ; indirilecek191 = Σ(SMM*pay*oran) [TICARI_MAL_GIDA_1(1%) + ENERJI_ELEKTRIK(20%) + ISLEME_ISCILIK(20%) + YARDIMCI_KIMYASAL(20%)] + Σ(faalGider*pay*oran) [OPEX: EKIPMAN_YATIRIM(20%) + OPEX_20(20%)]"
+}

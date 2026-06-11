@@ -1,0 +1,162 @@
+{
+  "sektorMeta": {
+    "id": "insaat-taahhut-tevkifat",
+    "ad": "İnşaat / Taahhüt (Tevkifatlı)",
+    "kdvRejimi": "TEVKIFAT_AGIRLIKLI",
+    "gecerlilikYili": 2026,
+    "guven": "dusuk",
+    "netPozisyonTipik": "DEVREDEN",
+    "uiGrup": "hizmet",
+    "altDal": "hizmet",
+    "kaynaklar": [
+      "KDVGUT I/C-2.1.3.2.1 yapım işleri 4/10 (35 No.lu Tebliğ)",
+      "KDV dahil >=5M TL"
+    ],
+    "notlar": []
+  },
+  "satisKalemleri": [
+    {
+      "urunKodu": "YAPIM_ISI",
+      "urunAdi": "Yapım işi/taahhüt (%20, tevkifatlı)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "matrahKaynagi": "brutSatis",
+      "varsayilanCiroPayi": {
+        "min": 0.7,
+        "max": 1.0,
+        "tipik": 0.85
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "urunKodu": "KONUT_150_ALTI",
+      "urunAdi": "Net 150 m² altı konut (%1)",
+      "kdvOrani": 1,
+      "istisnaTipi": null,
+      "matrahKaynagi": "brutSatis",
+      "varsayilanCiroPayi": {
+        "min": 0.0,
+        "max": 0.3,
+        "tipik": 0.15
+      },
+      "kaynak": "2007/13033 (I) sayılı liste %1 (5189 s.CK)"
+    }
+  ],
+  "alisKalemleri": [
+    {
+      "girdiKodu": "HAMMADDE_20",
+      "girdiAdi": "İnşaat malzemesi (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.5,
+        "max": 0.72,
+        "tipik": 0.62
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "TASERON_ISCILIK",
+      "girdiAdi": "Taşeron/işçilik (%20; alıcı 9/10)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.15,
+        "max": 0.3,
+        "tipik": 0.22
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "ENERJI_ELEKTRIK",
+      "girdiAdi": "Şantiye enerji (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.0,
+        "max": 0.1,
+        "tipik": 0.06
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "NAKLIYE_LOJISTIK",
+      "girdiAdi": "Nakliye (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.0,
+        "max": 0.1,
+        "tipik": 0.05
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "EKIPMAN_YATIRIM",
+      "girdiAdi": "Makine/ekipman kira (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "YATIRIM",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.3,
+        "max": 0.7,
+        "tipik": 0.5
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "OPEX_20",
+      "girdiAdi": "Diğer (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.2,
+        "max": 0.6,
+        "tipik": 0.4
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "KDVSIZ_GIDER",
+      "girdiAdi": "KDV'siz maliyet payı (ücret/amortisman/öz üretim)",
+      "kdvOrani": 0,
+      "istisnaTipi": "kdvsiz",
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.05,
+        "max": 0.05,
+        "tipik": 0.05
+      },
+      "kaynak": "KDV'siz maliyet (GVK ücret/amortisman) — indirilecek KDV doğurmaz"
+    }
+  ],
+  "tevkifat": {
+    "var": true,
+    "pay": 4,
+    "payda": 10,
+    "kapsamOrani": 0.7,
+    "gibKod": "601 (yapım işleri)",
+    "altSinirKdvDahil": 9900,
+    "kaynak": "KDVGUT I/C-2.1.3.2.1; KDV dahil >=5.000.000 TL",
+    "islemEsigiKdvDahil": 5000000
+  },
+  "iadeBaglantisi": {
+    "tur": "TEVKIFAT",
+    "motorRejim": "INDIRIMLI_ORAN",
+    "nakdenGecikmeAy": 4,
+    "aciklama": "Yapım 4/10 -> satıcı tevkifat iadesi; devreden sık."
+  },
+  "karmaOranFormulu": "hesaplanan391 = Σ(brutSatis*ciroPayi*oran) [YAPIM_ISI(20%) + KONUT_150_ALTI(1%)] ; indirilecek191 = Σ(SMM*pay*oran) [HAMMADDE_20(20%) + TASERON_ISCILIK(20%) + ENERJI_ELEKTRIK(20%) + NAKLIYE_LOJISTIK(20%)] + Σ(faalGider*pay*oran) [OPEX: EKIPMAN_YATIRIM(20%) + OPEX_20(20%)]"
+}

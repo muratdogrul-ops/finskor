@@ -1,0 +1,145 @@
+{
+  "sektorMeta": {
+    "id": "findik-kuruyemis-ihracat",
+    "ad": "Fındık / Kuruyemiş İhracatı",
+    "kdvRejimi": "IHRACAT_ISTISNASI",
+    "gecerlilikYili": 2026,
+    "guven": "orta",
+    "netPozisyonTipik": "IADE",
+    "uiGrup": "gida",
+    "altDal": "ihracat",
+    "kaynaklar": [
+      "(I) liste fındık %1",
+      "KDVK 11/1-a"
+    ],
+    "notlar": []
+  },
+  "satisKalemleri": [
+    {
+      "urunKodu": "IHRACAT",
+      "urunAdi": "Fındık/kuruyemiş ihracatı (%0)",
+      "kdvOrani": 0,
+      "istisnaTipi": "ihracat",
+      "matrahKaynagi": "brutSatis",
+      "varsayilanCiroPayi": {
+        "min": 0.5,
+        "max": 0.9,
+        "tipik": 0.8
+      },
+      "kaynak": "KDVK 11/1-a"
+    },
+    {
+      "urunKodu": "FINDIK_NATUREL",
+      "urunAdi": "Yurtiçi fındık (%1)",
+      "kdvOrani": 1,
+      "istisnaTipi": null,
+      "matrahKaynagi": "brutSatis",
+      "varsayilanCiroPayi": {
+        "min": 0.1,
+        "max": 0.5,
+        "tipik": 0.2
+      },
+      "kaynak": "2007/13033 (I) sayılı liste %1 (5189 s.CK)"
+    }
+  ],
+  "alisKalemleri": [
+    {
+      "girdiKodu": "FINDIK_ALIS_MUSTAHSIL",
+      "girdiAdi": "Müstahsilden fındık (%1)",
+      "kdvOrani": 1,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.7,
+        "max": 0.85,
+        "tipik": 0.78
+      },
+      "kaynak": "2007/13033 (I) sayılı liste %1 (5189 s.CK)"
+    },
+    {
+      "girdiKodu": "ISLEME_ISCILIK",
+      "girdiAdi": "Kavurma/kurutma/işçilik (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.05,
+        "max": 0.15,
+        "tipik": 0.1
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "AMBALAJ",
+      "girdiAdi": "Kraft/vakum ambalaj (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.03,
+        "max": 0.1,
+        "tipik": 0.06
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "ENERJI_ELEKTRIK",
+      "girdiAdi": "Enerji (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.0,
+        "max": 0.1,
+        "tipik": 0.06
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "NAKLIYE_LOJISTIK",
+      "girdiAdi": "İhracat lojistiği (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.3,
+        "max": 0.7,
+        "tipik": 0.5
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "OPEX_20",
+      "girdiAdi": "Diğer (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.1,
+        "max": 0.5,
+        "tipik": 0.3
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    }
+  ],
+  "tevkifat": null,
+  "iadeBaglantisi": {
+    "tur": "IHRACAT_11_1_A",
+    "motorRejim": "IHRACAT_ISTISNASI",
+    "nakdenGecikmeAy": 3,
+    "aciklama": "İhracat istisnası; müstahsil %1 + işçilik/ambalaj %20 iade besler."
+  },
+  "karmaOranFormulu": "hesaplanan391 = Σ(brutSatis*ciroPayi*oran) [IHRACAT(0%) + FINDIK_NATUREL(1%)] ; indirilecek191 = Σ(SMM*pay*oran) [FINDIK_ALIS_MUSTAHSIL(1%) + ISLEME_ISCILIK(20%) + AMBALAJ(20%) + ENERJI_ELEKTRIK(20%)] + Σ(faalGider*pay*oran) [OPEX: NAKLIYE_LOJISTIK(20%) + OPEX_20(20%)]",
+  "mustahsilStopaj": {
+    "oran": 0.02,
+    "matrahKaynagi": "satMaliyet",
+    "pay": 0.78,
+    "kaynak": "GVK 94; borsada tescilli zirai ürün %2 (KDV dışı, MPHB)"
+  }
+}

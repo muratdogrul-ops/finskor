@@ -1,0 +1,258 @@
+{
+  "_aciklama": "22 sektör merkezi katalog (uiGrup + altDal; yumurta lokal).",
+  "kaynakOnceligi": [
+    "MIZAN",
+    "BEYANNAME",
+    "SEKTOR_URUN_MODELI"
+  ],
+  "uiGruplar": [
+    "gida",
+    "imalat",
+    "ticaret",
+    "hizmet"
+  ],
+  "sektorler": [
+    {
+      "id": "gida-toptan-perakende",
+      "ad": "Gıda Toptan/Perakende",
+      "uiGrup": "gida",
+      "altDal": "ticaret",
+      "kdvRejimi": "INDIRIMLI_ORAN",
+      "motorRejim": "INDIRIMLI_ORAN",
+      "netPozisyonTipik": "DEVREDEN",
+      "dosya": "sektorler/gida-toptan-perakende.json",
+      "aciklama": "Ticaret; satış %1 + OPEX %20 -> 29/2/devreden."
+    },
+    {
+      "id": "gida-uretim",
+      "ad": "Gıda Üretim (genel)",
+      "uiGrup": "gida",
+      "altDal": "uretim",
+      "kdvRejimi": "INDIRIMLI_ORAN",
+      "motorRejim": "INDIRIMLI_ORAN",
+      "netPozisyonTipik": "DEVREDEN",
+      "dosya": "sektorler/gida-uretim.json",
+      "aciklama": "Çıktı %1, ambalaj/enerji %20 -> belirgin devreden/29-2."
+    },
+    {
+      "id": "gida-uretim-sut",
+      "ad": "Süt / Süt Ürünleri Üretim",
+      "uiGrup": "gida",
+      "altDal": "uretim",
+      "kdvRejimi": "INDIRIMLI_ORAN",
+      "motorRejim": "INDIRIMLI_ORAN",
+      "netPozisyonTipik": "DEVREDEN",
+      "dosya": "sektorler/gida-uretim-sut.json",
+      "aciklama": "Süt %1, ambalaj/enerji/soğuk zincir %20 -> güçlü devreden."
+    },
+    {
+      "id": "gida-uretim-et",
+      "ad": "Et / İşlenmiş Et Üretim",
+      "uiGrup": "gida",
+      "altDal": "uretim",
+      "kdvRejimi": "INDIRIMLI_ORAN",
+      "motorRejim": "INDIRIMLI_ORAN",
+      "netPozisyonTipik": "DEVREDEN",
+      "dosya": "sektorler/gida-uretim-et.json",
+      "aciklama": "Et %1, ambalaj/enerji %20 -> devreden/29-2."
+    },
+    {
+      "id": "gida-uretim-yumurta",
+      "ad": "Yumurta Üretimi",
+      "uiGrup": "gida",
+      "altDal": "uretim",
+      "kdvRejimi": "INDIRIMLI_ORAN",
+      "motorRejim": "INDIRIMLI_ORAN",
+      "netPozisyonTipik": "DEVREDEN",
+      "dosya": "sektorler/gida-uretim-yumurta.json",
+      "aciklama": "Yumurta %1; yem 13/ı (indirilecek yok), ambalaj/enerji %20 -> güçlü devreden."
+    },
+    {
+      "id": "un-irmik-uretim",
+      "ad": "Un / İrmik Üretimi",
+      "uiGrup": "gida",
+      "altDal": "uretim",
+      "kdvRejimi": "INDIRIMLI_ORAN",
+      "motorRejim": "INDIRIMLI_ORAN",
+      "netPozisyonTipik": "DEVREDEN",
+      "dosya": "sektorler/un-irmik-uretim.json",
+      "aciklama": "Girdi-çıktı %1; ambalaj/enerji %20 -> devreden/29-2."
+    },
+    {
+      "id": "hayvan-yemi-uretim",
+      "ad": "Hayvan Yemi Üretimi (13/ı)",
+      "uiGrup": "gida",
+      "altDal": "uretim",
+      "kdvRejimi": "KARMA",
+      "motorRejim": "IHRACAT_ISTISNASI",
+      "netPozisyonTipik": "IADE",
+      "dosya": "sektorler/hayvan-yemi-uretim.json",
+      "aciklama": "Satış 13/ı tam istisna (KDV yok); tüm girdi KDV'si iade."
+    },
+    {
+      "id": "tarim-isleme",
+      "ad": "Tarım / Hayvancılık İşleme",
+      "uiGrup": "gida",
+      "altDal": "tarim",
+      "kdvRejimi": "KARMA",
+      "motorRejim": "INDIRIMLI_ORAN",
+      "netPozisyonTipik": "DEVREDEN",
+      "dosya": "sektorler/tarim-isleme.json",
+      "aciklama": "Satış %1, %20 girdiler -> devreden/29-2; yem-gübre istisna indirim doğurmaz."
+    },
+    {
+      "id": "findik-kuruyemis-ihracat",
+      "ad": "Fındık / Kuruyemiş İhracatı",
+      "uiGrup": "gida",
+      "altDal": "ihracat",
+      "kdvRejimi": "IHRACAT_ISTISNASI",
+      "motorRejim": "IHRACAT_ISTISNASI",
+      "netPozisyonTipik": "IADE",
+      "dosya": "sektorler/findik-kuruyemis-ihracat.json",
+      "aciklama": "İhracat istisnası; müstahsil %1 + işçilik/ambalaj %20 iade besler."
+    },
+    {
+      "id": "ihracat-agirlikli",
+      "ad": "İhracat Ağırlıklı Üretim",
+      "uiGrup": "imalat",
+      "altDal": "ihracat",
+      "kdvRejimi": "IHRACAT_ISTISNASI",
+      "motorRejim": "IHRACAT_ISTISNASI",
+      "netPozisyonTipik": "IADE",
+      "dosya": "sektorler/ihracat-agirlikli.json",
+      "aciklama": "İhracat payı iadeye konu; yurtiçi %20 önce mahsup."
+    },
+    {
+      "id": "makine-imalat",
+      "ad": "Makine İmalatı",
+      "uiGrup": "imalat",
+      "altDal": "uretim",
+      "kdvRejimi": "KARMA",
+      "motorRejim": "IHRACAT_ISTISNASI",
+      "netPozisyonTipik": "IADE",
+      "dosya": "sektorler/makine-imalat.json",
+      "aciklama": "İhracat payı iadeye konu."
+    },
+    {
+      "id": "otomotiv-yan-sanayi",
+      "ad": "Otomotiv Yan Sanayi",
+      "uiGrup": "imalat",
+      "altDal": "uretim",
+      "kdvRejimi": "KARMA",
+      "motorRejim": "IHRACAT_ISTISNASI",
+      "netPozisyonTipik": "IADE",
+      "dosya": "sektorler/otomotiv-yan-sanayi.json",
+      "aciklama": "Yüksek ihracat payı -> düzenli iade."
+    },
+    {
+      "id": "kimya-plastik",
+      "ad": "Kimya / Plastik",
+      "uiGrup": "imalat",
+      "altDal": "uretim",
+      "kdvRejimi": "KARMA",
+      "motorRejim": "IHRACAT_ISTISNASI",
+      "netPozisyonTipik": "ODENECEK",
+      "dosya": "sektorler/kimya-plastik.json",
+      "aciklama": "Ağırlıkla yurtiçi -> ödenecek; ihracat payı iade."
+    },
+    {
+      "id": "demir-celik-metallurgy",
+      "ad": "Demir-Çelik / Metalurji",
+      "uiGrup": "imalat",
+      "altDal": "uretim",
+      "kdvRejimi": "TEVKIFAT_AGIRLIKLI",
+      "motorRejim": "INDIRIMLI_ORAN",
+      "netPozisyonTipik": "DEVREDEN",
+      "dosya": "sektorler/demir-celik-metallurgy.json",
+      "aciklama": "Mamul tevkifatı + yüksek enerji -> devreden/tevkifat iadesi."
+    },
+    {
+      "id": "tekstil-konfeksiyon",
+      "ad": "Tekstil / Konfeksiyon",
+      "uiGrup": "imalat",
+      "altDal": "uretim",
+      "kdvRejimi": "KARMA",
+      "motorRejim": "INDIRIMLI_ORAN",
+      "netPozisyonTipik": "DEVREDEN",
+      "dosya": "sektorler/tekstil-konfeksiyon.json",
+      "aciklama": "Satış %10, boya/enerji %20 + ihracat -> 29/2 + 11/1-a. Fason dikim 7/10 (alıcı)."
+    },
+    {
+      "id": "enerji-yenilenebilir",
+      "ad": "Enerji / Yenilenebilir",
+      "uiGrup": "imalat",
+      "altDal": "uretim",
+      "kdvRejimi": "GENEL",
+      "motorRejim": "GENEL",
+      "netPozisyonTipik": "DEVREDEN",
+      "dosya": "sektorler/enerji-yenilenebilir.json",
+      "aciklama": "Yatırım döneminde yüksek %20 yatırım KDV'si -> uzun süre devreden."
+    },
+    {
+      "id": "genel-ticaret-standart",
+      "ad": "Genel Ticaret (Standart)",
+      "uiGrup": "ticaret",
+      "altDal": "ticaret",
+      "kdvRejimi": "GENEL",
+      "motorRejim": "GENEL",
+      "netPozisyonTipik": "ODENECEK",
+      "dosya": "sektorler/genel-ticaret-standart.json",
+      "aciklama": "Hesaplanan>indirilecek; düzenli 360.03 ödemesi."
+    },
+    {
+      "id": "hammadde-ticaret",
+      "ad": "Hammadde Ticareti",
+      "uiGrup": "ticaret",
+      "altDal": "ticaret",
+      "kdvRejimi": "GENEL",
+      "motorRejim": "GENEL",
+      "netPozisyonTipik": "ODENECEK",
+      "dosya": "sektorler/hammadde-ticaret.json",
+      "aciklama": "Dar marj; net ödenecek KDV düşük."
+    },
+    {
+      "id": "insaat-taahhut-tevkifat",
+      "ad": "İnşaat / Taahhüt (Tevkifatlı)",
+      "uiGrup": "hizmet",
+      "altDal": "hizmet",
+      "kdvRejimi": "TEVKIFAT_AGIRLIKLI",
+      "motorRejim": "INDIRIMLI_ORAN",
+      "netPozisyonTipik": "DEVREDEN",
+      "dosya": "sektorler/insaat-taahhut-tevkifat.json",
+      "aciklama": "Yapım 4/10 -> satıcı tevkifat iadesi; devreden sık."
+    },
+    {
+      "id": "hizmet-tevkifat",
+      "ad": "Hizmet (İşgücü/Temizlik - Tevkifatlı)",
+      "uiGrup": "hizmet",
+      "altDal": "hizmet",
+      "kdvRejimi": "TEVKIFAT_AGIRLIKLI",
+      "motorRejim": "INDIRIMLI_ORAN",
+      "netPozisyonTipik": "IADE",
+      "dosya": "sektorler/hizmet-tevkifat.json",
+      "aciklama": "İşgücü 9/10 -> satıcıda tevkif edilen KDV iade hakkı. Personel ücreti KDV dışı."
+    },
+    {
+      "id": "lojistik-tasimacilik",
+      "ad": "Lojistik / Taşımacılık",
+      "uiGrup": "hizmet",
+      "altDal": "hizmet",
+      "kdvRejimi": "TEVKIFAT_AGIRLIKLI",
+      "motorRejim": "INDIRIMLI_ORAN",
+      "netPozisyonTipik": "ODENECEK",
+      "dosya": "sektorler/lojistik-tasimacilik.json",
+      "aciklama": "Yük taşımada 2/10 -> kısmi tevkifat iadesi."
+    },
+    {
+      "id": "turizm-konaklama",
+      "ad": "Turizm / Konaklama",
+      "uiGrup": "hizmet",
+      "altDal": "hizmet",
+      "kdvRejimi": "INDIRIMLI_ORAN",
+      "motorRejim": "INDIRIMLI_ORAN",
+      "netPozisyonTipik": "DEVREDEN",
+      "dosya": "sektorler/turizm-konaklama.json",
+      "aciklama": "Konaklama %10, girdiler %20 -> devreden/29-2."
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-﻿// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
 // MALİ VERİ IMPORT SİSTEMİ v2
 // MİZAN (Excel) ve PDF dosyalarından bilanço verisi otomatik okuma
 // Desteklenen format: Hesap Kodu | Hesap Adı | Borç | Alacak | Borç Bakiyesi
@@ -672,6 +672,16 @@ function mizanKdvKeyFromKodLabel(kod, labelRaw) {
   return null;
 }
 
+/**
+ * Logo/Mikro mizan: 391 ana satırı dönem toplamı (Bb=Ab, kapanış 0); ödenecek KDV bakiyesi 360.03 altında.
+ */
+function mizanOdenecekKdvPayableKey(kod, labelRaw) {
+  const lab = normTR(String(labelRaw || ''));
+  if (!/odenecek\s*kdv|ödenecek\s*kdv/.test(lab)) return null;
+  if (kod === 360 || kod === 361 || kod === 391 || kod === 392 || kod === 393) return 'hesaplananKdv';
+  return null;
+}
+
 /** Excel mizan A sütunu: 100, 100.01, 100-01 → { kod, isAna } */
 function parseMizanHesapKodu(raw) {
   if (raw === null || raw === undefined) return null;
@@ -915,6 +925,14 @@ function mizanRowlariIsle(rows) {
 
     const katki = mizanKatkiFromBakiye(kod, borcBak, alacBak, borcTutar, alacTutar);
     if (katki === 0) continue;
+
+    if (!isAna) {
+      const payKdvKey = mizanOdenecekKdvPayableKey(kod, hesapAdi);
+      if (payKdvKey) {
+        result[payKdvKey] = (result[payKdvKey] || 0) + Math.abs(katki);
+        continue;
+      }
+    }
 
     let slot = ucHaneli.get(kod);
     if (!slot) {
@@ -1309,6 +1327,10 @@ function mizanTextIsleBeyanname(lines, result, year) {
       else if (bolum === 'DONEN' && /verilen/.test(ln) && /cek|odeme emri/.test(ln)) {
         beyanAltLikiditeKey = 'kvTicBorclar';
       }
+      // 190/191: "H. Diğer Dönen" altındaki ". 1. Devreden KDV" alt satırı —
+      // KDV ayrı key'e alınır, grup toplamından (digerDonen) düşülür (çift sayım yok)
+      else if (bolum === 'DONEN' && /devreden kdv/.test(ln)) beyanAltLikiditeKey = 'devredenKdv';
+      else if (bolum === 'DONEN' && /indirilecek kdv/.test(ln)) beyanAltLikiditeKey = 'indirilecekKdv';
       else if (
         bolum === 'DONEN' &&
         (/kasa/.test(ln) ||
@@ -1342,7 +1364,12 @@ function mizanTextIsleBeyanname(lines, result, year) {
     let cari = beyanPickCariColumn(sayilar);
 
     if (beyanAltLikiditeKey) {
-      if (beyanAltLikiditeKey === 'kvTicBorclar' && /verilen/.test(ln) && /cek|odeme emri/.test(ln)) {
+      if (beyanAltLikiditeKey === 'devredenKdv' || beyanAltLikiditeKey === 'indirilecekKdv') {
+        const kdvCari = Math.max(0, cari);
+        result[beyanAltLikiditeKey] = (result[beyanAltLikiditeKey] || 0) + kdvCari;
+        result.digerDonen = Math.max(0, (Number(result.digerDonen) || 0) - kdvCari);
+        result._mizan19KdvAyriSatir = true; // 19'dan ayrıştı; enrich tekrar düşmesin
+      } else if (beyanAltLikiditeKey === 'kvTicBorclar' && /verilen/.test(ln) && /cek|odeme emri/.test(ln)) {
         result.kvTicBorclar = (result.kvTicBorclar || 0) + Math.abs(cari);
       } else {
         const sign = line.includes('(-)') ? -1 : 1;
@@ -1426,6 +1453,11 @@ function mizanTextIsleBeyanname(lines, result, year) {
     // Diğer bilanço kalemleri: negatif PDF değeri olduğu gibi geçebilir
     const FORCE_POSITIVE = new Set(['gecmisZarar','odenmisSermaye']);
     result[key] = (result[key] || 0) + (FORCE_POSITIVE.has(key) ? Math.abs(katki) : katki);
+    // 131: "D. Diğer Alacaklar" grup toplamı 131'i içerir — ayrı key'e alındığı için gruptan düş
+    // (mizan akışıyla aynı: 131 digerAlacaklar'a eklenmez; analizde sıfırlanır + özkaynak tenzili)
+    if (key === 'ortakAlacak131' && bolum === 'DONEN') {
+      result.digerAlacaklar = Math.max(0, (Number(result.digerAlacaklar) || 0) - Math.max(0, katki));
+    }
     // NOT: PDF beyannamede A.Brüt Satışlar zaten toplam — ihracat brutSatis'e EKLENMIYOR
   }
 

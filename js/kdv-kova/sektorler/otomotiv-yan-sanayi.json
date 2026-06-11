@@ -1,0 +1,153 @@
+{
+  "sektorMeta": {
+    "id": "otomotiv-yan-sanayi",
+    "ad": "Otomotiv Yan Sanayi",
+    "kdvRejimi": "KARMA",
+    "gecerlilikYili": 2026,
+    "guven": "orta",
+    "netPozisyonTipik": "IADE",
+    "uiGrup": "imalat",
+    "altDal": "uretim",
+    "kaynaklar": [
+      "2007/13033 m.1 genel oran %20",
+      "KDVK 11/1-a"
+    ],
+    "notlar": []
+  },
+  "satisKalemleri": [
+    {
+      "urunKodu": "GENEL_MAL",
+      "urunAdi": "Yan sanayi parça yurtiçi (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "matrahKaynagi": "brutSatis",
+      "varsayilanCiroPayi": {
+        "min": 0.4,
+        "max": 0.8,
+        "tipik": 0.6
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "urunKodu": "IHRACAT",
+      "urunAdi": "Parça ihracatı (%0)",
+      "kdvOrani": 0,
+      "istisnaTipi": "ihracat",
+      "matrahKaynagi": "brutSatis",
+      "varsayilanCiroPayi": {
+        "min": 0.2,
+        "max": 0.6,
+        "tipik": 0.4
+      },
+      "kaynak": "KDVK 11/1-a"
+    }
+  ],
+  "alisKalemleri": [
+    {
+      "girdiKodu": "HAMMADDE_20",
+      "girdiAdi": "Çelik/plastik/komponent (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.62,
+        "max": 0.84,
+        "tipik": 0.74
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "YARDIMCI_KIMYASAL",
+      "girdiAdi": "Sarf/kaplama (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.0,
+        "max": 0.1,
+        "tipik": 0.06
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "AMBALAJ",
+      "girdiAdi": "Ambalaj (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.0,
+        "max": 0.07,
+        "tipik": 0.04
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "ENERJI_ELEKTRIK",
+      "girdiAdi": "Enerji (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.05,
+        "max": 0.14,
+        "tipik": 0.1
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "ISLEME_ISCILIK",
+      "girdiAdi": "Fason işçilik (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.0,
+        "max": 0.1,
+        "tipik": 0.06
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "NAKLIYE_LOJISTIK",
+      "girdiAdi": "Nakliye (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.1,
+        "max": 0.4,
+        "tipik": 0.3
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "OPEX_20",
+      "girdiAdi": "Diğer (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.3,
+        "max": 0.7,
+        "tipik": 0.5
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    }
+  ],
+  "tevkifat": null,
+  "iadeBaglantisi": {
+    "tur": "IHRACAT_11_1_A",
+    "motorRejim": "IHRACAT_ISTISNASI",
+    "nakdenGecikmeAy": 3,
+    "aciklama": "Yüksek ihracat payı -> düzenli iade."
+  },
+  "karmaOranFormulu": "hesaplanan391 = Σ(brutSatis*ciroPayi*oran) [GENEL_MAL(20%) + IHRACAT(0%)] ; indirilecek191 = Σ(SMM*pay*oran) [HAMMADDE_20(20%) + YARDIMCI_KIMYASAL(20%) + AMBALAJ(20%) + ENERJI_ELEKTRIK(20%) + ISLEME_ISCILIK(20%)] + Σ(faalGider*pay*oran) [OPEX: NAKLIYE_LOJISTIK(20%) + OPEX_20(20%)]"
+}

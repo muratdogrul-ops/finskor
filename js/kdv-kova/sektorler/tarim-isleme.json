@@ -1,0 +1,176 @@
+{
+  "sektorMeta": {
+    "id": "tarim-isleme",
+    "ad": "Tarım / Hayvancılık İşleme",
+    "kdvRejimi": "KARMA",
+    "gecerlilikYili": 2026,
+    "guven": "dusuk",
+    "netPozisyonTipik": "DEVREDEN",
+    "uiGrup": "gida",
+    "altDal": "tarim",
+    "kaynaklar": [
+      "(I) liste %1",
+      "GİB özelge canlı hayvan %1",
+      "KDVK 13/ı yem-gübre istisna"
+    ],
+    "notlar": [
+      "SMM'de KDV'siz pay (~%32): öz üretim yem/ot, müstahsil işçilik, amortisman — indirilecek KDV doğurmaz.",
+      "Müstahsil alımında GV stopajı (mustahsilStopaj) ayrıca nakit etkiler (KDV dışı)."
+    ]
+  },
+  "satisKalemleri": [
+    {
+      "urunKodu": "SUT_YUMURTA",
+      "urunAdi": "Süt/yumurta/hayvansal (%1)",
+      "kdvOrani": 1,
+      "istisnaTipi": null,
+      "matrahKaynagi": "brutSatis",
+      "varsayilanCiroPayi": {
+        "min": 0.5,
+        "max": 0.8,
+        "tipik": 0.7
+      },
+      "kaynak": "2007/13033 (I) sayılı liste %1 (5189 s.CK)"
+    },
+    {
+      "urunKodu": "TAHIL_SEBZE",
+      "urunAdi": "Tahıl/sebze (%1)",
+      "kdvOrani": 1,
+      "istisnaTipi": null,
+      "matrahKaynagi": "brutSatis",
+      "varsayilanCiroPayi": {
+        "min": 0.1,
+        "max": 0.4,
+        "tipik": 0.2
+      },
+      "kaynak": "2007/13033 (I) sayılı liste %1 (5189 s.CK)"
+    },
+    {
+      "urunKodu": "IHRACAT",
+      "urunAdi": "İhracat (%0)",
+      "kdvOrani": 0,
+      "istisnaTipi": "ihracat",
+      "matrahKaynagi": "brutSatis",
+      "varsayilanCiroPayi": {
+        "min": 0.0,
+        "max": 0.4,
+        "tipik": 0.1
+      },
+      "kaynak": "KDVK 11/1-a"
+    }
+  ],
+  "alisKalemleri": [
+    {
+      "girdiKodu": "YEM",
+      "girdiAdi": "Yem (TAM İSTİSNA 13/ı)",
+      "kdvOrani": 0,
+      "istisnaTipi": "tam_istisna_13_i",
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.3,
+        "max": 0.5,
+        "tipik": 0.4
+      },
+      "kaynak": "KDVK 13/ı"
+    },
+    {
+      "girdiKodu": "GUBRE",
+      "girdiAdi": "Gübre (TAM İSTİSNA 13/ı)",
+      "kdvOrani": 0,
+      "istisnaTipi": "tam_istisna_13_i",
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.0,
+        "max": 0.1,
+        "tipik": 0.05
+      },
+      "kaynak": "KDVK 13/ı"
+    },
+    {
+      "girdiKodu": "TARIM_ILAC",
+      "girdiAdi": "Zirai ilaç/veteriner (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.1,
+        "max": 0.25,
+        "tipik": 0.18
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "AMBALAJ",
+      "girdiAdi": "Ambalaj/kasa (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.0,
+        "max": 0.1,
+        "tipik": 0.05
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "ENERJI_ELEKTRIK",
+      "girdiAdi": "Elektrik/akaryakıt (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.4,
+        "max": 0.8,
+        "tipik": 0.6
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "NAKLIYE_LOJISTIK",
+      "girdiAdi": "Nakliye (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.1,
+        "max": 0.4,
+        "tipik": 0.3
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "KDVSIZ_GIDER",
+      "girdiAdi": "KDV'siz maliyet payı (ücret/amortisman/öz üretim)",
+      "kdvOrani": 0,
+      "istisnaTipi": "kdvsiz",
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.32,
+        "max": 0.32,
+        "tipik": 0.32
+      },
+      "kaynak": "KDV'siz maliyet (GVK ücret/amortisman) — indirilecek KDV doğurmaz"
+    }
+  ],
+  "tevkifat": null,
+  "iadeBaglantisi": {
+    "tur": "INDIRIMLI_ORAN_29_2",
+    "motorRejim": "INDIRIMLI_ORAN",
+    "nakdenGecikmeAy": 12,
+    "aciklama": "Satış %1, %20 girdiler -> devreden/29-2; yem-gübre istisna indirim doğurmaz."
+  },
+  "karmaOranFormulu": "hesaplanan391 = Σ(brutSatis*ciroPayi*oran) [SUT_YUMURTA(1%) + TAHIL_SEBZE(1%) + IHRACAT(0%)] ; indirilecek191 = Σ(SMM*pay*oran) [YEM(0%) + GUBRE(0%) + TARIM_ILAC(20%) + AMBALAJ(20%)] + Σ(faalGider*pay*oran) [OPEX: ENERJI_ELEKTRIK(20%) + NAKLIYE_LOJISTIK(20%)]",
+  "mustahsilStopaj": {
+    "oran": 0.02,
+    "matrahKaynagi": "satMaliyet",
+    "pay": 0.45,
+    "kaynak": "GVK 94; borsada tescilli zirai ürün %2 (KDV dışı, MPHB)"
+  }
+}

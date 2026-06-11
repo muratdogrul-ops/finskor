@@ -1,0 +1,13 @@
+{
+  "sektorId": "un-irmik-uretim",
+  "aciklama": "Un/irmik üretim; çıktı %1 (un), buğday %1 + çuval ambalaj/öğütme enerjisi %20 -> devreden/29-2.",
+  "beyanname": {
+    "brutSatis": 6000000,
+    "smm": 4200000,
+    "faaliyetGideri": 600000
+  },
+  "beklenen": {
+    "odenecek360": 0,
+    "iadePotansiyeli": 259440
+  }
+}

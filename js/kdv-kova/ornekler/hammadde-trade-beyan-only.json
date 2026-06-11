@@ -1,0 +1,13 @@
+{
+  "sektorId": "hammadde-ticaret",
+  "aciklama": "Hammadde ticareti; alış %20, dar marj -> net ödenecek.",
+  "beyanname": {
+    "brutSatis": 5000000,
+    "smm": 4600000,
+    "faaliyetGideri": 200000
+  },
+  "beklenen": {
+    "odenecek360": 70400,
+    "iadePotansiyeli": 0
+  }
+}

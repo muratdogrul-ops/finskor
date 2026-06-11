@@ -36,7 +36,7 @@
       else if (k === 'hesaplananKdv') od = od || v;
       else if (/190|devreden\s*kdv/i.test(lbl) && !/indirilecek/.test(lbl)) dev = dev || v;
       else if (/191|192|indirilecek|tecil|diger\s*kdv/i.test(lbl) && !/devreden/.test(lbl)) ind = ind || v;
-      else if (/391|hesaplanan\s*kdv|ödenecek\s*kdv/i.test(lbl)) od = od || v;
+      else if (/391|hesaplanan\s*kdv|ödenecek\s*kdv/i.test(lbl) && !/yükümlülük|vergi ve fon/i.test(lbl)) od = od || v;
     }
     return { indirilecekKdv: ind, devredenKdv: dev, hesaplananKdv: od };
   }
@@ -182,6 +182,56 @@
       ihracatOrani: rev > 0 ? (ihr / rev) * 100 : 0,
       year: year || null,
     };
+    window.syncMaliIhracatToKdvProfile(f);
+  };
+
+  /**
+   * KDV motoru ihracat payı — mizan (601) / gelir tablosu / beyan öncelikli.
+   * Sektör şablonu (%80 vb.) burada kullanılmaz.
+   */
+  window.firmIhracatOraniFromMali = function (f) {
+    if (!f) return 0;
+    if (f.maliIhracat && Number(f.maliIhracat.ihracatOrani) > 0) {
+      return Math.max(0, Math.min(100, Number(f.maliIhracat.ihracatOrani)));
+    }
+    const src = f.maliSource || {};
+    const srcIhr = nkmNum(src.ihracat);
+    const srcRev = nkmNum(src.netSatis) || nkmNum(src.brutSatis);
+    if (srcRev > 0 && srcIhr > 0) {
+      return Math.max(0, Math.min(100, (srcIhr / srcRev) * 100));
+    }
+    const raw = (f.maliParsedSnapshot && f.maliParsedSnapshot.raw) || {};
+    const ihr =
+      nkmNum(raw.ihracat) ||
+      (typeof window.maliIhracatTutar === 'function' ? window.maliIhracatTutar(f) : 0);
+    const rev =
+      nkmNum(raw.netSatis) ||
+      nkmNum(f.incomeStmt && f.incomeStmt.revenue) ||
+      Math.max(0, nkmNum(raw.brutSatis) - nkmNum(raw.satisInd));
+    if (rev > 0 && ihr > 0) {
+      return Math.max(0, Math.min(100, (ihr / rev) * 100));
+    }
+    const beyanGt =
+      (f.kovaBootstrap && f.kovaBootstrap.gelirTablosu) ||
+      (f.maliParsedSnapshot && f.maliParsedSnapshot.gelirTablosu);
+    if (beyanGt) {
+      const bihr = nkmNum(beyanGt.ihracat);
+      const brut = nkmNum(beyanGt.brutSatis) || nkmNum(beyanGt.netSatis);
+      if (brut > 0 && bihr > 0) {
+        return Math.max(0, Math.min(100, (bihr / brut) * 100));
+      }
+    }
+    return 0;
+  };
+
+  /** Mizan/beyan ihracat oranını kdvProfile.exportRatio'ya yazar (sektör şablonunu ezer). */
+  window.syncMaliIhracatToKdvProfile = function (f) {
+    if (!f) return;
+    const oran = window.firmIhracatOraniFromMali(f);
+    if (oran <= 0) return;
+    if (!f.kdvProfile) f.kdvProfile = {};
+    f.kdvProfile.exportEnabled = true;
+    f.kdvProfile.exportRatio = Math.round(oran * 10) / 10;
   };
 
   /** İhracatçı: KV BCH — TL/USD payları = satış içindeki ihracat oranı (UV taksitli TL aynı). */
@@ -495,7 +545,9 @@
     const gk = nkmNum(copy.gecmisKar);
     const gz = nkmNum(copy.gecmisZarar);
     const priorYearNetKar = mizanDonemNetForOpening(copy);
-    const priorYearGecmisKar = Math.round(gk - gz);
+    // 131 Ortaklardan alacaklar: aktiften çıkarıldığı için özkaynaktan da tenzil (denge)
+    const tenzil131 = Math.max(0, nkmNum(copy.ortakAlacak131)) + Math.max(0, nkmNum(copy._ortak131Tenzil));
+    const priorYearGecmisKar = Math.round(gk - gz - tenzil131);
     const openingRetainedEarnings = priorYearGecmisKar + priorYearNetKar;
     return {
       priorYearGecmisKar,
@@ -541,6 +593,7 @@
         devredenKdv: Math.round(nkmNum(copy.devredenKdv)),
         hesaplananKdv: Math.round(kdvPayableSplit(copy)),
         odenecekKdv: Math.round(kdvPayableSplit(copy)),
+        odenecekVergi: Math.round(nkmNum(copy.odenecekVergi)),
         otherAssets: otherAssetsPlug(copy),
         otherLiab: otherLiabKvPlug(copy) + otherLiabUvPlug(copy),
         openingOtherLiabKv: otherLiabKvPlug(copy),
@@ -749,6 +802,30 @@
     pushTotalIfMissing('uvYKToplam', '▶ UV YABANCI KAYNAK TOPLAMI');
     pushTotalIfMissing('ozKaynak', '▶ ÖZ KAYNAK TOPLAMI');
     pushTotalIfMissing('pasifToplam', '▶▶ PASİF TOPLAM');
+    const odKdv = Math.round(kdvPayableSplit(copy));
+    const ov36 = Math.round(nkmNum(copy.odenecekVergi));
+    if (odKdv > 0) {
+      const hit = bilancoRows.find((r) => r && r.key === 'hesaplananKdv');
+      if (hit) hit.value = odKdv;
+      else
+        bilancoRows.push({
+          key: 'hesaplananKdv',
+          label: '391–393 Hesaplanan KDV (360.03 ödenecek)',
+          value: odKdv,
+          isTotal: false,
+        });
+    }
+    if (ov36 > 0) {
+      const hit36 = bilancoRows.find((r) => r && r.key === 'odenecekVergi');
+      if (hit36) hit36.value = ov36;
+      else
+        bilancoRows.push({
+          key: 'odenecekVergi',
+          label: '36. Ödenecek Vergi ve Yükümlülükler',
+          value: ov36,
+          isTotal: false,
+        });
+    }
     const aktifToplam = copy.aktifToplam || 0;
     const pasifToplam = copy.pasifToplam || 0;
     return {
@@ -765,6 +842,11 @@
         ihracat: Math.round(nkmNum(parsed.ihracat)),
         brutSatis: nkmNum(parsed.brutSatis),
         netSatis: nkmNum(copy.netSatis),
+        indirilecekKdv: Math.round(nkmNum(copy.indirilecekKdv)),
+        devredenKdv: Math.round(nkmNum(copy.devredenKdv)),
+        hesaplananKdv: Math.round(kdvPayableSplit(copy)),
+        odenecekKdv: Math.round(kdvPayableSplit(copy)),
+        odenecekVergi: Math.round(nkmNum(copy.odenecekVergi)),
         donemNetKar: Math.round(nkmNum(copy.donemNetKar)),
         donemNetKarGelir: Math.round(nkmNum(copy.donemNetKarGelir)),
         donemNetKarBilanco: Math.round(
@@ -871,7 +953,11 @@
       if (!row || !row.key) continue;
       if (row.key === 'indirilecekKdv') row.tutar = Math.round(nkmNum(o.indirilecekKdv));
       if (row.key === 'devredenKdv') row.tutar = Math.round(nkmNum(o.devredenKdv));
-      if (row.key === 'hesaplananKdv') row.tutar = Math.round(nkmNum(o.odenecekKdv));
+      if (row.key === 'hesaplananKdv') row.tutar = Math.round(nkmNum(o.hesaplananKdv) || nkmNum(o.odenecekKdv));
+      if (row.key === 'odenecekVergi') row.tutar = Math.round(nkmNum(o.odenecekVergi));
+      if (row.key === 'digerDonen' && typeof window.openingNetOtherAssets === 'function') {
+        row.tutar = Math.round(window.openingNetOtherAssets(f));
+      }
     }
   }
 
@@ -927,6 +1013,20 @@
     }
     if (od !== nkmNum(o.odenecekKdv)) {
       o.odenecekKdv = Math.round(od);
+      o.hesaplananKdv = Math.round(od);
+      ch = true;
+    } else if (od > 0 && !nkmNum(o.hesaplananKdv)) {
+      o.hesaplananKdv = Math.round(od);
+      ch = true;
+    }
+    let ov = nkmNum(o.odenecekVergi);
+    if (!ov && Array.isArray(f.finskorBilancoSnapshot?.rows)) {
+      const rr = f.finskorBilancoSnapshot.rows.find((x) => x && x.key === 'odenecekVergi');
+      if (rr) ov = Math.round(nkmNum(rr.tutar != null ? rr.tutar : rr.value));
+    }
+    if (!ov && f.maliParsedSnapshot?.raw) ov = Math.round(nkmNum(f.maliParsedSnapshot.raw.odenecekVergi));
+    if (ov !== nkmNum(o.odenecekVergi)) {
+      o.odenecekVergi = Math.round(ov);
       ch = true;
     }
     refreshFinskorSnapshotKdvRows(f);
@@ -985,7 +1085,10 @@
     }
     const year = meta?.year || getDefaultMaliYear(f);
     parsed = enrichParsedWithKdv(parsed, meta);
-    const opening = FinSkorMaliImport.mapToOpening(parsed, year);
+    let opening = FinSkorMaliImport.mapToOpening(parsed, year);
+    if (typeof FinSkorKovaBridge !== 'undefined' && FinSkorKovaBridge.enrichAfterMaliImport) {
+      opening = FinSkorKovaBridge.enrichAfterMaliImport(f, opening);
+    }
     if (!f.opening) f.opening = {};
     Object.assign(f.opening, {
       cash: opening.cash,
@@ -999,6 +1102,7 @@
       devredenKdv: opening.devredenKdv,
       hesaplananKdv: opening.hesaplananKdv,
       odenecekKdv: opening.odenecekKdv,
+      odenecekVergi: opening.odenecekVergi,
       otherAssets: opening.otherAssets,
       otherLiab: opening.otherLiab,
       openingOtherLiabKv: opening.openingOtherLiabKv,
@@ -1027,6 +1131,31 @@
         `🧾 KDV açılış (TDHP): 191 indirilecek <b>${(opening.indirilecekKdv || 0).toLocaleString('tr-TR')}</b> · 190 devreden <b>${(opening.devredenKdv || 0).toLocaleString('tr-TR')}</b> · 391 hesaplanan/ödenecek <b>${(opening.odenecekKdv || 0).toLocaleString('tr-TR')}</b> TL`,
         'ok',
       );
+    }
+    if (opening.odenecekVergi) {
+      importLog(
+        `📋 36. Ödenecek vergi/yük (SGK+fon — 391 değil): <b>${opening.odenecekVergi.toLocaleString('tr-TR')}</b> TL`,
+        'info',
+      );
+    }
+    if (f.kovaBootstrap && typeof FinSkorKovaBridge !== 'undefined' && FinSkorKovaBridge.shouldUse(f)) {
+      const kb = f.kovaBootstrap;
+      const f36 = kb.f36 || {};
+      importLog(
+        `📦 Kova kütüphanesi (${kb.sektorId || FinSkorKovaBridge.sektorLabel(f.kdvProfile && f.kdvProfile.kovaSektorId) || 'sektör'}): KDV <b>${(f36.odenecekKdv || opening.odenecekKdv || 0).toLocaleString('tr-TR')}</b> · stopaj <b>${(f36.stopaj || 0).toLocaleString('tr-TR')}</b> · SGK <b>${(f36.sgk || 0).toLocaleString('tr-TR')}</b> TL`,
+        'info',
+      );
+    }
+    if (!f.kdvProfile) f.kdvProfile = {};
+    if (f.kdvProfile.refundMode && f.kdvProfile.refundMode !== 'carry') {
+      f.kdvProfile._kdvRefundCustomized = true;
+    }
+    if (typeof FinSkorKovaBridge !== 'undefined' && FinSkorKovaBridge.applySektorToProfile && !f.kdvProfile._kdvRefundCustomized) {
+      const kid = FinSkorKovaBridge.resolveSektorId(f);
+      Object.assign(f.kdvProfile, FinSkorKovaBridge.applySektorToProfile(kid, { keepExport: true, cur: f.kdvProfile }));
+      f.kdvProfile._kovaLibSynced = true;
+    } else if (f.kdvProfile.kovaSektorId) {
+      f.kdvProfile._kovaLibSynced = true;
     }
     if (opening.openingRetainedEarnings) {
       importLog(
@@ -1112,6 +1241,7 @@
           isTotal: !!r.isTotal,
         })),
       };
+      refreshFinskorSnapshotKdvRows(f);
     }
     if (f.maliParsedSnapshot?.totals) {
       const t = f.maliParsedSnapshot.totals;
@@ -1387,7 +1517,8 @@
     populateOpeningMaliYearSelect();
   });
 
-  /** Mali import sonrası KDV popup — TCMB'den bağımsız, hemen aç + kısa retry. */
+  /** Mali import sonrası KDV popup — aktif/pasif denge logu okunabilsin diye 4 sn bekler. */
+  const KDV_MODAL_IMPORT_DELAY_MS = 4000;
   window.requestOpenKdvProfileModalAfterImport = function (opts) {
     function kdvModalVisible() {
       const m = document.getElementById('kdv-profile-modal');
@@ -1406,9 +1537,10 @@
         );
       }
     }
-    go(true);
+    importLog('⏳ Sektör / KDV penceresi 4 sn sonra açılacak — aktif/pasif dengesini kontrol edebilirsiniz.', 'info');
+    setTimeout(function () { go(true); }, KDV_MODAL_IMPORT_DELAY_MS);
     [80, 250, 700, 1500].forEach(function (ms) {
-      setTimeout(function () { go(false); }, ms);
+      setTimeout(function () { go(false); }, KDV_MODAL_IMPORT_DELAY_MS + ms);
     });
   };
 })();

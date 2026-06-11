@@ -1,0 +1,16 @@
+{
+  "sektorId": "gida-uretim-yumurta",
+  "aciklama": "Yumurta üretim altın senaryo (8M ciro); yumurta %1, yem 13/ı, ambalaj/enerji %20.",
+  "beyanname": {
+    "brutSatis": 8000000,
+    "smm": 5600000,
+    "faaliyetGideri": 800000
+  },
+  "beklenen": {
+    "hesaplanan391": 110400,
+    "indirilecek191": 492000,
+    "odenecek360": 0,
+    "devredenSonraki": 381600,
+    "iadePotansiyeli": 381600
+  }
+}

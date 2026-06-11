@@ -1,0 +1,114 @@
+{
+  "sektorMeta": {
+    "id": "enerji-yenilenebilir",
+    "ad": "Enerji / Yenilenebilir",
+    "kdvRejimi": "GENEL",
+    "gecerlilikYili": 2026,
+    "guven": "orta",
+    "netPozisyonTipik": "DEVREDEN",
+    "uiGrup": "imalat",
+    "altDal": "uretim",
+    "kaynaklar": [
+      "2007/13033 m.1 genel oran %20 (elektrik teslimi)",
+      "yatırım KDV'si -> devreden"
+    ],
+    "notlar": [
+      "Enerji üreticisi: ambalaj ve enerji ALIŞI yoktur (enerji üretilir). Ana girdi yatırım malları (panel/türbin) %20 -> yatırım döneminde devreden."
+    ]
+  },
+  "satisKalemleri": [
+    {
+      "urunKodu": "GENEL_MAL",
+      "urunAdi": "Elektrik/enerji satışı (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "matrahKaynagi": "brutSatis",
+      "varsayilanCiroPayi": {
+        "min": 0.9,
+        "max": 1.0,
+        "tipik": 1.0
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    }
+  ],
+  "alisKalemleri": [
+    {
+      "girdiKodu": "EKIPMAN_YATIRIM",
+      "girdiAdi": "Panel/türbin/yatırım (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "YATIRIM",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.4,
+        "max": 0.7,
+        "tipik": 0.55
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "ISLEME_ISCILIK",
+      "girdiAdi": "Montaj/bakım işçilik (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.08,
+        "max": 0.22,
+        "tipik": 0.15
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "YARDIMCI_KIMYASAL",
+      "girdiAdi": "Kablo/trafo/sarf (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.05,
+        "max": 0.15,
+        "tipik": 0.1
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "OPEX_20",
+      "girdiAdi": "İşletme/bakım (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.2,
+        "max": 0.6,
+        "tipik": 0.4
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "KDVSIZ_GIDER",
+      "girdiAdi": "KDV'siz maliyet payı (ücret/amortisman/öz üretim)",
+      "kdvOrani": 0,
+      "istisnaTipi": "kdvsiz",
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.2,
+        "max": 0.2,
+        "tipik": 0.2
+      },
+      "kaynak": "KDV'siz maliyet (GVK ücret/amortisman) — indirilecek KDV doğurmaz"
+    }
+  ],
+  "tevkifat": null,
+  "iadeBaglantisi": {
+    "tur": null,
+    "motorRejim": "GENEL",
+    "nakdenGecikmeAy": 0,
+    "aciklama": "Yatırım döneminde yüksek %20 yatırım KDV'si -> uzun süre devreden."
+  },
+  "karmaOranFormulu": "hesaplanan391 = Σ(brutSatis*ciroPayi*oran) [GENEL_MAL(20%)] ; indirilecek191 = Σ(SMM*pay*oran) [EKIPMAN_YATIRIM(20%) + ISLEME_ISCILIK(20%) + YARDIMCI_KIMYASAL(20%)] + Σ(faalGider*pay*oran) [OPEX: OPEX_20(20%)]"
+}

@@ -1,0 +1,123 @@
+{
+  "sektorMeta": {
+    "id": "hizmet-tevkifat",
+    "ad": "Hizmet (İşgücü/Temizlik - Tevkifatlı)",
+    "kdvRejimi": "TEVKIFAT_AGIRLIKLI",
+    "gecerlilikYili": 2026,
+    "guven": "dusuk",
+    "netPozisyonTipik": "IADE",
+    "uiGrup": "hizmet",
+    "altDal": "hizmet",
+    "kaynaklar": [
+      "KDVGUT I/C-2.1.3.2.5 işgücü 9/10",
+      "2007/13033 m.1 genel oran %20"
+    ],
+    "notlar": [
+      "SMM'in büyük kısmı personel ücreti (KDV'siz); KDV'li sarf/ekipman payı ~%40.",
+      "Tevkifat 9/10 satıcıda iade hakkı doğurur."
+    ]
+  },
+  "satisKalemleri": [
+    {
+      "urunKodu": "GENEL_MAL",
+      "urunAdi": "Tevkifatlı hizmet (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "matrahKaynagi": "brutSatis",
+      "varsayilanCiroPayi": {
+        "min": 0.9,
+        "max": 1.0,
+        "tipik": 1.0
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    }
+  ],
+  "alisKalemleri": [
+    {
+      "girdiKodu": "TICARI_MAL_20",
+      "girdiAdi": "Sarf/ekipman (KDV'li SMM %20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.2,
+        "max": 0.6,
+        "tipik": 0.4
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "ENERJI_ELEKTRIK",
+      "girdiAdi": "Enerji (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.05,
+        "max": 0.25,
+        "tipik": 0.15
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "NAKLIYE_LOJISTIK",
+      "girdiAdi": "Ulaşım/lojistik (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.0,
+        "max": 0.25,
+        "tipik": 0.15
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "OPEX_20",
+      "girdiAdi": "Kira/diğer (%20)",
+      "kdvOrani": 20,
+      "istisnaTipi": null,
+      "kovaTipi": "OPEX",
+      "matrahKaynagi": "faalGider",
+      "pay": {
+        "min": 0.1,
+        "max": 0.5,
+        "tipik": 0.3
+      },
+      "kaynak": "2007/13033 m.1 genel oran %20"
+    },
+    {
+      "girdiKodu": "KDVSIZ_GIDER",
+      "girdiAdi": "KDV'siz maliyet payı (ücret/amortisman/öz üretim)",
+      "kdvOrani": 0,
+      "istisnaTipi": "kdvsiz",
+      "kovaTipi": "INDIRILECEK",
+      "matrahKaynagi": "satMaliyet",
+      "pay": {
+        "min": 0.6,
+        "max": 0.6,
+        "tipik": 0.6
+      },
+      "kaynak": "KDV'siz maliyet (GVK ücret/amortisman) — indirilecek KDV doğurmaz"
+    }
+  ],
+  "tevkifat": {
+    "var": true,
+    "pay": 9,
+    "payda": 10,
+    "kapsamOrani": 0.8,
+    "gibKod": "610 (işgücü temin)",
+    "altSinirKdvDahil": 9900,
+    "kaynak": "KDVGUT I/C-2.1.3.2.5"
+  },
+  "iadeBaglantisi": {
+    "tur": "TEVKIFAT",
+    "motorRejim": "INDIRIMLI_ORAN",
+    "nakdenGecikmeAy": 4,
+    "aciklama": "İşgücü 9/10 -> satıcıda tevkif edilen KDV iade hakkı. Personel ücreti KDV dışı."
+  },
+  "karmaOranFormulu": "hesaplanan391 = Σ(brutSatis*ciroPayi*oran) [GENEL_MAL(20%)] ; indirilecek191 = Σ(SMM*pay*oran) [TICARI_MAL_20(20%)] + Σ(faalGider*pay*oran) [OPEX: ENERJI_ELEKTRIK(20%) + NAKLIYE_LOJISTIK(20%) + OPEX_20(20%)]"
+}

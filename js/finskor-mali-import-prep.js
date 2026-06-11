@@ -92,6 +92,9 @@ function normalizeOrtakAlacak131(d) {
   const v = Math.max(0, Number(d.ortakAlacak131) || 0);
   if (v > 0) {
     d.ortakAlacak131 = 0;
+    // Tenzili kalıcı sakla: finSkorOzKaynakVePasif ozKaynak'ı alt kalemlerden
+    // yeniden hesaplayıp buradaki düşmeyi eziyordu → tenzil _ortak131Tenzil'de izlenir
+    d._ortak131Tenzil = (Number(d._ortak131Tenzil) || 0) + v;
     d.ozKaynak = Math.max(0, (Number(d.ozKaynak) || 0) - v);
   }
 }
@@ -188,7 +191,7 @@ function nakitLikiditeToplam(d) {
 function finSkorOzKaynakVePasif(d) {
   if (!d) return;
   const sum = (...keys) => keys.reduce((t, k) => t + (Number(d[k]) || 0), 0);
-  const ortak131Tenzil = Math.max(0, d.ortakAlacak131 || 0);
+  const ortak131Tenzil = Math.max(0, d.ortakAlacak131 || 0) + Math.max(0, Number(d._ortak131Tenzil) || 0);
   const donemOz = maliEffectiveDonemNetForOzKaynak(d);
   const ozAlt =
     sum('odenmisSermaye', 'sermaYedek', 'karYedek', 'gecmisKar') +

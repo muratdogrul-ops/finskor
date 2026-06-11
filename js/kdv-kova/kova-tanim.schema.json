@@ -1,0 +1,302 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "kova-tanim.schema.json",
+  "title": "Sektör KDV Kova Tanımı",
+  "description": "Sektör bazlı satış/alış KDV kova kütüphanesi dosya şeması. Oranlar JSON'da tutulur; kodda sabitlenmez.",
+  "type": "object",
+  "required": [
+    "sektorMeta",
+    "satisKalemleri",
+    "alisKalemleri",
+    "iadeBaglantisi"
+  ],
+  "properties": {
+    "sektorMeta": {
+      "type": "object",
+      "required": [
+        "id",
+        "ad",
+        "kdvRejimi",
+        "gecerlilikYili",
+        "kaynaklar"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "ad": {
+          "type": "string"
+        },
+        "kdvRejimi": {
+          "enum": [
+            "GENEL",
+            "IHRACAT_ISTISNASI",
+            "INDIRIMLI_ORAN",
+            "TEVKIFAT_AGIRLIKLI",
+            "KARMA"
+          ]
+        },
+        "gecerlilikYili": {
+          "type": "integer"
+        },
+        "guven": {
+          "enum": [
+            "yuksek",
+            "orta",
+            "dusuk"
+          ]
+        },
+        "netPozisyonTipik": {
+          "enum": [
+            "ODENECEK",
+            "DEVREDEN",
+            "IADE"
+          ]
+        },
+        "uiGrup": {
+          "enum": [
+            "gida",
+            "imalat",
+            "ticaret",
+            "hizmet"
+          ]
+        },
+        "altDal": {
+          "enum": [
+            "ticaret",
+            "uretim",
+            "ihracat",
+            "tarim",
+            "hizmet"
+          ]
+        },
+        "kaynaklar": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "notlar": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "satisKalemleri": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "urunKodu",
+          "urunAdi",
+          "kdvOrani",
+          "matrahKaynagi",
+          "varsayilanCiroPayi"
+        ],
+        "properties": {
+          "urunKodu": {
+            "type": "string"
+          },
+          "urunAdi": {
+            "type": "string"
+          },
+          "kdvOrani": {
+            "enum": [
+              0,
+              1,
+              10,
+              20
+            ]
+          },
+          "istisnaTipi": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "ihracat",
+              "ihrac_kayitli",
+              "tam_istisna",
+              "tam_istisna_13_i",
+              null,
+              "kdvsiz"
+            ]
+          },
+          "matrahKaynagi": {
+            "enum": [
+              "brutSatis",
+              "netSatis"
+            ]
+          },
+          "varsayilanCiroPayi": {
+            "type": "object",
+            "required": [
+              "tipik"
+            ],
+            "properties": {
+              "min": {
+                "type": "number"
+              },
+              "max": {
+                "type": "number"
+              },
+              "tipik": {
+                "type": "number"
+              }
+            }
+          },
+          "kaynak": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "alisKalemleri": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "girdiKodu",
+          "girdiAdi",
+          "kdvOrani",
+          "kovaTipi",
+          "matrahKaynagi",
+          "pay"
+        ],
+        "properties": {
+          "girdiKodu": {
+            "type": "string"
+          },
+          "girdiAdi": {
+            "type": "string"
+          },
+          "kdvOrani": {
+            "enum": [
+              0,
+              1,
+              10,
+              20
+            ]
+          },
+          "istisnaTipi": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kovaTipi": {
+            "enum": [
+              "INDIRILECEK",
+              "YATIRIM",
+              "OPEX"
+            ]
+          },
+          "matrahKaynagi": {
+            "enum": [
+              "satMaliyet",
+              "faalGider",
+              "oran"
+            ]
+          },
+          "pay": {
+            "description": "matrahKaynagi içindeki tipik pay. Sayı veya {min,max,tipik}.",
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "tipik"
+                ],
+                "properties": {
+                  "min": {
+                    "type": "number"
+                  },
+                  "max": {
+                    "type": "number"
+                  },
+                  "tipik": {
+                    "type": "number"
+                  }
+                }
+              }
+            ]
+          },
+          "kaynak": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "tevkifat": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "var": {
+          "type": "boolean"
+        },
+        "pay": {
+          "type": "integer"
+        },
+        "payda": {
+          "type": "integer"
+        },
+        "kapsamOrani": {
+          "type": "number"
+        },
+        "gibKod": {
+          "type": "string"
+        },
+        "altSinirKdvDahil": {
+          "type": "number"
+        },
+        "kaynak": {
+          "type": "string"
+        }
+      }
+    },
+    "iadeBaglantisi": {
+      "type": "object",
+      "required": [
+        "tur"
+      ],
+      "properties": {
+        "tur": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "IHRACAT_11_1_A",
+            "IHRAC_KAYITLI_11_1_C",
+            "INDIRIMLI_ORAN_29_2",
+            "TEVKIFAT",
+            "TAM_ISTISNA_13_I",
+            null
+          ]
+        },
+        "motorRejim": {
+          "enum": [
+            "GENEL",
+            "IHRACAT_ISTISNASI",
+            "INDIRIMLI_ORAN"
+          ]
+        },
+        "nakdenGecikmeAy": {
+          "type": "integer"
+        },
+        "aciklama": {
+          "type": "string"
+        }
+      }
+    },
+    "karmaOranFormulu": {
+      "type": "string"
+    }
+  }
+}

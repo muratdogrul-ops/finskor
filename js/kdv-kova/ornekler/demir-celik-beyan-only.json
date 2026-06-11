@@ -1,0 +1,13 @@
+{
+  "sektorId": "demir-celik-metallurgy",
+  "aciklama": "Demir-çelik; hurda+enerji girdileri ayrı, mamul %20 5/10 tevkifat -> devreden+tevkifat iadesi.",
+  "beyanname": {
+    "brutSatis": 10000000,
+    "smm": 7000000,
+    "faaliyetGideri": 1000000
+  },
+  "beklenen": {
+    "odenecek360": 0,
+    "iadePotansiyeli": 676000
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "sektorId": "gida-uretim-sut",
+  "aciklama": "Süt üretim altın senaryo (8M ciro); süt satış %1, ambalaj/enerji/soğuk zincir %20.",
+  "beyanname": {
+    "brutSatis": 8000000,
+    "smm": 5600000,
+    "faaliyetGideri": 800000
+  },
+  "beklenen": {
+    "hesaplanan391": 116000,
+    "indirilecek191": 609600,
+    "odenecek360": 0,
+    "devredenSonraki": 493600,
+    "iadePotansiyeli": 493600
+  }
+}

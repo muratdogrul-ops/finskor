@@ -1,0 +1,13 @@
+{
+  "sektorId": "tarim-isleme",
+  "aciklama": "Tarım/işleme; satış %1, yem-gübre istisna, ilaç/enerji %20, KDV'siz öz üretim payı; müstahsil GV stopajı ayrı.",
+  "beyanname": {
+    "brutSatis": 3000000,
+    "smm": 2000000,
+    "faaliyetGideri": 300000
+  },
+  "beklenen": {
+    "odenecek360": 0,
+    "iadePotansiyeli": 119000
+  }
+}
