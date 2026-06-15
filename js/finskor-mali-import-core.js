@@ -1318,13 +1318,12 @@ function mizanTextIsleBeyanname(lines, result, year) {
     const isAltRakam = isAltRakamDot || isAltRakamPlain;
     // ". 2. Yurtdışı Satışlar" — ihracat tespiti için tek istisna
     const isYurtdisi = /^\.\s+\d+\.?\s*yurt/.test(ln);  // boşluk/nokta varyasyonlarını yakala
-    // KURAL: Alt rakam satırları atla (ihracat / hazır-çek ayrımı hariç)
+    // KURAL: Alt rakam satırları atla (ihracat / verilen çek / KDV / kasa-banka hariç; alınan çek grup A içinde — ticAlacaklara YAZILMAZ)
     const isOrtakAlt = isAltRakam && /ortaklardan alacak/.test(ln);
     let beyanAltLikiditeKey = null;
     if (isAltRakam && !isYurtdisi && !isOrtakAlt) {
-      if (bolum === 'DONEN' && /alinan/.test(ln) && /cek/.test(ln)) beyanAltLikiditeKey = 'ticAlacaklar';
       // 103 / verilen çek (-): aktifte hazırdan düşülmez; pasif KV ticari borç (bilanço dengesi)
-      else if (bolum === 'DONEN' && /verilen/.test(ln) && /cek|odeme emri/.test(ln)) {
+      if (bolum === 'DONEN' && /verilen/.test(ln) && /cek|odeme emri/.test(ln)) {
         beyanAltLikiditeKey = 'kvTicBorclar';
       }
       // 190/191: "H. Diğer Dönen" altındaki ". 1. Devreden KDV" alt satırı —
