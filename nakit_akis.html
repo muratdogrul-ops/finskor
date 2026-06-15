@@ -15,7 +15,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
 <script src="js/finskor-mali-import-prep.js?v=20260526alinanfix"></script>
 <script src="js/finskor-mali-import-core.js?v=20260526alinanfix"></script>
-<script src="js/finskor-mali-import-nakit.js?v=20260526alinanfix"></script>
+<script src="js/finskor-mali-import-nakit.js?v=20260527firmadel"></script>
 <script src="js/kdv-kova/muhasebe-motoru.js?v=20250603kovaV52"></script>
 <script src="js/kdv-kova/kova-hesaplayici.js?v=20250603kovaV52"></script>
 <script src="js/kdv-kova/beyanname-kova-bootstrap.js?v=20250603kovaV52"></script>
@@ -1497,7 +1497,7 @@ body.kdv-modal-open{overflow:hidden}
 // ══════════════════════════════════════════════
 // GLOBAL STATE
 // ══════════════════════════════════════════════
-let state = { firms: {}, currentFirmId: null };
+let state = { firms: {}, currentFirmId: null, maliAutoPullBlockedNames: [] };
 /** Açılış sayfası UI hangi firmaya bağlı (firma değişince önceki firmanın tabloları kalmasın) */
 let _openingUiBoundFirmId = null;
 
@@ -1562,6 +1562,7 @@ async function loadState(){
     if(r && r.value){
       const s=JSON.parse(r.value);
       state.firms=s.firms||{};
+      state.maliAutoPullBlockedNames=Array.isArray(s.maliAutoPullBlockedNames)?s.maliAutoPullBlockedNames:[];
       if(s.currentFirmId&&state.firms[s.currentFirmId]) state.currentFirmId=s.currentFirmId;
       else state.currentFirmId=null;
       if(dedupeFirmsOnLoad())await saveState();
@@ -1962,6 +1963,7 @@ function selectAndGo(id,page){
 function deleteFirm(id){
   if(!confirm('Bu firmayı silmek istediğinizden emin misiniz?'))return;
   const name=state.firms[id]?.name;
+  if(name&&typeof blockMaliAutoPullForFirmName==='function')blockMaliAutoPullForFirmName(name);
   delete state.firms[id];
   if(state.currentFirmId===id){
     state.currentFirmId=null;
@@ -9273,6 +9275,7 @@ async function importFromFinSkor(){
   }
 
   const firmAdı = (p.firmaAdi || 'FinSkor Firması').trim();
+  if(typeof unblockMaliAutoPullForFirmName==='function')unblockMaliAutoPullForFirmName(firmAdı);
   const projYil = (p.veriYili || new Date().getFullYear()) + 1;
   const startIso = new Date(projYil, 0, 1).toISOString();
 

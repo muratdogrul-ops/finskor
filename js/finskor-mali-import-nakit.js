@@ -5,6 +5,32 @@
     return isFinite(n) ? n : 0;
   }
 
+  function normFirmNameKey(name) {
+    return String(name || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ');
+  }
+
+  function isMaliAutoPullBlockedForFirm(f) {
+    if (!f || !f.name) return false;
+    const list = (typeof state !== 'undefined' && state.maliAutoPullBlockedNames) || [];
+    return list.includes(normFirmNameKey(f.name));
+  }
+
+  window.blockMaliAutoPullForFirmName = function (name) {
+    if (typeof state === 'undefined') return;
+    if (!state.maliAutoPullBlockedNames) state.maliAutoPullBlockedNames = [];
+    const k = normFirmNameKey(name);
+    if (k && !state.maliAutoPullBlockedNames.includes(k)) state.maliAutoPullBlockedNames.push(k);
+  };
+
+  window.unblockMaliAutoPullForFirmName = function (name) {
+    if (typeof state === 'undefined' || !state.maliAutoPullBlockedNames) return;
+    const k = normFirmNameKey(name);
+    state.maliAutoPullBlockedNames = state.maliAutoPullBlockedNames.filter((n) => n !== k);
+  };
+
   /** Kasa + banka + diğer hazır + menkul (THP 100/102/108 + 11; 101 çek → AR) */
   function nkmLikiditeToplam(d) {
     return nkmNum(d.hazirDegerler) + nkmNum(d.menkKiymetler);
@@ -726,6 +752,7 @@
    */
   function tryRefreshMaliSnapshotFromFinSkor(f) {
     if (!f?.maliParsedSnapshot?.totals) return false;
+    if (isMaliAutoPullBlockedForFirm(f)) return false;
     if (Math.abs(Number(f.maliParsedSnapshot.totals.fark) || 0) < 1) return false;
     let pack;
     try {
@@ -1167,6 +1194,7 @@
       showAlert('Önce firma seçin veya oluşturun.', 'err');
       return;
     }
+    if (!meta?.silent) window.unblockMaliAutoPullForFirmName(f.name);
     const year = meta?.year || getDefaultMaliYear(f);
     parsed = enrichParsedWithKdv(parsed, meta);
     let opening = FinSkorMaliImport.mapToOpening(parsed, year);
@@ -1427,6 +1455,7 @@
 
   window.syncKdvOnlyFromFinSkor = async function (f) {
     if (!f || !f.opening) return false;
+    if (isMaliAutoPullBlockedForFirm(f)) return false;
     const o = f.opening;
     if (nkmNum(o.indirilecekKdv) || nkmNum(o.devredenKdv) || nkmNum(o.odenecekKdv)) return false;
     if (typeof syncOpeningKdvFromFirm === 'function' && syncOpeningKdvFromFirm(f)) {
@@ -1472,6 +1501,7 @@
 
   window.autoPullOpeningFromFinSkorIfEmpty = async function (f) {
     if (!f) return;
+    if (isMaliAutoPullBlockedForFirm(f)) return;
     if (f.openingMaliMeta?.at) return;
     const o = f.opening || {};
     if (
