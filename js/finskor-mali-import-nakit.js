@@ -720,6 +720,87 @@
   }
 
   /**
+   * NakitFlow'da eski (hatalı parser) PDF snapshot'ı varken FinSkor kas_autosave dengeli ise
+   * snapshot + açılış kutularını FinSkor verisinden yeniler (canlıdaki sil-yeniden-yaz davranışı).
+   * @returns {boolean}
+   */
+  function tryRefreshMaliSnapshotFromFinSkor(f) {
+    if (!f?.maliParsedSnapshot?.totals) return false;
+    if (Math.abs(Number(f.maliParsedSnapshot.totals.fark) || 0) < 1) return false;
+    let pack;
+    try {
+      const raw = localStorage.getItem('kas_autosave');
+      if (!raw) return false;
+      pack = JSON.parse(raw);
+    } catch {
+      return false;
+    }
+    const year =
+      Number(f.maliParsedSnapshot.year) ||
+      (typeof getDefaultMaliYear === 'function' ? getDefaultMaliYear(f) : null) ||
+      new Date().getFullYear() - 1;
+    const yd = pack.yearData && pack.yearData[year];
+    if (!yd || !Object.entries(yd).some(([k, v]) => !k.startsWith('_') && v && v !== 0)) return false;
+    const finSkorName = String(pack.firmaAdi || '').trim().toLowerCase();
+    const nakitName = String(f.name || '').trim().toLowerCase();
+    if (finSkorName && nakitName && finSkorName !== nakitName && !nakitName.includes(finSkorName) && !finSkorName.includes(nakitName)) {
+      return false;
+    }
+    const copy = enrichParsedWithKdv({ ...yd }, { bilancoRows: f.finskorBilancoSnapshot?.rows, year });
+    hesapToplamlarOnObject(copy, year);
+    const a = Number(copy.aktifToplam) || 0;
+    const p = Number(copy.pasifToplam) || 0;
+    if (!a || !p || Math.abs(a - p) >= 1) return false;
+    f.maliParsedSnapshot = buildMaliParsedSnapshot(copy, year, {
+      source: 'finskor',
+      format: 'FinSkor senkron (snapshot düzeltme)',
+      silent: true,
+    });
+    if (f.maliParsedSnapshot?.bilancoRows?.length) {
+      f.finskorBilancoSnapshot = {
+        yil: year,
+        rows: f.maliParsedSnapshot.bilancoRows.map((r) => ({
+          key: r.key,
+          label: r.label,
+          tutar: Number(r.value != null ? r.value : r.tutar) || 0,
+          isTotal: !!r.isTotal,
+        })),
+      };
+    }
+    const opening = FinSkorMaliImport.mapToOpening(copy, year);
+    if (!f.opening) f.opening = {};
+    Object.assign(f.opening, {
+      cash: opening.cash,
+      bank: opening.bank,
+      ar: opening.ar,
+      ap: opening.ap,
+      inventory: opening.inventory,
+      mdv: opening.mdv,
+      capital: opening.capital,
+      indirilecekKdv: opening.indirilecekKdv,
+      devredenKdv: opening.devredenKdv,
+      hesaplananKdv: opening.hesaplananKdv,
+      odenecekKdv: opening.odenecekKdv,
+      odenecekVergi: opening.odenecekVergi,
+      otherAssets: opening.otherAssets,
+      otherLiab: opening.otherLiab,
+      openingOtherLiabKv: opening.openingOtherLiabKv,
+      openingOtherLiabUv: opening.openingOtherLiabUv,
+      kvMaliBorclar: opening.kvMaliBorclar,
+      uvMaliBorclar: opening.uvMaliBorclar,
+      priorYearGecmisKar: opening.priorYearGecmisKar,
+      priorYearNetKar: opening.priorYearNetKar,
+      openingRetainedEarnings: opening.openingRetainedEarnings,
+      maliKapanisYili: opening.maliKapanisYili,
+      openingCapitalExcludesRetained: opening.openingCapitalExcludesRetained,
+    });
+    openingAlignToMaliTotals(f.opening, copy, mapRetainedFromMizan(copy));
+    if (typeof saveState === 'function') saveState();
+    return true;
+  }
+  window.tryRefreshMaliSnapshotFromFinSkor = tryRefreshMaliSnapshotFromFinSkor;
+
+  /**
    * Dosya dengeli, açılış kutuları değilse: devreden = bilanço dönem neti + geçmiş; kutu toplamlarını hizala.
    * @returns {boolean} değişiklik yapıldı mı
    */
@@ -862,6 +943,9 @@
     const card = document.getElementById('opening-mali-preview-card');
     if (!card) return;
     const f = typeof curFirm === 'function' ? curFirm() : null;
+    if (f && typeof tryRefreshMaliSnapshotFromFinSkor === 'function') {
+      tryRefreshMaliSnapshotFromFinSkor(f);
+    }
     const snap = f && f.maliParsedSnapshot;
     if (!snap || (!snap.bilancoRows?.length && !snap.gelirRows?.length)) {
       card.style.display = 'none';
@@ -1249,6 +1333,12 @@
         `⚖️ Dosya bilanço: Aktif <b>${fmtMaliTr(t.aktifToplam)}</b> · Pasif <b>${fmtMaliTr(t.pasifToplam)}</b> · Fark <b>${fmtMaliTr(t.fark)}</b> TL`,
         Math.abs(t.fark) < 1 ? 'ok' : 'warn',
       );
+      if (Math.abs(t.fark) >= 90000000 && window.FINSKOR_MALI_PARSER_REV !== '20260526alinanfix') {
+        importLog(
+          '⚠️ Bilanço farkı büyük — tarayıcı eski <code>finskor-mali-import-core.js</code> cache kullanıyor olabilir. <b>Ctrl+Shift+R</b> sonra PDF’yi tekrar yükleyin.',
+          'warn',
+        );
+      }
     }
     if (typeof syncOpeningRetainedToMaliFile === 'function') syncOpeningRetainedToMaliFile(f);
     if (typeof renderOpeningMaliPreview === 'function') renderOpeningMaliPreview();
@@ -1316,6 +1406,12 @@
     }
     const year = parseInt(document.getElementById('opening-mali-yil')?.value, 10) || getDefaultMaliYear(f);
     try {
+      clearOpeningImportLog();
+      if (typeof window.FINSKOR_MALI_PARSER_REV === 'string') {
+        importLog(`🔧 Mali parser: <b>${window.FINSKOR_MALI_PARSER_REV}</b>`, 'info');
+      } else {
+        importLog('⚠️ Eski parser (cache) — <b>Ctrl+Shift+R</b> ile sayfayı yenileyin', 'warn');
+      }
       const result = await FinSkorMaliImport.parseFile(file, year);
       await applyParsedToOpeningBalance(result.data, {
         source: 'file',

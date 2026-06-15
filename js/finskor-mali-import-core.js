@@ -1,8 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════
-// MALİ VERİ IMPORT SİSTEMİ v2
-// MİZAN (Excel) ve PDF dosyalarından bilanço verisi otomatik okuma
-// Desteklenen format: Hesap Kodu | Hesap Adı | Borç | Alacak | Borç Bakiyesi
+// MALİ VERİ IMPORT SİSTEMİ v2 — parser 20260526alinanfix (KVB alınan çek çift sayım yok)
 // ═══════════════════════════════════════════════════════════════════
+window.FINSKOR_MALI_PARSER_REV = '20260526alinanfix';
 
 // ─────────────────────────────────────────────────────────────────
 // HESAP KODU → SİSTEM KEY MAPPING

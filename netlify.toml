@@ -187,6 +187,16 @@
     Cache-Control = "no-store, no-cache, must-revalidate, max-age=0"
 
 [[headers]]
+  for = "/js/finskor-mali-import-core.js"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate, max-age=0"
+
+[[headers]]
+  for = "/js/finskor-mali-import-prep.js"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate, max-age=0"
+
+[[headers]]
   for = "/js/finskor-mali-import-nakit.js"
   [headers.values]
     Cache-Control = "no-store, no-cache, must-revalidate, max-age=0"
