@@ -1317,12 +1317,16 @@ function mizanTextIsleBeyanname(lines, result, year) {
     const isAltRakam = isAltRakamDot || isAltRakamPlain;
     // ". 2. Yurtdışı Satışlar" — ihracat tespiti için tek istisna
     const isYurtdisi = /^\.\s+\d+\.?\s*yurt/.test(ln);  // boşluk/nokta varyasyonlarını yakala
-    // KURAL: Alt rakam satırları atla (ihracat / verilen çek / KDV / kasa-banka hariç; alınan çek grup A içinde — ticAlacaklara YAZILMAZ)
+    // KURAL: Alt rakam satırları atla (ihracat / çek / KDV / kasa-banka hariç)
     const isOrtakAlt = isAltRakam && /ortaklardan alacak/.test(ln);
     let beyanAltLikiditeKey = null;
     if (isAltRakam && !isYurtdisi && !isOrtakAlt) {
+      // 101 / alınan çekler: hazır değerlerden alınır, ticari alacaklara eklenir (çift sayım engeli)
+      if (bolum === 'DONEN' && /alinan/.test(ln) && /cek/.test(ln)) {
+        beyanAltLikiditeKey = 'ticAlacaklar';
+      }
       // 103 / verilen çek (-): aktifte hazırdan düşülmez; pasif KV ticari borç (bilanço dengesi)
-      if (bolum === 'DONEN' && /verilen/.test(ln) && /cek|odeme emri/.test(ln)) {
+      else if (bolum === 'DONEN' && /verilen/.test(ln) && /cek|odeme emri/.test(ln)) {
         beyanAltLikiditeKey = 'kvTicBorclar';
       }
       // 190/191: "H. Diğer Dönen" altındaki ". 1. Devreden KDV" alt satırı —
@@ -1369,6 +1373,11 @@ function mizanTextIsleBeyanname(lines, result, year) {
         result._mizan19KdvAyriSatir = true; // 19'dan ayrıştı; enrich tekrar düşmesin
       } else if (beyanAltLikiditeKey === 'kvTicBorclar' && /verilen/.test(ln) && /cek|odeme emri/.test(ln)) {
         result.kvTicBorclar = (result.kvTicBorclar || 0) + Math.abs(cari);
+      } else if (beyanAltLikiditeKey === 'ticAlacaklar' && /alinan/.test(ln) && /cek/.test(ln)) {
+        const alinanCekCari = Math.abs(cari);
+        result.ticAlacaklar = (result.ticAlacaklar || 0) + alinanCekCari;
+        result._beyanAlinanCekReclassTotal = (result._beyanAlinanCekReclassTotal || 0) + alinanCekCari;
+        result.hazirDegerler = Math.max(0, (Number(result.hazirDegerler) || 0) - alinanCekCari);
       } else {
         const sign = line.includes('(-)') ? -1 : 1;
         result[beyanAltLikiditeKey] = (result[beyanAltLikiditeKey] || 0) + sign * cari;
@@ -1552,17 +1561,25 @@ function mizanTextIsleBeyanname(lines, result, year) {
     }
   })();
 
-  // Hazır değerler: alt kalem cari eksikse grup toplamına hizala (alt > grup ise alt toplamı koru)
+  // Hazır değerler: alt kalem cari eksikse grup toplamına hizala
+  // (alınan çek reclass varsa grup A'dan düşülmüş hedefe hizalanır)
   (function finalizeBeyanHazirDegerler() {
     const grup = Number(result._hazirBeyanGrupCari) || 0;
+    const alinanCekReclass = Number(result._beyanAlinanCekReclassTotal) || 0;
+    const hedefHazir = Math.max(0, grup - alinanCekReclass);
     const alt = Number(result.hazirDegerler) || 0;
     if (grup > 0) {
-      const tol = Math.max(500, grup * 0.02);
-      if (alt <= 0 || alt < grup - tol) {
-        result.hazirDegerler = grup;
+      if (alinanCekReclass > 0) {
+        result.hazirDegerler = hedefHazir;
+      } else {
+        const tol = Math.max(500, Math.max(hedefHazir, grup) * 0.02);
+        if (alt <= 0 || alt < hedefHazir - tol) {
+          result.hazirDegerler = hedefHazir;
+        }
       }
     }
     delete result._hazirBeyanGrupCari;
+    delete result._beyanAlinanCekReclassTotal;
   })();
 
   // Firma ünvanını birleştir

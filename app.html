@@ -8587,9 +8587,20 @@ function mizanTextIsleBeyanname(lines, result, year) {
     const isAltRakam = /^\.\s+\d+[\.\s]/.test(ln);    // rakam alt kalem: ". 1.", ". 3." vs.
     // ". 2. Yurtdışı Satışlar" — ihracat tespiti için tek istisna
     const isYurtdisi = /^\.\s+\d+\.?\s*yurt/.test(ln);  // boşluk/nokta varyasyonlarını yakala
-    // KURAL: Alt rakam satırları atla (ihracat hariç) — grup harf satırları ve gelir ana satırları al
+    // KURAL: Alt rakam satırları atla (ihracat hariç)
     const isOrtakAlt = isAltRakam && /ortaklardan alacak/.test(ln);
     if (isAltRakam && !isYurtdisi && !isOrtakAlt) {
+      // Alınan çekler: hazır değerlerden al, ticari alacaklara ekle
+      if (bolum === 'DONEN' && /alinan/.test(ln) && /cek/.test(ln)) {
+        const sayilarA = [...line.matchAll(/(?<![\w\d])-?[\d]+[\d.]*,\d{2,4}/g)]
+          .map((m) => parseFloat(m[0].replace(/\./g, '').replace(',', '.')))
+          .filter((n) => !isNaN(n));
+        if (sayilarA.length) {
+          const alinan = Math.abs(sayilarA[sayilarA.length - 1]);
+          result.ticAlacaklar = (result.ticAlacaklar || 0) + alinan;
+          result.hazirDegerler = Math.max(0, (Number(result.hazirDegerler) || 0) - alinan);
+        }
+      }
       // Verilen çekler (-): pasif KV ticari borç (103 — hazır değerden düşülmez)
       if (bolum === 'DONEN' && /verilen/.test(ln) && /cek|odeme emri/.test(ln)) {
         const sayilarV = [...line.matchAll(/(?<![\w\d])-?[\d]+[\d.]*,\d{2,4}/g)]
