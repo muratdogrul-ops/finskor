@@ -1564,8 +1564,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <li><a href="kgf.html" title="Kredi Garanti Fonu paketleri — genel bilgi">KGF rehberi</a></li>
     </ul>
     <div class="nav-cta">
-      <a href="nakitflow.html" class="btn-nakitflow" title="Nakit akış projeksiyonu — NakitFlow (kod gerektirmez)">📊 NakitFlow</a>
-      <a href="/fininsaat-erp.html" class="btn-fininsaat-erp" title="İnşaat ERP — FinSkor çerçevesi (içeride giriş)">🏗️ Fininsaat ERP</a>
       <a href="app.html" class="btn-primary">FinSkor'a giriş →</a>
     </div>
   </div>
@@ -2743,40 +2741,6 @@ try {
   opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:99999;
   box-shadow:0 8px 40px rgba(0,0,0,0.6);text-align:center;min-width:280px">
 </div>
-
-<script>
-/* Fininsaat ERP nav: insaat-erp-api.json içinde publicErpAppUrl (https...) varsa buton tam ERP uygulamasına gider; yoksa /fininsaat-erp.html (giriş + proxy) */
-(function () {
-  var LOCAL_ERP_URL = 'http://127.0.0.1:80/';
-  function wire() {
-    var a = document.querySelector('a.btn-fininsaat-erp');
-    if (!a) return;
-    var h = (location.hostname || '').toLowerCase();
-    var qs = new URLSearchParams(location.search || '');
-    /* Sadece senin kullanımın: localhost / yerel önizleme / adres çubuğuna ?local_erp=1 */
-    var localhostLike = h === 'localhost' || h === '127.0.0.1' || location.protocol === 'file:';
-    if (qs.get('local_erp') === '1' || localhostLike) {
-      a.href = LOCAL_ERP_URL;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      return;
-    }
-    fetch('/insaat-erp-api.json', { cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.json() : {}; })
-      .then(function (j) {
-        var pub = j && typeof j.publicErpAppUrl === 'string' ? j.publicErpAppUrl.trim() : '';
-        if (/^https?:\/\//i.test(pub)) {
-          a.href = pub;
-          a.target = '_blank';
-          a.rel = 'noopener noreferrer';
-        }
-      })
-      .catch(function () {});
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
-  else wire();
-})();
-</script>
 
 <script>
 /* Nav-slot dikey kaydırma: scrollbar / breakpoint / üçüncü parti style değişiminde ~1sn sonra kaçmayı kes */
